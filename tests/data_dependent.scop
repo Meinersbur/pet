@@ -1,0 +1,124 @@
+context: '[N, M] -> { [] : M >= 10 and M <= 1000 and N >= 10 and N <= 1000 }'
+arrays:
+- context: '[N, M] -> { [] : N >= 0 and M >= 0 }'
+  extent: '[N, M] -> { in1[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <=
+    -1 + M }'
+  element_type: int
+- context: '[N, M] -> { [] : N >= 0 }'
+  extent: '[N] -> { in2[i0] : i0 >= 0 and i0 <= -1 + N }'
+  value_bounds: '{ [i0] : i0 >= -1 and i0 <= 1 }'
+  element_type: int
+- context: '[N, M] -> { [] : N >= 0 }'
+  extent: '[N] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <= 9 }'
+  element_type: int
+- context: '[N, M] -> { [] : N >= 0 }'
+  extent: '[N] -> { C[i0] : i0 >= 0 and i0 <= -1 + N }'
+  element_type: int
+- context: '[N, M] -> { [] }'
+  extent: '{ m[] }'
+  element_type: int
+statements:
+- line: 23
+  domain: '[N] -> { S_0[i] : i <= -1 + N and i >= 0 }'
+  schedule: '[N] -> { S_0[i] -> [0, i, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_0[i] -> m[] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: +
+      arguments:
+      - type: access
+        relation: '[N] -> { S_0[i] -> [i] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '[N] -> { S_0[i] -> [1] }'
+        read: 1
+        write: 0
+- line: 25
+  domain: '[N, M] -> { S_1[i, j] : i <= -1 + N and i >= 0 and j <= -1 + M and j >=
+    0 }'
+  schedule: '[N, M] -> { S_1[i, j] -> [0, i, 1, j] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N, M] -> { S_1[i, j] -> m[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: g
+      arguments:
+      - type: call
+        name: h
+        arguments:
+        - type: access
+          relation: '[N, M] -> { S_1[i, j] -> m[] }'
+          read: 1
+          write: 0
+      - type: access
+        relation: '[N, M] -> { S_1[i, j] -> in1[i, j] }'
+        read: 1
+        write: 0
+- line: 26
+  domain: '[N] -> { S_2[i] : i <= -1 + N and i >= 0 }'
+  schedule: '[N] -> { S_2[i] -> [0, i, 2] }'
+  body:
+    type: call
+    name: compute_row
+    arguments:
+    - type: call
+      name: h
+      arguments:
+      - type: access
+        relation: '[N] -> { S_2[i] -> m[] }'
+        read: 1
+        write: 0
+    - type: access
+      relation: '[N] -> { S_2[i] -> A[i, o1] }'
+      read: 0
+      write: 1
+- line: 28
+  domain: '{ S_3[] }'
+  schedule: '{ S_3[] -> [1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_3[] -> A[5, 6] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_3[] -> [0] }'
+      read: 1
+      write: 0
+- line: 30
+  domain: '[N] -> { S_4[i] : i <= -3 + N and i >= 0 }'
+  schedule: '[N] -> { S_4[i] -> [2, i] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_4[i] -> C[i] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+      arguments:
+      - type: access
+        relation: '[N] -> { [S_4[i] -> [i1]] -> A[1 + i + i1, o1] }'
+        read: 1
+        write: 0
+        arguments:
+        - type: access
+          relation: '[N] -> { S_4[i] -> in2[i] }'
+          read: 1
+          write: 0

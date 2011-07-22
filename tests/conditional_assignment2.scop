@@ -1,0 +1,161 @@
+context: '[N, M] -> { [] : N >= 0 and M >= 0 }'
+arrays:
+- context: '[N, M] -> { [] : N >= 0 and M >= 0 }'
+  extent: '[N, M] -> { in1[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <=
+    -1 + M }'
+  element_type: int
+- context: '[N, M] -> { [] }'
+  extent: '{ in2[] }'
+  value_bounds: '{ [i0] : i0 >= -1 and i0 <= 1 }'
+  element_type: int
+- context: '[N, M] -> { [] : N >= 0 }'
+  extent: '[N] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <= 9 }'
+  element_type: int
+- context: '[N, M] -> { [] : N >= 0 }'
+  extent: '[N] -> { C[i0] : i0 >= 0 and i0 <= -1 + N }'
+  element_type: int
+- context: '[N, M] -> { [] }'
+  extent: '{ m[] }'
+  element_type: int
+statements:
+- line: 21
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> in2[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: g2
+- line: 23
+  domain: '[N] -> { S_1[i] : i <= -1 + N and i >= 0 }'
+  schedule: '[N] -> { S_1[i] -> [1, i, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_1[i] -> m[] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: +
+      arguments:
+      - type: access
+        relation: '[N] -> { S_1[i] -> [i] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '[N] -> { S_1[i] -> [1] }'
+        read: 1
+        write: 0
+- line: 25
+  domain: '[N, M] -> { S_2[i, j] : i <= -1 + N and i >= 0 and j <= -1 + M and j >=
+    0 }'
+  schedule: '[N, M] -> { S_2[i, j] -> [1, i, 1, j] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N, M] -> { S_2[i, j] -> m[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: g
+      arguments:
+      - type: call
+        name: h
+        arguments:
+        - type: access
+          relation: '[N, M] -> { S_2[i, j] -> m[] }'
+          read: 1
+          write: 0
+      - type: access
+        relation: '[N, M] -> { S_2[i, j] -> in1[i, j] }'
+        read: 1
+        write: 0
+- line: 26
+  domain: '[N] -> { S_3[i] : i <= -1 + N and i >= 0 }'
+  schedule: '[N] -> { S_3[i] -> [1, i, 2] }'
+  body:
+    type: call
+    name: compute_row
+    arguments:
+    - type: call
+      name: h
+      arguments:
+      - type: access
+        relation: '[N] -> { S_3[i] -> m[] }'
+        read: 1
+        write: 0
+    - type: access
+      relation: '[N] -> { S_3[i] -> A[i, o1] }'
+      read: 0
+      write: 1
+- line: 28
+  domain: '{ S_4[] }'
+  schedule: '{ S_4[] -> [2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_4[] -> A[5, 6] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_4[] -> [0] }'
+      read: 1
+      write: 0
+- line: 30
+  domain: '[N] -> { S_5[i] : i <= -1 + N and i >= 0 }'
+  schedule: '[N] -> { S_5[i] -> [3, i] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_5[i] -> C[i] }'
+      read: 0
+      write: 1
+    - type: ternary
+      arguments:
+      - type: access
+        relation: '[N] -> { [S_5[i] -> [i1]] -> [1] : i1 >= -i and i1 <= -1 + N -
+          i; [S_5[i] -> [i1]] -> [0] : i1 <= -1 - i or (i1 >= -i and i1 >= N - i)
+          }'
+        read: 1
+        write: 0
+        arguments:
+        - type: access
+          relation: '[N] -> { S_5[i] -> in2[] }'
+          read: 1
+          write: 0
+      - type: call
+        name: f
+        arguments:
+        - type: access
+          relation: '[N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and i1
+            <= -1 + N - i }'
+          read: 1
+          write: 0
+          arguments:
+          - type: access
+            relation: '[N] -> { S_5[i] -> in2[] }'
+            read: 1
+            write: 0
+      - type: access
+        relation: '[N] -> { [S_5[i] -> [i1]] -> [0] : i1 <= -1 - i or (i1 >= -i and
+          i1 >= N - i) }'
+        read: 1
+        write: 0
+        arguments:
+        - type: access
+          relation: '[N] -> { S_5[i] -> in2[] }'
+          read: 1
+          write: 0

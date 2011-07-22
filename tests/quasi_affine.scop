@@ -1,0 +1,67 @@
+context: '[N] -> { [] : N >= 0 }'
+arrays:
+- context: '{ [] }'
+  extent: '{ in[] }'
+  element_type: int
+- context: '[N] -> { [] : N >= 0 }'
+  extent: '[N] -> { A[i0] : i0 >= 0 and i0 <= -1 + N }'
+  element_type: int
+- context: '[N] -> { [] }'
+  extent: '{ out[] }'
+  element_type: int
+statements:
+- line: 14
+  domain: '[N] -> { S_0[] : N >= 0 }'
+  schedule: '{ S_0[] -> [0, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> A[0] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[] -> in[] }'
+      read: 1
+      write: 0
+- line: 16
+  domain: '[N] -> { S_1[i] : i <= N and i >= 1 and N >= 0 }'
+  schedule: '[N] -> { S_1[i] -> [0, 1, i, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_1[i] -> A[i] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+      arguments:
+      - type: call
+        name: g
+        arguments:
+        - type: access
+          relation: '[N] -> { S_1[i] -> A[o0] : (2o0 <= i and 2o0 >= -1 + i and i
+            >= 0) or (2o0 >= i and 2o0 <= 1 + i and i <= -1) }'
+          read: 1
+          write: 0
+- line: 18
+  domain: '[N] -> { S_2[] : N >= 0 }'
+  schedule: '{ S_2[] -> [0, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[] -> out[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: g
+      arguments:
+      - type: access
+        relation: '[N] -> { S_2[] -> A[N] }'
+        read: 1
+        write: 0

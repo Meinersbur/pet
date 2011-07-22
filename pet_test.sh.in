@@ -1,0 +1,10 @@
+#!/bin/sh
+
+EXEEXT=@EXEEXT@
+srcdir=@srcdir@
+
+for i in $srcdir/tests/*.c; do
+	echo $i;
+	(./pet$EXEEXT $i > test.scop &&
+	 ./pet_scop_cmp$EXEEXT test.scop ${i%.c}.scop) || exit
+done

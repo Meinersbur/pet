@@ -1,0 +1,21 @@
+context: '{ [] }'
+arrays:
+- context: '{ [] }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  element_type: int
+statements:
+- line: 9
+  domain: '{ S_0[i] : (i <= 4 and i >= 0) or (i <= 9 and i >= 6) }'
+  schedule: '{ S_0[i] -> [0, i] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i] -> a[i] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[i] -> [i] }'
+      read: 1
+      write: 0
