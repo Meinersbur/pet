@@ -830,7 +830,17 @@ __isl_give isl_set *PetScan::extract_condition(UnaryOperator *expr)
 	}
 }
 
+/* Extract a set of values satisfying the condition "expr != 0".
+ */
+__isl_give isl_set *PetScan::extract_implicit_condition(Expr *expr)
+{
+	return isl_pw_aff_non_zero_set(extract_affine(expr));
+}
+
 /* Extract a set of values satisfying the condition expressed by "expr".
+ *
+ * If the expression doesn't look like a condition, we assume it
+ * is an affine expression and return the condition "expr != 0".
  */
 __isl_give isl_set *PetScan::extract_condition(Expr *expr)
 {
@@ -845,10 +855,8 @@ __isl_give isl_set *PetScan::extract_condition(Expr *expr)
 	if (expr->getStmtClass() == Stmt::UnaryOperatorClass)
 		return extract_condition(cast<UnaryOperator>(expr));
 
-	if (expr->getStmtClass() != Stmt::BinaryOperatorClass) {
-		unsupported(expr);
-		return NULL;
-	}
+	if (expr->getStmtClass() != Stmt::BinaryOperatorClass)
+		return extract_implicit_condition(expr);
 
 	comp = cast<BinaryOperator>(expr);
 	switch (comp->getOpcode()) {
@@ -863,8 +871,7 @@ __isl_give isl_set *PetScan::extract_condition(Expr *expr)
 	case BO_LOr:
 		return extract_boolean(comp);
 	default:
-		unsupported(expr);
-		return NULL;
+		return extract_implicit_condition(expr);
 	}
 }
 

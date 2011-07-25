@@ -123,6 +123,8 @@ private:
 	__isl_give isl_pw_aff *extract_affine(clang::ArraySubscriptExpr *expr);
 	__isl_give isl_pw_aff *extract_affine(clang::ConditionalOperator *expr);
 
+	__isl_give isl_set *extract_implicit_condition(clang::Expr *expr);
+
 	__isl_give isl_set *extract_condition(clang::UnaryOperator *expr);
 	__isl_give isl_set *extract_condition(clang::Expr *expr);
 	__isl_give isl_set *extract_comparison(clang::BinaryOperator *expr);
