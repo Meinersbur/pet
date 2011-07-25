@@ -13,8 +13,15 @@ AC_SUBST(CLANG_LDFLAGS)
 AC_SUBST(CLANG_LIBS)
 AX_SUBMODULE(clang,system,system)
 llvm_config="llvm-config"
+AC_CHECK_PROG([llvm_config_found], ["$llvm_config"], [yes])
 if test "x$with_clang_prefix" != "x"; then
 	llvm_config="$with_clang_prefix/bin/llvm-config"
+	if test -x "$llvm_config"; then
+		llvm_config_found=yes
+	fi
+fi
+if test "$llvm_config_found" != yes; then
+	AC_MSG_ERROR([llvm-config not found])
 fi
 CLANG_CXXFLAGS=`$llvm_config --cxxflags`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
