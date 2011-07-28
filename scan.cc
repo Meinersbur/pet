@@ -14,6 +14,8 @@
 #include "scop.h"
 #include "scop_plus.h"
 
+#include "config.h"
+
 using namespace std;
 using namespace clang;
 
@@ -1494,7 +1496,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr)
 {
 	struct pet_stmt *ps;
 	SourceLocation loc = stmt->getLocStart();
-	int line = PP.getSourceManager().getInstantiationLineNumber(loc);
+	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 
 	expr = resolve_nested(expr);
 	ps = pet_stmt_from_pet_expr(ctx, line, n_stmt++, expr);

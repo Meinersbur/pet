@@ -29,6 +29,17 @@ CLANG_LIBS=`$llvm_config --libs`
 CLANG_PREFIX=`$llvm_config --prefix`
 AC_DEFINE_UNQUOTED(CLANG_PREFIX, ["$CLANG_PREFIX"], [Clang installation prefix])
 
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CLANG_CXXFLAGS $CPPFLAGS"
+AC_LANG_PUSH(C++)
+AC_CHECK_HEADER([clang/Basic/SourceLocation.h], [],
+	[AC_ERROR([clang header file not found])])
+AC_EGREP_HEADER([getExpansionLineNumber], [clang/Basic/SourceLocation.h], [],
+	[AC_DEFINE([getExpansionLineNumber], [getInstantiationLineNumber],
+	[Define to getInstantiationLineNumber for older versions of clang])])
+AC_LANG_POP
+CPPFLAGS="$SAVE_CPPFLAGS"
+
 AX_SUBMODULE(isl,build|bundled|system,bundled)
 AM_CONDITIONAL(BUNDLED_ISL, test $with_isl = bundled)
 
