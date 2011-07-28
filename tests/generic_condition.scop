@@ -1,0 +1,21 @@
+context: '{ [] }'
+arrays:
+- context: '{ [] }'
+  extent: '{ a[] }'
+  element_type: int
+statements:
+- line: 8
+  domain: '[N] -> { S_0[i] : i >= 0 and N <= -1 }'
+  schedule: '[N] -> { S_0[i] -> [0, i] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_0[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_0[i] -> [5] }'
+      read: 1
+      write: 0

@@ -1290,6 +1290,88 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 	return scop;
 }
 
+/* Check whether "expr" expresses a simple loop bound on "iv".
+ * In particular, if "up" is set then "expr" should be of the form
+ *
+ *	iv < ...	or	iv <= ...
+ *
+ * otherwise, it should be of the form
+ *
+ *	iv > ...	or	iv >= ...
+ */
+static bool is_simple_bound(Expr *expr, ValueDecl *iv, bool up)
+{
+	BinaryOperator *op;
+	BinaryOperatorKind opcode;
+	Expr *lhs;
+
+	if (!expr)
+		return false;
+
+	if (expr->getStmtClass() != Stmt::BinaryOperatorClass)
+		return false;
+
+	op = cast<BinaryOperator>(expr);
+	opcode = op->getOpcode();
+
+	if (up) {
+		if (opcode != BO_LT && opcode != BO_LE)
+			return false;
+	} else {
+		if (opcode != BO_GT && opcode != BO_GE)
+			return false;
+	}
+
+	lhs = op->getLHS();
+	if (lhs->getStmtClass() == Stmt::ImplicitCastExprClass)
+		lhs = cast<ImplicitCastExpr>(lhs)->getSubExpr();
+	if (lhs->getStmtClass() != Stmt::DeclRefExprClass)
+		return false;
+
+	if (cast<DeclRefExpr>(lhs)->getDecl() != iv)
+		return false;
+
+	return true;
+}
+
+/* Extend a condition on a given iteration of a loop to one that
+ * imposes the same condition on all previous iterations.
+ * "domain" expresses the lower [upper] bound on the iterations
+ * when up is set [not set].
+ *
+ * In particular, we construct the condition (when up is set)
+ *
+ *	forall i' : (domain(i') and i' <= i) => cond(i')
+ *
+ * which is equivalent to
+ *
+ *	not exists i' : domain(i') and i' <= i and not cond(i')
+ *
+ * We construct this set by negating cond, applying a map
+ *
+ *	{ [i'] -> [i] : domain(i') and i' <= i }
+ *
+ * and then negating the result again.
+ */
+static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
+	__isl_take isl_set *domain, bool up)
+{
+	isl_map *previous_to_this;
+
+	if (up)
+		previous_to_this = isl_map_lex_le(isl_set_get_dim(domain));
+	else
+		previous_to_this = isl_map_lex_ge(isl_set_get_dim(domain));
+
+	previous_to_this = isl_map_intersect_domain(previous_to_this, domain);
+
+	cond = isl_set_complement(cond);
+	cond = isl_set_apply(cond, previous_to_this);
+	cond = isl_set_complement(cond);
+
+	return cond;
+}
+
 /* Construct a pet_scop for a for statement.
  * The for loop is required to be of the form
  *
@@ -1302,13 +1384,17 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
  * We extract a pet_scop for the body and then embed it in a loop with
  * iteration domain and schedule
  *
- *	{ [i] : i >= init and condition }
+ *	{ [i] : i >= init and condition' }
  *	{ [i] -> [i] }
  *
  * or
  *
- *	{ [i] : i <= init and condition }
+ *	{ [i] : i <= init and condition' }
  *	{ [i] -> [-i] }
+ *
+ * Where condition' is equal to condition if the latter is
+ * a simple upper [lower] bound and a condition that is extended
+ * to apply to all previous iterations otherwise.
  *
  * Before extracting a pet_scop from the body we remove all
  * assignments in assigned_value to variables that are assigned
@@ -1351,6 +1437,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
+	domain = embed(domain, isl_id_copy(id));
+	if (!is_simple_bound(stmt->getCond(), iv, up))
+		cond = valid_for_each_iteration(cond, isl_set_copy(domain), up);
 	domain = isl_set_intersect(domain, cond);
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
 	dim = isl_dim_from_domain(isl_set_get_dim(domain));
