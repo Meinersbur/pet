@@ -1232,7 +1232,7 @@ bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, bool &up)
 /* Embed the given iteration domain in an extra outer loop
  * with induction variable "var".
  * If this variable appeared as a parameter in the constraints,
- * it is replace by the new outermost dimension.
+ * it is replaced by the new outermost dimension.
  */
 static __isl_give isl_set *embed(__isl_take isl_set *set,
 	__isl_take isl_id *var)
