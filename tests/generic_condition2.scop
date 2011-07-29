@@ -1,0 +1,23 @@
+context: '{ [] }'
+arrays:
+- context: '{ [] }'
+  extent: '{ a[] }'
+  element_type: int
+statements:
+- line: 9
+  domain: '{ S_0[i, j] : (i >= 0 and i <= 4 and j >= i and j <= 0) or (exists (e0
+    = [(2 + 4i)/5]: i >= 2 and i <= 4 and j >= i and 5e0 <= 2 + 4i and 5e0 >= -2 +
+    4i and 5e0 <= 5i - j)) }'
+  schedule: '{ S_0[i, j] -> [0, i, j] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i, j] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[i, j] -> [5] }'
+      read: 1
+      write: 0

@@ -1290,48 +1290,18 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 	return scop;
 }
 
-/* Check whether "expr" expresses a simple loop bound on "iv".
- * In particular, if "up" is set then "expr" should be of the form
- *
- *	iv < ...	or	iv <= ...
- *
- * otherwise, it should be of the form
- *
- *	iv > ...	or	iv >= ...
+/* Check whether "cond" expresses a simple loop bound
+ * on the only set dimension.
+ * In particular, if "up" is set then "cond" should contain only
+ * upper bounds on the set dimension.
+ * Otherwise, it should contain only lower bounds.
  */
-static bool is_simple_bound(Expr *expr, ValueDecl *iv, bool up)
+static bool is_simple_bound(__isl_keep isl_set *cond, bool up)
 {
-	BinaryOperator *op;
-	BinaryOperatorKind opcode;
-	Expr *lhs;
-
-	if (!expr)
-		return false;
-
-	if (expr->getStmtClass() != Stmt::BinaryOperatorClass)
-		return false;
-
-	op = cast<BinaryOperator>(expr);
-	opcode = op->getOpcode();
-
-	if (up) {
-		if (opcode != BO_LT && opcode != BO_LE)
-			return false;
-	} else {
-		if (opcode != BO_GT && opcode != BO_GE)
-			return false;
-	}
-
-	lhs = op->getLHS();
-	if (lhs->getStmtClass() == Stmt::ImplicitCastExprClass)
-		lhs = cast<ImplicitCastExpr>(lhs)->getSubExpr();
-	if (lhs->getStmtClass() != Stmt::DeclRefExprClass)
-		return false;
-
-	if (cast<DeclRefExpr>(lhs)->getDecl() != iv)
-		return false;
-
-	return true;
+	if (up)
+		return !isl_set_dim_has_lower_bound(cond, isl_dim_set, 0);
+	else
+		return !isl_set_dim_has_upper_bound(cond, isl_dim_set, 0);
 }
 
 /* Extend a condition on a given iteration of a loop to one that
@@ -1438,7 +1408,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
-	if (!is_simple_bound(stmt->getCond(), iv, up))
+	if (!is_simple_bound(cond, up))
 		cond = valid_for_each_iteration(cond, isl_set_copy(domain), up);
 	domain = isl_set_intersect(domain, cond);
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
