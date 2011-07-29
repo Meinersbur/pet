@@ -78,11 +78,11 @@ private:
 	clang::BinaryOperator *extract_initialization(clang::ForStmt *stmt);
 	clang::ValueDecl *extract_induction_variable(clang::BinaryOperator *stmt);
 	bool check_unary_increment(clang::UnaryOperator *op,
-				clang::ValueDecl *iv, bool &up);
+				clang::ValueDecl *iv, isl_int &inc);
 	bool check_compound_increment(clang::CompoundAssignOperator *op,
-				clang::ValueDecl *iv, bool &up);
+				clang::ValueDecl *iv, isl_int &inc);
 	bool check_increment(clang::ForStmt *stmt, clang::ValueDecl *iv,
-				bool &up);
+				isl_int &inc);
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
 

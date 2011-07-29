@@ -1,0 +1,22 @@
+context: '[N] -> { [] : N >= 0 }'
+arrays:
+- context: '[N] -> { [] : N >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
+  element_type: int
+statements:
+- line: 8
+  domain: '[N] -> { S_0[i] : exists (e0 = [(i)/3]: 3e0 = i and i >= 0 and i <= -1
+    + N) }'
+  schedule: '[N] -> { S_0[i] -> [0, i] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_0[i] -> a[i] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_0[i] -> [i] }'
+      read: 1
+      write: 0

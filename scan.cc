@@ -1188,10 +1188,10 @@ ValueDecl *PetScan::extract_induction_variable(BinaryOperator *init)
 }
 
 /* Check that op is of the form iv++ or iv--.
- * "up" is set to true if the induction variable is incremented.
+ * "inc" is accordingly set to 1 or -1.
  */
 bool PetScan::check_unary_increment(UnaryOperator *op, clang::ValueDecl *iv,
-	bool &up)
+	isl_int &inc)
 {
 	Expr *sub;
 	DeclRefExpr *ref;
@@ -1201,7 +1201,10 @@ bool PetScan::check_unary_increment(UnaryOperator *op, clang::ValueDecl *iv,
 		return false;
 	}
 
-	up = op->isIncrementOp();
+	if (op->isIncrementOp())
+		isl_int_set_si(inc, 1);
+	else
+		isl_int_set_si(inc, -1);
 
 	sub = op->getSubExpr();
 	if (sub->getStmtClass() != Stmt::DeclRefExprClass) {
@@ -1218,16 +1221,15 @@ bool PetScan::check_unary_increment(UnaryOperator *op, clang::ValueDecl *iv,
 	return true;
 }
 
-/* Check that op is of the form iv += 1 or iv -= 1.
- * "up" is set to true if the induction variable is incremented.
+/* Check that op is of the form iv += cst or iv -= cst.
+ * "inc" is set to cst or -cst accordingly.
  */
 bool PetScan::check_compound_increment(CompoundAssignOperator *op,
-	clang::ValueDecl *iv, bool &up)
+	clang::ValueDecl *iv, isl_int &inc)
 {
 	Expr *lhs, *rhs;
 	DeclRefExpr *ref;
-	isl_int v;
-	bool one;
+	bool neg = false;
 
 	BinaryOperatorKind opcode;
 
@@ -1236,7 +1238,8 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 		unsupported(op);
 		return false;
 	}
-	up = opcode == BO_AddAssign;
+	if (opcode == BO_SubAssign)
+		neg = true;
 
 	lhs = op->getLHS();
 	if (lhs->getStmtClass() != Stmt::DeclRefExprClass) {
@@ -1259,7 +1262,7 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 			return false;
 		}
 
-		up = !up;
+		neg = !neg;
 
 		rhs = op->getSubExpr();
 	}
@@ -1269,15 +1272,9 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 		return false;
 	}
 
-	isl_int_init(v);
-	extract_int(cast<IntegerLiteral>(rhs), &v);
-	one = isl_int_is_one(v);
-	isl_int_clear(v);
-
-	if (!one) {
-		unsupported(op);
-		return false;
-	}
+	extract_int(cast<IntegerLiteral>(rhs), &inc);
+	if (neg)
+		isl_int_neg(inc, inc);
 
 	return true;
 }
@@ -1286,7 +1283,7 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
  * (or decrements) the induction variable "iv".
  * "up" is set to true if the induction variable is incremented.
  */
-bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, bool &up)
+bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, isl_int &v)
 {
 	Stmt *inc = stmt->getInc();
 
@@ -1296,10 +1293,10 @@ bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, bool &up)
 	}
 
 	if (inc->getStmtClass() == Stmt::UnaryOperatorClass)
-		return check_unary_increment(cast<UnaryOperator>(inc), iv, up);
+		return check_unary_increment(cast<UnaryOperator>(inc), iv, v);
 	if (inc->getStmtClass() == Stmt::CompoundAssignOperatorClass)
 		return check_compound_increment(
-				cast<CompoundAssignOperator>(inc), iv, up);
+				cast<CompoundAssignOperator>(inc), iv, v);
 
 	unsupported(inc);
 	return false;
@@ -1370,9 +1367,9 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
  * upper bounds on the set dimension.
  * Otherwise, it should contain only lower bounds.
  */
-static bool is_simple_bound(__isl_keep isl_set *cond, bool up)
+static bool is_simple_bound(__isl_keep isl_set *cond, isl_int inc)
 {
-	if (up)
+	if (isl_int_is_pos(inc))
 		return !isl_set_dim_has_lower_bound(cond, isl_dim_set, 0);
 	else
 		return !isl_set_dim_has_upper_bound(cond, isl_dim_set, 0);
@@ -1398,11 +1395,11 @@ static bool is_simple_bound(__isl_keep isl_set *cond, bool up)
  * and then negating the result again.
  */
 static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
-	__isl_take isl_set *domain, bool up)
+	__isl_take isl_set *domain, isl_int inc)
 {
 	isl_map *previous_to_this;
 
-	if (up)
+	if (isl_int_is_pos(inc))
 		previous_to_this = isl_map_lex_le(isl_set_get_dim(domain));
 	else
 		previous_to_this = isl_map_lex_ge(isl_set_get_dim(domain));
@@ -1414,6 +1411,34 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
 	cond = isl_set_complement(cond);
 
 	return cond;
+}
+
+/* Construct a domain of the form
+ *
+ * [id] -> { [] : exists a: id = init + a * inc and a >= 0 }
+ */
+static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
+	__isl_take isl_pw_aff *init, isl_int inc)
+{
+	isl_aff *aff;
+	isl_dim *dim;
+	isl_set *set;
+
+	init = isl_pw_aff_insert_dims(init, isl_dim_set, 0, 1);
+	aff = isl_aff_zero(isl_local_space_from_dim(isl_pw_aff_get_dim(init)));
+	aff = isl_aff_add_coefficient(aff, isl_dim_set, 0, inc);
+	init = isl_pw_aff_add(init, isl_pw_aff_from_aff(aff));
+
+	dim = isl_dim_set_alloc(isl_pw_aff_get_ctx(init), 1, 1);
+	dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
+	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
+
+	set = isl_pw_aff_eq_set(isl_pw_aff_from_aff(aff), init);
+
+	set = isl_set_lower_bound_si(set, isl_dim_set, 0, 0);
+
+	return isl_set_project_out(set, isl_dim_set, 0, 1);
 }
 
 /* Construct a pet_scop for a for statement.
@@ -1440,6 +1465,10 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
  * a simple upper [lower] bound and a condition that is extended
  * to apply to all previous iterations otherwise.
  *
+ * If the stride of the loop is not 1, then "i >= init" is replaced by
+ *
+ *	(exists a: i = init + stride * a and a >= 0)
+ *
  * Before extracting a pet_scop from the body we remove all
  * assignments in assigned_value to variables that are assigned
  * somewhere in the body of the loop.
@@ -1454,8 +1483,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_set *cond;
 	isl_id *id;
 	struct pet_scop *scop;
-	bool up = true;
 	assigned_value_cache cache(assigned_value);
+	isl_int inc;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -1467,29 +1496,38 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (!iv)
 		return NULL;
 
-	if (!check_increment(stmt, iv, up))
+	isl_int_init(inc);
+	if (!check_increment(stmt, iv, inc)) {
+		isl_int_clear(inc);
 		return NULL;
+	}
 
 	assigned_value[iv] = NULL;
 	clear_assignments clear(assigned_value);
 	clear.TraverseStmt(stmt->getBody());
 
-	domain = extract_comparison(up ? BO_GE : BO_LE,
-			init->getLHS(), init->getRHS(), init);
-
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
+
+	if (isl_int_is_one(inc) || isl_int_is_negone(inc))
+		domain = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
+				init->getLHS(), init->getRHS(), init);
+	else {
+		isl_pw_aff *lb = extract_affine(init->getRHS());
+		domain = strided_domain(isl_id_copy(id), lb, inc);
+	}
 
 	cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
-	if (!is_simple_bound(cond, up))
-		cond = valid_for_each_iteration(cond, isl_set_copy(domain), up);
+	if (!is_simple_bound(cond, inc))
+		cond = valid_for_each_iteration(cond,
+						isl_set_copy(domain), inc);
 	domain = isl_set_intersect(domain, cond);
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
 	dim = isl_dim_from_domain(isl_set_get_dim(domain));
 	dim = isl_dim_add(dim, isl_dim_out, 1);
 	sched = isl_map_universe(dim);
-	if (up)
+	if (isl_int_is_pos(inc))
 		sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
 	else
 		sched = isl_map_oppose(sched, isl_dim_in, 0, isl_dim_out, 0);
@@ -1497,6 +1535,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	scop = extract(stmt->getBody());
 	scop = pet_scop_embed(scop, domain, sched, id);
 
+	isl_int_clear(inc);
 	return scop;
 }
 
