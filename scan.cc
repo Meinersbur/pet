@@ -1221,6 +1221,85 @@ bool PetScan::check_unary_increment(UnaryOperator *op, clang::ValueDecl *iv,
 	return true;
 }
 
+/* If the isl_pw_aff on which isl_pw_aff_foreach_piece is called
+ * has a single constant expression on a universe domain, then
+ * put this constant in *user.
+ */
+static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
+	void *user)
+{
+	isl_int *inc = (isl_int *)user;
+	int res = 0;
+
+	if (!isl_set_plain_is_universe(set) || !isl_aff_is_cst(aff))
+		res = -1;
+	else
+		isl_aff_get_constant(aff, inc);
+
+	isl_set_free(set);
+	isl_aff_free(aff);
+
+	return res;
+}
+
+/* Check if op is of the form
+ *
+ *	iv = iv + inc
+ *
+ * with inc a constant and set "inc" accordingly.
+ *
+ * We extract an affine expression from the RHS and the subtract iv.
+ * The result should be a constant.
+ */
+bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
+	isl_int &inc)
+{
+	Expr *lhs;
+	DeclRefExpr *ref;
+	isl_id *id;
+	isl_dim *dim;
+	isl_aff *aff;
+	isl_pw_aff *val;
+
+	if (op->getOpcode() != BO_Assign) {
+		unsupported(op);
+		return false;
+	}
+
+	lhs = op->getLHS();
+	if (lhs->getStmtClass() != Stmt::DeclRefExprClass) {
+		unsupported(op);
+		return false;
+	}
+
+	ref = cast<DeclRefExpr>(lhs);
+	if (ref->getDecl() != iv) {
+		unsupported(op);
+		return false;
+	}
+
+	val = extract_affine(op->getRHS());
+
+	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
+
+	dim = isl_dim_set_alloc(ctx, 1, 0);
+	dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
+	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
+
+	val = isl_pw_aff_sub(val, isl_pw_aff_from_aff(aff));
+
+	if (isl_pw_aff_foreach_piece(val, &extract_cst, &inc) < 0) {
+		isl_pw_aff_free(val);
+		unsupported(op);
+		return false;
+	}
+
+	isl_pw_aff_free(val);
+
+	return true;
+}
+
 /* Check that op is of the form iv += cst or iv -= cst.
  * "inc" is set to cst or -cst accordingly.
  */
@@ -1297,6 +1376,8 @@ bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, isl_int &v)
 	if (inc->getStmtClass() == Stmt::CompoundAssignOperatorClass)
 		return check_compound_increment(
 				cast<CompoundAssignOperator>(inc), iv, v);
+	if (inc->getStmtClass() == Stmt::BinaryOperatorClass)
+		return check_binary_increment(cast<BinaryOperator>(inc), iv, v);
 
 	unsupported(inc);
 	return false;

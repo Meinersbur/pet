@@ -79,6 +79,8 @@ private:
 	clang::ValueDecl *extract_induction_variable(clang::BinaryOperator *stmt);
 	bool check_unary_increment(clang::UnaryOperator *op,
 				clang::ValueDecl *iv, isl_int &inc);
+	bool check_binary_increment(clang::BinaryOperator *op,
+				clang::ValueDecl *iv, isl_int &inc);
 	bool check_compound_increment(clang::CompoundAssignOperator *op,
 				clang::ValueDecl *iv, isl_int &inc);
 	bool check_increment(clang::ForStmt *stmt, clang::ValueDecl *iv,
