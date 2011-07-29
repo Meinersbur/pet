@@ -1187,30 +1187,17 @@ ValueDecl *PetScan::extract_induction_variable(BinaryOperator *init)
 	return decl;
 }
 
-/* Check that the increment of the given for loop increments
- * (or decrements) the induction variable "iv".
+/* Check that op is of the form iv++ or iv--.
  * "up" is set to true if the induction variable is incremented.
  */
-bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, bool &up)
+bool PetScan::check_unary_increment(UnaryOperator *op, clang::ValueDecl *iv,
+	bool &up)
 {
-	Stmt *inc = stmt->getInc();
-	UnaryOperator *op;
 	Expr *sub;
 	DeclRefExpr *ref;
 
-	if (!inc) {
-		unsupported(stmt);
-		return false;
-	}
-
-	if (inc->getStmtClass() != Stmt::UnaryOperatorClass) {
-		unsupported(inc);
-		return false;
-	}
-
-	op = cast<UnaryOperator>(inc);
 	if (!op->isIncrementDecrementOp()) {
-		unsupported(inc);
+		unsupported(op);
 		return false;
 	}
 
@@ -1218,17 +1205,104 @@ bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, bool &up)
 
 	sub = op->getSubExpr();
 	if (sub->getStmtClass() != Stmt::DeclRefExprClass) {
-		unsupported(inc);
+		unsupported(op);
 		return false;
 	}
 
 	ref = cast<DeclRefExpr>(sub);
 	if (ref->getDecl() != iv) {
-		unsupported(inc);
+		unsupported(op);
 		return false;
 	}
 
 	return true;
+}
+
+/* Check that op is of the form iv += 1 or iv -= 1.
+ * "up" is set to true if the induction variable is incremented.
+ */
+bool PetScan::check_compound_increment(CompoundAssignOperator *op,
+	clang::ValueDecl *iv, bool &up)
+{
+	Expr *lhs, *rhs;
+	DeclRefExpr *ref;
+	isl_int v;
+	bool one;
+
+	BinaryOperatorKind opcode;
+
+	opcode = op->getOpcode();
+	if (opcode != BO_AddAssign && opcode != BO_SubAssign) {
+		unsupported(op);
+		return false;
+	}
+	up = opcode == BO_AddAssign;
+
+	lhs = op->getLHS();
+	if (lhs->getStmtClass() != Stmt::DeclRefExprClass) {
+		unsupported(op);
+		return false;
+	}
+
+	ref = cast<DeclRefExpr>(lhs);
+	if (ref->getDecl() != iv) {
+		unsupported(op);
+		return false;
+	}
+
+	rhs = op->getRHS();
+
+	if (rhs->getStmtClass() == Stmt::UnaryOperatorClass) {
+		UnaryOperator *op = cast<UnaryOperator>(rhs);
+		if (op->getOpcode() != UO_Minus) {
+			unsupported(op);
+			return false;
+		}
+
+		up = !up;
+
+		rhs = op->getSubExpr();
+	}
+
+	if (rhs->getStmtClass() != Stmt::IntegerLiteralClass) {
+		unsupported(op);
+		return false;
+	}
+
+	isl_int_init(v);
+	extract_int(cast<IntegerLiteral>(rhs), &v);
+	one = isl_int_is_one(v);
+	isl_int_clear(v);
+
+	if (!one) {
+		unsupported(op);
+		return false;
+	}
+
+	return true;
+}
+
+/* Check that the increment of the given for loop increments
+ * (or decrements) the induction variable "iv".
+ * "up" is set to true if the induction variable is incremented.
+ */
+bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, bool &up)
+{
+	Stmt *inc = stmt->getInc();
+
+	if (!inc) {
+		unsupported(stmt);
+		return false;
+	}
+
+	if (inc->getStmtClass() == Stmt::UnaryOperatorClass)
+		return check_unary_increment(cast<UnaryOperator>(inc), iv, up);
+	if (inc->getStmtClass() == Stmt::CompoundAssignOperatorClass)
+		return check_compound_increment(
+				cast<CompoundAssignOperator>(inc), iv, up);
+
+	unsupported(inc);
+	return false;
 }
 
 /* Embed the given iteration domain in an extra outer loop

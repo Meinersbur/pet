@@ -77,6 +77,10 @@ private:
 
 	clang::BinaryOperator *extract_initialization(clang::ForStmt *stmt);
 	clang::ValueDecl *extract_induction_variable(clang::BinaryOperator *stmt);
+	bool check_unary_increment(clang::UnaryOperator *op,
+				clang::ValueDecl *iv, bool &up);
+	bool check_compound_increment(clang::CompoundAssignOperator *op,
+				clang::ValueDecl *iv, bool &up);
 	bool check_increment(clang::ForStmt *stmt, clang::ValueDecl *iv,
 				bool &up);
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
