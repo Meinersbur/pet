@@ -5,14 +5,10 @@ arrays:
   element_type: int
 statements:
 - line: 10
-  domain: '[N] -> { S_0[i] : exists (e0 = [(10 + N)/4294967296], e1 = [(4294967295
-    - i)/4294967296]: i >= 0 and i <= 4294967295 and 4294967296e1 >= -i and 4294967296e1
-    <= 19 - i and 4294967296e0 <= 10 + N and 4294967296e0 >= -4294967285 + N and 4294967296e1
-    <= 9 + N - i - 4294967296e0) }'
-  schedule: '[N] -> { S_0[i] -> [0, o1] : exists (e0 = [(10 + N)/4294967296], e1 =
-    [(-i + o1)/4294967296]: 4294967296e1 = -i + o1 and o1 >= 0 and o1 <= 19 and 4294967296e0
-    <= 10 + N and 4294967296e0 >= -4294967285 + N and 4294967296e0 <= 9 + N - o1 and
-    i >= 0 and i <= 4294967295) }'
+  domain: '[N] -> { S_0[i] : exists (e0 = [(10 + N)/4294967296]: i >= 0 and i <= 19
+    and 4294967296e0 <= 10 + N and 4294967296e0 >= -4294967285 + N and 4294967296e0
+    <= 9 + N - i) }'
+  schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: binary
     operation: =

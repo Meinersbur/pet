@@ -1563,6 +1563,40 @@ static unsigned get_type_size(ValueDecl *decl)
 	return decl->getASTContext().getIntWidth(decl->getType());
 }
 
+/* Assuming "cond" represents a simple bound on a loop where the loop
+ * iterator "iv" is incremented (or decremented) by one, check if wrapping
+ * is possible.
+ *
+ * Under the given assumptions, wrapping is only possible if "cond" allows
+ * for the last value before wrapping, i.e., 2^width - 1 in case of an
+ * increasing iterator and 0 in case of a decreasing iterator.
+ */
+static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv, isl_int inc)
+{
+	bool cw;
+	isl_int limit;
+	isl_set *test;
+
+	test = isl_set_copy(cond);
+
+	isl_int_init(limit);
+	if (isl_int_is_neg(inc))
+		isl_int_set_si(limit, 0);
+	else {
+		isl_int_set_si(limit, 1);
+		isl_int_mul_2exp(limit, limit, get_type_size(iv));
+		isl_int_sub_ui(limit, limit, 1);
+	}
+
+	test = isl_set_fix(cond, isl_dim_set, 0, limit);
+	cw = !isl_set_is_empty(test);
+	isl_set_free(test);
+
+	isl_int_clear(limit);
+
+	return cw;
+}
+
 /* Given a one-dimensional space, construct the following mapping on this
  * space
  *
@@ -1634,6 +1668,11 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_dim *dim,
  * Note that there is no need to perform this final wrapping
  * if the loop condition (after wrapping) is simple.
  *
+ * Wrapping on unsigned iterators can be avoided entirely if
+ * loop condition is simple, the loop iterator is incremented
+ * [decremented] by one and the last value before wrapping cannot
+ * possibly satisfy the loop condition.
+ *
  * Before extracting a pet_scop from the body we remove all
  * assignments in assigned_value to variables that are assigned
  * somewhere in the body of the loop.
@@ -1650,6 +1689,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	struct pet_scop *scop;
 	assigned_value_cache cache(assigned_value);
 	isl_int inc;
+	bool is_one;
 	bool is_unsigned;
 	bool is_simple;
 	isl_map *wrap = NULL;
@@ -1678,7 +1718,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
-	if (isl_int_is_one(inc) || isl_int_is_negone(inc))
+	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
+	if (is_one)
 		domain = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
 				init->getLHS(), init->getRHS(), init);
 	else {
@@ -1689,11 +1730,13 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
-	if (is_unsigned) {
+	is_simple = is_simple_bound(cond, inc);
+	if (is_unsigned &&
+	    (!is_simple || !is_one || can_wrap(cond, iv, inc))) {
 		wrap = compute_wrapping(isl_set_get_dim(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
+		is_simple = is_simple && is_simple_bound(cond, inc);
 	}
-	is_simple = is_simple_bound(cond, inc);
 	if (!is_simple)
 		cond = valid_for_each_iteration(cond,
 						isl_set_copy(domain), inc);
