@@ -289,42 +289,78 @@ __isl_give isl_pw_aff *PetScan::extract_affine_mul(BinaryOperator *expr)
 	return isl_pw_aff_mul(lhs, rhs);
 }
 
-/* Extract an affine expression from some binary operations.
+/* Extract an affine expression from an addition or subtraction operation.
  */
-__isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
+__isl_give isl_pw_aff *PetScan::extract_affine_add(BinaryOperator *expr)
 {
 	isl_pw_aff *lhs;
 	isl_pw_aff *rhs;
-	isl_pw_aff *res;
-
-	switch (expr->getOpcode()) {
-	case BO_Add:
-	case BO_Sub:
-		break;
-	case BO_Div:
-		return extract_affine_div(expr);
-	case BO_Rem:
-		return extract_affine_mod(expr);
-	case BO_Mul:
-		return extract_affine_mul(expr);
-	default:
-		unsupported(expr);
-		return NULL;
-	}
 
 	lhs = extract_affine(expr->getLHS());
 	rhs = extract_affine(expr->getRHS());
 
 	switch (expr->getOpcode()) {
 	case BO_Add:
-		res = isl_pw_aff_add(lhs, rhs);
-		break;
+		return isl_pw_aff_add(lhs, rhs);
 	case BO_Sub:
-		res = isl_pw_aff_sub(lhs, rhs);
+		return isl_pw_aff_sub(lhs, rhs);
+	default:
+		isl_pw_aff_free(lhs);
+		isl_pw_aff_free(rhs);
+		return NULL;
+	}
+
+}
+
+/* Compute
+ *
+ *	pwaff mod 2^width
+ */
+static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
+	unsigned width)
+{
+	isl_int mod;
+
+	isl_int_init(mod);
+	isl_int_set_si(mod, 1);
+	isl_int_mul_2exp(mod, mod, width);
+
+	pwaff = isl_pw_aff_mod(pwaff, mod);
+
+	isl_int_clear(mod);
+
+	return pwaff;
+}
+
+/* Extract an affine expression from some binary operations.
+ * If the result of the expression is unsigned, then we wrap it
+ * based on the size of the type.
+ */
+__isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
+{
+	isl_pw_aff *res;
+
+	switch (expr->getOpcode()) {
+	case BO_Add:
+	case BO_Sub:
+		res = extract_affine_add(expr);
+		break;
+	case BO_Div:
+		res = extract_affine_div(expr);
+		break;
+	case BO_Rem:
+		res = extract_affine_mod(expr);
+		break;
+	case BO_Mul:
+		res = extract_affine_mul(expr);
 		break;
 	default:
-		;
+		unsupported(expr);
+		return NULL;
 	}
+
+	if (expr->getType()->isUnsignedIntegerType())
+		res = wrap(res, ast_context.getIntWidth(expr->getType()));
 
 	return res;
 }

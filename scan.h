@@ -22,6 +22,7 @@ struct ScopLoc {
 
 struct PetScan {
 	clang::Preprocessor &PP;
+	clang::ASTContext &ast_context;
 	/* If autodetect is false, then loc contains the location
 	 * of the scop to be extracted.
 	 */
@@ -51,9 +52,10 @@ struct PetScan {
 	 */
 	std::map<clang::ValueDecl *, clang::Expr *> assigned_value;
 
-	PetScan(isl_ctx *ctx, clang::Preprocessor &PP, ScopLoc &loc,
-		int autodetect) :
-		ctx(ctx), PP(PP), loc(loc), autodetect(autodetect),
+	PetScan(isl_ctx *ctx, clang::Preprocessor &PP,
+		clang::ASTContext &ast_context, ScopLoc &loc, int autodetect) :
+		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
+		autodetect(autodetect),
 		n_stmt(0), partial(0), allow_nested(true),
 		nesting_enabled(false) { }
 
@@ -106,6 +108,7 @@ private:
 	__isl_give isl_map *extract_access(clang::DeclRefExpr *expr);
 	__isl_give isl_map *extract_access(clang::IntegerLiteral *expr);
 
+	__isl_give isl_pw_aff *extract_affine_add(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_div(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_mod(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_mul(clang::BinaryOperator *expr);

@@ -263,16 +263,17 @@ struct PragmaEndScopHandler : public PragmaHandler {
  */
 struct PetASTConsumer : public ASTConsumer {
 	Preprocessor &PP;
+	ASTContext &ast_context;
 	ScopLoc &loc;
 	const char *function;
 	bool autodetect;
 	isl_ctx *ctx;
 	struct pet_scop *scop;
 
-	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ScopLoc &loc,
-		const char *function, bool autodetect) :
-		ctx(ctx), PP(PP), loc(loc), scop(NULL),
-		function(function), autodetect(autodetect) { }
+	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
+		ScopLoc &loc, const char *function, bool autodetect) :
+		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
+		scop(NULL), function(function), autodetect(autodetect) { }
 
 	virtual void HandleTopLevelDecl(DeclGroupRef dg) {
 		DeclGroupRef::iterator it;
@@ -289,7 +290,7 @@ struct PetASTConsumer : public ASTConsumer {
 			    fd->getNameInfo().getAsString() != function)
 				continue;
 			if (autodetect) {
-				PetScan ps(ctx, PP, loc, 1);
+				PetScan ps(ctx, PP, ast_context, loc, 1);
 				scop = ps.scan(fd);
 				if (scop)
 					break;
@@ -303,7 +304,7 @@ struct PetASTConsumer : public ASTConsumer {
 				continue;
 			if (SM.getFileOffset(fd->getLocEnd()) < loc.start)
 				continue;
-			PetScan ps(ctx, PP, loc, 0);
+			PetScan ps(ctx, PP, ast_context, loc, 0);
 			scop = ps.scan(fd);
 			break;
 		}
@@ -401,7 +402,8 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	ASTContext ast_context(LO, PP.getSourceManager(),
 		*target, PP.getIdentifierTable(), PP.getSelectorTable(),
 		PP.getBuiltinInfo(), 0);
-	PetASTConsumer consumer(ctx, PP, loc, function, autodetect);
+	PetASTConsumer consumer(ctx, PP, ast_context,
+				loc, function, autodetect);
 	Sema sema(PP, ast_context, consumer);
 
 	dim = isl_dim_set_alloc(ctx, 0, 0);
