@@ -1,0 +1,35 @@
+context: '{ [] }'
+arrays:
+- context: '{ [] }'
+  extent: '{ a[] }'
+  element_type: int
+statements:
+- line: 10
+  domain: '{ S_0[i, j, k] : (exists (e0 = [(255 - i)/256], e1 = [(255 - j)/256], e2:
+    i >= 0 and i <= 255 and 256e0 >= -i and 256e0 <= 199 - i and j >= 0 and j <= 255
+    and 256e1 >= -j and 256e1 <= 199 - j and k >= 0 and k <= 255 and 256e2 >= -k and
+    256e2 <= -1 + i + j - k)) or (exists (e0 = [(255 - i)/256], e1 = [(255 - j)/256]:
+    i >= 0 and i <= 255 and 256e0 >= -i and 256e0 <= 199 - i and j >= 0 and j <= 255
+    and 256e1 >= -j and 256e1 <= 199 - j and k >= 0 and k <= 255 and j >= 256 - i))
+    }'
+  schedule: '{ S_0[i, j, k] -> [0, o1, o2, o3] : (exists (e0 = [(-i + o1)/256], e1
+    = [(-j + o2)/256], e2 = [(-k + o3)/256]: 256e0 = -i + o1 and 256e1 = -j + o2 and
+    256e2 = -k + o3 and o1 >= 0 and o1 <= 199 and i >= 0 and i <= 255 and o2 >= 0
+    and o2 <= 199 and j >= 0 and j <= 255 and o3 >= 0 and o3 <= -1 + i + j and k >=
+    0 and k <= 255)) or (exists (e0 = [(-i + o1)/256], e1 = [(-j + o2)/256], e2 =
+    [(-k + o3)/256]: 256e0 = -i + o1 and 256e1 = -j + o2 and 256e2 = -k + o3 and o1
+    >= 0 and o1 <= 199 and i >= 0 and i <= 255 and o2 >= 0 and o2 <= 199 and j >=
+    0 and j <= 255 and o3 >= 0 and o3 >= i + j and j >= 256 - i and k >= 0 and k <=
+    255)) }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i, j, k] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[i, j, k] -> [5] }'
+      read: 1
+      write: 0

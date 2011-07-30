@@ -1522,6 +1522,40 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	return isl_set_project_out(set, isl_dim_set, 0, 1);
 }
 
+static unsigned get_type_size(ValueDecl *decl)
+{
+	return decl->getASTContext().getIntWidth(decl->getType());
+}
+
+/* Given a one-dimensional space, construct the following mapping on this
+ * space
+ *
+ *	{ [v] -> [v mod 2^width] }
+ *
+ * where width is the number of bits used to represent the values
+ * of the unsigned variable "iv".
+ */
+static __isl_give isl_map *compute_wrapping(__isl_take isl_dim *dim,
+	ValueDecl *iv)
+{
+	isl_int mod;
+	isl_aff *aff;
+	isl_map *map;
+
+	isl_int_init(mod);
+	isl_int_set_si(mod, 1);
+	isl_int_mul_2exp(mod, mod, get_type_size(iv));
+
+	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	aff = isl_aff_add_coefficient_si(aff, isl_dim_set, 0, 1);
+	aff = isl_aff_mod(aff, mod);
+
+	isl_int_clear(mod);
+
+	return isl_map_from_basic_map(isl_basic_map_from_aff(aff));
+	map = isl_map_reverse(map);
+}
+
 /* Construct a pet_scop for a for statement.
  * The for loop is required to be of the form
  *
@@ -1550,6 +1584,20 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
  *
  *	(exists a: i = init + stride * a and a >= 0)
  *
+ * If the loop iterator i is unsigned, then wrapping may occur.
+ * During the computation, we work with a virtual iterator that
+ * does not wrap.  However, the condition in the code applies
+ * to the wrapped value, so we need to change condition(i)
+ * into condition([i % 2^width]).
+ * After computing the virtual domain and schedule, we apply
+ * the function { [v] -> [v % 2^width] } to the domain and the domain
+ * of the schedule.  In order not to lose any information, we also
+ * need to intersect the domain of the schedule with the virtual domain
+ * first, since some iterations in the wrapped domain may be scheduled
+ * several times, typically an infinite number of times.
+ * Note that there is no need to perform this final wrapping
+ * if the loop condition (after wrapping) is simple.
+ *
  * Before extracting a pet_scop from the body we remove all
  * assignments in assigned_value to variables that are assigned
  * somewhere in the body of the loop.
@@ -1566,6 +1614,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	struct pet_scop *scop;
 	assigned_value_cache cache(assigned_value);
 	isl_int inc;
+	bool is_unsigned;
+	bool is_simple;
+	isl_map *wrap = NULL;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -1582,6 +1633,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		isl_int_clear(inc);
 		return NULL;
 	}
+
+	is_unsigned = iv->getType()->isUnsignedIntegerType();
 
 	assigned_value[iv] = NULL;
 	clear_assignments clear(assigned_value);
@@ -1600,7 +1653,12 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
-	if (!is_simple_bound(cond, inc))
+	if (is_unsigned) {
+		wrap = compute_wrapping(isl_set_get_dim(cond), iv);
+		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
+	}
+	is_simple = is_simple_bound(cond, inc);
+	if (!is_simple)
 		cond = valid_for_each_iteration(cond,
 						isl_set_copy(domain), inc);
 	domain = isl_set_intersect(domain, cond);
@@ -1612,6 +1670,15 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
 	else
 		sched = isl_map_oppose(sched, isl_dim_in, 0, isl_dim_out, 0);
+
+	if (is_unsigned && !is_simple) {
+		wrap = isl_map_set_dim_id(wrap,
+					    isl_dim_out, 0, isl_id_copy(id));
+		sched = isl_map_intersect_domain(sched, isl_set_copy(domain));
+		domain = isl_set_apply(domain, isl_map_copy(wrap));
+		sched = isl_map_apply_domain(sched, wrap);
+	} else
+		isl_map_free(wrap);
 
 	scop = extract(stmt->getBody());
 	scop = pet_scop_embed(scop, domain, sched, id);

@@ -1,0 +1,23 @@
+context: '{ [] }'
+arrays:
+- context: '{ [] }'
+  extent: '{ a[] }'
+  element_type: int
+statements:
+- line: 8
+  domain: '{ S_0[i] : exists (e0 = [(255 - 193i)/256]: i >= 0 and i <= 255 and 256e0
+    >= -193i and 256e0 <= 15 - 193i) }'
+  schedule: '{ S_0[i] -> [0, o1] : exists (e0 = [(-12545i + o1)/16640]: 16640e0 =
+    -12545i + o1 and o1 >= 0 and o1 <= 1039 and i >= 0 and i <= 255) }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[i] -> [5] }'
+      read: 1
+      write: 0
