@@ -97,6 +97,13 @@ static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 	if (emit_string(emitter, array->element_type) < 0)
 		return -1;
 
+	if (array->live_out) {
+		if (emit_string(emitter, "live_out") < 0)
+			return -1;
+		if (emit_string(emitter, "1") < 0)
+			return -1;
+	}
+
 	if (!yaml_mapping_end_event_initialize(&event))
 		return -1;
 	if (!yaml_emitter_emit(emitter, &event))

@@ -3,49 +3,50 @@ arrays:
 - context: '[K] -> { [] : K >= 0 }'
   extent: '[K] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + K }'
   element_type: float
-- context: '[N, K] -> { [] : N >= 0 }'
+- context: '[N] -> { [] : N >= 0 }'
   extent: '[N] -> { B[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
-- context: '[N, K] -> { [] : N >= 0 }'
+- context: '[N] -> { [] : N >= 0 }'
   extent: '[N] -> { C[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
+  live_out: 1
 statements:
-- line: 8
-  domain: '[M, N] -> { S_0[i, j] : i <= -1 + M and i >= 0 and j <= -1 + N and j >=
-    0 }'
-  schedule: '[M, N] -> { S_0[i, j] -> [0, i, j, 0] }'
+- line: 9
+  domain: '[N, M] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >= 0 and j <= -1 +
+    N }'
+  schedule: '[N, M] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '[M, N] -> { S_0[i, j] -> C[i, j] }'
+      relation: '[N, M] -> { S_0[i, j] -> C[i, j] }'
       read: 0
       write: 1
     - type: access
-      relation: '[M, N] -> { S_0[i, j] -> [0] }'
+      relation: '[N, M] -> { S_0[i, j] -> [0] }'
       read: 1
       write: 0
-- line: 10
-  domain: '[M, N, K] -> { S_1[i, j, k] : i <= -1 + M and i >= 0 and j <= -1 + N and
-    j >= 0 and k <= -1 + K and k >= 0 }'
-  schedule: '[M, N, K] -> { S_1[i, j, k] -> [0, i, j, 1, k] }'
+- line: 11
+  domain: '[K, N, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
+    -1 + N and k >= 0 and k <= -1 + K }'
+  schedule: '[K, N, M] -> { S_1[i, j, k] -> [0, i, j, 1, k] }'
   body:
     type: binary
     operation: +=
     arguments:
     - type: access
-      relation: '[M, N, K] -> { S_1[i, j, k] -> C[i, j] }'
+      relation: '[K, N, M] -> { S_1[i, j, k] -> C[i, j] }'
       read: 1
       write: 1
     - type: binary
       operation: '*'
       arguments:
       - type: access
-        relation: '[M, N, K] -> { S_1[i, j, k] -> A[i, k] }'
+        relation: '[K, N, M] -> { S_1[i, j, k] -> A[i, k] }'
         read: 1
         write: 0
       - type: access
-        relation: '[M, N, K] -> { S_1[i, j, k] -> B[k, j] }'
+        relation: '[K, N, M] -> { S_1[i, j, k] -> B[k, j] }'
         read: 1
         write: 0

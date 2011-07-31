@@ -107,12 +107,15 @@ struct pet_stmt {
  * 
  * value_bounds holds constraints on the elements of the array
  * and may be NULL if no such constraints were specified by the user
+ *
+ * live_out is set if the array appears in a live-out pragma
  */
 struct pet_array {
 	isl_set *context;
 	isl_set *extent;
 	isl_set *value_bounds;
 	char *element_type;
+	int live_out;
 };
 
 struct pet_scop {

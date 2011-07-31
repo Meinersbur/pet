@@ -248,6 +248,49 @@ struct PragmaEndScopHandler : public PragmaHandler {
 	}
 };
 
+/* Handle pragmas of the form
+ *
+ *	#pragma live-out identifier, identifier, ...
+ *
+ * Each identifier on the line is stored in live_out.
+ */
+struct PragmaLiveOutHandler : public PragmaHandler {
+	Sema &sema;
+	set<ValueDecl *> &live_out;
+
+	PragmaLiveOutHandler(Sema &sema, set<ValueDecl *> &live_out) :
+		PragmaHandler("live"), sema(sema), live_out(live_out) {}
+
+	virtual void HandlePragma(Preprocessor &PP,
+				  PragmaIntroducerKind Introducer,
+				  Token &ScopTok) {
+		Token token;
+
+		PP.Lex(token);
+		if (token.isNot(tok::minus))
+			return;
+		PP.Lex(token);
+		if (token.isNot(tok::identifier) ||
+		    !token.getIdentifierInfo()->isStr("out"))
+			return;
+
+		PP.Lex(token);
+		while (token.isNot(tok::eod)) {
+			ValueDecl *vd;
+
+			vd = get_value_decl(sema, token);
+			if (!vd) {
+				unsupported(PP, token.getLocation());
+				return;
+			}
+			live_out.insert(vd);
+			PP.Lex(token);
+			if (token.is(tok::comma))
+				PP.Lex(token);
+		}
+	}
+};
+
 /* Extract a pet_scop from the appropriate function.
  * If "function" is not NULL, then we only extract a pet_scop if the
  * name of the function matches.
@@ -340,9 +383,11 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 };
 
 static void update_arrays(struct pet_scop *scop,
-	map<ValueDecl *, isl_set *> &value_bounds)
+	map<ValueDecl *, isl_set *> &value_bounds,
+	set<ValueDecl *> &live_out)
 {
 	map<ValueDecl *, isl_set *>::iterator vb_it;
+	set<ValueDecl *>::iterator lo_it;
 
 	if (!scop)
 		return;
@@ -359,6 +404,10 @@ static void update_arrays(struct pet_scop *scop,
 		vb_it = value_bounds.find(decl);
 		if (vb_it != value_bounds.end())
 			array->value_bounds = isl_set_copy(vb_it->second);
+
+		lo_it = live_out.find(decl);
+		if (lo_it != live_out.end())
+			array->live_out = 1;
 	}
 }
 
@@ -379,6 +428,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 {
 	isl_dim *dim;
 	isl_set *context;
+	set<ValueDecl *> live_out;
 	map<ValueDecl *, isl_set *> value_bounds;
 	map<ValueDecl *, isl_set *>::iterator vb_it;
 
@@ -409,11 +459,6 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 
 	ScopLoc loc;
 
-	if (!autodetect) {
-		PP.AddPragmaHandler(new PragmaScopHandler(loc));
-		PP.AddPragmaHandler(new PragmaEndScopHandler(loc));
-	}
-
 	SM.createMainFileID(file);
 
 	ASTContext ast_context(LO, PP.getSourceManager(),
@@ -422,6 +467,12 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	PetASTConsumer consumer(ctx, PP, ast_context,
 				loc, function, autodetect);
 	Sema sema(PP, ast_context, consumer);
+
+	if (!autodetect) {
+		PP.AddPragmaHandler(new PragmaScopHandler(loc));
+		PP.AddPragmaHandler(new PragmaEndScopHandler(loc));
+		PP.AddPragmaHandler(new PragmaLiveOutHandler(sema, live_out));
+	}
 
 	dim = isl_dim_set_alloc(ctx, 0, 0);
 	context = isl_set_universe(dim);
@@ -441,7 +492,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	else
 		isl_set_free(context);
 
-	update_arrays(consumer.scop, value_bounds);
+	update_arrays(consumer.scop, value_bounds, live_out);
 
 	for (vb_it = value_bounds.begin(); vb_it != value_bounds.end(); vb_it++)
 		isl_set_free(vb_it->second);

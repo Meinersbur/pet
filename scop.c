@@ -531,7 +531,8 @@ void pet_array_dump(struct pet_array *array)
 	isl_set_dump(array->context);
 	isl_set_dump(array->extent);
 	isl_set_dump(array->value_bounds);
-	fprintf(stderr, "%s\n", array->element_type);
+	fprintf(stderr, "%s %s\n", array->element_type,
+		array->live_out ? "live-out" : "");
 }
 
 /* Construct a pet_scop with room for n statements.
@@ -673,6 +674,8 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 	    !isl_set_is_equal(array1->value_bounds, array2->value_bounds))
 		return 0;
 	if (strcmp(array1->element_type, array2->element_type))
+		return 0;
+	if (array1->live_out != array2->live_out)
 		return 0;
 
 	return 1;
