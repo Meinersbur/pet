@@ -75,6 +75,20 @@ static int get_int(const char *s)
 	return s[0] == '"' ? atoi(s + 1) : atoi(s);
 }
 
+static ValueDecl *get_value_decl(Sema &sema, Token &token)
+{
+	IdentifierInfo *name;
+	Decl *decl;
+
+	if (token.isNot(tok::identifier))
+		return NULL;
+
+	name = token.getIdentifierInfo();
+	decl = sema.LookupSingleName(sema.TUScope, name,
+				token.getLocation(), Sema::LookupOrdinaryName);
+	return decl ? cast_or_null<ValueDecl>(decl) : NULL;
+}
+
 /* Handle pragmas of the form
  *
  *	#pragma value_bounds identifier lower_bound upper_bound
@@ -98,23 +112,13 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 				  Token &ScopTok) {
 		isl_dim *dim;
 		isl_set *set;
-		IdentifierInfo *name;
-		Decl *decl;
 		ValueDecl *vd;
 		Token token;
 		int lb;
 		int ub;
 
 		PP.Lex(token);
-		if (token.isNot(tok::identifier)) {
-			unsupported(PP, token.getLocation());
-			return;
-		}
-
-		name = token.getIdentifierInfo();
-		decl = sema.LookupSingleName(sema.TUScope, name,
-				token.getLocation(), Sema::LookupOrdinaryName);
-		vd = decl ? cast_or_null<ValueDecl>(decl) : NULL;
+		vd = get_value_decl(sema, token);
 		if (!vd) {
 			unsupported(PP, token.getLocation());
 			return;
@@ -165,23 +169,13 @@ struct PragmaParameterHandler : public PragmaHandler {
 		isl_ctx *ctx = isl_set_get_ctx(context);
 		isl_dim *dim;
 		isl_set *set;
-		IdentifierInfo *name;
-		Decl *decl;
 		ValueDecl *vd;
 		Token token;
 		int lb;
 		int ub;
 
 		PP.Lex(token);
-		if (token.isNot(tok::identifier)) {
-			unsupported(PP, token.getLocation());
-			return;
-		}
-
-		name = token.getIdentifierInfo();
-		decl = sema.LookupSingleName(sema.TUScope, name,
-				token.getLocation(), Sema::LookupOrdinaryName);
-		vd = decl ? cast_or_null<ValueDecl>(decl) : NULL;
+		vd = get_value_decl(sema, token);
 		if (!vd) {
 			unsupported(PP, token.getLocation());
 			return;
