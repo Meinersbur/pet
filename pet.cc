@@ -339,6 +339,29 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 	}
 };
 
+static void update_arrays(struct pet_scop *scop,
+	map<ValueDecl *, isl_set *> &value_bounds)
+{
+	map<ValueDecl *, isl_set *>::iterator vb_it;
+
+	if (!scop)
+		return;
+
+	for (int i = 0; i < scop->n_array; ++i) {
+		isl_id *id;
+		ValueDecl *decl;
+		pet_array *array = scop->arrays[i];
+
+		id = isl_set_get_tuple_id(array->extent);
+		decl = (ValueDecl *)isl_id_get_user(id);
+		isl_id_free(id);
+
+		vb_it = value_bounds.find(decl);
+		if (vb_it != value_bounds.end())
+			array->value_bounds = isl_set_copy(vb_it->second);
+	}
+}
+
 /* Extract a pet_scop from the C source file called "filename".
  * If "function" is not NULL, extract the pet_scop from the function
  * with that name.
@@ -418,21 +441,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	else
 		isl_set_free(context);
 
-	if (consumer.scop) {
-		for (int i = 0; i < consumer.scop->n_array; ++i) {
-			isl_id *id;
-			ValueDecl *decl;
-			pet_array *array = consumer.scop->arrays[i];
-
-			id = isl_set_get_tuple_id(array->extent);
-			decl = (ValueDecl *)isl_id_get_user(id);
-			isl_id_free(id);
-
-			vb_it = value_bounds.find(decl);
-			if (vb_it != value_bounds.end())
-				array->value_bounds = isl_set_copy(vb_it->second);
-		}
-	}
+	update_arrays(consumer.scop, value_bounds);
 
 	for (vb_it = value_bounds.begin(); vb_it != value_bounds.end(); vb_it++)
 		isl_set_free(vb_it->second);
