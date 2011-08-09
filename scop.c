@@ -911,6 +911,9 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
  *
  * The iteration domain and schedule of the statement are updated
  * according to the iteration domain and schedule of the new loop.
+ * If stmt->domain is a wrapped map, then the iteration domain
+ * is the domain of this map, so we need to be careful to adjust
+ * this domain.
  *
  * If the induction variable appears in the constraints (as a parameter)
  * of the current iteration domain or the schedule of the statement,
@@ -922,6 +925,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 	__isl_take isl_map *sched, __isl_take isl_id *var_id)
 {
+	int i;
 	int pos;
 	isl_id *stmt_id;
 	isl_space *dim;
@@ -930,9 +934,29 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 	if (!stmt)
 		goto error;
 
-	stmt_id = isl_set_get_tuple_id(stmt->domain);
-	stmt->domain = isl_set_flat_product(isl_set_copy(dom), stmt->domain);
-	stmt->domain = isl_set_set_tuple_id(stmt->domain, isl_id_copy(stmt_id));
+	if (isl_set_is_wrapping(stmt->domain)) {
+		isl_map *map;
+		isl_map *ext;
+		isl_space *ran_dim;
+
+		map = isl_set_unwrap(stmt->domain);
+		stmt_id = isl_map_get_tuple_id(map, isl_dim_in);
+		ran_dim = isl_space_range(isl_map_get_space(map));
+		ext = isl_map_from_domain_and_range(isl_set_copy(dom),
+						    isl_set_universe(ran_dim));
+		map = isl_map_flat_domain_product(ext, map);
+		map = isl_map_set_tuple_id(map, isl_dim_in,
+							isl_id_copy(stmt_id));
+		dim = isl_space_domain(isl_map_get_space(map));
+		stmt->domain = isl_map_wrap(map);
+	} else {
+		stmt_id = isl_set_get_tuple_id(stmt->domain);
+		stmt->domain = isl_set_flat_product(isl_set_copy(dom),
+						    stmt->domain);
+		stmt->domain = isl_set_set_tuple_id(stmt->domain,
+							isl_id_copy(stmt_id));
+		dim = isl_set_get_space(stmt->domain);
+	}
 
 	pos = isl_set_find_dim_by_id(stmt->domain, isl_dim_param, var_id);
 	if (pos >= 0) {
@@ -954,16 +978,22 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 						    isl_dim_param, pos, 1);
 	}
 
-	dim = isl_space_map_from_set(isl_set_get_space(stmt->domain));
+	dim = isl_space_map_from_set(dim);
 	extend = isl_map_identity(dim);
 	extend = isl_map_remove_dims(extend, isl_dim_in, 0, 1);
 	extend = isl_map_set_tuple_id(extend, isl_dim_in,
 				    isl_map_get_tuple_id(extend, isl_dim_out));
+	for (i = 0; i < stmt->n_arg; ++i)
+		stmt->args[i] = expr_embed(stmt->args[i],
+					    isl_map_copy(extend), var_id);
 	stmt->body = expr_embed(stmt->body, extend, var_id);
 
 	isl_set_free(dom);
 	isl_id_free(var_id);
 
+	for (i = 0; i < stmt->n_arg; ++i)
+		if (!stmt->args[i])
+			return pet_stmt_free(stmt);
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		return pet_stmt_free(stmt);
 	return stmt;
@@ -1042,6 +1072,91 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	return scop;
 error:
 	isl_set_free(cond);
+	return pet_scop_free(scop);
+}
+
+/* Make the statements "stmt" depend on the value of "test"
+ * being equal to "satisfied" by adjusting stmt->domain.
+ *
+ * We insert an argument corresponding to a read to "test"
+ * from the iteration domain of "stmt" in front of the list of arguments.
+ * We also insert a corresponding output dimension in the wrapped
+ * map contained in stmt->domain, with value set to "satisfied".
+ */
+static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
+	__isl_take isl_map *test, int satisfied)
+{
+	int i;
+	isl_id *id;
+	isl_ctx *ctx;
+	isl_map *map;
+	isl_set *dom;
+
+	if (!stmt || !test)
+		goto error;
+
+	if (isl_set_is_wrapping(stmt->domain))
+		map = isl_set_unwrap(stmt->domain);
+	else
+		map = isl_map_from_domain(stmt->domain);
+	map = isl_map_insert_dims(map, isl_dim_out, 0, 1);
+	id = isl_map_get_tuple_id(test, isl_dim_out);
+	map = isl_map_set_dim_id(map, isl_dim_out, 0, id);
+	map = isl_map_fix_si(map, isl_dim_out, 0, satisfied);
+	dom = isl_set_universe(isl_space_domain(isl_map_get_space(map)));
+	test = isl_map_apply_domain(test, isl_map_from_range(dom));
+
+	stmt->domain = isl_map_wrap(map);
+
+	ctx = isl_map_get_ctx(test);
+	if (!stmt->args) {
+		stmt->args = isl_calloc_array(ctx, struct pet_expr *, 1);
+		if (!stmt->args)
+			goto error;
+	} else {
+		struct pet_expr **args;
+		args = isl_calloc_array(ctx, struct pet_expr *, 1 + stmt->n_arg);
+		if (!args)
+			goto error;
+		for (i = 0; i < stmt->n_arg; ++i)
+			args[1 + i] = stmt->args[i];
+		free(stmt->args);
+		stmt->args = args;
+	}
+	stmt->n_arg++;
+	stmt->args[0] = pet_expr_from_access(isl_map_copy(test));
+	if (!stmt->args[0])
+		goto error;
+
+	isl_map_free(test);
+	return stmt;
+error:
+	isl_map_free(test);
+	return pet_stmt_free(stmt);
+}
+
+/* Make all statements in "scop" depend on the value of "test"
+ * being equal to "satisfied" by adjusting their domains.
+ */
+struct pet_scop *pet_scop_filter(struct pet_scop *scop,
+	__isl_take isl_map *test, int satisfied)
+{
+	int i;
+
+	if (!scop)
+		goto error;
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = stmt_filter(scop->stmts[i],
+						isl_map_copy(test), satisfied);
+		if (!scop->stmts[i])
+			goto error;
+	}
+
+	isl_map_free(test);
+	return scop;
+error:
+	isl_map_free(test);
 	return pet_scop_free(scop);
 }
 

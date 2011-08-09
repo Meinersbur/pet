@@ -94,6 +94,12 @@ struct pet_expr {
 	};
 };
 
+/* If the statement has arguments, i.e., n_arg != 0, then
+ * "domain" is a wrapped map, mapping the iteration domain
+ * to the values of the arguments for which this statement
+ * is executed.
+ * Otherwise, it is simply the iteration domain.
+ */
 struct pet_stmt {
 	int line;
 	isl_set *domain;

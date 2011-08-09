@@ -30,6 +30,8 @@ struct PetScan {
 	isl_ctx *ctx;
 	/* The sequence number of the next statement. */
 	int n_stmt;
+	/* The sequence number of the next virtual scalar. */
+	int n_test;
 	/* If autodetect is false, a scop delimited by pragmas is extracted,
 	 * otherwise we take any scop that we can find.
 	 */
@@ -56,7 +58,7 @@ struct PetScan {
 		clang::ASTContext &ast_context, ScopLoc &loc, int autodetect) :
 		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
 		autodetect(autodetect),
-		n_stmt(0), partial(0), allow_nested(true),
+		n_stmt(0), n_test(0), partial(0), allow_nested(true),
 		nesting_enabled(false) { }
 
 	struct pet_scop *scan(clang::FunctionDecl *fd);
@@ -69,6 +71,9 @@ private:
 	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
 		const clang::Type *type, int pos);
+
+	struct pet_scop *extract_non_affine_condition(clang::Expr *cond,
+		__isl_take isl_map *access);
 
 	struct pet_scop *extract_conditional_assignment(clang::IfStmt *stmt);
 

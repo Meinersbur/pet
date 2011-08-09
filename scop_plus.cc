@@ -38,6 +38,11 @@
 using namespace std;
 using namespace clang;
 
+/* If the array being accessed has a NULL ValueDecl, then it
+ * is a virtual scalar.  We don't need to collect such scalars
+ * because they are added to the scop of the statement writing
+ * to the scalar.
+ */
 static void access_collect_arrays(struct pet_expr *expr,
 	set<ValueDecl *> &arrays)
 {
@@ -53,7 +58,8 @@ static void access_collect_arrays(struct pet_expr *expr,
 	decl = (ValueDecl *)isl_id_get_user(id);
 	isl_id_free(id);
 
-	arrays.insert(decl);
+	if (decl)
+		arrays.insert(decl);
 }
 
 static void expr_collect_arrays(struct pet_expr *expr, set<ValueDecl *> &arrays)

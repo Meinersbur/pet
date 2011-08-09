@@ -53,6 +53,8 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_map *sched, __isl_take isl_id *id);
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond);
+struct pet_scop *pet_scop_filter(struct pet_scop *scop,
+	__isl_take isl_map *test, int satisfied);
 
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
 

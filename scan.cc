@@ -2215,17 +2215,130 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	return extract(stmt, pe);
 }
 
+/* Create an access to a virtual scalar representing the result
+ * of a condition.
+ * Unlike other accessed data, the id of the scalar is NULL as
+ * there is no ValueDecl in the program corresponding to the virtual
+ * scalar.
+ */
+static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
+{
+	isl_space *dim = isl_space_alloc(ctx, 0, 0, 0);
+	isl_id *id;
+	char name[50];
+
+	snprintf(name, sizeof(name), "__pet_test_%d", test_nr);
+	id = isl_id_alloc(ctx, name, NULL);
+	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
+	return isl_map_universe(dim);
+}
+
+/* Create a pet_scop with a single statement evaluating "cond"
+ * and writing the result to a virtual scalar, as expressed by
+ * "access".
+ */
+struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
+	__isl_take isl_map *access)
+{
+	struct pet_expr *expr, *write;
+	struct pet_stmt *ps;
+	SourceLocation loc = cond->getLocStart();
+	int line = PP.getSourceManager().getExpansionLineNumber(loc);
+
+	write = pet_expr_from_access(access);
+	if (write) {
+		write->acc.write = 1;
+		write->acc.read = 0;
+	}
+	expr = extract_expr(cond);
+	expr = pet_expr_new_binary(ctx, pet_op_assign, write, expr);
+	ps = pet_stmt_from_pet_expr(ctx, line, n_stmt++, expr);
+	return pet_scop_from_pet_stmt(ctx, ps);
+}
+
+/* Add an array with the given extend ("access") to the list
+ * of arrays in "scop" and return the extended pet_scop.
+ */
+static struct pet_scop *scop_add_array(struct pet_scop *scop,
+	__isl_keep isl_map *access)
+{
+	isl_ctx *ctx = isl_map_get_ctx(access);
+	isl_space *dim;
+	struct pet_array **arrays;
+	struct pet_array *array;
+
+	if (!scop)
+		return NULL;
+	if (!ctx)
+		goto error;
+
+	arrays = isl_realloc_array(ctx, scop->arrays, struct pet_array *,
+				    scop->n_array + 1);
+	if (!arrays)
+		goto error;
+	scop->arrays = arrays;
+
+	array = isl_calloc_type(ctx, struct pet_array);
+	if (!array)
+		goto error;
+
+	array->extent = isl_map_range(isl_map_copy(access));
+	dim = isl_space_params_alloc(ctx, 0);
+	array->context = isl_set_universe(dim);
+	array->element_type = strdup("int");
+
+	scop->arrays[scop->n_array] = array;
+	scop->n_array++;
+
+	if (!array->extent || !array->context)
+		goto error;
+
+	return scop;
+error:
+	pet_scop_free(scop);
+	return NULL;
+}
+
 /* Construct a pet_scop for an if statement.
+ *
+ * If the condition fits the pattern of a conditional assignment,
+ * then it is handled by extract_conditional_assignment.
+ * Otherwise, we do the following.
+ *
+ * If the condition is affine, then the condition is added
+ * to the iteration domains of the then branch, while the
+ * opposite of the condition in added to the iteration domains
+ * of the else branch, if any.
+ *
+ * If the condition is not-affine, then we create a separate
+ * statement that write the result of the condition to a virtual scalar.
+ * A constraint requiring the value of this virtual scalar to be one
+ * is added to the iteration domains of the then branch.
+ * Similarly, a constraint requiring the value of this virtual scalar
+ * to be zero is added to the iteration domains of the else branch, if any.
+ * We adjust the schedules to ensure that the virtual scalar is written
+ * before it is read.
  */
 struct pet_scop *PetScan::extract(IfStmt *stmt)
 {
-	isl_set *cond;
 	struct pet_scop *scop_then, *scop_else, *scop;
 	assigned_value_cache cache(assigned_value);
+	isl_map *test_access = NULL;
 
 	scop = extract_conditional_assignment(stmt);
 	if (scop)
 		return scop;
+
+	if (allow_nested && !is_affine_condition(stmt->getCond())) {
+		test_access = create_test_access(ctx, n_test++);
+		scop = extract_non_affine_condition(stmt->getCond(),
+						    isl_map_copy(test_access));
+		scop = scop_add_array(scop, test_access);
+		if (!scop) {
+			isl_map_free(test_access);
+			return NULL;
+		}
+	}
 
 	scop_then = extract(stmt->getThen());
 
@@ -2234,24 +2347,43 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		if (autodetect) {
 			if (scop_then && !scop_else) {
 				partial = true;
+				pet_scop_free(scop);
+				isl_map_free(test_access);
 				return scop_then;
 			}
 			if (!scop_then && scop_else) {
 				partial = true;
+				pet_scop_free(scop);
+				isl_map_free(test_access);
 				return scop_else;
 			}
 		}
 	}
 
-	cond = extract_condition(stmt->getCond());
-	scop = pet_scop_restrict(scop_then, isl_set_copy(cond));
+	if (!scop) {
+		isl_set *cond;
+		cond = extract_condition(stmt->getCond());
+		scop = pet_scop_restrict(scop_then, isl_set_copy(cond));
 
-	if (stmt->getElse()) {
-		cond = isl_set_complement(cond);
-		scop_else = pet_scop_restrict(scop_else, cond);
-		scop = pet_scop_add(ctx, scop, scop_else);
-	} else
-		isl_set_free(cond);
+		if (stmt->getElse()) {
+			cond = isl_set_complement(cond);
+			scop_else = pet_scop_restrict(scop_else, cond);
+			scop = pet_scop_add(ctx, scop, scop_else);
+		} else
+			isl_set_free(cond);
+	} else {
+		scop = pet_scop_prefix(scop, 0);
+		scop_then = pet_scop_prefix(scop_then, 1);
+		scop_then = pet_scop_filter(scop_then,
+						isl_map_copy(test_access), 1);
+		scop = pet_scop_add(ctx, scop, scop_then);
+		if (stmt->getElse()) {
+			scop_else = pet_scop_prefix(scop_else, 1);
+			scop_else = pet_scop_filter(scop_else, test_access, 0);
+			scop = pet_scop_add(ctx, scop, scop_else);
+		} else
+			isl_map_free(test_access);
+	}
 
 	return scop;
 }
