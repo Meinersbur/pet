@@ -442,6 +442,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
 	DiagnosticOptions DO;
 	Diagnostic Diags(DiagID, new MyDiagnosticPrinter(DO));
+	Diags.setSuppressSystemWarnings(true);
 	TargetOptions TO;
 	TO.Triple = llvm::sys::getHostTriple();
 	TargetInfo *target = TargetInfo::CreateTargetInfo(Diags, TO);
