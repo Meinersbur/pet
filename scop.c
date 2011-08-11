@@ -735,7 +735,7 @@ struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos)
 	if (!stmt)
 		return NULL;
 
-	stmt->schedule = isl_map_insert(stmt->schedule, isl_dim_out, 0, 1);
+	stmt->schedule = isl_map_insert_dims(stmt->schedule, isl_dim_out, 0, 1);
 	stmt->schedule = isl_map_fix_si(stmt->schedule, isl_dim_out, 0, pos);
 	if (!stmt->schedule)
 		return pet_stmt_free(stmt);
@@ -794,7 +794,7 @@ static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 
 	array_id = isl_map_get_tuple_id(access, isl_dim_out);
 	if (array_id == data->var_id) {
-		access = isl_map_insert(access, isl_dim_out, 0, 1);
+		access = isl_map_insert_dims(access, isl_dim_out, 0, 1);
 		access = isl_map_equate(access,
 					isl_dim_in, 0, isl_dim_out, 0);
 	}
@@ -1196,13 +1196,13 @@ static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
 
 	pos = isl_map_find_dim_by_id(access, isl_dim_param, array_id);
 	if (pos < 0) {
-		access = isl_map_insert(access, isl_dim_param, 0, 1);
+		access = isl_map_insert_dims(access, isl_dim_param, 0, 1);
 		access = isl_map_set_dim_id(access, isl_dim_param, 0, array_id);
 		pos = 0;
 	} else
 		isl_id_free(array_id);
 
-	access = isl_map_insert(access, isl_dim_out, 0, 1);
+	access = isl_map_insert_dims(access, isl_dim_out, 0, 1);
 	access = isl_map_equate(access, isl_dim_param, pos, isl_dim_out, 0);
 
 	return access;

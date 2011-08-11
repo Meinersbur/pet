@@ -642,7 +642,7 @@ __isl_give isl_map *set_index(__isl_take isl_map *map, int pos,
 	isl_id *id;
 
 	index_map = isl_map_from_pw_aff(index);
-	index_map = isl_map_insert(index_map, isl_dim_out, 0, pos);
+	index_map = isl_map_insert_dims(index_map, isl_dim_out, 0, pos);
 	index_map = isl_map_add_dims(index_map, isl_dim_out, len - pos - 1);
 	id = isl_map_get_tuple_id(map, isl_dim_out);
 	index_map = isl_map_set_tuple_id(index_map, isl_dim_out, id);
@@ -1429,7 +1429,7 @@ static __isl_give isl_set *embed(__isl_take isl_set *set,
 {
 	int pos;
 
-	set = isl_set_insert(set, isl_dim_set, 0, 1);
+	set = isl_set_insert_dims(set, isl_dim_set, 0, 1);
 	pos = isl_set_find_dim_by_id(set, isl_dim_param, var);
 	if (pos >= 0) {
 		set = isl_set_equate(set, isl_dim_param, pos, isl_dim_set, 0);
