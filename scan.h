@@ -77,8 +77,11 @@ private:
 
 	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr);
 
-	clang::BinaryOperator *extract_initialization(clang::ForStmt *stmt);
+	clang::BinaryOperator *initialization_assignment(clang::Stmt *init);
+	clang::Decl *initialization_declaration(clang::Stmt *init);
 	clang::ValueDecl *extract_induction_variable(clang::BinaryOperator *stmt);
+	clang::VarDecl *extract_induction_variable(clang::Stmt *init,
+				clang::Decl *stmt);
 	bool check_unary_increment(clang::UnaryOperator *op,
 				clang::ValueDecl *iv, isl_int &inc);
 	bool check_binary_increment(clang::BinaryOperator *op,
@@ -138,7 +141,7 @@ private:
 	__isl_give isl_set *extract_condition(clang::Expr *expr);
 	__isl_give isl_set *extract_comparison(clang::BinaryOperator *expr);
 	__isl_give isl_set *extract_comparison(clang::BinaryOperatorKind op,
-		clang::Expr *LHS, clang::Expr *RHS, clang::Expr *comp);
+		clang::Expr *LHS, clang::Expr *RHS, clang::Stmt *comp);
 	__isl_give isl_set *extract_boolean(clang::BinaryOperator *expr);
 	__isl_give isl_set *extract_boolean(clang::UnaryOperator *expr);
 

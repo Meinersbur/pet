@@ -738,7 +738,7 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
 }
 
 /* Extract a set of values satisfying the comparison "LHS op RHS"
- * "comp" is the original expression that "LHS op RHS" is derived from
+ * "comp" is the original statement that "LHS op RHS" is derived from
  * and is used for diagnostics.
  *
  * If the comparison is of the form
@@ -756,7 +756,7 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
  * this optimization can be removed.
  */
 __isl_give isl_set *PetScan::extract_comparison(BinaryOperatorKind op,
-	Expr *LHS, Expr *RHS, Expr *comp)
+	Expr *LHS, Expr *RHS, Stmt *comp)
 {
 	isl_pw_aff *lhs;
 	isl_pw_aff *rhs;
@@ -1166,32 +1166,40 @@ struct pet_expr *PetScan::extract_expr(Expr *expr)
 	return NULL;
 }
 
-/* Extract the initialization part of a for loop.
- * The initialization is required to be an assignment.
- * Return this assignment operator.
+/* Check if the given initialization statement is an assignment.
+ * If so, return that assignment.  Otherwise return NULL.
  */
-BinaryOperator *PetScan::extract_initialization(ForStmt *stmt)
+BinaryOperator *PetScan::initialization_assignment(Stmt *init)
 {
-	Stmt *init = stmt->getInit();
 	BinaryOperator *ass;
 
-	if (!init) {
-		unsupported(stmt);
+	if (init->getStmtClass() != Stmt::BinaryOperatorClass)
 		return NULL;
-	}
-
-	if (init->getStmtClass() != Stmt::BinaryOperatorClass) {
-		unsupported(init);
-		return NULL;
-	}
 
 	ass = cast<BinaryOperator>(init);
-	if (ass->getOpcode() != BO_Assign) {
-		unsupported(init);
+	if (ass->getOpcode() != BO_Assign)
 		return NULL;
-	}
 
 	return ass;
+}
+
+/* Check if the given initialization statement is a declaration
+ * of a single variable.
+ * If so, return that declaration.  Otherwise return NULL.
+ */
+Decl *PetScan::initialization_declaration(Stmt *init)
+{
+	DeclStmt *decl;
+
+	if (init->getStmtClass() != Stmt::DeclStmtClass)
+		return NULL;
+
+	decl = cast<DeclStmt>(init);
+
+	if (!decl->isSingleDecl())
+		return NULL;
+
+	return decl->getSingleDecl();
 }
 
 /* Given the assignment operator in the initialization of a for loop,
@@ -1221,6 +1229,31 @@ ValueDecl *PetScan::extract_induction_variable(BinaryOperator *init)
 	}
 
 	return decl;
+}
+
+/* Given the initialization statement of a for loop and the single
+ * declaration in this initialization statement,
+ * extract the induction variable, i.e., the (integer) variable being
+ * declared.
+ */
+VarDecl *PetScan::extract_induction_variable(Stmt *init, Decl *decl)
+{
+	VarDecl *vd;
+
+	vd = cast<VarDecl>(decl);
+
+	const QualType type = vd->getType();
+	if (!type->isIntegerType()) {
+		unsupported(init);
+		return NULL;
+	}
+
+	if (!vd->getInit()) {
+		unsupported(init);
+		return NULL;
+	}
+
+	return vd;
 }
 
 /* Check that op is of the form iv++ or iv--.
@@ -1635,6 +1668,10 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_dim *dim,
  *
  *	for (i = init; condition; --i)
  *
+ * The initialization of the for loop should either be an assignment
+ * to an integer variable, or a declaration of such a variable with
+ * initialization.
+ *
  * We extract a pet_scop for the body and then embed it in a loop with
  * iteration domain and schedule
  *
@@ -1679,7 +1716,10 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_dim *dim,
  */
 struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 {
-	BinaryOperator *init;
+	BinaryOperator *ass;
+	Decl *decl;
+	Stmt *init;
+	Expr *lhs, *rhs;
 	ValueDecl *iv;
 	isl_dim *dim;
 	isl_set *domain;
@@ -1697,12 +1737,30 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
 
-	init = PetScan::extract_initialization(stmt);
-	if (!init)
+	init = stmt->getInit();
+	if (!init) {
+		unsupported(stmt);
 		return NULL;
-	iv = extract_induction_variable(init);
-	if (!iv)
+	}
+	if ((ass = initialization_assignment(init)) != NULL) {
+		iv = extract_induction_variable(ass);
+		if (!iv)
+			return NULL;
+		lhs = ass->getLHS();
+		rhs = ass->getRHS();
+	} else if ((decl = initialization_declaration(init)) != NULL) {
+		VarDecl *var = extract_induction_variable(init, decl);
+		if (!var)
+			return NULL;
+		iv = var;
+		rhs = var->getInit();
+		lhs = DeclRefExpr::Create(iv->getASTContext(),
+			var->getQualifierLoc(), iv, var->getInnerLocStart(),
+			var->getType(), VK_LValue);
+	} else {
+		unsupported(stmt->getInit());
 		return NULL;
+	}
 
 	isl_int_init(inc);
 	if (!check_increment(stmt, iv, inc)) {
@@ -1721,9 +1779,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
 	if (is_one)
 		domain = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
-				init->getLHS(), init->getRHS(), init);
+				lhs, rhs, init);
 	else {
-		isl_pw_aff *lb = extract_affine(init->getRHS());
+		isl_pw_aff *lb = extract_affine(rhs);
 		domain = strided_domain(isl_id_copy(id), lb, inc);
 	}
 
