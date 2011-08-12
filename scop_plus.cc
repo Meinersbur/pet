@@ -11,6 +11,8 @@ static void access_collect_arrays(struct pet_expr *expr,
 	isl_id *id;
 	ValueDecl *decl;
 
+	if (!isl_map_has_tuple_id(expr->acc.access, isl_dim_out))
+		return;
 	id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
 	if (!id)
 		return;

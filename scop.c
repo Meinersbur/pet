@@ -787,12 +787,13 @@ static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 	void *user)
 {
 	struct pet_embed_access *data = user;
-	isl_id *array_id;
+	isl_id *array_id = NULL;
 	int pos;
 
 	access = update_domain(access, data->extend);
 
-	array_id = isl_map_get_tuple_id(access, isl_dim_out);
+	if (isl_map_has_tuple_id(access, isl_dim_out))
+		array_id = isl_map_get_tuple_id(access, isl_dim_out);
 	if (array_id == data->var_id) {
 		access = isl_map_insert_dims(access, isl_dim_out, 0, 1);
 		access = isl_map_equate(access,
@@ -1181,12 +1182,13 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
 	__isl_take isl_dim *dim)
 {
-	isl_id *array_id;
-	int pos;
+	isl_id *array_id = NULL;
+	int pos = -1;
 
-	array_id = isl_map_get_tuple_id(access, isl_dim_out);
-
-	pos = isl_dim_find_dim_by_id(dim, isl_dim_param, array_id);
+	if (isl_map_has_tuple_id(access, isl_dim_out)) {
+		array_id = isl_map_get_tuple_id(access, isl_dim_out);
+		pos = isl_dim_find_dim_by_id(dim, isl_dim_param, array_id);
+	}
 	isl_dim_free(dim);
 
 	if (pos < 0) {
