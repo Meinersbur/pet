@@ -404,19 +404,19 @@ static __isl_give isl_map *update_domain(__isl_take isl_map *access,
 	void *user)
 {
 	isl_map *update = user;
-	isl_dim *dim;
+	isl_space *dim;
 
 	update = isl_map_copy(update);
 
-	dim = isl_map_get_dim(access);
-	dim = isl_dim_domain(dim);
-	if (!isl_dim_is_wrapping(dim))
-		isl_dim_free(dim);
+	dim = isl_map_get_space(access);
+	dim = isl_space_domain(dim);
+	if (!isl_space_is_wrapping(dim))
+		isl_space_free(dim);
 	else {
 		isl_map *id;
-		dim = isl_dim_unwrap(dim);
-		dim = isl_dim_range(dim);
-		dim = isl_dim_map_from_set(dim);
+		dim = isl_space_unwrap(dim);
+		dim = isl_space_range(dim);
+		dim = isl_space_map_from_set(dim);
 		id = isl_map_identity(dim);
 		update = isl_map_product(update, id);
 	}
@@ -445,7 +445,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
 	struct pet_expr *expr)
 {
 	struct pet_stmt *stmt;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_set *dom;
 	isl_map *sched;
 	isl_map *add_name;
@@ -458,13 +458,13 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
 	if (!stmt)
 		return pet_expr_free(expr);
 
-	dim = isl_dim_set_alloc(ctx, 0, 0);
+	dim = isl_space_set_alloc(ctx, 0, 0);
 	snprintf(name, sizeof(name), "S_%d", id);
-	dim = isl_dim_set_tuple_name(dim, isl_dim_set, name);
-	dom = isl_set_universe(isl_dim_copy(dim));
+	dim = isl_space_set_tuple_name(dim, isl_dim_set, name);
+	dom = isl_set_universe(isl_space_copy(dim));
 	sched = isl_map_from_domain(isl_set_copy(dom));
 
-	dim = isl_dim_from_range(dim);
+	dim = isl_space_from_range(dim);
 	add_name = isl_map_universe(dim);
 	expr = expr_update_domain(expr, add_name);
 
@@ -546,7 +546,7 @@ static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 	if (!scop)
 		return NULL;
 
-	scop->context = isl_set_universe(isl_dim_set_alloc(ctx, 0, 0));
+	scop->context = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 	scop->stmts = isl_calloc_array(ctx, struct pet_stmt *, n);
 	if (!scop->context || !scop->stmts)
 		return pet_scop_free(scop);
@@ -847,7 +847,7 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 {
 	int pos;
 	isl_id *stmt_id;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_map *extend;
 
 	stmt_id = isl_set_get_tuple_id(stmt->domain);
@@ -874,7 +874,7 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 						    isl_dim_param, pos, 1);
 	}
 
-	dim = isl_dim_map_from_set(isl_set_get_dim(stmt->domain));
+	dim = isl_space_map_from_set(isl_set_get_space(stmt->domain));
 	extend = isl_map_identity(dim);
 	extend = isl_map_remove_dims(extend, isl_dim_in, 0, 1);
 	extend = isl_map_set_tuple_id(extend, isl_dim_in,
@@ -962,8 +962,8 @@ error:
 
 /* Add all parameters in "expr" to "dim" and return the result.
  */
-static __isl_give isl_dim *expr_collect_params(struct pet_expr *expr,
-	__isl_take isl_dim *dim)
+static __isl_give isl_space *expr_collect_params(struct pet_expr *expr,
+	__isl_take isl_space *dim)
 {
 	int i;
 
@@ -974,54 +974,54 @@ static __isl_give isl_dim *expr_collect_params(struct pet_expr *expr,
 		dim = expr_collect_params(expr->args[i], dim);
 
 	if (expr->type == pet_expr_access)
-		dim = isl_dim_align_params(dim,
-					    isl_map_get_dim(expr->acc.access));
+		dim = isl_space_align_params(dim,
+					    isl_map_get_space(expr->acc.access));
 
 	return dim;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_expr_free(expr);
 }
 
 /* Add all parameters in "stmt" to "dim" and return the result.
  */
-static __isl_give isl_dim *stmt_collect_params(struct pet_stmt *stmt,
-	__isl_take isl_dim *dim)
+static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
+	__isl_take isl_space *dim)
 {
 	if (!stmt)
 		goto error;
 
-	dim = isl_dim_align_params(dim, isl_set_get_dim(stmt->domain));
-	dim = isl_dim_align_params(dim, isl_map_get_dim(stmt->schedule));
+	dim = isl_space_align_params(dim, isl_set_get_space(stmt->domain));
+	dim = isl_space_align_params(dim, isl_map_get_space(stmt->schedule));
 	dim = expr_collect_params(stmt->body, dim);
 
 	return dim;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_stmt_free(stmt);
 }
 
 /* Add all parameters in "array" to "dim" and return the result.
  */
-static __isl_give isl_dim *array_collect_params(struct pet_array *array,
-	__isl_take isl_dim *dim)
+static __isl_give isl_space *array_collect_params(struct pet_array *array,
+	__isl_take isl_space *dim)
 {
 	if (!array)
 		goto error;
 
-	dim = isl_dim_align_params(dim, isl_set_get_dim(array->context));
-	dim = isl_dim_align_params(dim, isl_set_get_dim(array->extent));
+	dim = isl_space_align_params(dim, isl_set_get_space(array->context));
+	dim = isl_space_align_params(dim, isl_set_get_space(array->extent));
 
 	return dim;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_array_free(array);
 }
 
 /* Add all parameters in "scop" to "dim" and return the result.
  */
-static __isl_give isl_dim *scop_collect_params(struct pet_scop *scop,
-	__isl_take isl_dim *dim)
+static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
+	__isl_take isl_space *dim)
 {
 	int i;
 
@@ -1036,14 +1036,14 @@ static __isl_give isl_dim *scop_collect_params(struct pet_scop *scop,
 
 	return dim;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_scop_free(scop);
 }
 
 /* Add all parameters in "dim" to all access relations in "expr".
  */
 static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	int i;
 
@@ -1053,22 +1053,22 @@ static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
 	for (i = 0; i < expr->n_arg; ++i) {
 		expr->args[i] =
 			expr_propagate_params(expr->args[i],
-						isl_dim_copy(dim));
+						isl_space_copy(dim));
 		if (!expr->args[i])
 			goto error;
 	}
 
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = isl_map_align_params(expr->acc.access,
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 		if (!expr->acc.access)
 			goto error;
 	}
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return expr;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_expr_free(expr);
 }
 
@@ -1076,41 +1076,41 @@ error:
  * all access relations in "stmt".
  */
 static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	if (!stmt)
 		goto error;
 
-	stmt->domain = isl_set_align_params(stmt->domain, isl_dim_copy(dim));
+	stmt->domain = isl_set_align_params(stmt->domain, isl_space_copy(dim));
 	stmt->schedule = isl_map_align_params(stmt->schedule,
-						isl_dim_copy(dim));
-	stmt->body = expr_propagate_params(stmt->body, isl_dim_copy(dim));
+						isl_space_copy(dim));
+	stmt->body = expr_propagate_params(stmt->body, isl_space_copy(dim));
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		goto error;
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return stmt;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_stmt_free(stmt);
 }
 
 /* Add all parameters in "dim" to "array".
  */
 static struct pet_array *array_propagate_params(struct pet_array *array,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	if (!array)
 		goto error;
 
 	array->context = isl_set_align_params(array->context,
-						isl_dim_copy(dim));
+						isl_space_copy(dim));
 	array->extent = isl_set_align_params(array->extent,
-						isl_dim_copy(dim));
+						isl_space_copy(dim));
 	if (array->value_bounds) {
 		array->value_bounds = isl_set_align_params(array->value_bounds,
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 		if (!array->value_bounds)
 			goto error;
 	}
@@ -1118,17 +1118,17 @@ static struct pet_array *array_propagate_params(struct pet_array *array,
 	if (!array->context || !array->extent)
 		goto error;
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return array;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_array_free(array);
 }
 
 /* Add all parameters in "dim" to "scop".
  */
 static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	int i;
 
@@ -1137,22 +1137,22 @@ static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_array; ++i) {
 		scop->arrays[i] = array_propagate_params(scop->arrays[i],
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 		if (!scop->arrays[i])
 			goto error;
 	}
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_propagate_params(scop->stmts[i],
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 		if (!scop->stmts[i])
 			goto error;
 	}
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return scop;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_scop_free(scop);
 }
 
@@ -1161,15 +1161,15 @@ error:
  */
 struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 {
-	isl_dim *dim;
+	isl_space *dim;
 
 	if (!scop)
 		return NULL;
 
-	dim = isl_set_get_dim(scop->context);
+	dim = isl_set_get_space(scop->context);
 	dim = scop_collect_params(scop, dim);
 
-	scop->context = isl_set_align_params(scop->context, isl_dim_copy(dim));
+	scop->context = isl_set_align_params(scop->context, isl_space_copy(dim));
 	scop = scop_propagate_params(scop, dim);
 
 	return scop;
@@ -1181,16 +1181,16 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
  * that parameter.
  */
 static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	isl_id *array_id = NULL;
 	int pos = -1;
 
 	if (isl_map_has_tuple_id(access, isl_dim_out)) {
 		array_id = isl_map_get_tuple_id(access, isl_dim_out);
-		pos = isl_dim_find_dim_by_id(dim, isl_dim_param, array_id);
+		pos = isl_space_find_dim_by_id(dim, isl_dim_param, array_id);
 	}
-	isl_dim_free(dim);
+	isl_space_free(dim);
 
 	if (pos < 0) {
 		isl_id_free(array_id);
@@ -1215,7 +1215,7 @@ static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
  * in "dim" by a value equal to the corresponding parameter.
  */
 static struct pet_expr *expr_detect_parameter_accesses(struct pet_expr *expr,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	int i;
 
@@ -1225,22 +1225,22 @@ static struct pet_expr *expr_detect_parameter_accesses(struct pet_expr *expr,
 	for (i = 0; i < expr->n_arg; ++i) {
 		expr->args[i] =
 			expr_detect_parameter_accesses(expr->args[i],
-						isl_dim_copy(dim));
+						isl_space_copy(dim));
 		if (!expr->args[i])
 			goto error;
 	}
 
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = access_detect_parameter(expr->acc.access,
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 		if (!expr->acc.access)
 			goto error;
 	}
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return expr;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_expr_free(expr);
 }
 
@@ -1248,21 +1248,21 @@ error:
  * in "dim" by a value equal to the corresponding parameter.
  */
 static struct pet_stmt *stmt_detect_parameter_accesses(struct pet_stmt *stmt,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	if (!stmt)
 		goto error;
 
 	stmt->body = expr_detect_parameter_accesses(stmt->body,
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		goto error;
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return stmt;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_stmt_free(stmt);
 }
 
@@ -1270,7 +1270,7 @@ error:
  * in "dim" by a value equal to the corresponding parameter.
  */
 static struct pet_scop *scop_detect_parameter_accesses(struct pet_scop *scop,
-	__isl_take isl_dim *dim)
+	__isl_take isl_space *dim)
 {
 	int i;
 
@@ -1279,15 +1279,15 @@ static struct pet_scop *scop_detect_parameter_accesses(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_detect_parameter_accesses(scop->stmts[i],
-							isl_dim_copy(dim));
+							isl_space_copy(dim));
 		if (!scop->stmts[i])
 			goto error;
 	}
 
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return scop;
 error:
-	isl_dim_free(dim);
+	isl_space_free(dim);
 	return pet_scop_free(scop);
 }
 
@@ -1297,12 +1297,12 @@ error:
  */
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop)
 {
-	isl_dim *dim;
+	isl_space *dim;
 
 	if (!scop)
 		return NULL;
 
-	dim = isl_set_get_dim(scop->context);
+	dim = isl_set_get_space(scop->context);
 	dim = scop_collect_params(scop, dim);
 
 	scop = scop_detect_parameter_accesses(scop, dim);
@@ -1318,7 +1318,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 {
 	int i;
 	isl_id *id;
-	isl_dim *dim;
+	isl_space *dim;
 
 	if (!expr)
 		return NULL;
@@ -1340,7 +1340,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
  * and/or all write * access relations (if "write" is set) in "stmt".
  */
 static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
-	int read, int write, __isl_take isl_dim *dim)
+	int read, int write, __isl_take isl_space *dim)
 {
 	isl_union_map *accesses;
 
@@ -1367,11 +1367,11 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	if (!scop)
 		return NULL;
 
-	accesses = isl_union_map_empty(isl_set_get_dim(scop->context));
+	accesses = isl_union_map_empty(isl_set_get_space(scop->context));
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		isl_union_map *accesses_i;
-		isl_dim *dim = isl_set_get_dim(scop->context);
+		isl_space *dim = isl_set_get_space(scop->context);
 		accesses_i = stmt_collect_accesses(scop->stmts[i],
 						   read, write, dim);
 		accesses = isl_union_map_union(accesses, accesses_i);
@@ -1401,7 +1401,7 @@ __isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 
-	domain = isl_union_set_empty(isl_set_get_dim(scop->context));
+	domain = isl_union_set_empty(isl_set_get_space(scop->context));
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		domain_i = isl_set_copy(scop->stmts[i]->domain);
@@ -1425,7 +1425,7 @@ __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 
-	schedule = isl_union_map_empty(isl_set_get_dim(scop->context));
+	schedule = isl_union_map_empty(isl_set_get_space(scop->context));
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		depth = isl_map_dim(scop->stmts[i]->schedule, isl_dim_out);

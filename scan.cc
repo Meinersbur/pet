@@ -6,7 +6,7 @@
 #include <clang/AST/RecursiveASTVisitor.h>
 
 #include <isl/id.h>
-#include <isl/dim.h>
+#include <isl/space.h>
 #include <isl/aff.h>
 #include <isl/set.h>
 
@@ -111,8 +111,8 @@ int PetScan::extract_int(IntegerLiteral *expr, isl_int *v)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 {
-	isl_dim *dim = isl_dim_set_alloc(ctx, 0, 0);
-	isl_local_space *ls = isl_local_space_from_dim(isl_dim_copy(dim));
+	isl_space *dim = isl_space_set_alloc(ctx, 0, 0);
+	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
 	isl_aff *aff = isl_aff_zero(ls);
 	isl_set *dom = isl_set_universe(dim);
 	isl_int v;
@@ -129,8 +129,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
-	isl_dim *dim = isl_dim_set_alloc(ctx, 0, 0);
-	isl_local_space *ls = isl_local_space_from_dim(isl_dim_copy(dim));
+	isl_space *dim = isl_space_set_alloc(ctx, 0, 0);
+	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
 	isl_aff *aff = isl_aff_zero(ls);
 	isl_set *dom = isl_set_universe(dim);
 	isl_int v;
@@ -162,7 +162,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	ValueDecl *decl = expr->getDecl();
 	const Type *type = decl->getType().getTypePtr();
 	isl_id *id;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_aff *aff;
 	isl_set *dom;
 
@@ -180,12 +180,12 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	}
 
 	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	dim = isl_dim_set_alloc(ctx, 1, 0);
+	dim = isl_space_set_alloc(ctx, 1, 0);
 
-	dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
+	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
-	dom = isl_set_universe(isl_dim_copy(dim));
-	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	dom = isl_set_universe(isl_space_copy(dim));
+	aff = isl_aff_zero(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	return isl_pw_aff_alloc(dom, aff);
@@ -450,7 +450,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 isl_pw_aff *PetScan::non_affine(Expr *expr)
 {
 	isl_id *id;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_aff *aff;
 	isl_set *dom;
 
@@ -460,12 +460,12 @@ isl_pw_aff *PetScan::non_affine(Expr *expr)
 	}
 
 	id = isl_id_alloc(ctx, NULL, expr);
-	dim = isl_dim_set_alloc(ctx, 1, 0);
+	dim = isl_space_set_alloc(ctx, 1, 0);
 
-	dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
+	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
-	dom = isl_set_universe(isl_dim_copy(dim));
-	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	dom = isl_set_universe(isl_space_copy(dim));
+	aff = isl_aff_zero(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	return isl_pw_aff_alloc(dom, aff);
@@ -592,10 +592,10 @@ __isl_give isl_map *PetScan::extract_access(DeclRefExpr *expr)
 	ValueDecl *decl = expr->getDecl();
 	int depth = array_depth(decl->getType().getTypePtr());
 	isl_id *id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	isl_dim *dim = isl_dim_alloc(ctx, 0, 0, depth);
+	isl_space *dim = isl_space_alloc(ctx, 0, 0, depth);
 	isl_map *access_rel;
 
-	dim = isl_dim_set_tuple_id(dim, isl_dim_out, id);
+	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
 
 	access_rel = isl_map_universe(dim);
 
@@ -885,7 +885,7 @@ __isl_give isl_set *PetScan::extract_condition(Expr *expr)
 	BinaryOperator *comp;
 
 	if (!expr)
-		return isl_set_universe(isl_dim_set_alloc(ctx, 0, 0));
+		return isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 
 	if (expr->getStmtClass() == Stmt::ParenExprClass)
 		return extract_condition(cast<ParenExpr>(expr)->getSubExpr());
@@ -1328,7 +1328,7 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 	Expr *lhs;
 	DeclRefExpr *ref;
 	isl_id *id;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_aff *aff;
 	isl_pw_aff *val;
 
@@ -1353,9 +1353,9 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
-	dim = isl_dim_set_alloc(ctx, 1, 0);
-	dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
-	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	dim = isl_space_set_alloc(ctx, 1, 0);
+	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
+	aff = isl_aff_zero(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	val = isl_pw_aff_sub(val, isl_pw_aff_from_aff(aff));
@@ -1489,7 +1489,7 @@ static __isl_give isl_set *embed(__isl_take isl_set *set,
 struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
 	isl_id *id;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_set *domain;
 	isl_map *sched;
 	struct pet_scop *scop;
@@ -1499,10 +1499,10 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 		return NULL;
 
 	id = isl_id_alloc(ctx, "t", NULL);
-	domain = isl_set_nat_universe(isl_dim_set_alloc(ctx, 0, 1));
+	domain = isl_set_nat_universe(isl_space_set_alloc(ctx, 0, 1));
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
-	dim = isl_dim_from_domain(isl_set_get_dim(domain));
-	dim = isl_dim_add(dim, isl_dim_out, 1);
+	dim = isl_space_from_domain(isl_set_get_space(domain));
+	dim = isl_space_add_dims(dim, isl_dim_out, 1);
 	sched = isl_map_universe(dim);
 	sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
 	scop = pet_scop_embed(scop, domain, sched, id);
@@ -1592,9 +1592,9 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
 	isl_map *previous_to_this;
 
 	if (isl_int_is_pos(inc))
-		previous_to_this = isl_map_lex_le(isl_set_get_dim(domain));
+		previous_to_this = isl_map_lex_le(isl_set_get_space(domain));
 	else
-		previous_to_this = isl_map_lex_ge(isl_set_get_dim(domain));
+		previous_to_this = isl_map_lex_ge(isl_set_get_space(domain));
 
 	previous_to_this = isl_map_intersect_domain(previous_to_this, domain);
 
@@ -1613,17 +1613,17 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	__isl_take isl_pw_aff *init, isl_int inc)
 {
 	isl_aff *aff;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_set *set;
 
 	init = isl_pw_aff_insert_dims(init, isl_dim_set, 0, 1);
-	aff = isl_aff_zero(isl_local_space_from_dim(isl_pw_aff_get_dim(init)));
+	aff = isl_aff_zero(isl_local_space_from_space(isl_pw_aff_get_space(init)));
 	aff = isl_aff_add_coefficient(aff, isl_dim_set, 0, inc);
 	init = isl_pw_aff_add(init, isl_pw_aff_from_aff(aff));
 
-	dim = isl_dim_set_alloc(isl_pw_aff_get_ctx(init), 1, 1);
-	dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
-	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	dim = isl_space_set_alloc(isl_pw_aff_get_ctx(init), 1, 1);
+	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
+	aff = isl_aff_zero(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	set = isl_pw_aff_eq_set(isl_pw_aff_from_aff(aff), init);
@@ -1680,7 +1680,7 @@ static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv, isl_int inc)
  * where width is the number of bits used to represent the values
  * of the unsigned variable "iv".
  */
-static __isl_give isl_map *compute_wrapping(__isl_take isl_dim *dim,
+static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
 	ValueDecl *iv)
 {
 	isl_int mod;
@@ -1691,7 +1691,7 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_dim *dim,
 	isl_int_set_si(mod, 1);
 	isl_int_mul_2exp(mod, mod, get_type_size(iv));
 
-	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	aff = isl_aff_zero(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_set, 0, 1);
 	aff = isl_aff_mod(aff, mod);
 
@@ -1763,7 +1763,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	Stmt *init;
 	Expr *lhs, *rhs;
 	ValueDecl *iv;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_set *domain;
 	isl_map *sched;
 	isl_set *cond;
@@ -1833,7 +1833,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	is_simple = is_simple_bound(cond, inc);
 	if (is_unsigned &&
 	    (!is_simple || !is_one || can_wrap(cond, iv, inc))) {
-		wrap = compute_wrapping(isl_set_get_dim(cond), iv);
+		wrap = compute_wrapping(isl_set_get_space(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
 		is_simple = is_simple && is_simple_bound(cond, inc);
 	}
@@ -1842,8 +1842,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 						isl_set_copy(domain), inc);
 	domain = isl_set_intersect(domain, cond);
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
-	dim = isl_dim_from_domain(isl_set_get_dim(domain));
-	dim = isl_dim_add(dim, isl_dim_out, 1);
+	dim = isl_space_from_domain(isl_set_get_space(domain));
+	dim = isl_space_add_dims(dim, isl_dim_out, 1);
 	sched = isl_map_universe(dim);
 	if (isl_int_is_pos(inc))
 		sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
@@ -1889,7 +1889,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	int n;
 	int nparam;
 	int n_in;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_map *map;
 	std::map<int,int> param2pos;
 
@@ -1955,10 +1955,10 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	}
 	expr->n_arg = n;
 
-	dim = isl_map_get_dim(expr->acc.access);
-	dim = isl_dim_domain(dim);
-	dim = isl_dim_from_domain(dim);
-	dim = isl_dim_add(dim, isl_dim_out, n);
+	dim = isl_map_get_space(expr->acc.access);
+	dim = isl_space_domain(dim);
+	dim = isl_space_from_domain(dim);
+	dim = isl_space_add_dims(dim, isl_dim_out, n);
 	map = isl_map_universe(dim);
 	map = isl_map_domain_map(map);
 	map = isl_map_reverse(map);
@@ -2307,7 +2307,7 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	isl_set *valid;
 	isl_set *univ;
 	isl_set *bound;
-	isl_dim *dim;
+	isl_space *dim;
 	isl_aff *aff;
 	isl_pw_aff *index;
 	isl_id *id;
@@ -2315,10 +2315,10 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	valid = isl_pw_aff_nonneg_set(isl_pw_aff_copy(size));
 	array->context = isl_set_intersect(array->context, valid);
 
-	dim = isl_set_get_dim(array->extent);
-	aff = isl_aff_zero(isl_local_space_from_dim(dim));
+	dim = isl_set_get_space(array->extent);
+	aff = isl_aff_zero(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_set, pos, 1);
-	univ = isl_set_universe(isl_aff_get_dim(aff));
+	univ = isl_set_universe(isl_aff_get_space(aff));
 	index = isl_pw_aff_alloc(univ, aff);
 
 	size = isl_pw_aff_add_dims(size, isl_dim_set,
@@ -2389,19 +2389,19 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 	QualType base = base_type(qt);
 	string name;
 	isl_id *id;
-	isl_dim *dim;
+	isl_space *dim;
 
 	array = isl_calloc_type(ctx, struct pet_array);
 	if (!array)
 		return NULL;
 
 	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	dim = isl_dim_set_alloc(ctx, 0, depth);
-	dim = isl_dim_set_tuple_id(dim, isl_dim_set, id);
+	dim = isl_space_set_alloc(ctx, 0, depth);
+	dim = isl_space_set_tuple_id(dim, isl_dim_set, id);
 
 	array->extent = isl_set_nat_universe(dim);
 
-	dim = isl_dim_set_alloc(ctx, 0, 0);
+	dim = isl_space_set_alloc(ctx, 0, 0);
 	array->context = isl_set_universe(dim);
 
 	array = set_upper_bounds(array, type, 0);

@@ -57,12 +57,12 @@ static __isl_give isl_set *set_bounds(__isl_take isl_set *set,
 {
 	isl_constraint *c;
 
-	c = isl_inequality_alloc(isl_set_get_dim(set));
+	c = isl_inequality_alloc(isl_set_get_space(set));
 	isl_constraint_set_coefficient_si(c, type, pos, 1);
 	isl_constraint_set_constant_si(c, -lb);
 	set = isl_set_add_constraint(set, c);
 
-	c = isl_inequality_alloc(isl_set_get_dim(set));
+	c = isl_inequality_alloc(isl_set_get_space(set));
 	isl_constraint_set_coefficient_si(c, type, pos, -1);
 	isl_constraint_set_constant_si(c, ub);
 	set = isl_set_add_constraint(set, c);
@@ -110,7 +110,7 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 	virtual void HandlePragma(Preprocessor &PP,
 				  PragmaIntroducerKind Introducer,
 				  Token &ScopTok) {
-		isl_dim *dim;
+		isl_space *dim;
 		isl_set *set;
 		ValueDecl *vd;
 		Token token;
@@ -140,7 +140,7 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 
 		ub = get_int(token.getLiteralData());
 
-		dim = isl_dim_set_alloc(ctx, 0, 1);
+		dim = isl_space_set_alloc(ctx, 0, 1);
 		set = isl_set_universe(dim);
 		set = set_bounds(set, isl_dim_set, 0, lb, ub);
 
@@ -167,7 +167,7 @@ struct PragmaParameterHandler : public PragmaHandler {
 				  Token &ScopTok) {
 		isl_id *id;
 		isl_ctx *ctx = isl_set_get_ctx(context);
-		isl_dim *dim;
+		isl_space *dim;
 		isl_set *set;
 		ValueDecl *vd;
 		Token token;
@@ -198,8 +198,8 @@ struct PragmaParameterHandler : public PragmaHandler {
 		ub = get_int(token.getLiteralData());
 
 		id = isl_id_alloc(ctx, vd->getName().str().c_str(), vd);
-		dim = isl_dim_set_alloc(ctx, 1, 0);
-		dim = isl_dim_set_dim_id(dim, isl_dim_param, 0, id);
+		dim = isl_space_set_alloc(ctx, 1, 0);
+		dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
 		set = isl_set_universe(dim);
 
@@ -426,7 +426,7 @@ static void update_arrays(struct pet_scop *scop,
 struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	const char *filename, const char *function, int autodetect)
 {
-	isl_dim *dim;
+	isl_space *dim;
 	isl_set *context;
 	set<ValueDecl *> live_out;
 	map<ValueDecl *, isl_set *> value_bounds;
@@ -475,7 +475,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 		PP.AddPragmaHandler(new PragmaLiveOutHandler(sema, live_out));
 	}
 
-	dim = isl_dim_set_alloc(ctx, 0, 0);
+	dim = isl_space_set_alloc(ctx, 0, 0);
 	context = isl_set_universe(dim);
 	PP.AddPragmaHandler(new PragmaParameterHandler(sema, context));
 	PP.AddPragmaHandler(new PragmaValueBoundsHandler(ctx, sema, value_bounds));
