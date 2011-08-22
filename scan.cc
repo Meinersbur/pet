@@ -2173,10 +2173,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range)
 	int j;
 	bool partial_range = false;
 
-	if (autodetect)
-		scop = NULL;
-	else
-		scop = pet_scop_empty(ctx);
+	scop = pet_scop_empty(ctx);
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j) {
 		Stmt *child = *i;
 		struct pet_scop *scop_i;
@@ -2187,13 +2184,11 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range)
 		}
 		scop_i = pet_scop_prefix(scop_i, j);
 		if (autodetect) {
-			if (!scop) {
-				if (j != 0)
-					partial_range = true;
-				scop = scop_i;
-			} else if (scop_i)
+			if (scop_i)
 				scop = pet_scop_add(ctx, scop, scop_i);
 			else
+				partial_range = true;
+			if (scop->n_stmt != 0 && !scop_i)
 				partial = true;
 		} else {
 			scop = pet_scop_add(ctx, scop, scop_i);
