@@ -475,7 +475,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 		PP.AddPragmaHandler(new PragmaLiveOutHandler(sema, live_out));
 	}
 
-	dim = isl_space_set_alloc(ctx, 0, 0);
+	dim = isl_space_params_alloc(ctx, 0);
 	context = isl_set_universe(dim);
 	PP.AddPragmaHandler(new PragmaParameterHandler(sema, context));
 	PP.AddPragmaHandler(new PragmaValueBoundsHandler(ctx, sema, value_bounds));

@@ -2401,7 +2401,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 
 	array->extent = isl_set_nat_universe(dim);
 
-	dim = isl_space_set_alloc(ctx, 0, 0);
+	dim = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(dim);
 
 	array = set_upper_bounds(array, type, 0);

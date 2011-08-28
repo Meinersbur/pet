@@ -546,7 +546,7 @@ static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 	if (!scop)
 		return NULL;
 
-	scop->context = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	scop->context = isl_set_universe(isl_space_params_alloc(ctx, 0));
 	scop->stmts = isl_calloc_array(ctx, struct pet_stmt *, n);
 	if (!scop->context || !scop->stmts)
 		return pet_scop_free(scop);
