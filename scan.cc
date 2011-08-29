@@ -1475,10 +1475,7 @@ static __isl_give isl_set *embed(__isl_take isl_set *set,
 	return set;
 }
 
-/* Construct a pet_scop for an infinite loop, i.e., a loop of the form
- *
- *	for (;;)
- *		body
+/* Construct a pet_scop for an infinite loop around the given body.
  *
  * We extract a pet_scop for the body and then embed it in a loop with
  * iteration domain
@@ -1489,7 +1486,7 @@ static __isl_give isl_set *embed(__isl_take isl_set *set,
  *
  *	{ [t] -> [t] }
  */
-struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
+struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
 	isl_id *id;
 	isl_dim *dim;
@@ -1497,7 +1494,7 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 	isl_map *sched;
 	struct pet_scop *scop;
 
-	scop = extract(stmt->getBody());
+	scop = extract(body);
 	if (!scop)
 		return NULL;
 
@@ -1511,6 +1508,49 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 	scop = pet_scop_embed(scop, domain, sched, id);
 
 	return scop;
+}
+
+/* Construct a pet_scop for an infinite loop, i.e., a loop of the form
+ *
+ *	for (;;)
+ *		body
+ *
+ */
+struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
+{
+	return extract_infinite_loop(stmt->getBody());
+}
+
+/* Check if the while loop is of the form
+ *
+ *	while (1)
+ *		body
+ *
+ * If so, construct a scop for an infinite loop around body.
+ * Otherwise, fail.
+ */
+struct pet_scop *PetScan::extract(WhileStmt *stmt)
+{
+	Expr *cond;
+	isl_set *set;
+	int is_universe;
+
+	cond = stmt->getCond();
+	if (!cond) {
+		unsupported(stmt);
+		return NULL;
+	}
+
+	set = extract_condition(cond);
+	is_universe = isl_set_plain_is_universe(set);
+	isl_set_free(set);
+
+	if (!is_universe) {
+		unsupported(stmt);
+		return NULL;
+	}
+
+	return extract_infinite_loop(stmt->getBody());
 }
 
 /* Check whether "cond" expresses a simple loop bound
@@ -2152,6 +2192,8 @@ struct pet_scop *PetScan::extract(Stmt *stmt)
 		return extract(stmt, extract_expr(cast<Expr>(stmt)));
 
 	switch (stmt->getStmtClass()) {
+	case Stmt::WhileStmtClass:
+		return extract(cast<WhileStmt>(stmt));
 	case Stmt::ForStmtClass:
 		return extract_for(cast<ForStmt>(stmt));
 	case Stmt::IfStmtClass:

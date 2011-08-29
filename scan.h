@@ -73,6 +73,7 @@ private:
 	struct pet_scop *extract(clang::Stmt *stmt);
 	struct pet_scop *extract(clang::StmtRange stmt_range);
 	struct pet_scop *extract(clang::IfStmt *stmt);
+	struct pet_scop *extract(clang::WhileStmt *stmt);
 	struct pet_scop *extract(clang::CompoundStmt *stmt);
 
 	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr);
@@ -91,6 +92,7 @@ private:
 	bool check_increment(clang::ForStmt *stmt, clang::ValueDecl *iv,
 				isl_int &inc);
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
+	struct pet_scop *extract_infinite_loop(clang::Stmt *body);
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
 
 	struct pet_expr *extract_expr(clang::Expr *expr);

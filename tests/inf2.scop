@@ -1,0 +1,39 @@
+context: '[N] -> { [] : N >= 8 and N <= 16 }'
+arrays:
+- context: '[N] -> { [] : N >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
+  element_type: int
+- context: '[N] -> { [] : N >= 0 }'
+  extent: '[N] -> { b[i0] : i0 >= 0 and i0 <= -1 + N }'
+  element_type: int
+statements:
+- line: 12
+  domain: '[N] -> { S_0[t, j] : t >= 0 and j <= -1 + N and j >= 0 }'
+  schedule: '[N] -> { S_0[t, j] -> [0, t, 0, j] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_0[t, j] -> a[j] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_0[t, j] -> [0] }'
+      read: 1
+      write: 0
+- line: 14
+  domain: '[N] -> { S_1[t, j] : t >= 0 and j <= -1 + N and j >= 0 }'
+  schedule: '[N] -> { S_1[t, j] -> [0, t, 1, j] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_1[t, j] -> b[j] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_1[t, j] -> a[j] }'
+      read: 1
+      write: 0
