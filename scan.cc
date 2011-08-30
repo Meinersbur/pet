@@ -2348,6 +2348,9 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	const ArrayType *atype;
 	isl_pw_aff *size;
 
+	if (!array)
+		return NULL;
+
 	if (type->isPointerType()) {
 		type = type->getPointeeType().getTypePtr();
 		return set_upper_bounds(array, type, pos + 1);
