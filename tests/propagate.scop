@@ -1,14 +1,14 @@
-context: '[N] -> { [] : N >= 0 }'
+context: '[N] -> {  : N >= 0 }'
 arrays:
-- context: '[N] -> { [] : N >= 0 }'
+- context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { a[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: int
-- context: '[N] -> { [] }'
+- context: '{  :  }'
   extent: '{ ind[] }'
   element_type: int
 statements:
 - line: 9
-  domain: '[N] -> { S_0[i, j] : i <= -1 + N and i >= 0 and j <= -1 + N and j >= i
+  domain: '[N] -> { S_0[i, j] : i >= 0 and i <= -1 + N and j >= i and j <= -1 + N
     }'
   schedule: '[N] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
@@ -48,7 +48,7 @@ statements:
         read: 1
         write: 0
 - line: 10
-  domain: '[N] -> { S_1[i, j] : i <= -1 + N and i >= 0 and j <= -1 + N and j >= i
+  domain: '[N] -> { S_1[i, j] : i >= 0 and i <= -1 + N and j >= i and j <= -1 + N
     }'
   schedule: '[N] -> { S_1[i, j] -> [0, i, j, 1] }'
   body:

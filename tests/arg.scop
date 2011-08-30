@@ -1,14 +1,14 @@
-context: '{ [] }'
+context: '{  :  }'
 arrays:
-- context: '{ [] }'
+- context: '{  :  }'
   extent: '{ b[i0] : i0 >= 0 and i0 <= 10 }'
   element_type: int
-- context: '{ [] }'
+- context: '{  :  }'
   extent: '{ a[] }'
   element_type: int
 statements:
 - line: 11
-  domain: '{ S_0[i] : i <= 9 and i >= 0 }'
+  domain: '{ S_0[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
     type: call
@@ -23,7 +23,7 @@ statements:
       read: 0
       write: 1
 - line: 12
-  domain: '{ S_1[i] : i <= 9 and i >= 0 }'
+  domain: '{ S_1[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_1[i] -> [0, i, 1] }'
   body:
     type: call

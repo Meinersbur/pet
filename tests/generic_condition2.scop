@@ -1,6 +1,6 @@
-context: '{ [] }'
+context: '{  :  }'
 arrays:
-- context: '{ [] }'
+- context: '{  :  }'
   extent: '{ a[] }'
   element_type: int
 statements:

@@ -1,6 +1,6 @@
-context: '[N] -> { [] : N >= 0 }'
+context: '[N] -> {  : N >= 0 }'
 arrays:
-- context: '[N] -> { [] : N >= 0 }'
+- context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
 statements:

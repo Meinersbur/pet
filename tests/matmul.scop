@@ -1,12 +1,12 @@
-context: '[N, K] -> { [] : K >= 0 and N >= 0 }'
+context: '[N, K] -> {  : K >= 0 and N >= 0 }'
 arrays:
-- context: '[K] -> { [] : K >= 0 }'
+- context: '[K] -> {  : K >= 0 }'
   extent: '[K] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + K }'
   element_type: float
-- context: '[N] -> { [] : N >= 0 }'
+- context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { B[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
-- context: '[N] -> { [] : N >= 0 }'
+- context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { C[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
   live_out: 1

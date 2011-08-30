@@ -1,11 +1,11 @@
-context: '{ [] }'
+context: '{  :  }'
 arrays:
-- context: '{ [] }'
+- context: '{  :  }'
   extent: '{ a[] }'
   element_type: int
 statements:
 - line: 8
-  domain: '{ S_0[i] : i <= 9 and i >= 0 }'
+  domain: '{ S_0[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_0[i] -> [0, i] }'
   body:
     type: binary
