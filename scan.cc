@@ -19,8 +19,10 @@
 using namespace std;
 using namespace clang;
 
-/* Look for any assignments to variables in part of the parse
+/* Look for any assignments to scalar variables in part of the parse
  * tree and set assigned_value to NULL for each of them.
+ * Also reset assigned_value if the address of a scalar variable
+ * is being taken.
  *
  * This ensures that we won't use any previously stored value
  * in the current subtree and its parents.
@@ -30,6 +32,23 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 
 	clear_assignments(map<ValueDecl *, Expr *> &assigned_value) :
 		assigned_value(assigned_value) {}
+
+	bool VisitUnaryOperator(UnaryOperator *expr) {
+		Expr *arg;
+		DeclRefExpr *ref;
+		ValueDecl *decl;
+
+		if (expr->getOpcode() != UO_AddrOf)
+			return true;
+
+		arg = expr->getSubExpr();
+		if (arg->getStmtClass() != Stmt::DeclRefExprClass)
+			return true;
+		ref = cast<DeclRefExpr>(arg);
+		decl = ref->getDecl();
+		assigned_value[decl] = NULL;
+		return true;
+	}
 
 	bool VisitBinaryOperator(BinaryOperator *expr) {
 		Expr *lhs;
@@ -975,6 +994,27 @@ struct pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 	return pet_expr_new_unary(ctx, op, arg);
 }
 
+/* Mark the given access pet_expr as a write.
+ * If a scalar is being accessed, then mark its value
+ * as unknown in assigned_value.
+ */
+void PetScan::mark_write(struct pet_expr *access)
+{
+	isl_id *id;
+	ValueDecl *decl;
+
+	access->acc.write = 1;
+	access->acc.read = 0;
+
+	if (isl_map_dim(access->acc.access, isl_dim_out) != 0)
+		return;
+
+	id = isl_map_get_tuple_id(access->acc.access, isl_dim_out);
+	decl = (ValueDecl *) isl_id_get_user(id);
+	assigned_value[decl] = NULL;
+	isl_id_free(id);
+}
+
 /* Construct a pet_expr representing a binary operator expression.
  *
  * If the top level operator is an assignment and the LHS is an access,
@@ -1000,9 +1040,9 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	rhs = extract_expr(expr->getRHS());
 
 	if (expr->isAssignmentOp() && lhs && lhs->type == pet_expr_access) {
-		lhs->acc.write = 1;
-		if (!expr->isCompoundAssignmentOp())
-			lhs->acc.read = 0;
+		mark_write(lhs);
+		if (expr->isCompoundAssignmentOp())
+			lhs->acc.read = 1;
 	}
 
 	if (expr->getOpcode() == BO_Assign &&
@@ -1125,10 +1165,8 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 			is_addr = 1;
 		if (is_addr && res->args[i]->type == pet_expr_access) {
 			ParmVarDecl *parm = fd->getParamDecl(i);
-			if (!const_base(parm->getType())) {
-				res->args[i]->acc.write = 1;
-				res->args[i]->acc.read = 0;
-			}
+			if (!const_base(parm->getType()))
+				mark_write(res->args[i]);
 		}
 	}
 

@@ -95,6 +95,7 @@ private:
 	struct pet_scop *extract_infinite_loop(clang::Stmt *body);
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
 
+	void mark_write(struct pet_expr *access);
 	struct pet_expr *extract_expr(clang::Expr *expr);
 	struct pet_expr *extract_expr(clang::UnaryOperator *expr);
 	struct pet_expr *extract_expr(clang::BinaryOperator *expr);
