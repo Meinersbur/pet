@@ -113,7 +113,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 {
 	isl_space *dim = isl_space_set_alloc(ctx, 0, 0);
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
-	isl_aff *aff = isl_aff_zero(ls);
+	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(dim);
 	isl_int v;
 
@@ -131,7 +131,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
 	isl_space *dim = isl_space_set_alloc(ctx, 0, 0);
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
-	isl_aff *aff = isl_aff_zero(ls);
+	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(dim);
 	isl_int v;
 
@@ -185,7 +185,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
 	dom = isl_set_universe(isl_space_copy(dim));
-	aff = isl_aff_zero(isl_local_space_from_space(dim));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	return isl_pw_aff_alloc(dom, aff);
@@ -465,7 +465,7 @@ isl_pw_aff *PetScan::non_affine(Expr *expr)
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
 	dom = isl_set_universe(isl_space_copy(dim));
-	aff = isl_aff_zero(isl_local_space_from_space(dim));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	return isl_pw_aff_alloc(dom, aff);
@@ -1355,7 +1355,7 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 
 	dim = isl_space_set_alloc(ctx, 1, 0);
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
-	aff = isl_aff_zero(isl_local_space_from_space(dim));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	val = isl_pw_aff_sub(val, isl_pw_aff_from_aff(aff));
@@ -1616,14 +1616,15 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	isl_space *dim;
 	isl_set *set;
 
-	init = isl_pw_aff_insert_dims(init, isl_dim_set, 0, 1);
-	aff = isl_aff_zero(isl_local_space_from_space(isl_pw_aff_get_space(init)));
-	aff = isl_aff_add_coefficient(aff, isl_dim_set, 0, inc);
+	init = isl_pw_aff_insert_dims(init, isl_dim_in, 0, 1);
+	dim = isl_pw_aff_get_domain_space(init);
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
+	aff = isl_aff_add_coefficient(aff, isl_dim_in, 0, inc);
 	init = isl_pw_aff_add(init, isl_pw_aff_from_aff(aff));
 
 	dim = isl_space_set_alloc(isl_pw_aff_get_ctx(init), 1, 1);
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
-	aff = isl_aff_zero(isl_local_space_from_space(dim));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	set = isl_pw_aff_eq_set(isl_pw_aff_from_aff(aff), init);
@@ -1691,8 +1692,8 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
 	isl_int_set_si(mod, 1);
 	isl_int_mul_2exp(mod, mod, get_type_size(iv));
 
-	aff = isl_aff_zero(isl_local_space_from_space(dim));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_set, 0, 1);
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
+	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
 	aff = isl_aff_mod(aff, mod);
 
 	isl_int_clear(mod);
@@ -2316,12 +2317,12 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	array->context = isl_set_intersect(array->context, valid);
 
 	dim = isl_set_get_space(array->extent);
-	aff = isl_aff_zero(isl_local_space_from_space(dim));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_set, pos, 1);
-	univ = isl_set_universe(isl_aff_get_space(aff));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
+	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, pos, 1);
+	univ = isl_set_universe(isl_aff_get_domain_space(aff));
 	index = isl_pw_aff_alloc(univ, aff);
 
-	size = isl_pw_aff_add_dims(size, isl_dim_set,
+	size = isl_pw_aff_add_dims(size, isl_dim_in,
 				isl_set_dim(array->extent, isl_dim_set));
 	id = isl_set_get_tuple_id(array->extent);
 	size = isl_pw_aff_set_tuple_id(size, id);
