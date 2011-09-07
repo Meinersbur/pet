@@ -9,6 +9,7 @@
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/TargetOptions.h>
 #include <clang/Basic/TargetInfo.h>
+#include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
 #include <clang/Frontend/DiagnosticOptions.h>
 #include <clang/Frontend/TextDiagnosticPrinter.h>
@@ -432,59 +433,53 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	map<ValueDecl *, isl_set *> value_bounds;
 	map<ValueDecl *, isl_set *>::iterator vb_it;
 
-	FileSystemOptions FO;
-	FileManager FM(FO);
-	const FileEntry *file = FM.getFile(filename);
-	if (!file)
-		isl_die(ctx, isl_error_unknown, "unable to open file",
-			return NULL);
-
-	llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+	CompilerInstance *Clang = new CompilerInstance();
 	DiagnosticOptions DO;
-	Diagnostic Diags(DiagID, new MyDiagnosticPrinter(DO));
+	Clang->createDiagnostics(0, NULL, new MyDiagnosticPrinter(DO));
+	Diagnostic &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
+	Clang->createFileManager();
+	Clang->createSourceManager(Clang->getFileManager());
 	TargetOptions TO;
 	TO.Triple = llvm::sys::getHostTriple();
 	TargetInfo *target = TargetInfo::CreateTargetInfo(Diags, TO);
-	SourceManager SM(Diags, FM);
-	HeaderSearch HS(FM);
-	LangOptions LO;
-	CompilerInvocation::setLangDefaults(LO, IK_C,
+	Clang->setTarget(target);
+	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
 					    LangStandard::lang_unspecified);
-	Preprocessor PP(Diags, LO, *target, SM, HS);
-	HeaderSearchOptions HSO;
-	PreprocessorOptions PPO;
-	FrontendOptions FEO;
-	HSO.ResourceDir = ResourceDir;
-	InitializePreprocessor(PP, PPO, HSO, FEO);
+	Clang->getHeaderSearchOpts().ResourceDir = ResourceDir;
+	Clang->createPreprocessor();
+	Preprocessor &PP = Clang->getPreprocessor();
 
 	ScopLoc loc;
 
-	SM.createMainFileID(file);
+	const FileEntry *file = Clang->getFileManager().getFile(filename);
+	if (!file)
+		isl_die(ctx, isl_error_unknown, "unable to open file",
+			return NULL);
+	Clang->getSourceManager().createMainFileID(file);
 
-	ASTContext ast_context(LO, PP.getSourceManager(),
-		*target, PP.getIdentifierTable(), PP.getSelectorTable(),
-		PP.getBuiltinInfo(), 0);
-	PetASTConsumer consumer(ctx, PP, ast_context,
+	Clang->createASTContext();
+	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(),
 				loc, function, autodetect);
-	Sema sema(PP, ast_context, consumer);
+	Sema *sema = new Sema(PP, Clang->getASTContext(), consumer);
 
 	if (!autodetect) {
 		PP.AddPragmaHandler(new PragmaScopHandler(loc));
 		PP.AddPragmaHandler(new PragmaEndScopHandler(loc));
-		PP.AddPragmaHandler(new PragmaLiveOutHandler(sema, live_out));
+		PP.AddPragmaHandler(new PragmaLiveOutHandler(*sema, live_out));
 	}
 
 	dim = isl_space_params_alloc(ctx, 0);
 	context = isl_set_universe(dim);
-	PP.AddPragmaHandler(new PragmaParameterHandler(sema, context));
-	PP.AddPragmaHandler(new PragmaValueBoundsHandler(ctx, sema, value_bounds));
+	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context));
+	PP.AddPragmaHandler(new PragmaValueBoundsHandler(ctx, *sema, value_bounds));
 
-	Diags.getClient()->BeginSourceFile(LO, &PP);
-	ParseAST(sema);
+	Diags.getClient()->BeginSourceFile(Clang->getLangOpts(), &PP);
+	ParseAST(*sema);
 	Diags.getClient()->EndSourceFile();
 
-	delete target;
+	delete sema;
+	delete Clang;
 	llvm::llvm_shutdown();
 
 	if (consumer.scop)
