@@ -90,15 +90,18 @@ static __isl_give isl_set *set_bounds(__isl_take isl_set *set,
 	enum isl_dim_type type, int pos, int lb, int ub)
 {
 	isl_constraint *c;
+	isl_local_space *ls;
 
-	c = isl_inequality_alloc(isl_set_get_space(set));
-	isl_constraint_set_coefficient_si(c, type, pos, 1);
-	isl_constraint_set_constant_si(c, -lb);
+	ls = isl_local_space_from_space(isl_set_get_space(set));
+
+	c = isl_inequality_alloc(isl_local_space_copy(ls));
+	c = isl_constraint_set_coefficient_si(c, type, pos, 1);
+	c = isl_constraint_set_constant_si(c, -lb);
 	set = isl_set_add_constraint(set, c);
 
-	c = isl_inequality_alloc(isl_set_get_space(set));
-	isl_constraint_set_coefficient_si(c, type, pos, -1);
-	isl_constraint_set_constant_si(c, ub);
+	c = isl_inequality_alloc(ls);
+	c = isl_constraint_set_coefficient_si(c, type, pos, -1);
+	c = isl_constraint_set_constant_si(c, ub);
 	set = isl_set_add_constraint(set, c);
 
 	return set;
