@@ -94,7 +94,7 @@ static __isl_give isl_set *extract_set(isl_ctx *ctx, yaml_document_t *document,
 		isl_die(ctx, isl_error_invalid, "expecting scalar node",
 			return NULL);
 
-	return isl_set_read_from_str(ctx, (char *) node->data.scalar.value, -1);
+	return isl_set_read_from_str(ctx, (char *) node->data.scalar.value);
 }
 
 static __isl_give isl_map *extract_map(isl_ctx *ctx, yaml_document_t *document,
@@ -104,7 +104,7 @@ static __isl_give isl_map *extract_map(isl_ctx *ctx, yaml_document_t *document,
 		isl_die(ctx, isl_error_invalid, "expecting scalar node",
 			return NULL);
 
-	return isl_map_read_from_str(ctx, (char *) node->data.scalar.value, -1);
+	return isl_map_read_from_str(ctx, (char *) node->data.scalar.value);
 }
 
 static struct pet_array *extract_array(isl_ctx *ctx, yaml_document_t *document,
