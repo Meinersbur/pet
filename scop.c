@@ -489,7 +489,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
 	if (!expr)
 		return NULL;
 
-	stmt = isl_alloc_type(ctx, struct pet_stmt);
+	stmt = isl_calloc_type(ctx, struct pet_stmt);
 	if (!stmt)
 		return pet_expr_free(expr);
 
