@@ -350,6 +350,8 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 			return 0;
 		if (expr1->acc.write != expr2->acc.write)
 			return 0;
+		if (!expr1->acc.access || !expr2->acc.access)
+			return 0;
 		if (!isl_map_is_equal(expr1->acc.access, expr2->acc.access))
 			return 0;
 		break;
