@@ -188,7 +188,7 @@ static struct pet_expr *extract_arguments(isl_ctx *ctx,
 
 	if (node->type != YAML_SEQUENCE_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting sequence",
-			return NULL);
+			return pet_expr_free(expr));
 
 	expr->n_arg = node->data.sequence.items.top
 				- node->data.sequence.items.start;
