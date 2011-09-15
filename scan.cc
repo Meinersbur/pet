@@ -2503,25 +2503,30 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
 	int i;
 	set<ValueDecl *> arrays;
 	set<ValueDecl *>::iterator it;
+	int n_array;
+	struct pet_array **scop_arrays;
 
 	if (!scop)
 		return NULL;
 
 	pet_scop_collect_arrays(scop, arrays);
-
-	scop->n_array = arrays.size();
-	if (scop->n_array == 0)
+	if (arrays.size() == 0)
 		return scop;
 
-	scop->arrays = isl_calloc_array(ctx, struct pet_array *, scop->n_array);
-	if (!scop->arrays)
+	n_array = scop->n_array;
+
+	scop_arrays = isl_realloc_array(ctx, scop->arrays, struct pet_array *,
+					n_array + arrays.size());
+	if (!scop_arrays)
 		goto error;
+	scop->arrays = scop_arrays;
 
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
-		scop->arrays[i] = array = extract_array(ctx, *it);
-		if (!scop->arrays[i])
+		scop->arrays[n_array + i] = array = extract_array(ctx, *it);
+		if (!scop->arrays[n_array + i])
 			goto error;
+		scop->n_array++;
 		scop->context = isl_set_intersect(scop->context,
 						isl_set_copy(array->context));
 		if (!scop->context)

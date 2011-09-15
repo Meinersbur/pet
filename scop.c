@@ -629,7 +629,8 @@ error:
 	return NULL;
 }
 
-/* Construct a pet_scop that contains the statements in "scop1" and "scop2".
+/* Construct a pet_scop that contains the arrays and the statements
+ * in "scop1" and "scop2".
  */
 struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
@@ -654,6 +655,12 @@ struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	if (!scop)
 		goto error;
 
+	scop->arrays = isl_calloc_array(ctx, struct pet_array *,
+					scop1->n_array + scop2->n_array);
+	if (!scop->arrays)
+		goto error;
+	scop->n_array = scop1->n_array + scop2->n_array;
+
 	for (i = 0; i < scop1->n_stmt; ++i) {
 		scop->stmts[i] = scop1->stmts[i];
 		scop1->stmts[i] = NULL;
@@ -662,6 +669,16 @@ struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	for (i = 0; i < scop2->n_stmt; ++i) {
 		scop->stmts[scop1->n_stmt + i] = scop2->stmts[i];
 		scop2->stmts[i] = NULL;
+	}
+
+	for (i = 0; i < scop1->n_array; ++i) {
+		scop->arrays[i] = scop1->arrays[i];
+		scop1->arrays[i] = NULL;
+	}
+
+	for (i = 0; i < scop2->n_array; ++i) {
+		scop->arrays[scop1->n_array + i] = scop2->arrays[i];
+		scop2->arrays[i] = NULL;
 	}
 
 	pet_scop_free(scop1);
