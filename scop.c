@@ -516,6 +516,8 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
 
 void *pet_stmt_free(struct pet_stmt *stmt)
 {
+	int i;
+
 	if (!stmt)
 		return NULL;
 
@@ -523,12 +525,18 @@ void *pet_stmt_free(struct pet_stmt *stmt)
 	isl_map_free(stmt->schedule);
 	pet_expr_free(stmt->body);
 
+	for (i = 0; i < stmt->n_arg; ++i)
+		pet_expr_free(stmt->args[i]);
+	free(stmt->args);
+
 	free(stmt);
 	return NULL;
 }
 
 static void stmt_dump(struct pet_stmt *stmt, int indent)
 {
+	int i;
+
 	if (!stmt)
 		return;
 
@@ -538,6 +546,8 @@ static void stmt_dump(struct pet_stmt *stmt, int indent)
 	fprintf(stderr, "%*s", indent, "");
 	isl_map_dump(stmt->schedule);
 	expr_dump(stmt->body, indent);
+	for (i = 0; i < stmt->n_arg; ++i)
+		expr_dump(stmt->args[i], indent + 2);
 }
 
 void pet_stmt_dump(struct pet_stmt *stmt)
@@ -726,6 +736,8 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
  */
 int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 {
+	int i;
+
 	if (!stmt1 || !stmt2)
 		return 0;
 	
@@ -737,6 +749,12 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 		return 0;
 	if (!pet_expr_is_equal(stmt1->body, stmt2->body))
 		return 0;
+	if (stmt1->n_arg != stmt2->n_arg)
+		return 0;
+	for (i = 0; i < stmt1->n_arg; ++i) {
+		if (!pet_expr_is_equal(stmt1->args[i], stmt2->args[i]))
+			return 0;
+	}
 
 	return 1;
 }

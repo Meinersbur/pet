@@ -300,6 +300,27 @@ static int emit_stmt(yaml_emitter_t *emitter, struct pet_stmt *stmt)
 	if (emit_expr(emitter, stmt->body) < 0)
 		return -1;
 
+	if (stmt->n_arg > 0) {
+		int i;
+
+		if (emit_string(emitter, "arguments") < 0)
+			return -1;
+		if (!yaml_sequence_start_event_initialize(&event, NULL, NULL, 1,
+						    YAML_BLOCK_SEQUENCE_STYLE))
+			return -1;
+		if (!yaml_emitter_emit(emitter, &event))
+			return -1;
+
+		for (i = 0; i < stmt->n_arg; ++i)
+			if (emit_expr(emitter, stmt->args[i]) < 0)
+				return -1;
+
+		if (!yaml_sequence_end_event_initialize(&event))
+			return -1;
+		if (!yaml_emitter_emit(emitter, &event))
+			return -1;
+	}
+
 	if (!yaml_mapping_end_event_initialize(&event))
 		return -1;
 	if (!yaml_emitter_emit(emitter, &event))

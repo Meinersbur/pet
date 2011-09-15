@@ -262,6 +262,35 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 	return expr;
 }
 
+static struct pet_stmt *extract_stmt_arguments(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_stmt *stmt)
+{
+	int i;
+	yaml_node_item_t *item;
+
+	if (node->type != YAML_SEQUENCE_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting sequence",
+			return pet_stmt_free(stmt));
+
+	stmt->n_arg = node->data.sequence.items.top
+				- node->data.sequence.items.start;
+	stmt->args = isl_calloc_array(ctx, struct pet_expr *, stmt->n_arg);
+	if (!stmt->args)
+		return pet_stmt_free(stmt);
+
+	for (item = node->data.sequence.items.start, i = 0;
+	     item < node->data.sequence.items.top; ++item, ++i) {
+		yaml_node_t *n;
+
+		n = yaml_document_get_node(document, *item);
+		stmt->args[i] = extract_expr(ctx, document, n);
+		if (!stmt->args[i])
+			return pet_stmt_free(stmt);
+	}
+
+	return stmt;
+}
+
 static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
@@ -295,6 +324,12 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 			stmt->schedule = extract_map(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "body"))
 			stmt->body = extract_expr(ctx, document, value);
+
+		if (!strcmp((char *) key->data.scalar.value, "arguments"))
+			stmt = extract_stmt_arguments(ctx, document,
+							value, stmt);
+		if (!stmt)
+			return NULL;
 	}
 
 	return stmt;

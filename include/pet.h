@@ -99,6 +99,9 @@ struct pet_stmt {
 	isl_set *domain;
 	isl_map *schedule;
 	struct pet_expr *body;
+
+	unsigned n_arg;
+	struct pet_expr **args;
 };
 
 /* context holds constraints on the parameter that ensure that
