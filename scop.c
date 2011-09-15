@@ -885,6 +885,9 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 	isl_space *dim;
 	isl_map *extend;
 
+	if (!stmt)
+		goto error;
+
 	stmt_id = isl_set_get_tuple_id(stmt->domain);
 	stmt->domain = isl_set_flat_product(isl_set_copy(dom), stmt->domain);
 	stmt->domain = isl_set_set_tuple_id(stmt->domain, isl_id_copy(stmt_id));
@@ -922,6 +925,11 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		return pet_stmt_free(stmt);
 	return stmt;
+error:
+	isl_set_free(dom);
+	isl_map_free(sched);
+	isl_id_free(var_id);
+	return NULL;
 }
 
 /* Embed all statements in "scop" in an extra outer loop with iteration domain
