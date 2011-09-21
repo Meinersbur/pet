@@ -2343,6 +2343,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	StmtIterator start;
 	for (start = stmt->child_begin(); start != stmt->child_end(); ++start) {
 		Stmt *child = *start;
+		if (!child)
+			continue;
 		start_off = SM.getFileOffset(child->getLocStart());
 		end_off = SM.getFileOffset(child->getLocEnd());
 		if (start_off < loc.start && end_off > loc.end)
