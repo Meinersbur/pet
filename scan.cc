@@ -163,7 +163,7 @@ int PetScan::extract_int(IntegerLiteral *expr, isl_int *v)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 {
-	isl_space *dim = isl_space_set_alloc(ctx, 0, 0);
+	isl_space *dim = isl_space_params_alloc(ctx, 0);
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(dim);
@@ -181,7 +181,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
-	isl_space *dim = isl_space_set_alloc(ctx, 0, 0);
+	isl_space *dim = isl_space_params_alloc(ctx, 0);
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(dim);
@@ -232,7 +232,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	}
 
 	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	dim = isl_space_set_alloc(ctx, 1, 0);
+	dim = isl_space_params_alloc(ctx, 1);
 
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
@@ -512,7 +512,7 @@ isl_pw_aff *PetScan::non_affine(Expr *expr)
 	}
 
 	id = isl_id_alloc(ctx, NULL, expr);
-	dim = isl_space_set_alloc(ctx, 1, 0);
+	dim = isl_space_params_alloc(ctx, 1);
 
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
@@ -662,7 +662,7 @@ __isl_give isl_map *PetScan::extract_access(DeclRefExpr *expr)
  */
 __isl_give isl_map *PetScan::extract_access(IntegerLiteral *expr)
 {
-	return isl_map_from_pw_aff(extract_affine(expr));
+	return isl_map_from_range(isl_set_from_pw_aff(extract_affine(expr)));
 }
 
 /* Try and extract an access relation from the given Expr.
@@ -693,7 +693,7 @@ __isl_give isl_map *set_index(__isl_take isl_map *map, int pos,
 	int len = isl_map_dim(map, isl_dim_out);
 	isl_id *id;
 
-	index_map = isl_map_from_pw_aff(index);
+	index_map = isl_map_from_range(isl_set_from_pw_aff(index));
 	index_map = isl_map_insert_dims(index_map, isl_dim_out, 0, pos);
 	index_map = isl_map_add_dims(index_map, isl_dim_out, len - pos - 1);
 	id = isl_map_get_tuple_id(map, isl_dim_out);
@@ -937,7 +937,7 @@ __isl_give isl_set *PetScan::extract_condition(Expr *expr)
 	BinaryOperator *comp;
 
 	if (!expr)
-		return isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+		return isl_set_universe(isl_space_params_alloc(ctx, 0));
 
 	if (expr->getStmtClass() == Stmt::ParenExprClass)
 		return extract_condition(cast<ParenExpr>(expr)->getSubExpr());
@@ -1424,7 +1424,7 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
-	dim = isl_space_set_alloc(ctx, 1, 0);
+	dim = isl_space_params_alloc(ctx, 1);
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
@@ -2190,10 +2190,10 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	cond = extract_condition(stmt->getCond());
 	nesting_enabled = save_nesting;
 	comp = isl_set_complement(isl_set_copy(cond));
-	map_true = isl_map_from_domain(isl_set_copy(cond));
+	map_true = isl_map_from_domain(isl_set_from_params(isl_set_copy(cond)));
 	map_true = isl_map_add_dims(map_true, isl_dim_out, 1);
 	map_true = isl_map_fix_si(map_true, isl_dim_out, 0, 1);
-	map_false = isl_map_from_domain(isl_set_copy(comp));
+	map_false = isl_map_from_domain(isl_set_from_params(isl_set_copy(comp)));
 	map_false = isl_map_add_dims(map_false, isl_dim_out, 1);
 	map_false = isl_map_fix_si(map_false, isl_dim_out, 0, 0);
 	map = isl_map_union_disjoint(map_true, map_false);

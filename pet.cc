@@ -235,7 +235,7 @@ struct PragmaParameterHandler : public PragmaHandler {
 		ub = get_int(token.getLiteralData());
 
 		id = isl_id_alloc(ctx, vd->getName().str().c_str(), vd);
-		dim = isl_space_set_alloc(ctx, 1, 0);
+		dim = isl_space_params_alloc(ctx, 1);
 		dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
 
 		set = isl_set_universe(dim);
