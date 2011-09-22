@@ -98,6 +98,16 @@ static int emit_set(yaml_emitter_t *emitter, __isl_keep isl_set *set)
 	return r;
 }
 
+static int emit_named_set(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_set *set)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_set(emitter, set) < 0)
+		return -1;
+	return 0;
+}
+
 static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 {
 	yaml_event_t event;
@@ -337,6 +347,9 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 	if (emit_string(emitter, "context") < 0)
 		return -1;
 	if (emit_set(emitter, scop->context) < 0)
+		return -1;
+	if (!isl_set_plain_is_universe(scop->context_value) &&
+	    emit_named_set(emitter, "context_value", scop->context_value) < 0)
 		return -1;
 
 	if (emit_arrays(emitter, scop->n_array, scop->arrays) < 0)

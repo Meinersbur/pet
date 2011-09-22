@@ -1,4 +1,5 @@
 context: '[N, K] -> {  : N >= 8 and N <= 16 and K >= 100 and K <= 1000 }'
+context_value: '[K] -> {  : K = 256 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { R[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <= -1

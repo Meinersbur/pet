@@ -575,13 +575,16 @@ void pet_array_dump(struct pet_array *array)
  */
 static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 {
+	isl_space *space;
 	struct pet_scop *scop;
 
 	scop = isl_calloc_type(ctx, struct pet_scop);
 	if (!scop)
 		return NULL;
 
-	scop->context = isl_set_universe(isl_space_params_alloc(ctx, 0));
+	space = isl_space_params_alloc(ctx, 0);
+	scop->context = isl_set_universe(isl_space_copy(space));
+	scop->context_value = isl_set_universe(space);
 	scop->stmts = isl_calloc_array(ctx, struct pet_stmt *, n);
 	if (!scop->context || !scop->stmts)
 		return pet_scop_free(scop);
@@ -667,6 +670,7 @@ void *pet_scop_free(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 	isl_set_free(scop->context);
+	isl_set_free(scop->context_value);
 	if (scop->arrays)
 		for (i = 0; i < scop->n_array; ++i)
 			pet_array_free(scop->arrays[i]);
@@ -687,6 +691,7 @@ void pet_scop_dump(struct pet_scop *scop)
 		return;
 	
 	isl_set_dump(scop->context);
+	isl_set_dump(scop->context_value);
 	for (i = 0; i < scop->n_array; ++i)
 		pet_array_dump(scop->arrays[i]);
 	for (i = 0; i < scop->n_stmt; ++i)
@@ -746,6 +751,8 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 		return 0;
 
 	if (!isl_set_is_equal(scop1->context, scop2->context))
+		return 0;
+	if (!isl_set_is_equal(scop1->context_value, scop2->context_value))
 		return 0;
 
 	if (scop1->n_array != scop2->n_array)

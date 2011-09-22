@@ -119,8 +119,14 @@ struct pet_array {
 	int live_out;
 };
 
+/* The context describes the set of parameter values for which
+ * the scop can be executed.
+ * context_value describes assignments to the parameters (if any)
+ * outside of the scop.
+ */
 struct pet_scop {
 	isl_set *context;
+	isl_set *context_value;
 
 	int n_array;
 	struct pet_array **arrays;

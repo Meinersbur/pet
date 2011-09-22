@@ -185,6 +185,48 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 	}
 };
 
+/* Given a variable declaration, check if it has an integer initializer
+ * and if so, add a parameter corresponding to the variable to "value"
+ * with its value fixed to the integer initializer and return the result.
+ */
+static __isl_give isl_set *extract_initialization(__isl_take isl_set *value,
+	ValueDecl *decl)
+{
+	VarDecl *vd;
+	Expr *expr;
+	IntegerLiteral *il;
+	isl_int v;
+	isl_ctx *ctx;
+	isl_id *id;
+	isl_space *space;
+	isl_set *set;
+
+	vd = cast<VarDecl>(decl);
+	if (!vd)
+		return value;
+	if (!vd->getType()->isIntegerType())
+		return value;
+	expr = vd->getInit();
+	if (!expr)
+		return value;
+	il = cast<IntegerLiteral>(expr);
+	if (!il)
+		return value;
+
+	ctx = isl_set_get_ctx(value);
+	id = isl_id_alloc(ctx, vd->getName().str().c_str(), vd);
+	space = isl_space_params_alloc(ctx, 1);
+	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
+	set = isl_set_universe(space);
+
+	isl_int_init(v);
+	PetScan::extract_int(il, &v);
+	set = isl_set_fix(set, isl_dim_param, 0, v);
+	isl_int_clear(v);
+
+	return isl_set_intersect(value, set);
+}
+
 /* Handle pragmas of the form
  *
  *	#pragma parameter identifier lower_bound upper_bound
@@ -195,9 +237,12 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 struct PragmaParameterHandler : public PragmaHandler {
 	Sema &sema;
 	isl_set *&context;
+	isl_set *&context_value;
 
-	PragmaParameterHandler(Sema &sema, isl_set *&context) :
-		PragmaHandler("parameter"), sema(sema), context(context) {}
+	PragmaParameterHandler(Sema &sema, isl_set *&context,
+		isl_set *&context_value) :
+		PragmaHandler("parameter"), sema(sema), context(context),
+		context_value(context_value) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
 				  PragmaIntroducerKind Introducer,
@@ -243,6 +288,8 @@ struct PragmaParameterHandler : public PragmaHandler {
 		set = set_bounds(set, isl_dim_param, 0, lb, ub);
 
 		context = isl_set_intersect(context, set);
+
+		context_value = extract_initialization(context_value, vd);
 	}
 };
 
@@ -465,6 +512,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 {
 	isl_space *dim;
 	isl_set *context;
+	isl_set *context_value;
 	set<ValueDecl *> live_out;
 	map<ValueDecl *, isl_set *> value_bounds;
 	map<ValueDecl *, isl_set *>::iterator vb_it;
@@ -506,8 +554,10 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	}
 
 	dim = isl_space_params_alloc(ctx, 0);
-	context = isl_set_universe(dim);
-	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context));
+	context = isl_set_universe(isl_space_copy(dim));
+	context_value = isl_set_universe(dim);
+	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
+							context_value));
 	PP.AddPragmaHandler(new PragmaValueBoundsHandler(ctx, *sema, value_bounds));
 
 	Diags.getClient()->BeginSourceFile(Clang->getLangOpts(), &PP);
@@ -518,11 +568,15 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	delete Clang;
 	llvm::llvm_shutdown();
 
-	if (consumer.scop)
+	if (consumer.scop) {
 		consumer.scop->context = isl_set_intersect(context,
 						    consumer.scop->context);
-	else
+		consumer.scop->context_value = isl_set_intersect(context_value,
+						consumer.scop->context_value);
+	} else {
 		isl_set_free(context);
+		isl_set_free(context_value);
+	}
 
 	update_arrays(consumer.scop, value_bounds, live_out);
 

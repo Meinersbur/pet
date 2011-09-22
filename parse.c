@@ -358,12 +358,21 @@ static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 				return pet_scop_free(scop));
 		if (!strcmp((char *) key->data.scalar.value, "context"))
 			scop->context = extract_set(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "context_value"))
+			scop->context_value = extract_set(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "arrays"))
 			scop = extract_arrays(ctx, document, value, scop);
 		if (!strcmp((char *) key->data.scalar.value, "statements"))
 			scop = extract_statements(ctx, document, value, scop);
 		if (!scop)
 			return NULL;
+	}
+
+	if (!scop->context_value) {
+		isl_space *space = isl_space_params_alloc(ctx, 0);
+		scop->context_value = isl_set_universe(space);
+		if (!scop->context_value)
+			return pet_scop_free(scop);
 	}
 
 	return scop;

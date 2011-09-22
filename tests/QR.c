@@ -4,7 +4,7 @@ void Vectorize(int, int, int *, int *, int *);
 void Rotate(int, int, int, int *, int *, int *);
 void WriteMatrix(int);
 
-int N, K;
+int N, K = 256;
 #pragma parameter N 8 16
 #pragma parameter K 100 1000
 
