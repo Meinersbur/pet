@@ -60,6 +60,8 @@ struct PetScan {
 		nesting_enabled(false) { }
 
 	struct pet_scop *scan(clang::FunctionDecl *fd);
+
+	static int extract_int(clang::IntegerLiteral *expr, isl_int *v);
 private:
 	struct pet_scop *scan(clang::Stmt *stmt);
 
@@ -118,8 +120,6 @@ private:
 	__isl_give isl_pw_aff *extract_affine_div(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_mod(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_mul(clang::BinaryOperator *expr);
-
-	int extract_int(clang::IntegerLiteral *expr, isl_int *v);
 
 	isl_pw_aff *non_affine(clang::Expr *expr);
 
