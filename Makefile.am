@@ -4,6 +4,7 @@ if BUNDLED_ISL
 endif
 
 SUBDIRS = $(MAYBE_ISL) .
+DIST_SUBDIRS = $(MAYBE_ISL)
 
 FORCE:
 isl/libisl.la: FORCE
