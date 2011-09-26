@@ -2398,7 +2398,7 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	size = isl_pw_aff_add_dims(size, isl_dim_in,
 				isl_set_dim(array->extent, isl_dim_set));
 	id = isl_set_get_tuple_id(array->extent);
-	size = isl_pw_aff_set_tuple_id(size, id);
+	size = isl_pw_aff_set_tuple_id(size, isl_dim_in, id);
 	bound = isl_pw_aff_lt_set(index, size);
 
 	array->extent = isl_set_intersect(array->extent, bound);
