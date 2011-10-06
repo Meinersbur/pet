@@ -37,6 +37,14 @@ AC_CHECK_HEADER([clang/Basic/SourceLocation.h], [],
 AC_EGREP_HEADER([getExpansionLineNumber], [clang/Basic/SourceLocation.h], [],
 	[AC_DEFINE([getExpansionLineNumber], [getInstantiationLineNumber],
 	[Define to getInstantiationLineNumber for older versions of clang])])
+AC_EGREP_HEADER([DiagnosticConsumer], [clang/Basic/Diagnostic.h], [],
+	[AC_DEFINE([DiagnosticConsumer], [DiagnosticClient],
+	[Define to DiagnosticClient for older versions of clang])])
+AC_EGREP_HEADER([DiagnosticsEngine], [clang/Basic/Diagnostic.h],
+	[AC_DEFINE([DiagnosticInfo], [Diagnostic],
+	[Define to Diagnostic for newer versions of clang])],
+	[AC_DEFINE([DiagnosticsEngine], [Diagnostic],
+	[Define to Diagnostic for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

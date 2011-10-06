@@ -78,8 +78,9 @@ using namespace clang;
  */
 static void unsupported(Preprocessor &PP, SourceLocation loc)
 {
-	Diagnostic &diag = PP.getDiagnostics();
-	unsigned id = diag.getCustomDiagID(Diagnostic::Warning, "unsupported");
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "unsupported");
 	DiagnosticBuilder B = diag.Report(loc, id);
 }
 
@@ -452,13 +453,17 @@ static bool is_implicit(const IdentifierInfo *ident)
  * in PetScan.
  */
 struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
+	const DiagnosticOptions *DiagOpts;
 	MyDiagnosticPrinter(const DiagnosticOptions &DO) :
-		TextDiagnosticPrinter(llvm::errs(), DO) {}
-	virtual void HandleDiagnostic(Diagnostic::Level level,
+		DiagOpts(&DO), TextDiagnosticPrinter(llvm::errs(), DO) {}
+	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
+		return new MyDiagnosticPrinter(*DiagOpts);
+	}
+	virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
 					const DiagnosticInfo &info) {
 		if (info.getID() == diag::ext_implicit_function_decl &&
 		    info.getNumArgs() == 1 &&
-		    info.getArgKind(0) == Diagnostic::ak_identifierinfo &&
+		    info.getArgKind(0) == DiagnosticsEngine::ak_identifierinfo &&
 		    is_implicit(info.getArgIdentifier(0)))
 			/* ignore warning */;
 		else
@@ -520,7 +525,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	CompilerInstance *Clang = new CompilerInstance();
 	DiagnosticOptions DO;
 	Clang->createDiagnostics(0, NULL, new MyDiagnosticPrinter(DO));
-	Diagnostic &Diags = Clang->getDiagnostics();
+	DiagnosticsEngine &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());

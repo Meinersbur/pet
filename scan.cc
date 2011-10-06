@@ -136,8 +136,9 @@ void PetScan::unsupported(Stmt *stmt)
 		return;
 
 	SourceLocation loc = stmt->getLocStart();
-	Diagnostic &diag = PP.getDiagnostics();
-	unsigned id = diag.getCustomDiagID(Diagnostic::Warning, "unsupported");
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "unsupported");
 	DiagnosticBuilder B = diag.Report(loc, id) << stmt->getSourceRange();
 }
 
