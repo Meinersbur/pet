@@ -2,9 +2,11 @@ context: '[N] -> {  : N >= 8 and N <= 16 }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[] }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
 - context: '{  :  }'
   extent: '{ __pet_test_1[] }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { x[i0] : i0 >= 0 and i0 <= -1 + N }'

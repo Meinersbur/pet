@@ -52,6 +52,7 @@
 using namespace std;
 using namespace clang;
 
+
 /* Look for any assignments to scalar variables in part of the parse
  * tree and set assigned_value to NULL for each of them.
  * Also reset assigned_value if the address of a scalar variable
@@ -2262,6 +2263,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 
 /* Add an array with the given extend ("access") to the list
  * of arrays in "scop" and return the extended pet_scop.
+ * The array is marked as attaining values 0 and 1 only.
  */
 static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	__isl_keep isl_map *access)
@@ -2289,6 +2291,12 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	array->extent = isl_map_range(isl_map_copy(access));
 	dim = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(dim);
+	dim = isl_space_set_alloc(ctx, 0, 1);
+	array->value_bounds = isl_set_universe(dim);
+	array->value_bounds = isl_set_lower_bound_si(array->value_bounds,
+						isl_dim_set, 0, 0);
+	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
+						isl_dim_set, 0, 1);
 	array->element_type = strdup("int");
 
 	scop->arrays[scop->n_array] = array;
