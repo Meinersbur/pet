@@ -866,6 +866,10 @@ struct pet_embed_access {
  * If the induction variable appears in the constraints (as a parameter),
  * then the parameter is equated to the newly introduced iteration
  * domain dimension and subsequently projected out.
+ *
+ * Similarly, if the accessed array is a virtual array (with user
+ * pointer equal to NULL), as created by create_test_access,
+ * then it is extende along with the domain of the access.
  */
 static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 	void *user)
@@ -878,10 +882,14 @@ static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 
 	if (isl_map_has_tuple_id(access, isl_dim_out))
 		array_id = isl_map_get_tuple_id(access, isl_dim_out);
-	if (array_id == data->var_id) {
+	if (array_id == data->var_id ||
+	    (array_id && !isl_id_get_user(array_id))) {
 		access = isl_map_insert_dims(access, isl_dim_out, 0, 1);
 		access = isl_map_equate(access,
 					isl_dim_in, 0, isl_dim_out, 0);
+		if (array_id != data->var_id)
+			access = isl_map_set_tuple_id(access, isl_dim_out,
+							isl_id_copy(array_id));
 	}
 	isl_id_free(array_id);
 
@@ -1010,9 +1018,40 @@ error:
 	return NULL;
 }
 
-/* Embed all statements in "scop" in an extra outer loop with iteration domain
- * "dom" and schedule "sched".  "var_id" represents the induction variable
- * of the loop.
+/* Embed the given pet_array in an extra outer loop with iteration domain
+ * "dom".
+ * This embedding only has an effect on virtual arrays (those with
+ * user pointer equal to NULL), which need to be extended along with
+ * the iteration domain.
+ */
+static struct pet_array *pet_array_embed(struct pet_array *array,
+	__isl_take isl_set *dom)
+{
+	isl_id *array_id = NULL;
+
+	if (!array)
+		goto error;
+
+	if (isl_set_has_tuple_id(array->extent))
+		array_id = isl_set_get_tuple_id(array->extent);
+
+	if (array_id && !isl_id_get_user(array_id)) {
+		array->extent = isl_set_flat_product(dom, array->extent);
+		array->extent = isl_set_set_tuple_id(array->extent, array_id);
+	} else {
+		isl_set_free(dom);
+		isl_id_free(array_id);
+	}
+
+	return array;
+error:
+	isl_set_free(dom);
+	return NULL;
+}
+
+/* Embed all statements and arrays in "scop" in an extra outer loop
+ * with iteration domain "dom" and schedule "sched".
+ * "var_id" represents the induction variable of the loop.
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_map *sched, __isl_take isl_id *id)
@@ -1027,6 +1066,13 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 					isl_set_copy(dom),
 					isl_map_copy(sched), isl_id_copy(id));
 		if (!scop->stmts[i])
+			goto error;
+	}
+
+	for (i = 0; i < scop->n_array; ++i) {
+		scop->arrays[i] = pet_array_embed(scop->arrays[i],
+					isl_set_copy(dom));
+		if (!scop->arrays[i])
 			goto error;
 	}
 

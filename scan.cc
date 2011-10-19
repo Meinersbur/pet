@@ -2220,11 +2220,13 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	return extract(stmt, pe);
 }
 
-/* Create an access to a virtual scalar representing the result
+/* Create an access to a virtual array representing the result
  * of a condition.
- * Unlike other accessed data, the id of the scalar is NULL as
+ * Unlike other accessed data, the id of the array is NULL as
  * there is no ValueDecl in the program corresponding to the virtual
- * scalar.
+ * array.
+ * The array starts out as a scalar, but grows along with the
+ * statement writing to the array in pet_scop_embed.
  */
 static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
 {
