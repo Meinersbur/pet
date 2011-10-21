@@ -40,7 +40,7 @@ libpet_la_SOURCES = \
 	pet.cc
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
-	$(CLANG_LIBS) $(LIB_ISL)
+	$(CLANG_LIBS) $(CLANG_LDFLAGS) $(LIB_ISL)
 
 pet_CFLAGS = $(AM_CFLAGS) @LIBYAML_CPPFLAGS@
 pet_LDFLAGS = $(AM_LDFLAGS) @LIBYAML_LDFLAGS@
