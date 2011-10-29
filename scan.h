@@ -82,8 +82,10 @@ private:
 	struct pet_scop *extract(clang::IfStmt *stmt);
 	struct pet_scop *extract(clang::WhileStmt *stmt);
 	struct pet_scop *extract(clang::CompoundStmt *stmt);
+	struct pet_scop *extract(clang::LabelStmt *stmt);
 
-	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr);
+	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr,
+				__isl_take isl_id *label = NULL);
 
 	clang::BinaryOperator *initialization_assignment(clang::Stmt *init);
 	clang::Decl *initialization_declaration(clang::Stmt *init);

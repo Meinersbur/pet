@@ -473,11 +473,13 @@ static struct pet_expr *expr_update_domain(struct pet_expr *expr,
 /* Construct a pet_stmt with given line number and statement
  * number from a pet_expr.
  * The initial iteration domain is the zero-dimensional universe.
+ * The name of the domain is given by "label" if it is non-NULL.
+ * Otherwise, the name is constructed as S_<id>.
  * The domains of all access relations are modified to refer
  * to the statement iteration domain.
  */
-struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
-	struct pet_expr *expr)
+struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
+	__isl_take isl_id *label, int id, struct pet_expr *expr)
 {
 	struct pet_stmt *stmt;
 	isl_space *dim;
@@ -494,8 +496,12 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
 		return pet_expr_free(expr);
 
 	dim = isl_space_set_alloc(ctx, 0, 0);
-	snprintf(name, sizeof(name), "S_%d", id);
-	dim = isl_space_set_tuple_name(dim, isl_dim_set, name);
+	if (label)
+		dim = isl_space_set_tuple_id(dim, isl_dim_set, label);
+	else {
+		snprintf(name, sizeof(name), "S_%d", id);
+		dim = isl_space_set_tuple_name(dim, isl_dim_set, name);
+	}
 	dom = isl_set_universe(isl_space_copy(dim));
 	sched = isl_map_from_domain(isl_set_copy(dom));
 

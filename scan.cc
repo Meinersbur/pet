@@ -2063,15 +2063,18 @@ error:
 /* Convert a top-level pet_expr to a pet_scop with one statement.
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
+ * The name is given by "label" if it is non-NULL.  Otherwise,
+ * it is of the form S_<n_stmt>.
  */
-struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr)
+struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
+	__isl_take isl_id *label)
 {
 	struct pet_stmt *ps;
 	SourceLocation loc = stmt->getLocStart();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 
 	expr = resolve_nested(expr);
-	ps = pet_stmt_from_pet_expr(ctx, line, n_stmt++, expr);
+	ps = pet_stmt_from_pet_expr(ctx, line, label, n_stmt++, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
@@ -2253,7 +2256,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 	}
 	expr = extract_expr(cond);
 	expr = pet_expr_new_binary(ctx, pet_op_assign, write, expr);
-	ps = pet_stmt_from_pet_expr(ctx, line, n_stmt++, expr);
+	ps = pet_stmt_from_pet_expr(ctx, line, NULL, n_stmt++, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
@@ -2389,6 +2392,25 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	return scop;
 }
 
+/* Try and construct a pet_scop for a label statement.
+ * We currently only allow labels on expression statements.
+ */
+struct pet_scop *PetScan::extract(LabelStmt *stmt)
+{
+	isl_id *label;
+	Stmt *sub;
+
+	sub = stmt->getSubStmt();
+	if (!isa<Expr>(sub)) {
+		unsupported(stmt);
+		return NULL;
+	}
+
+	label = isl_id_alloc(ctx, stmt->getName(), NULL);
+
+	return extract(sub, extract_expr(cast<Expr>(sub)), label);
+}
+
 /* Try and construct a pet_scop corresponding to "stmt".
  */
 struct pet_scop *PetScan::extract(Stmt *stmt)
@@ -2405,6 +2427,8 @@ struct pet_scop *PetScan::extract(Stmt *stmt)
 		return extract(cast<IfStmt>(stmt));
 	case Stmt::CompoundStmtClass:
 		return extract(cast<CompoundStmt>(stmt));
+	case Stmt::LabelStmtClass:
+		return extract(cast<LabelStmt>(stmt));
 	default:
 		unsupported(stmt);
 	}

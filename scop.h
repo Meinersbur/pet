@@ -31,8 +31,8 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2);
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
 	__isl_take isl_set *cond);
 
-struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line, int id,
-	struct pet_expr *expr);
+struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
+	__isl_take isl_id *label, int id, struct pet_expr *expr);
 void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
