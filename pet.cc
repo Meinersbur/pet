@@ -207,6 +207,8 @@ static __isl_give isl_set *extract_initialization(__isl_take isl_set *value,
 
 /* Handle pragmas of the form
  *
+ *	#pragma parameter identifier lower_bound
+ * and
  *	#pragma parameter identifier lower_bound upper_bound
  *
  * For each such pragma, intersect the context with the set
@@ -233,6 +235,7 @@ struct PragmaParameterHandler : public PragmaHandler {
 		Token token;
 		int lb;
 		int ub;
+		bool has_ub = false;
 
 		PP.Lex(token);
 		vd = get_value_decl(sema, token);
@@ -250,12 +253,13 @@ struct PragmaParameterHandler : public PragmaHandler {
 		lb = get_int(token.getLiteralData());
 
 		PP.Lex(token);
-		if (!token.isLiteral()) {
+		if (token.isLiteral()) {
+			has_ub = true;
+			ub = get_int(token.getLiteralData());
+		} else if (token.isNot(tok::eod)) {
 			unsupported(PP, token.getLocation());
 			return;
 		}
-
-		ub = get_int(token.getLiteralData());
 
 		id = isl_id_alloc(ctx, vd->getName().str().c_str(), vd);
 		dim = isl_space_params_alloc(ctx, 1);
@@ -264,7 +268,8 @@ struct PragmaParameterHandler : public PragmaHandler {
 		set = isl_set_universe(dim);
 
 		set = isl_set_lower_bound_si(set, isl_dim_param, 0, lb);
-		set = isl_set_upper_bound_si(set, isl_dim_param, 0, ub);
+		if (has_ub)
+			set = isl_set_upper_bound_si(set, isl_dim_param, 0, ub);
 
 		context = isl_set_intersect(context, set);
 
