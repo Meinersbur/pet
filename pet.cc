@@ -84,30 +84,6 @@ static void unsupported(Preprocessor &PP, SourceLocation loc)
 	DiagnosticBuilder B = diag.Report(loc, id);
 }
 
-/* Set the lower and upper bounds on the given dimension of "set"
- * to "lb" and "ub".
- */
-static __isl_give isl_set *set_bounds(__isl_take isl_set *set,
-	enum isl_dim_type type, int pos, int lb, int ub)
-{
-	isl_constraint *c;
-	isl_local_space *ls;
-
-	ls = isl_local_space_from_space(isl_set_get_space(set));
-
-	c = isl_inequality_alloc(isl_local_space_copy(ls));
-	c = isl_constraint_set_coefficient_si(c, type, pos, 1);
-	c = isl_constraint_set_constant_si(c, -lb);
-	set = isl_set_add_constraint(set, c);
-
-	c = isl_inequality_alloc(ls);
-	c = isl_constraint_set_coefficient_si(c, type, pos, -1);
-	c = isl_constraint_set_constant_si(c, ub);
-	set = isl_set_add_constraint(set, c);
-
-	return set;
-}
-
 static int get_int(const char *s)
 {
 	return s[0] == '"' ? atoi(s + 1) : atoi(s);
@@ -180,7 +156,8 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 
 		dim = isl_space_set_alloc(ctx, 0, 1);
 		set = isl_set_universe(dim);
-		set = set_bounds(set, isl_dim_set, 0, lb, ub);
+		set = isl_set_lower_bound_si(set, isl_dim_set, 0, lb);
+		set = isl_set_upper_bound_si(set, isl_dim_set, 0, ub);
 
 		value_bounds[vd] = set;
 	}
@@ -286,7 +263,8 @@ struct PragmaParameterHandler : public PragmaHandler {
 
 		set = isl_set_universe(dim);
 
-		set = set_bounds(set, isl_dim_param, 0, lb, ub);
+		set = isl_set_lower_bound_si(set, isl_dim_param, 0, lb);
+		set = isl_set_upper_bound_si(set, isl_dim_param, 0, ub);
 
 		context = isl_set_intersect(context, set);
 
