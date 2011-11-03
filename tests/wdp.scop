@@ -4,10 +4,6 @@ arrays:
   extent: '[N] -> { __pet_test_0[i] : i >= 0 and i <= -1 + N }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
-- context: '{  :  }'
-  extent: '[N] -> { __pet_test_1[i] : i >= 0 and i <= -1 + N }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
-  element_type: int
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { x[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
@@ -62,31 +58,9 @@ statements:
       write: 1
     - type: call
       name: _Source_z
-- line: 28
-  domain: '[N] -> { S_3[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_3[i] -> [3, i, 0, 0] }'
-  body:
-    type: binary
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_3[i] -> __pet_test_0[i] }'
-      read: 0
-      write: 1
-    - type: binary
-      operation: ==
-      arguments:
-      - type: access
-        relation: '[N] -> { S_3[i] -> z[i] }'
-        read: 1
-        write: 0
-      - type: access
-        relation: '[N] -> { S_3[i] -> [0] }'
-        read: 1
-        write: 0
 - line: 29
-  domain: '[N] -> { [S_4[i] -> [1]] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_4[i] -> [3, i, 0, 1] }'
+  domain: '[N] -> { [S_4[i] -> [0]] : i >= 0 and i <= -1 + N }'
+  schedule: '[N] -> { S_4[i] -> [3, i, 0] }'
   body:
     type: binary
     operation: =
@@ -104,7 +78,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_4[i] -> __pet_test_0[i] }'
+    relation: '[N] -> { S_4[i] -> z[i] }'
     read: 1
     write: 0
 - line: 30
@@ -115,7 +89,7 @@ statements:
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_5[i] -> __pet_test_1[i] }'
+      relation: '[N] -> { S_5[i] -> __pet_test_0[i] }'
       read: 0
       write: 1
     - type: binary
@@ -156,7 +130,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_6[i] -> __pet_test_1[i] }'
+    relation: '[N] -> { S_6[i] -> __pet_test_0[i] }'
     read: 1
     write: 0
 - line: 32
@@ -179,7 +153,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_7[i] -> __pet_test_1[i] }'
+    relation: '[N] -> { S_7[i] -> __pet_test_0[i] }'
     read: 1
     write: 0
 - line: 34

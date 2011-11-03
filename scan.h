@@ -119,7 +119,11 @@ private:
 		std::map<int,int> &param2pos);
 	struct pet_expr *extract_nested(struct pet_expr *expr, int n,
 		std::map<int,int> &param2pos);
+	struct pet_stmt *extract_nested(struct pet_stmt *stmt, int n,
+		std::map<int,int> &param2pos);
 	struct pet_expr *resolve_nested(struct pet_expr *expr);
+	struct pet_scop *resolve_nested(struct pet_scop *scop);
+	struct pet_stmt *resolve_nested(struct pet_stmt *stmt);
 	struct pet_expr *extract_access_expr(clang::Expr *expr);
 
 	__isl_give isl_map *extract_access(clang::ArraySubscriptExpr *expr);
@@ -137,6 +141,8 @@ private:
 
 	bool is_affine(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
+	__isl_give isl_set *try_extract_nested_condition(clang::Expr *expr);
+	bool is_nested_allowed(__isl_keep isl_set *set, pet_scop *scop);
 
 	__isl_give isl_pw_aff *extract_affine(const llvm::APInt &val);
 	__isl_give isl_pw_aff *extract_affine(clang::Expr *expr);

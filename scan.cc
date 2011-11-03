@@ -2001,6 +2001,20 @@ static bool is_nested_parameter(__isl_keep isl_space *space, int pos)
 	return nested;
 }
 
+/* Does parameter "pos" of "map" refer to a nested access?
+ */
+static bool is_nested_parameter(__isl_keep isl_map *map, int pos)
+{
+	bool nested;
+	isl_id *id;
+
+	id = isl_map_get_dim_id(map, isl_dim_param, pos);
+	nested = is_nested_parameter(id);
+	isl_id_free(id);
+
+	return nested;
+}
+
 /* How many parameters of "space" refer to nested accesses, i.e., have no name?
  */
 static int n_nested_parameter(__isl_keep isl_space *space)
@@ -2249,6 +2263,28 @@ bool PetScan::is_affine_condition(Expr *expr)
 	return set != NULL;
 }
 
+/* Check if we can extract a condition from "expr".
+ * Return the condition as an isl_set if we can and NULL otherwise.
+ * If allow_nested is set, then the condition may involve parameters
+ * corresponding to nested accesses.
+ * We turn on autodetection so that we won't generate any warnings.
+ */
+__isl_give isl_set *PetScan::try_extract_nested_condition(Expr *expr)
+{
+	isl_set *set;
+	int save_autodetect = autodetect;
+	bool save_nesting = nesting_enabled;
+
+	autodetect = 1;
+	nesting_enabled = allow_nested;
+	set = extract_condition(expr);
+
+	autodetect = save_autodetect;
+	nesting_enabled = save_nesting;
+
+	return set;
+}
+
 /* If the top-level expression of "stmt" is an assignment, then
  * return that assignment as a BinaryOperator.
  * Otherwise return NULL.
@@ -2439,6 +2475,308 @@ error:
 	return NULL;
 }
 
+extern "C" {
+	static __isl_give isl_map *embed_access(__isl_take isl_map *access,
+		void *user);
+}
+
+/* Apply the map pointed to by "user" to the domain of the access 
+ * relation, thereby embedding it in the range of the map.
+ * The domain of both relations is the zero-dimensional domain.
+ */
+static __isl_give isl_map *embed_access(__isl_take isl_map *access, void *user)
+{
+	isl_map *map = (isl_map *) user;
+
+	return isl_map_apply_domain(access, isl_map_copy(map));
+}
+
+/* Apply "map" to all access relations in "expr".
+ */
+static struct pet_expr *embed(struct pet_expr *expr, __isl_keep isl_map *map)
+{
+	return pet_expr_foreach_access(expr, &embed_access, map);
+}
+
+/* How many parameters of "set" refer to nested accesses, i.e., have no name?
+ */
+static int n_nested_parameter(__isl_keep isl_set *set)
+{
+	isl_space *space;
+	int n;
+
+	space = isl_set_get_space(set);
+	n = n_nested_parameter(space);
+	isl_space_free(space);
+
+	return n;
+}
+
+/* Remove all parameters from "map" that refer to nested accesses.
+ */
+static __isl_give isl_map *remove_nested_parameters(__isl_take isl_map *map)
+{
+	int nparam;
+	isl_space *space;
+
+	space = isl_map_get_space(map);
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (int i = nparam - 1; i >= 0; --i)
+		if (is_nested_parameter(space, i))
+			map = isl_map_project_out(map, isl_dim_param, i, 1);
+	isl_space_free(space);
+
+	return map;
+}
+
+extern "C" {
+	static __isl_give isl_map *access_remove_nested_parameters(
+		__isl_take isl_map *access, void *user);
+}
+
+static __isl_give isl_map *access_remove_nested_parameters(
+	__isl_take isl_map *access, void *user)
+{
+	return remove_nested_parameters(access);
+}
+
+/* Remove all nested access parameters from the schedule and all
+ * accesses of "stmt".
+ * There is no need to remove them from the domain as these parameters
+ * have already been removed from the domain when this function is called.
+ */
+static struct pet_stmt *remove_nested_parameters(struct pet_stmt *stmt)
+{
+	if (!stmt)
+		return NULL;
+	stmt->schedule = remove_nested_parameters(stmt->schedule);
+	stmt->body = pet_expr_foreach_access(stmt->body,
+			    &access_remove_nested_parameters, NULL);
+	if (!stmt->schedule || !stmt->body)
+		goto error;
+	for (int i = 0; i < stmt->n_arg; ++i) {
+		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
+			    &access_remove_nested_parameters, NULL);
+		if (!stmt->args[i])
+			goto error;
+	}
+
+	return stmt;
+error:
+	pet_stmt_free(stmt);
+	return NULL;
+}
+
+/* For each nested access parameter in the domain of "stmt",
+ * construct a corresponding pet_expr, place it in stmt->args and
+ * record its position in "param2pos".
+ * n is the number of nested access parameters.
+ */
+struct pet_stmt *PetScan::extract_nested(struct pet_stmt *stmt, int n,
+	std::map<int,int> &param2pos)
+{
+	isl_space *space;
+	unsigned n_arg;
+	struct pet_expr **args;
+
+	n_arg = stmt->n_arg;
+	args = isl_realloc_array(ctx, stmt->args, struct pet_expr *, n_arg + n);
+	if (!args)
+		goto error;
+	stmt->args = args;
+	stmt->n_arg += n;
+
+	space = isl_set_get_space(stmt->domain);
+	n = extract_nested(space, n_arg, stmt->args, param2pos);
+	isl_space_free(space);
+
+	if (n < 0)
+		goto error;
+
+	stmt->n_arg = n;
+	return stmt;
+error:
+	pet_stmt_free(stmt);
+	return NULL;
+}
+
+/* Look for parameters in the iteration domain of "stmt" taht
+ * refer to nested accesses.  In particular, these are
+ * parameters with no name.
+ *
+ * If there are any such parameters, then as many extra variables
+ * (after identifying identical nested accesses) are added to the
+ * range of the map wrapped inside the domain.
+ * If the original domain is not a wrapped map, then a new wrapped
+ * map is created with zero output dimensions.
+ * The parameters are then equated to the corresponding output dimensions
+ * and subsequently projected out, from the iteration domain,
+ * the schedule and the access relations.
+ * For each of the output dimensions, a corresponding argument
+ * expression is added.  Initially they are created with
+ * a zero-dimensional domain, so they have to be embedded
+ * in the current iteration domain.
+ * param2pos maps the position of the parameter to the position
+ * of the corresponding output dimension in the wrapped map.
+ */
+struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
+{
+	int n;
+	int nparam;
+	unsigned n_arg;
+	isl_map *map;
+	std::map<int,int> param2pos;
+
+	if (!stmt)
+		return NULL;
+
+	n = n_nested_parameter(stmt->domain);
+	if (n == 0)
+		return stmt;
+
+	n_arg = stmt->n_arg;
+	stmt = extract_nested(stmt, n, param2pos);
+	if (!stmt)
+		return NULL;
+
+	n = stmt->n_arg - n_arg;
+	nparam = isl_set_dim(stmt->domain, isl_dim_param);
+	if (isl_set_is_wrapping(stmt->domain))
+		map = isl_set_unwrap(stmt->domain);
+	else
+		map = isl_map_from_domain(stmt->domain);
+	map = isl_map_add_dims(map, isl_dim_out, n);
+
+	for (int i = nparam - 1; i >= 0; --i) {
+		isl_id *id;
+
+		if (!is_nested_parameter(map, i))
+			continue;
+
+		id = isl_map_get_tuple_id(stmt->args[param2pos[i]]->acc.access,
+					    isl_dim_out);
+		map = isl_map_set_dim_id(map, isl_dim_out, param2pos[i], id);
+		map = isl_map_equate(map, isl_dim_param, i, isl_dim_out,
+					param2pos[i]);
+		map = isl_map_project_out(map, isl_dim_param, i, 1);
+	}
+
+	stmt->domain = isl_map_wrap(map);
+
+	map = isl_set_unwrap(isl_set_copy(stmt->domain));
+	map = isl_map_from_range(isl_map_domain(map));
+	for (int pos = n_arg; pos < stmt->n_arg; ++pos)
+		stmt->args[pos] = embed(stmt->args[pos], map);
+	isl_map_free(map);
+
+	stmt = remove_nested_parameters(stmt);
+
+	return stmt;
+error:
+	pet_stmt_free(stmt);
+	return NULL;
+}
+
+/* For each statement in "scop", move the parameters that correspond
+ * to nested access into the ranges of the domains and create
+ * corresponding argument expressions.
+ */
+struct pet_scop *PetScan::resolve_nested(struct pet_scop *scop)
+{
+	if (!scop)
+		return NULL;
+
+	for (int i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = resolve_nested(scop->stmts[i]);
+		if (!scop->stmts[i])
+			goto error;
+	}
+
+	return scop;
+error:
+	pet_scop_free(scop);
+	return NULL;
+}
+
+/* Does "space" involve any parameters that refer to nested
+ * accesses, i.e., parameters with no name?
+ */
+static bool has_nested(__isl_keep isl_space *space)
+{
+	int nparam;
+
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (int i = 0; i < nparam; ++i)
+		if (is_nested_parameter(space, i))
+			return true;
+
+	return false;
+}
+
+/* Does "set" involve any parameters that refer to nested
+ * accesses, i.e., parameters with no name?
+ */
+static bool has_nested(__isl_keep isl_set *set)
+{
+	isl_space *space;
+	bool nested;
+
+	space = isl_set_get_space(set);
+	nested = has_nested(space);
+	isl_space_free(space);
+
+	return nested;
+}
+
+/* Given an access expression "expr", is the variable accessed by
+ * "expr" assigned anywhere inside "scop"?
+ */
+static bool is_assigned(pet_expr *expr, pet_scop *scop)
+{
+	bool assigned = false;
+	isl_id *id;
+
+	id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+	assigned = pet_scop_writes(scop, id);
+	isl_id_free(id);
+
+	return assigned;
+}
+
+/* Are all nested access parameters in "set" allowed given "scop".
+ * In particular, is none of them written by anywhere inside "scop".
+ */
+bool PetScan::is_nested_allowed(__isl_keep isl_set *set, pet_scop *scop)
+{
+	int nparam;
+
+	nparam = isl_set_dim(set, isl_dim_param);
+	for (int i = 0; i < nparam; ++i) {
+		Expr *nested;
+		isl_id *id = isl_set_get_dim_id(set, isl_dim_param, i);
+		pet_expr *expr;
+		bool allowed;
+
+		if (!is_nested_parameter(id)) {
+			isl_id_free(id);
+			continue;
+		}
+
+		nested = (Expr *) isl_id_get_user(id);
+		expr = extract_expr(nested);
+		allowed = expr && expr->type == pet_expr_access &&
+			    !is_assigned(expr, scop);
+
+		pet_expr_free(expr);
+		isl_id_free(id);
+
+		if (!allowed)
+			return false;
+	}
+
+	return true;
+}
+
 /* Construct a pet_scop for an if statement.
  *
  * If the condition fits the pattern of a conditional assignment,
@@ -2449,8 +2787,21 @@ error:
  * to the iteration domains of the then branch, while the
  * opposite of the condition in added to the iteration domains
  * of the else branch, if any.
+ * We allow the condition to be dynamic, i.e., to refer to
+ * scalars or array elements that may be written to outside
+ * of the given if statement.  These nested accesses are then represented
+ * as output dimensions in the wrapping iteration domain.
+ * If it also written _inside_ the then or else branch, then
+ * we treat the condition as non-affine.
+ * As explained below, this will introduce an extra statement.
+ * For aesthetic reasons, we want this statement to have a statement
+ * number that is lower than those of the then and else branches.
+ * In order to evaluate if will need such a statement, however, we
+ * first construct scops for the then and else branches.
+ * We therefore reserve a statement number if we might have to
+ * introduce such an extra statement.
  *
- * If the condition is not-affine, then we create a separate
+ * If the condition is not affine, then we create a separate
  * statement that write the result of the condition to a virtual scalar.
  * A constraint requiring the value of this virtual scalar to be one
  * is added to the iteration domains of the then branch.
@@ -2464,21 +2815,16 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	struct pet_scop *scop_then, *scop_else, *scop;
 	assigned_value_cache cache(assigned_value);
 	isl_map *test_access = NULL;
+	isl_set *cond;
+	int stmt_id;
 
 	scop = extract_conditional_assignment(stmt);
 	if (scop)
 		return scop;
 
-	if (allow_nested && !is_affine_condition(stmt->getCond())) {
-		test_access = create_test_access(ctx, n_test++);
-		scop = extract_non_affine_condition(stmt->getCond(),
-						    isl_map_copy(test_access));
-		scop = scop_add_array(scop, test_access);
-		if (!scop) {
-			isl_map_free(test_access);
-			return NULL;
-		}
-	}
+	cond = try_extract_nested_condition(stmt->getCond());
+	if (allow_nested && (!cond || has_nested(cond)))
+		stmt_id = n_stmt++;
 
 	scop_then = extract(stmt->getThen());
 
@@ -2487,22 +2833,42 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		if (autodetect) {
 			if (scop_then && !scop_else) {
 				partial = true;
-				pet_scop_free(scop);
-				isl_map_free(test_access);
+				isl_set_free(cond);
 				return scop_then;
 			}
 			if (!scop_then && scop_else) {
 				partial = true;
-				pet_scop_free(scop);
-				isl_map_free(test_access);
+				isl_set_free(cond);
 				return scop_else;
 			}
 		}
 	}
 
+	if (cond &&
+	    (!is_nested_allowed(cond, scop_then) ||
+	     (stmt->getElse() && !is_nested_allowed(cond, scop_else)))) {
+		isl_set_free(cond);
+		cond = NULL;
+	}
+	if (allow_nested && !cond) {
+		int save_n_stmt = n_stmt;
+		test_access = create_test_access(ctx, n_test++);
+		n_stmt = stmt_id;
+		scop = extract_non_affine_condition(stmt->getCond(),
+						    isl_map_copy(test_access));
+		n_stmt = save_n_stmt;
+		scop = scop_add_array(scop, test_access);
+		if (!scop) {
+			pet_scop_free(scop_then);
+			pet_scop_free(scop_else);
+			isl_map_free(test_access);
+			return NULL;
+		}
+	}
+
 	if (!scop) {
-		isl_set *cond;
-		cond = extract_condition(stmt->getCond());
+		if (!cond)
+			cond = extract_condition(stmt->getCond());
 		scop = pet_scop_restrict(scop_then, isl_set_copy(cond));
 
 		if (stmt->getElse()) {
@@ -2511,6 +2877,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 			scop = pet_scop_add(ctx, scop, scop_else);
 		} else
 			isl_set_free(cond);
+		scop = resolve_nested(scop);
 	} else {
 		scop = pet_scop_prefix(scop, 0);
 		scop_then = pet_scop_prefix(scop_then, 1);
