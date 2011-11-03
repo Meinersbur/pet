@@ -256,9 +256,10 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ImplicitCastExpr *expr)
 
 /* Extract an affine expression from the DeclRefExpr "expr".
  *
- * If we have recorded an expression that was assigned to the variable
- * before, then we convert this expressoin to an isl_pw_aff if it is
- * affine and to an extra parameter otherwise (provided nesting_enabled is set).
+ * If the variable has been assigned a value, then we check whether
+ * we know what expression was assigned and whether this expression
+ * is affine.  If so, we convert the expression to an isl_pw_aff
+ * and to an extra parameter otherwise (provided nesting_enabled is set).
  *
  * Otherwise, we simply return an expression that is equal
  * to a parameter corresponding to the referenced variable.
@@ -277,9 +278,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 		return NULL;
 	}
 
-	if (assigned_value.find(decl) != assigned_value.end() &&
-	    assigned_value[decl] != NULL) {
-		if (is_affine(assigned_value[decl]))
+	if (assigned_value.find(decl) != assigned_value.end()) {
+		if (assigned_value[decl] && is_affine(assigned_value[decl]))
 			return extract_affine(assigned_value[decl]);
 		else
 			return non_affine(expr);

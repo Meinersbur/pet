@@ -1,0 +1,102 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ __pet_test_0[i] : i >= 0 and i <= 9 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+- context: '{  :  }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  element_type: int
+- context: '{  :  }'
+  extent: '{ N[] }'
+  element_type: int
+statements:
+- line: 10
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> N[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[] -> [5] }'
+      read: 1
+      write: 0
+- line: 12
+  domain: '{ S_1[i] : i >= 0 and i <= 9 }'
+  schedule: '{ S_1[i] -> [1, i, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[i] -> __pet_test_0[i] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: <=
+      arguments:
+      - type: access
+        relation: '{ S_1[i] -> N[] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_1[i] -> [4] }'
+        read: 1
+        write: 0
+- line: 14
+  domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
+  schedule: '{ S_2[i, j] -> [1, i, 1, j, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[i, j] -> a[j] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: +
+      arguments:
+      - type: binary
+        operation: +
+        arguments:
+        - type: access
+          relation: '{ S_2[i, j] -> [5] }'
+          read: 1
+          write: 0
+        - type: access
+          relation: '{ S_2[i, j] -> [j] }'
+          read: 1
+          write: 0
+      - type: access
+        relation: '{ S_2[i, j] -> N[] }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '{ S_2[i, j] -> __pet_test_0[i] }'
+    read: 1
+    write: 0
+- line: 15
+  domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
+  schedule: '{ S_3[i, j] -> [1, i, 1, j, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_3[i, j] -> N[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '{ S_3[i, j] -> __pet_test_0[i] }'
+    read: 1
+    write: 0
