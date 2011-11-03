@@ -31,41 +31,16 @@
  * Leiden University.
  */ 
 
-#include <string>
-#include <llvm/Support/CommandLine.h>
-
-#include <isl/ctx.h>
-
 #include "options.h"
-#include "scop.h"
-#include "scop_yaml.h"
 
-using namespace std;
+ISL_ARGS_START(struct pet_options, pet_options_args)
+ISL_ARG_BOOL(struct pet_options, autodetect, 0, "autodetect", 0, NULL)
+ISL_ARGS_END
 
-static llvm::cl::opt<string> InputFilename(llvm::cl::Positional,
-			llvm::cl::Required, llvm::cl::desc("<input file>"));
-static llvm::cl::opt<bool> AutoDetect("autodetect",
-			llvm::cl::desc("Autodetect scops"));
+ISL_ARG_DEF(pet_options, struct pet_options, pet_options_args)
+ISL_ARG_CTX_DEF(pet_options, struct pet_options, pet_options_args)
 
-int main(int argc, char *argv[])
-{
-	isl_ctx *ctx;
-	pet_scop *scop;
-	pet_options *options;
-
-	options = pet_options_new_with_defaults();
-	ctx = isl_ctx_alloc_with_options(&pet_options_args, options);
-
-	llvm::cl::ParseCommandLineOptions(argc, argv);
-
-	options->autodetect = AutoDetect;
-	scop = pet_scop_extract_from_C_source(ctx, InputFilename.c_str(), NULL);
-
-	if (scop)
-		pet_scop_emit(stdout, scop);
-
-	pet_scop_free(scop);
-
-	isl_ctx_free(ctx);
-	return 0;
-}
+ISL_CTX_SET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
+	autodetect)
+ISL_CTX_GET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
+	autodetect)

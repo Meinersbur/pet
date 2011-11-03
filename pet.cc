@@ -67,6 +67,7 @@
 #include <isl/ctx.h>
 #include <isl/constraint.h>
 
+#include "options.h"
 #include "scan.h"
 
 #include "config.h"
@@ -565,8 +566,8 @@ static CompilerInvocation *construct_invocation(const char *filename,
  * If we have found a pet_scop, we add the context and value_bounds
  * constraints specified through pragmas.
  */
-struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
-	const char *filename, const char *function, int autodetect)
+static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
+	const char *filename, const char *function, pet_options *options)
 {
 	isl_space *dim;
 	isl_set *context;
@@ -608,10 +609,10 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 
 	Clang->createASTContext();
 	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(),
-				loc, function, autodetect);
+				loc, function, options->autodetect);
 	Sema *sema = new Sema(PP, Clang->getASTContext(), consumer);
 
-	if (!autodetect) {
+	if (!options->autodetect) {
 		PP.AddPragmaHandler(new PragmaScopHandler(loc));
 		PP.AddPragmaHandler(new PragmaEndScopHandler(loc));
 		PP.AddPragmaHandler(new PragmaLiveOutHandler(*sema, live_out));
@@ -648,4 +649,25 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 		isl_set_free(vb_it->second);
 
 	return consumer.scop;
+}
+
+struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
+	const char *filename, const char *function)
+{
+	pet_scop *scop;
+	pet_options *options;
+	bool allocated = false;
+
+	options = isl_ctx_peek_pet_options(ctx);
+	if (!options) {
+		options = pet_options_new_with_defaults();
+		allocated = true;
+	}
+
+	scop = scop_extract_from_C_source(ctx, filename, function, options);
+
+	if (allocated)
+		pet_options_free(options);
+
+	return scop;
 }

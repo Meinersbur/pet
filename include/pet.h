@@ -1,6 +1,7 @@
 #ifndef PET_H
 #define PET_H
 
+#include <isl/arg.h>
 #include <isl/set.h>
 #include <isl/map.h>
 #include <isl/union_map.h>
@@ -8,6 +9,15 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+struct pet_options;
+ISL_ARG_DECL(pet_options, struct pet_options, pet_options_args)
+
+/* If autodetect is set, any valid scop is extracted.
+ * Otherwise, the scop needs to be delimited by pragmas.
+ */
+int pet_options_set_autodetect(isl_ctx *ctx, int val);
+int pet_options_get_autodetect(isl_ctx *ctx);
 
 enum pet_expr_type {
 	pet_expr_access,
@@ -150,12 +160,9 @@ const char *pet_op_str(enum pet_op_type op);
 /* Extract a pet_scop from a C source file.
  * If function is not NULL, then the pet_scop is extracted from
  * a function with that name.
- *
- * If autodetect is set, any valid scop is extracted.
- * Otherwise, the scop needs to be delimited by pragmas.
  */
 struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
-	const char *filename, const char *function, int autodetect);
+	const char *filename, const char *function);
 
 /* Update all isl_sets and isl_maps such that they all have the same
  * parameters in the same order.
