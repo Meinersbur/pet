@@ -1919,7 +1919,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	is_unsigned = iv->getType()->isUnsignedIntegerType();
 
-	assigned_value[iv] = NULL;
+	assigned_value.erase(iv);
 	clear_assignments clear(assigned_value);
 	clear.TraverseStmt(stmt->getBody());
 
@@ -1968,6 +1968,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	scop = extract(stmt->getBody());
 	scop = pet_scop_embed(scop, domain, sched, id);
+	assigned_value[iv] = NULL;
 
 	isl_int_clear(inc);
 	return scop;
