@@ -43,13 +43,12 @@ struct options {
 	char *scop2;
 };
 
-struct isl_arg options_arg[] = {
+ISL_ARGS_START(struct options, options_args)
 ISL_ARG_ARG(struct options, scop1, "scop1", NULL)
 ISL_ARG_ARG(struct options, scop2, "scop2", NULL)
-ISL_ARG_END
-};
+ISL_ARGS_END
 
-ISL_ARG_DEF(options, struct options, options_arg)
+ISL_ARG_DEF(options, struct options, options_args)
 
 /* Given two YAML descriptions of pet_scops, check whether they
  * represent equivalent scops.
@@ -66,7 +65,7 @@ int main(int argc, char **argv)
 	options = options_new_with_defaults();
 	assert(options);
 	argc = options_parse(options, argc, argv, ISL_ARG_ALL);
-	ctx = isl_ctx_alloc_with_options(options_arg, options);
+	ctx = isl_ctx_alloc_with_options(&options_args, options);
 
 	file1 = fopen(options->scop1, "r");
 	assert(file1);
