@@ -53,19 +53,69 @@ using namespace std;
 using namespace clang;
 
 
+/* Check if the element type corresponding to the given array type
+ * has a const qualifier.
+ */
+static bool const_base(QualType qt)
+{
+	const Type *type = qt.getTypePtr();
+
+	if (type->isPointerType())
+		return const_base(type->getPointeeType());
+	if (type->isArrayType()) {
+		const ArrayType *atype;
+		type = type->getCanonicalTypeInternal().getTypePtr();
+		atype = cast<ArrayType>(type);
+		return const_base(atype->getElementType());
+	}
+
+	return qt.isConstQualified();
+}
+
 /* Look for any assignments to scalar variables in part of the parse
  * tree and set assigned_value to NULL for each of them.
  * Also reset assigned_value if the address of a scalar variable
- * is being taken.
+ * is being taken.  As an exception, if the address is passed to a function
+ * that is declared to receive a const pointer, then assigned_value is
+ * not reset.
  *
  * This ensures that we won't use any previously stored value
  * in the current subtree and its parents.
  */
 struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 	map<ValueDecl *, Expr *> &assigned_value;
+	set<UnaryOperator *> skip;
 
 	clear_assignments(map<ValueDecl *, Expr *> &assigned_value) :
 		assigned_value(assigned_value) {}
+
+	/* Check for "address of" operators whose value is passed
+	 * to a const pointer argument and add them to "skip", so that
+	 * we can skip them in VisitUnaryOperator.
+	 */
+	bool VisitCallExpr(CallExpr *expr) {
+		FunctionDecl *fd;
+		fd = expr->getDirectCallee();
+		if (!fd)
+			return true;
+		for (int i = 0; i < expr->getNumArgs(); ++i) {
+			Expr *arg = expr->getArg(i);
+			UnaryOperator *op;
+			if (arg->getStmtClass() == Stmt::ImplicitCastExprClass) {
+				ImplicitCastExpr *ice;
+				ice = cast<ImplicitCastExpr>(arg);
+				arg = ice->getSubExpr();
+			}
+			if (arg->getStmtClass() != Stmt::UnaryOperatorClass)
+				continue;
+			op = cast<UnaryOperator>(arg);
+			if (op->getOpcode() != UO_AddrOf)
+				continue;
+			if (const_base(fd->getParamDecl(i)->getType()))
+				skip.insert(op);
+		}
+		return true;
+	}
 
 	bool VisitUnaryOperator(UnaryOperator *expr) {
 		Expr *arg;
@@ -73,6 +123,8 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 		ValueDecl *decl;
 
 		if (expr->getOpcode() != UO_AddrOf)
+			return true;
+		if (skip.find(expr) != skip.end())
 			return true;
 
 		arg = expr->getSubExpr();
@@ -613,25 +665,6 @@ static QualType base_type(QualType qt)
 		return base_type(atype->getElementType());
 	}
 	return qt;
-}
-
-/* Check if the element type corresponding to the given array type
- * has a const qualifier.
- */
-static bool const_base(QualType qt)
-{
-	const Type *type = qt.getTypePtr();
-
-	if (type->isPointerType())
-		return const_base(type->getPointeeType());
-	if (type->isArrayType()) {
-		const ArrayType *atype;
-		type = type->getCanonicalTypeInternal().getTypePtr();
-		atype = cast<ArrayType>(type);
-		return const_base(atype->getElementType());
-	}
-
-	return qt.isConstQualified();
 }
 
 /* Extract an access relation from a reference to a variable.
