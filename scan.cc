@@ -1822,6 +1822,9 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
  * to an integer variable, or a declaration of such a variable with
  * initialization.
  *
+ * The condition is allowed to contain nested accesses, provided
+ * they are not being written to inside the body of the loop.
+ *
  * We extract a pet_scop for the body and then embed it in a loop with
  * iteration domain and schedule
  *
@@ -1874,7 +1877,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_space *dim;
 	isl_set *domain;
 	isl_map *sched;
-	isl_set *cond;
+	isl_set *cond = NULL;
 	isl_id *id;
 	struct pet_scop *scop;
 	assigned_value_cache cache(assigned_value);
@@ -1935,7 +1938,16 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		domain = strided_domain(isl_id_copy(id), lb, inc);
 	}
 
-	cond = extract_condition(stmt->getCond());
+	scop = extract(stmt->getBody());
+
+	cond = try_extract_nested_condition(stmt->getCond());
+	if (cond && !is_nested_allowed(cond, scop)) {
+		isl_set_free(cond);
+		cond = NULL;
+	}
+
+	if (!cond)
+		cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
 	is_simple = is_simple_bound(cond, inc);
@@ -1967,8 +1979,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	} else
 		isl_map_free(wrap);
 
-	scop = extract(stmt->getBody());
 	scop = pet_scop_embed(scop, domain, sched, id);
+	scop = resolve_nested(scop);
 	assigned_value[iv] = NULL;
 
 	isl_int_clear(inc);
