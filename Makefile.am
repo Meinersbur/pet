@@ -49,7 +49,7 @@ pet_LDFLAGS = $(AM_LDFLAGS) @LIBYAML_LDFLAGS@
 pet_SOURCES = \
 	emit.c \
 	scop_yaml.h \
-	main.cc
+	main.c
 pet_LDADD = libpet.la \
 	-lclangFrontend -lclangParse -lclangSema -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
