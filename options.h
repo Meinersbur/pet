@@ -7,6 +7,8 @@ extern "C" {
 
 struct pet_options {
 	int	autodetect;
+	int	n_path;
+	const char **paths;
 };
 
 ISL_ARG_CTX_DECL(pet_options, struct pet_options, pet_options_args)

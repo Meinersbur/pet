@@ -595,7 +595,11 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	Clang->setTarget(target);
 	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
 					    LangStandard::lang_unspecified);
-	Clang->getHeaderSearchOpts().ResourceDir = ResourceDir;
+	HeaderSearchOptions &HSO = Clang->getHeaderSearchOpts();
+	HSO.ResourceDir = ResourceDir;
+	for (int i = 0; i < options->n_path; ++i)
+		HSO.AddPath(options->paths[i],
+			frontend::Angled, true, false, false);
 	Clang->createPreprocessor();
 	Preprocessor &PP = Clang->getPreprocessor();
 

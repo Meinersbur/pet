@@ -35,6 +35,8 @@
 
 ISL_ARGS_START(struct pet_options, pet_options_args)
 ISL_ARG_BOOL(struct pet_options, autodetect, 0, "autodetect", 0, NULL)
+ISL_ARG_STR_LIST(struct pet_options, n_path, paths, 'I', "include-path",
+	"path", NULL)
 ISL_ARGS_END
 
 ISL_ARG_DEF(pet_options, struct pet_options, pet_options_args)
