@@ -434,12 +434,20 @@ static bool is_implicit(const IdentifierInfo *ident)
 /* Ignore implicit function declaration warnings on
  * "min", "max", "ceild" and "floord" as we detect and handle these
  * in PetScan.
+ *
+ * The cloned field keeps track of whether the clone method
+ * has ever been called.  Newer clangs (by default) clone
+ * the DiagnosticConsumer passed to createDiagnostics and
+ * then take ownership of the clone, which means that
+ * the original has to be deleted by the calling code.
  */
 struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 	const DiagnosticOptions *DiagOpts;
+	static bool cloned;
 	MyDiagnosticPrinter(const DiagnosticOptions &DO) :
 		DiagOpts(&DO), TextDiagnosticPrinter(llvm::errs(), DO) {}
 	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
+		cloned = true;
 		return new MyDiagnosticPrinter(*DiagOpts);
 	}
 	virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
@@ -453,6 +461,8 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 			TextDiagnosticPrinter::HandleDiagnostic(level, info);
 	}
 };
+
+bool MyDiagnosticPrinter::cloned = false;
 
 static void update_arrays(struct pet_scop *scop,
 	map<ValueDecl *, isl_set *> &value_bounds,
@@ -507,7 +517,10 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 
 	CompilerInstance *Clang = new CompilerInstance();
 	DiagnosticOptions DO;
-	Clang->createDiagnostics(0, NULL, new MyDiagnosticPrinter(DO));
+	MyDiagnosticPrinter *printer = new MyDiagnosticPrinter(DO);
+	Clang->createDiagnostics(0, NULL, printer);
+	if (printer->cloned)
+		delete printer;
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
 	Clang->createFileManager();
