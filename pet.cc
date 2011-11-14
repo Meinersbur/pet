@@ -600,6 +600,9 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	for (int i = 0; i < options->n_path; ++i)
 		HSO.AddPath(options->paths[i],
 			frontend::Angled, true, false, false);
+	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
+	for (int i = 0; i < options->n_define; ++i)
+		PO.addMacroDef(options->defines[i]);
 	Clang->createPreprocessor();
 	Preprocessor &PP = Clang->getPreprocessor();
 
