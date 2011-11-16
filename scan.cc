@@ -1980,6 +1980,13 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt)
 	return extract(stmt->children());
 }
 
+/* Does "id" refer to a nested access?
+ */
+static bool is_nested_parameter(__isl_keep isl_id *id)
+{
+	return id && isl_id_get_user(id) && !isl_id_get_name(id);
+}
+
 /* For each nested access parameter in "space",
  * construct a corresponding pet_expr, place it in args and
  * record its position in "param2pos".
@@ -2002,7 +2009,7 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 		isl_id *id = isl_space_get_dim_id(space, isl_dim_param, i);
 		Expr *nested;
 
-		if (!(id && isl_id_get_user(id) && !isl_id_get_name(id))) {
+		if (!is_nested_parameter(id)) {
 			isl_id_free(id);
 			continue;
 		}
@@ -2125,7 +2132,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	for (int i = nparam - 1; i >= 0; --i) {
 		isl_id *id = isl_map_get_dim_id(expr->acc.access,
 						isl_dim_param, i);
-		if (!(id && isl_id_get_user(id) && !isl_id_get_name(id))) {
+		if (!is_nested_parameter(id)) {
 			isl_id_free(id);
 			continue;
 		}
