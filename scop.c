@@ -1698,3 +1698,57 @@ __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop)
 
 	return schedule;
 }
+
+/* Does expression "expr" write to "id"?
+ */
+static int expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
+{
+	int i;
+	isl_id *write_id;
+
+	for (i = 0; i < expr->n_arg; ++i) {
+		int writes = expr_writes(expr->args[i], id);
+		if (writes < 0 || writes)
+			return writes;
+	}
+
+	if (expr->type != pet_expr_access)
+		return 0;
+	if (!expr->acc.write)
+		return 0;
+	if (!isl_map_has_tuple_id(expr->acc.access, isl_dim_out))
+		return 0;
+
+	write_id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+	isl_id_free(write_id);
+
+	if (!write_id)
+		return -1;
+
+	return write_id == id;
+}
+
+/* Does statement "stmt" write to "id"?
+ */
+static int stmt_writes(struct pet_stmt *stmt, __isl_keep isl_id *id)
+{
+	return expr_writes(stmt->body, id);
+}
+
+/* Is there any write access in "scop" that accesses "id"?
+ */
+int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id)
+{
+	int i;
+
+	if (!scop)
+		return -1;
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		int writes = stmt_writes(scop->stmts[i], id);
+		if (writes < 0 || writes)
+			return writes;
+	}
+
+	return 0;
+}
