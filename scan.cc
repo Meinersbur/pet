@@ -282,7 +282,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 		if (assigned_value[decl] && is_affine(assigned_value[decl]))
 			return extract_affine(assigned_value[decl]);
 		else
-			return non_affine(expr);
+			return nested_access(expr);
 	}
 
 	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
@@ -547,13 +547,14 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 
 }
 
-/* This method is called when we come across a non-affine expression.
+/* This method is called when we come across an access that is
+ * nested in what is supposed to be an affine expression.
  * If nesting is allowed, we return a new parameter that corresponds
- * to the non-affine expression.  Otherwise, we simply complain.
+ * to this nested access.  Otherwise, we simply complain.
  *
  * The new parameter is resolved in resolve_nested.
  */
-isl_pw_aff *PetScan::non_affine(Expr *expr)
+isl_pw_aff *PetScan::nested_access(Expr *expr)
 {
 	isl_id *id;
 	isl_space *dim;
@@ -583,7 +584,7 @@ isl_pw_aff *PetScan::non_affine(Expr *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(ArraySubscriptExpr *expr)
 {
-	return non_affine(expr);
+	return nested_access(expr);
 }
 
 /* Extract an affine expression from a conditional operation.
@@ -1980,13 +1981,13 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt)
 }
 
 /* Look for parameters in any access relation in "expr" that
- * refer to non-affine constructs.  In particular, these are
+ * refer to nested accesses.  In particular, these are
  * parameters with no name.
  *
  * If there are any such parameters, then the domain of the access
  * relation, which is still [] at this point, is replaced by
  * [[] -> [t_1,...,t_n]], with n the number of these parameters
- * (after identifying identical non-affine constructs).
+ * (after identifying identical nested accesses).
  * The parameters are then equated to the corresponding t dimensions
  * and subsequently projected out.
  * param2pos maps the position of the parameter to the position

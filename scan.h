@@ -128,7 +128,7 @@ private:
 	__isl_give isl_pw_aff *extract_affine_mod(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_mul(clang::BinaryOperator *expr);
 
-	isl_pw_aff *non_affine(clang::Expr *expr);
+	isl_pw_aff *nested_access(clang::Expr *expr);
 
 	bool is_affine(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
