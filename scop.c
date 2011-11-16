@@ -403,7 +403,7 @@ error:
 
 /* Modify all access relations in "expr" by calling "fn" on them.
  */
-static struct pet_expr *expr_foreach_access(struct pet_expr *expr,
+struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
 	__isl_give isl_map *(*fn)(__isl_take isl_map *access, void *user),
 	void *user)
 {
@@ -413,7 +413,7 @@ static struct pet_expr *expr_foreach_access(struct pet_expr *expr,
 		return NULL;
 
 	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] = expr_foreach_access(expr->args[i], fn, user);
+		expr->args[i] = pet_expr_foreach_access(expr->args[i], fn, user);
 		if (!expr->args[i])
 			return pet_expr_free(expr);
 	}
@@ -465,7 +465,7 @@ static __isl_give isl_map *update_domain(__isl_take isl_map *access,
 static struct pet_expr *expr_update_domain(struct pet_expr *expr,
 	__isl_take isl_map *update)
 {
-	expr = expr_foreach_access(expr, &update_domain, update);
+	expr = pet_expr_foreach_access(expr, &update_domain, update);
 	isl_map_free(update);
 	return expr;
 }
@@ -914,7 +914,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 {
 	struct pet_embed_access data = { .extend = extend, .var_id = var_id };
 
-	expr = expr_foreach_access(expr, &embed_access, &data);
+	expr = pet_expr_foreach_access(expr, &embed_access, &data);
 	isl_map_free(extend);
 	return expr;
 }

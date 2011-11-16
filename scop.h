@@ -58,6 +58,10 @@ struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
 
+struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
+	__isl_give isl_map *(*fn)(__isl_take isl_map *access, void *user),
+	void *user);
+
 #if defined(__cplusplus)
 }
 #endif
