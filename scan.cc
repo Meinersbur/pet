@@ -1987,6 +1987,49 @@ static bool is_nested_parameter(__isl_keep isl_id *id)
 	return id && isl_id_get_user(id) && !isl_id_get_name(id);
 }
 
+/* Does parameter "pos" of "space" refer to a nested access?
+ */
+static bool is_nested_parameter(__isl_keep isl_space *space, int pos)
+{
+	bool nested;
+	isl_id *id;
+
+	id = isl_space_get_dim_id(space, isl_dim_param, pos);
+	nested = is_nested_parameter(id);
+	isl_id_free(id);
+
+	return nested;
+}
+
+/* How many parameters of "space" refer to nested accesses, i.e., have no name?
+ */
+static int n_nested_parameter(__isl_keep isl_space *space)
+{
+	int n = 0;
+	int nparam;
+
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (int i = 0; i < nparam; ++i)
+		if (is_nested_parameter(space, i))
+			++n;
+
+	return n;
+}
+
+/* How many parameters of "map" refer to nested accesses, i.e., have no name?
+ */
+static int n_nested_parameter(__isl_keep isl_map *map)
+{
+	isl_space *space;
+	int n;
+
+	space = isl_map_get_space(map);
+	n = n_nested_parameter(space);
+	isl_space_free(space);
+
+	return n;
+}
+
 /* For each nested access parameter in "space",
  * construct a corresponding pet_expr, place it in args and
  * record its position in "param2pos".
@@ -2101,16 +2144,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	if (expr->type != pet_expr_access)
 		return expr;
 
-	nparam = isl_map_dim(expr->acc.access, isl_dim_param);
-	n = 0;
-	for (int i = 0; i < nparam; ++i) {
-		isl_id *id = isl_map_get_dim_id(expr->acc.access,
-						isl_dim_param, i);
-		if (id && isl_id_get_user(id) && !isl_id_get_name(id))
-			n++;
-		isl_id_free(id);
-	}
-
+	n = n_nested_parameter(expr->acc.access);
 	if (n == 0)
 		return expr;
 
@@ -2119,6 +2153,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 		return NULL;
 
 	n = expr->n_arg;
+	nparam = isl_map_dim(expr->acc.access, isl_dim_param);
 	n_in = isl_map_dim(expr->acc.access, isl_dim_in);
 	dim = isl_map_get_space(expr->acc.access);
 	dim = isl_space_domain(dim);
