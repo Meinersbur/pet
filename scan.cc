@@ -1980,6 +1980,84 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt)
 	return extract(stmt->children());
 }
 
+/* For each nested access parameter in "space",
+ * construct a corresponding pet_expr, place it in args and
+ * record its position in "param2pos".
+ * "n_arg" is the number of elements that are already in args.
+ * The position recorded in "param2pos" takes this number into account.
+ * If the pet_expr corresponding to a parameter is identical to
+ * the pet_expr corresponding to an earlier parameter, then these two
+ * parameters are made to refer to the same element in args.
+ *
+ * Return the final number of elements in args or -1 if an error has occurred.
+ */
+int PetScan::extract_nested(__isl_keep isl_space *space,
+	int n_arg, struct pet_expr **args, std::map<int,int> &param2pos)
+{
+	int nparam;
+
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (int i = 0; i < nparam; ++i) {
+		int j;
+		isl_id *id = isl_space_get_dim_id(space, isl_dim_param, i);
+		Expr *nested;
+
+		if (!(id && isl_id_get_user(id) && !isl_id_get_name(id))) {
+			isl_id_free(id);
+			continue;
+		}
+
+		nested = (Expr *) isl_id_get_user(id);
+		args[n_arg] = extract_expr(nested);
+		if (!args[n_arg])
+			return -1;
+
+		for (j = 0; j < n_arg; ++j)
+			if (pet_expr_is_equal(args[j], args[n_arg]))
+				break;
+
+		if (j < n_arg) {
+			pet_expr_free(args[n_arg]);
+			args[n_arg] = NULL;
+			param2pos[i] = j;
+		} else
+			param2pos[i] = n_arg++;
+
+		isl_id_free(id);
+	}
+
+	return n_arg;
+}
+
+/* For each nested access parameter in the access relations in "expr",
+ * construct a corresponding pet_expr, place it in expr->args and
+ * record its position in "param2pos".
+ * n is the number of nested access parameters.
+ */
+struct pet_expr *PetScan::extract_nested(struct pet_expr *expr, int n,
+	std::map<int,int> &param2pos)
+{
+	isl_space *space;
+
+	expr->args = isl_calloc_array(ctx, struct pet_expr *, n);
+	expr->n_arg = n;
+	if (!expr->args)
+		goto error;
+
+	space = isl_map_get_space(expr->acc.access);
+	n = extract_nested(space, 0, expr->args, param2pos);
+	isl_space_free(space);
+
+	if (n < 0)
+		goto error;
+
+	expr->n_arg = n;
+	return expr;
+error:
+	pet_expr_free(expr);
+	return NULL;
+}
+
 /* Look for parameters in any access relation in "expr" that
  * refer to nested accesses.  In particular, these are
  * parameters with no name.
@@ -2029,41 +2107,12 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	if (n == 0)
 		return expr;
 
-	expr->n_arg = n;
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, n);
-	if (!expr->args)
-		goto error;
+	expr = extract_nested(expr, n, param2pos);
+	if (!expr)
+		return NULL;
 
+	n = expr->n_arg;
 	n_in = isl_map_dim(expr->acc.access, isl_dim_in);
-	for (int i = 0, pos = 0; i < nparam; ++i) {
-		int j;
-		isl_id *id = isl_map_get_dim_id(expr->acc.access,
-						isl_dim_param, i);
-		Expr *nested;
-
-		if (!(id && isl_id_get_user(id) && !isl_id_get_name(id))) {
-			isl_id_free(id);
-			continue;
-		}
-
-		nested = (Expr *) isl_id_get_user(id);
-		expr->args[pos] = extract_expr(nested);
-
-		for (j = 0; j < pos; ++j)
-			if (pet_expr_is_equal(expr->args[j], expr->args[pos]))
-				break;
-
-		if (j < pos) {
-			pet_expr_free(expr->args[pos]);
-			param2pos[i] = n_in + j;
-			n--;
-		} else
-			param2pos[i] = n_in + pos++;
-
-		isl_id_free(id);
-	}
-	expr->n_arg = n;
-
 	dim = isl_map_get_space(expr->acc.access);
 	dim = isl_space_domain(dim);
 	dim = isl_space_from_domain(dim);
@@ -2083,7 +2132,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 
 		expr->acc.access = isl_map_equate(expr->acc.access,
 					isl_dim_param, i, isl_dim_in,
-					param2pos[i]);
+					n_in + param2pos[i]);
 		expr->acc.access = isl_map_project_out(expr->acc.access,
 					isl_dim_param, i, 1);
 
