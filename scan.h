@@ -132,6 +132,9 @@ private:
 	__isl_give isl_map *extract_access(clang::DeclRefExpr *expr);
 	__isl_give isl_map *extract_access(clang::IntegerLiteral *expr);
 
+	int extract_int(clang::Expr *expr, isl_int *v);
+	int extract_int(clang::ParenExpr *expr, isl_int *v);
+
 	__isl_give isl_pw_aff *extract_affine_add(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_div(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_mod(clang::BinaryOperator *expr);

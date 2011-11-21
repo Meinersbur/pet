@@ -213,6 +213,28 @@ int PetScan::extract_int(IntegerLiteral *expr, isl_int *v)
 	return 0;
 }
 
+/* Extract an integer from "expr" and store it in "v".
+ * Return -1 if "expr" does not (obviously) represent an integer.
+ */
+int PetScan::extract_int(clang::ParenExpr *expr, isl_int *v)
+{
+	return extract_int(expr->getSubExpr(), v);
+}
+
+/* Extract an integer from "expr" and store it in "v".
+ * Return -1 if "expr" does not (obviously) represent an integer.
+ */
+int PetScan::extract_int(clang::Expr *expr, isl_int *v)
+{
+	if (expr->getStmtClass() == Stmt::IntegerLiteralClass)
+		return extract_int(cast<IntegerLiteral>(expr), v);
+	if (expr->getStmtClass() == Stmt::ParenExprClass)
+		return extract_int(cast<ParenExpr>(expr), v);
+
+	unsupported(expr);
+	return -1;
+}
+
 /* Extract an affine expression from the IntegerLiteral "expr".
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
@@ -313,16 +335,15 @@ __isl_give isl_pw_aff *PetScan::extract_affine_div(BinaryOperator *expr)
 	isl_set *cond;
 
 	rhs_expr = expr->getRHS();
-	if (rhs_expr->getStmtClass() != Stmt::IntegerLiteralClass) {
-		unsupported(expr);
+	isl_int_init(v);
+	if (extract_int(rhs_expr, &v) < 0) {
+		isl_int_clear(v);
 		return NULL;
 	}
 
 	lhs = extract_affine(expr->getLHS());
 	cond = isl_pw_aff_nonneg_set(isl_pw_aff_copy(lhs));
 
-	isl_int_init(v);
-	extract_int(cast<IntegerLiteral>(rhs_expr), &v);
 	lhs = isl_pw_aff_scale_down(lhs, v);
 	isl_int_clear(v);
 
