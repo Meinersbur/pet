@@ -1677,9 +1677,9 @@ static bool is_simple_bound(__isl_keep isl_set *cond, isl_int inc)
 /* Extend a condition on a given iteration of a loop to one that
  * imposes the same condition on all previous iterations.
  * "domain" expresses the lower [upper] bound on the iterations
- * when up is set [not set].
+ * when inc is positive [negative].
  *
- * In particular, we construct the condition (when up is set)
+ * In particular, we construct the condition (when inc is positive)
  *
  *	forall i' : (domain(i') and i' <= i) => cond(i')
  *
