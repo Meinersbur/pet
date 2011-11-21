@@ -459,6 +459,21 @@ static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
 	return pwaff;
 }
 
+/* Extract an affine expression from a boolean expression.
+ * In particular, return the expression "expr ? 1 : 0".
+ */
+__isl_give isl_pw_aff *PetScan::extract_implicit_affine(Expr *expr)
+{
+	isl_set *cond = extract_condition(expr);
+	isl_space *space = isl_set_get_space(cond);
+	isl_local_space *ls = isl_local_space_from_space(space);
+	isl_aff *zero = isl_aff_zero_on_domain(isl_local_space_copy(ls));
+	isl_aff *one = isl_aff_zero_on_domain(ls);
+	one = isl_aff_add_constant_si(one, 1);
+	return isl_pw_aff_cond(cond, isl_pw_aff_from_aff(one),
+					isl_pw_aff_from_aff(zero));
+}
+
 /* Extract an affine expression from some binary operations.
  * If the result of the expression is unsigned, then we wrap it
  * based on the size of the type.
@@ -481,6 +496,16 @@ __isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
 	case BO_Mul:
 		res = extract_affine_mul(expr);
 		break;
+	case BO_LT:
+	case BO_LE:
+	case BO_GT:
+	case BO_GE:
+	case BO_EQ:
+	case BO_NE:
+	case BO_LAnd:
+	case BO_LOr:
+		res = extract_implicit_affine(expr);
+		break;
 	default:
 		unsupported(expr);
 		return NULL;
@@ -498,6 +523,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(UnaryOperator *expr)
 {
 	if (expr->getOpcode() == UO_Minus)
 		return isl_pw_aff_neg(extract_affine(expr->getSubExpr()));
+	if (expr->getOpcode() == UO_LNot)
+		return extract_implicit_affine(expr);
 
 	unsupported(expr);
 	return NULL;
