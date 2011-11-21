@@ -72,6 +72,42 @@ static bool const_base(QualType qt)
 	return qt.isConstQualified();
 }
 
+/* Mark "decl" as having an unknown value in "assigned_value".
+ *
+ * If no (known or unknown) value was assigned to "decl" before,
+ * then it may have been treated as a parameter before and may
+ * therefore appear in a value assigned to another variable.
+ * If so, this assignment needs to be turned into an unknown value too.
+ */
+static void clear_assignment(map<ValueDecl *, isl_pw_aff *> &assigned_value,
+	ValueDecl *decl)
+{
+	map<ValueDecl *, isl_pw_aff *>::iterator it;
+
+	it = assigned_value.find(decl);
+
+	assigned_value[decl] = NULL;
+
+	if (it == assigned_value.end())
+		return;
+
+	for (it = assigned_value.begin(); it != assigned_value.end(); ++it) {
+		isl_pw_aff *pa = it->second;
+		int nparam = isl_pw_aff_dim(pa, isl_dim_param);
+
+		for (int i = 0; i < nparam; ++i) {
+			isl_id *id;
+
+			if (!isl_pw_aff_has_dim_id(pa, isl_dim_param, i))
+				continue;
+			id = isl_pw_aff_get_dim_id(pa, isl_dim_param, i);
+			if (isl_id_get_user(id) == decl)
+				it->second = NULL;
+			isl_id_free(id);
+		}
+	}
+}
+
 /* Look for any assignments to scalar variables in part of the parse
  * tree and set assigned_value to NULL for each of them.
  * Also reset assigned_value if the address of a scalar variable
@@ -83,10 +119,10 @@ static bool const_base(QualType qt)
  * in the current subtree and its parents.
  */
 struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
-	map<ValueDecl *, Expr *> &assigned_value;
+	map<ValueDecl *, isl_pw_aff *> &assigned_value;
 	set<UnaryOperator *> skip;
 
-	clear_assignments(map<ValueDecl *, Expr *> &assigned_value) :
+	clear_assignments(map<ValueDecl *, isl_pw_aff *> &assigned_value) :
 		assigned_value(assigned_value) {}
 
 	/* Check for "address of" operators whose value is passed
@@ -132,7 +168,7 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 			return true;
 		ref = cast<DeclRefExpr>(arg);
 		decl = ref->getDecl();
-		assigned_value[decl] = NULL;
+		clear_assignment(assigned_value, decl);
 		return true;
 	}
 
@@ -148,7 +184,7 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 			return true;
 		ref = cast<DeclRefExpr>(lhs);
 		decl = ref->getDecl();
-		assigned_value[decl] = NULL;
+		clear_assignment(assigned_value, decl);
 		return true;
 	}
 };
@@ -160,13 +196,13 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
  * stored in the cache or because it has a different value in the cache).
  */
 struct assigned_value_cache {
-	map<ValueDecl *, Expr *> &assigned_value;
-	map<ValueDecl *, Expr *> cache;
+	map<ValueDecl *, isl_pw_aff *> &assigned_value;
+	map<ValueDecl *, isl_pw_aff *> cache;
 
-	assigned_value_cache(map<ValueDecl *, Expr *> &assigned_value) :
+	assigned_value_cache(map<ValueDecl *, isl_pw_aff *> &assigned_value) :
 		assigned_value(assigned_value), cache(assigned_value) {}
 	~assigned_value_cache() {
-		map<ValueDecl *, Expr *>::iterator it = cache.begin();
+		map<ValueDecl *, isl_pw_aff *>::iterator it = cache.begin();
 		for (it = assigned_value.begin(); it != assigned_value.end();
 		     ++it) {
 			if (!it->second ||
@@ -177,6 +213,28 @@ struct assigned_value_cache {
 		assigned_value = cache;
 	}
 };
+
+/* Insert an expression into the collection of expressions,
+ * provided it is not already in there.
+ * The isl_pw_affs are freed in the destructor.
+ */
+void PetScan::insert_expression(__isl_take isl_pw_aff *expr)
+{
+	std::set<isl_pw_aff *>::iterator it;
+
+	if (expressions.find(expr) == expressions.end())
+		expressions.insert(expr);
+	else
+		isl_pw_aff_free(expr);
+}
+
+PetScan::~PetScan()
+{
+	std::set<isl_pw_aff *>::iterator it;
+
+	for (it = expressions.begin(); it != expressions.end(); ++it)
+		isl_pw_aff_free(*it);
+}
 
 /* Called if we found something we (currently) cannot handle.
  * We'll provide more informative warnings later.
@@ -279,9 +337,9 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ImplicitCastExpr *expr)
 /* Extract an affine expression from the DeclRefExpr "expr".
  *
  * If the variable has been assigned a value, then we check whether
- * we know what expression was assigned and whether this expression
- * is affine.  If so, we convert the expression to an isl_pw_aff
- * and to an extra parameter otherwise (provided nesting_enabled is set).
+ * we know what (affine) value was assigned.
+ * If so, we return this value.  Otherwise we convert "expr"
+ * to an extra parameter (provided nesting_enabled is set).
  *
  * Otherwise, we simply return an expression that is equal
  * to a parameter corresponding to the referenced variable.
@@ -301,8 +359,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	}
 
 	if (assigned_value.find(decl) != assigned_value.end()) {
-		if (assigned_value[decl] && is_affine(assigned_value[decl]))
-			return extract_affine(assigned_value[decl]);
+		if (assigned_value[decl])
+			return isl_pw_aff_copy(assigned_value[decl]);
 		else
 			return nested_access(expr);
 	}
@@ -1128,7 +1186,7 @@ void PetScan::mark_write(struct pet_expr *access)
 
 	id = isl_map_get_tuple_id(access->acc.access, isl_dim_out);
 	decl = (ValueDecl *) isl_id_get_user(id);
-	assigned_value[decl] = NULL;
+	clear_assignment(assigned_value, decl);
 	isl_id_free(id);
 }
 
@@ -1138,9 +1196,10 @@ void PetScan::mark_write(struct pet_expr *access)
  * then we mark that access as a write.  If the operator is a compound
  * assignment, the access is marked as both a read and a write.
  *
- * If "expr" assigns something to a scalar variable, then we keep track
- * of the assigned expression in assigned_value so that we can plug
- * it in when we later come across the same variable.
+ * If "expr" assigns something to a scalar variable, then we mark
+ * the variable as having been assigned.  If, furthermore, the expression
+ * is affine, then keep track of this value in assigned_value
+ * so that we can plug it in when we later come across the same variable.
  */
 struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 {
@@ -1167,7 +1226,13 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	    isl_map_dim(lhs->acc.access, isl_dim_out) == 0) {
 		isl_id *id = isl_map_get_tuple_id(lhs->acc.access, isl_dim_out);
 		ValueDecl *decl = (ValueDecl *) isl_id_get_user(id);
-		assigned_value[decl] = expr->getRHS();
+		Expr *rhs = expr->getRHS();
+		isl_pw_aff *pa = try_extract_affine(rhs);
+		clear_assignment(assigned_value, decl);
+		if (pa) {
+			assigned_value[decl] = pa;
+			insert_expression(pa);
+		}
 		isl_id_free(id);
 	}
 
@@ -2029,7 +2094,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	scop = pet_scop_embed(scop, domain, sched, id);
 	scop = resolve_nested(scop);
-	assigned_value[iv] = NULL;
+	clear_assignment(assigned_value, iv);
 
 	isl_int_clear(inc);
 	return scop;
@@ -2279,11 +2344,12 @@ struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
-/* Check whether "expr" is an affine expression.
+/* Check if we can extract an affine expression from "expr".
+ * Return the expressions as an isl_pw_aff if we can and NULL otherwise.
  * We turn on autodetection so that we won't generate any warnings
  * and turn off nesting, so that we won't accept any non-affine constructs.
  */
-bool PetScan::is_affine(Expr *expr)
+__isl_give isl_pw_aff *PetScan::try_extract_affine(Expr *expr)
 {
 	isl_pw_aff *pwaff;
 	int save_autodetect = autodetect;
@@ -2293,10 +2359,21 @@ bool PetScan::is_affine(Expr *expr)
 	nesting_enabled = false;
 
 	pwaff = extract_affine(expr);
-	isl_pw_aff_free(pwaff);
 
 	autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
+
+	return pwaff;
+}
+
+/* Check whether "expr" is an affine expression.
+ */
+bool PetScan::is_affine(Expr *expr)
+{
+	isl_pw_aff *pwaff;
+
+	pwaff = try_extract_affine(expr);
+	isl_pw_aff_free(pwaff);
 
 	return pwaff != NULL;
 }

@@ -48,11 +48,19 @@ struct PetScan {
 	 * that is currently under investigation.
 	 */
 	bool nesting_enabled;
-	/* Maps identifiers to the last expression that was assigned to them.
+	/* Maps identifiers to the last value that was assigned to them.
 	 * If an identifier is mapped to NULL, then something may have
 	 * been assigned, but we don't know what.
+	 * assigned_value does not take a reference to the isl_pw_aff
+	 * object, so each such isl_pw_aff needs to be stored in
+	 * the set of "expressions".
 	 */
-	std::map<clang::ValueDecl *, clang::Expr *> assigned_value;
+	std::map<clang::ValueDecl *, isl_pw_aff *> assigned_value;
+	/* A collection of isl_pw_affs used in assigned_value or other
+	 * temporary maps.  expressions holds a reference for each
+	 * isl_pw_aff, which is freed in the destructor of PetScan.
+	 */
+	std::set<isl_pw_aff *> expressions;
 
 	PetScan(isl_ctx *ctx, clang::Preprocessor &PP,
 		clang::ASTContext &ast_context, ScopLoc &loc, int autodetect) :
@@ -61,10 +69,13 @@ struct PetScan {
 		n_stmt(0), n_test(0), partial(0), allow_nested(true),
 		nesting_enabled(false) { }
 
+	~PetScan();
+
 	struct pet_scop *scan(clang::FunctionDecl *fd);
 
 	static int extract_int(clang::IntegerLiteral *expr, isl_int *v);
 private:
+	void insert_expression(__isl_take isl_pw_aff *expr);
 	struct pet_scop *scan(clang::Stmt *stmt);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop);
@@ -142,6 +153,7 @@ private:
 
 	isl_pw_aff *nested_access(clang::Expr *expr);
 
+	__isl_give isl_pw_aff *try_extract_affine(clang::Expr *expr);
 	bool is_affine(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
 	__isl_give isl_set *try_extract_nested_condition(clang::Expr *expr);

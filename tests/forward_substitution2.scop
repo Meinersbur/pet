@@ -1,0 +1,62 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ N[] }'
+  element_type: int
+- context: '{  :  }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  element_type: int
+- context: '{  :  }'
+  extent: '{ c[] }'
+  element_type: int
+statements:
+- line: 5
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> c[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[] -> N[] }'
+      read: 1
+      write: 0
+- line: 6
+  domain: '{ S_1[] }'
+  schedule: '{ S_1[] -> [1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[] -> N[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_1[] -> [2] }'
+      read: 1
+      write: 0
+- line: 7
+  domain: '{ S_2[] }'
+  schedule: '{ S_2[] -> [2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ [S_2[] -> [i0]] -> a[i0] }'
+      read: 0
+      write: 1
+      arguments:
+      - type: access
+        relation: '{ S_2[] -> c[] }'
+        read: 1
+        write: 0
+    - type: access
+      relation: '{ S_2[] -> [5] }'
+      read: 1
+      write: 0
