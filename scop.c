@@ -489,11 +489,11 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 	char name[50];
 
 	if (!expr)
-		return NULL;
+		goto error;
 
 	stmt = isl_calloc_type(ctx, struct pet_stmt);
 	if (!stmt)
-		return pet_expr_free(expr);
+		goto error;
 
 	dim = isl_space_set_alloc(ctx, 0, 0);
 	if (label)
@@ -518,6 +518,9 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 		return pet_stmt_free(stmt);
 
 	return stmt;
+error:
+	isl_id_free(label);
+	return pet_expr_free(expr);
 }
 
 void *pet_stmt_free(struct pet_stmt *stmt)
