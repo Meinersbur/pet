@@ -613,7 +613,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	const FileEntry *file = Clang->getFileManager().getFile(filename);
 	if (!file)
 		isl_die(ctx, isl_error_unknown, "unable to open file",
-			return NULL);
+			do { delete Clang; return NULL; } while (0));
 	Clang->getSourceManager().createMainFileID(file);
 
 	Clang->createASTContext();
@@ -640,7 +640,6 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 
 	delete sema;
 	delete Clang;
-	llvm::llvm_shutdown();
 
 	if (consumer.scop) {
 		consumer.scop->context = isl_set_intersect(context,
@@ -674,6 +673,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	}
 
 	scop = scop_extract_from_C_source(ctx, filename, function, options);
+	llvm::llvm_shutdown();
 
 	if (allocated)
 		pet_options_free(options);
