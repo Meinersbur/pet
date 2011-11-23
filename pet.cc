@@ -530,6 +530,8 @@ static CompilerInvocation *construct_invocation(const char *filename,
 	const llvm::OwningPtr<Compilation> compilation(
 		driver->BuildCompilation(llvm::ArrayRef<const char *>(Argv)));
 	JobList &Jobs = compilation->getJobs();
+	if (Jobs.size() < 1)
+		return NULL;
 
 	Command *cmd = cast<Command>(*Jobs.begin());
 	if (strcmp(cmd->getCreator().getName(), "clang"))
