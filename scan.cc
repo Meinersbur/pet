@@ -1327,6 +1327,7 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 	for (int i = 0; i < expr->getNumArgs(); ++i) {
 		Expr *arg = expr->getArg(i);
 		int is_addr = 0;
+		pet_expr *main_arg;
 
 		if (arg->getStmtClass() == Stmt::ImplicitCastExprClass) {
 			ImplicitCastExpr *ice = cast<ImplicitCastExpr>(arg);
@@ -1340,15 +1341,19 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 			}
 		}
 		res->args[i] = PetScan::extract_expr(arg);
+		main_arg = res->args[i];
+		if (is_addr)
+			res->args[i] = pet_expr_new_unary(ctx,
+					pet_op_address_of, res->args[i]);
 		if (!res->args[i])
 			goto error;
 		if (arg->getStmtClass() == Stmt::ArraySubscriptExprClass &&
 		    array_depth(arg->getType().getTypePtr()) > 0)
 			is_addr = 1;
-		if (is_addr && res->args[i]->type == pet_expr_access) {
+		if (is_addr && main_arg->type == pet_expr_access) {
 			ParmVarDecl *parm = fd->getParamDecl(i);
 			if (!const_base(parm->getType()))
-				mark_write(res->args[i]);
+				mark_write(main_arg);
 		}
 	}
 

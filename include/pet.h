@@ -44,6 +44,7 @@ enum pet_op_type {
 	pet_op_lt,
 	pet_op_gt,
 	pet_op_minus,
+	pet_op_address_of,
 	pet_op_last
 };
 

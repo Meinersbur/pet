@@ -57,18 +57,27 @@ statements:
       relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
       read: 1
       write: 0
-    - type: access
-      relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
-      read: 0
-      write: 1
-    - type: access
-      relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
-      read: 0
-      write: 1
-    - type: access
-      relation: '[N, K] -> { S_2[k, j] -> t[] }'
-      read: 0
-      write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
+        read: 0
+        write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
+        read: 0
+        write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_2[k, j] -> t[] }'
+        read: 0
+        write: 1
 - line: 29
   domain: '[N, K] -> { S_3[k, j, i] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1
     + N and i >= 1 + j and i <= -1 + N }'
@@ -89,18 +98,27 @@ statements:
       relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
       read: 1
       write: 0
-    - type: access
-      relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
-      read: 0
-      write: 1
-    - type: access
-      relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
-      read: 0
-      write: 1
-    - type: access
-      relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
-      read: 0
-      write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
+        read: 0
+        write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
+        read: 0
+        write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
+        read: 0
+        write: 1
 - line: 34
   domain: '[N] -> { S_4[j, i] : j >= 0 and j <= -1 + N and i >= j and i <= -1 + N
     }'

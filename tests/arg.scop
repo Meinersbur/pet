@@ -14,14 +14,20 @@ statements:
     type: call
     name: f
     arguments:
-    - type: access
-      relation: '{ S_0[i] -> a[] }'
-      read: 1
-      write: 0
-    - type: access
-      relation: '{ S_0[i] -> a[] }'
-      read: 0
-      write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '{ S_0[i] -> a[] }'
+        read: 1
+        write: 0
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '{ S_0[i] -> a[] }'
+        read: 0
+        write: 1
 - line: 12
   domain: '{ S_1[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_1[i] -> [0, i, 1] }'
@@ -29,11 +35,17 @@ statements:
     type: call
     name: f
     arguments:
-    - type: access
-      relation: '{ S_1[i] -> b[i] }'
-      read: 1
-      write: 0
-    - type: access
-      relation: '{ S_1[i] -> b[1 + i] }'
-      read: 0
-      write: 1
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '{ S_1[i] -> b[i] }'
+        read: 1
+        write: 0
+    - type: unary
+      operation: '&'
+      arguments:
+      - type: access
+        relation: '{ S_1[i] -> b[1 + i] }'
+        read: 0
+        write: 1

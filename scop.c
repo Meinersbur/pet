@@ -61,7 +61,8 @@ static char *op_str[] = {
 	[pet_op_le] = "<=",
 	[pet_op_lt] = "<",
 	[pet_op_gt] = ">",
-	[pet_op_minus] = "-"
+	[pet_op_minus] = "-",
+	[pet_op_address_of] = "&"
 };
 
 const char *pet_op_str(enum pet_op_type op)
