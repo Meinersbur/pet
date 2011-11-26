@@ -14,3 +14,27 @@ Compilation:
 	./configure
 	make
 	make check
+
+Use:
+
+The main entry point is pet_scop_extract_from_C_source.
+This function extracts a scop from the C source file with the given name
+and returns it as a pet_scop.  The scop corresponds to the piece
+of code delimited by
+
+    #pragma scop
+
+and
+
+    #pragma endscop
+
+The code in between needs to consist only of expression statements,
+if statements and for statements.  All access relations, loop initializations
+and conditions need to be piecewise quasi-affine.
+
+If the autodetect option has been set, pet will try to automatically
+detect a scop and no pragmas are required.  On the other hand, pet
+will not produce any warnings in this case as any code that does not
+satisfy the requirements is considered to lie outside of the scop.
+
+The layout of pet_scop is documented in include/pet.h.
