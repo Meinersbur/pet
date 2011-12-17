@@ -40,6 +40,7 @@ libpet_la_SOURCES = \
 	scop_plus.h \
 	scop_plus.cc \
 	pet.cc
+libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
 	$(CLANG_LIBS) $(CLANG_LDFLAGS) $(LIB_ISL)
