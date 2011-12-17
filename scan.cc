@@ -241,7 +241,7 @@ PetScan::~PetScan()
  *
  * We only actually complain if autodetect is false.
  */
-void PetScan::unsupported(Stmt *stmt)
+void PetScan::unsupported(Stmt *stmt, const char *msg)
 {
 	if (autodetect)
 		return;
@@ -249,7 +249,7 @@ void PetScan::unsupported(Stmt *stmt)
 	SourceLocation loc = stmt->getLocStart();
 	DiagnosticsEngine &diag = PP.getDiagnostics();
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
-					   "unsupported");
+					   msg ? msg : "unsupported");
 	DiagnosticBuilder B = diag.Report(loc, id) << stmt->getSourceRange();
 }
 

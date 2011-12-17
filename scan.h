@@ -182,5 +182,5 @@ private:
 	__isl_give isl_set *extract_boolean(clang::BinaryOperator *expr);
 	__isl_give isl_set *extract_boolean(clang::UnaryOperator *expr);
 
-	void unsupported(clang::Stmt *stmt);
+	void unsupported(clang::Stmt *stmt, const char *msg = NULL);
 };
