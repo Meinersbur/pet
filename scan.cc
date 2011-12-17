@@ -1351,7 +1351,12 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 		    array_depth(arg->getType().getTypePtr()) > 0)
 			is_addr = 1;
 		if (is_addr && main_arg->type == pet_expr_access) {
-			ParmVarDecl *parm = fd->getParamDecl(i);
+			ParmVarDecl *parm;
+			if (!fd->hasPrototype()) {
+				unsupported(expr, "prototype required");
+				goto error;
+			}
+			parm = fd->getParamDecl(i);
 			if (!const_base(parm->getType()))
 				mark_write(main_arg);
 		}
