@@ -1899,17 +1899,17 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 
 /* Check if the while loop is of the form
  *
- *	while (1)
+ *	while (affine expression)
  *		body
  *
- * If so, construct a scop for an infinite loop around body.
+ * If so, construct a scop for an infinite loop around body and intersect
+ * the domain with the affine expression, which may result in an empty loop.
  * Otherwise, fail.
  */
 struct pet_scop *PetScan::extract(WhileStmt *stmt)
 {
 	Expr *cond;
-	isl_set *set;
-	int is_universe;
+	isl_pw_aff *pa;
 
 	cond = stmt->getCond();
 	if (!cond) {
@@ -1917,16 +1917,24 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		return NULL;
 	}
 
-	set = isl_pw_aff_non_zero_set(extract_condition(cond));
-	is_universe = isl_set_plain_is_universe(set);
-	isl_set_free(set);
+	pa = try_extract_affine_condition(cond);
+	if (pa) {
+		struct pet_scop *scop;
+		isl_set *dom;
+		isl_set *valid;
 
-	if (!is_universe) {
-		unsupported(stmt);
-		return NULL;
+		valid = isl_pw_aff_domain(isl_pw_aff_copy(pa));
+		dom = isl_pw_aff_non_zero_set(pa);
+		scop = extract_infinite_loop(stmt->getBody());
+		scop = pet_scop_restrict(scop, dom);
+		scop = pet_scop_restrict_context(scop, valid);
+
+		return scop;
 	}
 
-	return extract_infinite_loop(stmt->getBody());
+	unsupported(stmt);
+	return NULL;
+
 }
 
 /* Check whether "cond" expresses a simple loop bound
