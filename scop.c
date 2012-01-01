@@ -873,7 +873,7 @@ struct pet_embed_access {
  *
  * Similarly, if the accessed array is a virtual array (with user
  * pointer equal to NULL), as created by create_test_access,
- * then it is extende along with the domain of the access.
+ * then it is extended along with the domain of the access.
  */
 static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 	void *user)
