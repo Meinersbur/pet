@@ -2035,18 +2035,79 @@ struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
 	return scop;
 }
 
+/* Construct a scop for a while, given the scops for the condition
+ * and the body, the filter access and the iteration domain of
+ * the while loop.
+ *
+ * In particular, the scop for the condition is filtered to depend
+ * on "test_access" evaluating to true for all previous iterations
+ * of the loop, while the scop for the body is filtered to depend
+ * on "test_access" evaluating to true for all iterations up to the
+ * current iteration.
+ *
+ * These filtered scops are then combined into a single scop.
+ *
+ * "sign" is positive if the iterator increases and negative
+ * if it decreases.
+ */
+static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
+	struct pet_scop *scop_body, __isl_take isl_map *test_access,
+	__isl_take isl_set *domain, int sign)
+{
+	isl_ctx *ctx = isl_set_get_ctx(domain);
+	isl_id *id_test;
+	isl_map *prev;
+
+	id_test = isl_map_get_tuple_id(test_access, isl_dim_out);
+	test_access = isl_map_add_dims(test_access, isl_dim_in, 1);
+	test_access = isl_map_add_dims(test_access, isl_dim_out, 1);
+	test_access = isl_map_intersect_range(test_access, domain);
+	test_access = isl_map_set_tuple_id(test_access, isl_dim_out, id_test);
+	if (sign > 0)
+		prev = isl_map_lex_ge_first(isl_map_get_space(test_access), 1);
+	else
+		prev = isl_map_lex_le_first(isl_map_get_space(test_access), 1);
+	test_access = isl_map_intersect(test_access, prev);
+	scop_body = pet_scop_filter(scop_body, isl_map_copy(test_access), 1);
+	if (sign > 0)
+		prev = isl_map_lex_gt_first(isl_map_get_space(test_access), 1);
+	else
+		prev = isl_map_lex_lt_first(isl_map_get_space(test_access), 1);
+	test_access = isl_map_intersect(test_access, prev);
+	scop_cond = pet_scop_filter(scop_cond, test_access, 1);
+
+	return pet_scop_add(ctx, scop_cond, scop_body);
+}
+
 /* Check if the while loop is of the form
  *
  *	while (affine expression)
  *		body
  *
  * If so, call extract_affine_while to construct a scop.
- * Otherwise, fail.
+ *
+ * Otherwise, construct a generic while scop, with iteration domain
+ * { [t] : t >= 0 }.  The scop consists of two parts, one for
+ * evaluating the condition and one for the body.
+ * The schedule is adjusted to reflect that the condition is evaluated
+ * before the body is executed and the body is filtered to depend
+ * on the result of the condition evaluating to true on all iterations
+ * up to the current iteration, while the evaluation the condition itself
+ * is filtered to depend on the result of the condition evaluating to true
+ * on all previous iterations.
+ * The context of the scop representing the body is dropped
+ * because we don't know how many times the body will be executed,
+ * if at all.
  */
 struct pet_scop *PetScan::extract(WhileStmt *stmt)
 {
 	Expr *cond;
+	isl_id *id;
+	isl_map *test_access;
+	isl_set *domain;
+	isl_map *sched;
 	isl_pw_aff *pa;
+	struct pet_scop *scop, *scop_body;
 
 	cond = stmt->getCond();
 	if (!cond) {
@@ -2058,9 +2119,29 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	if (pa)
 		return extract_affine_while(pa, stmt->getBody());
 
-	unsupported(stmt);
-	return NULL;
+	if (!allow_nested) {
+		unsupported(stmt);
+		return NULL;
+	}
 
+	id = isl_id_alloc(ctx, "t", NULL);
+	domain = infinite_domain(isl_id_copy(id));
+	sched = identity_map(domain);
+
+	test_access = create_test_access(ctx, n_test++);
+	scop = extract_non_affine_condition(cond, isl_map_copy(test_access));
+	scop = scop_add_array(scop, test_access, ast_context);
+	scop = pet_scop_prefix(scop, 0);
+	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_map_copy(sched),
+				isl_id_copy(id));
+	scop_body = extract(stmt->getBody());
+	scop_body = pet_scop_reset_context(scop_body);
+	scop_body = pet_scop_prefix(scop_body, 1);
+	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain), sched, id);
+
+	scop = scop_add_while(scop, scop_body, test_access, domain, 1);
+
+	return scop;
 }
 
 /* Check whether "cond" expresses a simple loop bound

@@ -114,6 +114,11 @@ struct pet_expr {
  * to the values of the arguments for which this statement
  * is executed.
  * Otherwise, it is simply the iteration domain.
+ *
+ * If one of the arguments is an access expression that accesses
+ * more than one element for a given iteration, then the constraints
+ * on the value of this argument (encoded in "domain") should be satisfied
+ * for all of those accessed elements.
  */
 struct pet_stmt {
 	int line;

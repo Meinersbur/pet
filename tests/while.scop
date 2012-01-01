@@ -1,0 +1,88 @@
+context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
+arrays:
+- context: '{  :  }'
+  extent: '[n] -> { __pet_test_0[x, t] : x >= 0 and x <= -1 + n and t >= 0 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[n] -> { s[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 12
+  domain: '[n] -> { S1[x] : x >= 0 and x <= -1 + n }'
+  schedule: '[n] -> { S1[x] -> [0, x, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n] -> { S1[x] -> s[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+- line: 13
+  domain: '[n] -> { [S_1[x, t] -> [1]] : x >= 0 and x <= -1 + n and t >= 0 }'
+  schedule: '[n] -> { S_1[x, t] -> [0, x, 1, t, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n] -> { S_1[x, t] -> __pet_test_0[x, t] }'
+      read: 0
+      write: 1
+    - type: call
+      name: P
+      arguments:
+      - type: access
+        relation: '[n] -> { S_1[x, t] -> [x] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '[n] -> { S_1[x, t] -> s[] }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '[n] -> { S_1[x, t] -> __pet_test_0[x, o1] : o1 >= 0 and o1 <= -1 +
+      t }'
+    read: 1
+    write: 0
+- line: 14
+  domain: '[n] -> { [S2[x, t] -> [1]] : x >= 0 and x <= -1 + n and t >= 0 }'
+  schedule: '[n] -> { S2[x, t] -> [0, x, 1, t, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n] -> { S2[x, t] -> s[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: g
+      arguments:
+      - type: access
+        relation: '[n] -> { S2[x, t] -> s[] }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '[n] -> { S2[x, t] -> __pet_test_0[x, o1] : o1 >= 0 and o1 <= t }'
+    read: 1
+    write: 0
+- line: 16
+  domain: '[n] -> { R[x] : x >= 0 and x <= -1 + n }'
+  schedule: '[n] -> { R[x] -> [0, x, 2] }'
+  body:
+    type: call
+    name: h
+    arguments:
+    - type: access
+      relation: '[n] -> { R[x] -> s[] }'
+      read: 1
+      write: 0
