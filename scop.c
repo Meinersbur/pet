@@ -891,6 +891,8 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 		return 0;
 	if (array1->live_out != array2->live_out)
 		return 0;
+	if (array1->uniquely_defined != array2->uniquely_defined)
+		return 0;
 
 	return 1;
 }

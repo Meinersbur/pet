@@ -132,6 +132,10 @@ struct pet_stmt {
  * element_size is the size in bytes of each array element
  *
  * live_out is set if the array appears in a live-out pragma
+ *
+ * if uniquely_defined is set then the array is written by a single access
+ * such that any element that is ever read
+ * is known to be assigned exactly once before the read
  */
 struct pet_array {
 	isl_set *context;
@@ -140,6 +144,7 @@ struct pet_array {
 	char *element_type;
 	int element_size;
 	int live_out;
+	int uniquely_defined;
 };
 
 /* The context describes the set of parameter values for which
