@@ -2572,7 +2572,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
-/* Add an array with the given extend ("access") to the list
+/* Add an array with the given extent ("access") to the list
  * of arrays in "scop" and return the extended pet_scop.
  * The array is marked as attaining values 0 and 1 only.
  */
@@ -2747,7 +2747,7 @@ error:
 	return NULL;
 }
 
-/* Look for parameters in the iteration domain of "stmt" taht
+/* Look for parameters in the iteration domain of "stmt" that
  * refer to nested accesses.  In particular, these are
  * parameters with no name.
  *
@@ -2949,7 +2949,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_set *set, pet_scop *scop)
  * introduce such an extra statement.
  *
  * If the condition is not affine, then we create a separate
- * statement that write the result of the condition to a virtual scalar.
+ * statement that writes the result of the condition to a virtual scalar.
  * A constraint requiring the value of this virtual scalar to be one
  * is added to the iteration domains of the then branch.
  * Similarly, a constraint requiring the value of this virtual scalar
