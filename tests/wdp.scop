@@ -4,6 +4,7 @@ arrays:
   extent: '[N] -> { __pet_test_0[i] : i >= 0 and i <= -1 + N }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
+  uniquely_defined: 1
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { x[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int

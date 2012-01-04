@@ -2839,7 +2839,8 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 
 /* Add an array with the given extent ("access") to the list
  * of arrays in "scop" and return the extended pet_scop.
- * The array is marked as attaining values 0 and 1 only.
+ * The array is marked as attaining values 0 and 1 only and
+ * as each element being assigned at most once.
  */
 static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	__isl_keep isl_map *access, clang::ASTContext &ast_ctx)
@@ -2875,6 +2876,7 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 						isl_dim_set, 0, 1);
 	array->element_type = strdup("int");
 	array->element_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
+	array->uniquely_defined = 1;
 
 	scop->arrays[scop->n_array] = array;
 	scop->n_array++;
