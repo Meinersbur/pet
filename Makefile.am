@@ -39,6 +39,8 @@ libpet_la_SOURCES = \
 	scop.c \
 	scop_plus.h \
 	scop_plus.cc \
+	version.h \
+	version.c \
 	pet.cc
 libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema -lclangAnalysis \
@@ -63,3 +65,9 @@ pet_scop_cmp_SOURCES = \
 	scop_yaml.h \
 	parse.c \
 	pet_scop_cmp.c
+
+dist-hook:
+	echo @GIT_HEAD_VERSION@ > $(distdir)/GIT_HEAD_ID
+
+gitversion.h: @GIT_HEAD@
+	$(AM_V_GEN)echo '#define GIT_HEAD_ID "'@GIT_HEAD_VERSION@'"' > $@

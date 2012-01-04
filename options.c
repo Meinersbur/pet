@@ -32,6 +32,12 @@
  */ 
 
 #include "options.h"
+#include "version.h"
+
+static void print_version(void)
+{
+	printf("%s", pet_version());
+}
 
 ISL_ARGS_START(struct pet_options, pet_options_args)
 ISL_ARG_BOOL(struct pet_options, autodetect, 0, "autodetect", 0, NULL)
@@ -39,6 +45,7 @@ ISL_ARG_STR_LIST(struct pet_options, n_path, paths, 'I', "include-path",
 	"path", NULL)
 ISL_ARG_STR_LIST(struct pet_options, n_define, defines, 'D', NULL,
 	"macro[=defn]", NULL)
+ISL_ARG_VERSION(print_version)
 ISL_ARGS_END
 
 ISL_ARG_DEF(pet_options, struct pet_options, pet_options_args)
