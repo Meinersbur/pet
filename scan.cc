@@ -2983,34 +2983,43 @@ error:
 }
 
 /* For each nested access parameter in the domain of "stmt",
- * construct a corresponding pet_expr, place it in stmt->args and
- * record its position in "param2pos".
+ * construct a corresponding pet_expr, place it before the original
+ * elements in stmt->args and record its position in "param2pos".
  * n is the number of nested access parameters.
  */
 struct pet_stmt *PetScan::extract_nested(struct pet_stmt *stmt, int n,
 	std::map<int,int> &param2pos)
 {
+	int i;
 	isl_space *space;
-	unsigned n_arg;
+	int n_arg;
 	struct pet_expr **args;
 
 	n_arg = stmt->n_arg;
-	args = isl_realloc_array(ctx, stmt->args, struct pet_expr *, n_arg + n);
+	args = isl_calloc_array(ctx, struct pet_expr *, n + n_arg);
 	if (!args)
 		goto error;
-	stmt->args = args;
-	stmt->n_arg += n;
 
 	space = isl_set_get_space(stmt->domain);
-	n = extract_nested(space, n_arg, stmt->args, param2pos);
+	n_arg = extract_nested(space, 0, args, param2pos);
 	isl_space_free(space);
 
-	if (n < 0)
+	if (n_arg < 0)
 		goto error;
 
-	stmt->n_arg = n;
+	for (i = 0; i < stmt->n_arg; ++i)
+		args[n_arg + i] = stmt->args[i];
+	free(stmt->args);
+	stmt->args = args;
+	stmt->n_arg += n_arg;
+
 	return stmt;
 error:
+	if (args) {
+		for (i = 0; i < n; ++i)
+			pet_expr_free(args[i]);
+		free(args);
+	}
 	pet_stmt_free(stmt);
 	return NULL;
 }
@@ -3020,15 +3029,15 @@ error:
  * parameters with no name.
  *
  * If there are any such parameters, then as many extra variables
- * (after identifying identical nested accesses) are added to the
- * range of the map wrapped inside the domain.
+ * (after identifying identical nested accesses) are inserted in the
+ * range of the map wrapped inside the domain, before the original variables.
  * If the original domain is not a wrapped map, then a new wrapped
  * map is created with zero output dimensions.
  * The parameters are then equated to the corresponding output dimensions
  * and subsequently projected out, from the iteration domain,
  * the schedule and the access relations.
  * For each of the output dimensions, a corresponding argument
- * expression is added.  Initially they are created with
+ * expression is inserted.  Initially they are created with
  * a zero-dimensional domain, so they have to be embedded
  * in the current iteration domain.
  * param2pos maps the position of the parameter to the position
@@ -3060,7 +3069,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 		map = isl_set_unwrap(stmt->domain);
 	else
 		map = isl_map_from_domain(stmt->domain);
-	map = isl_map_add_dims(map, isl_dim_out, n);
+	map = isl_map_insert_dims(map, isl_dim_out, 0, n);
 
 	for (int i = nparam - 1; i >= 0; --i) {
 		isl_id *id;
@@ -3080,7 +3089,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 
 	map = isl_set_unwrap(isl_set_copy(stmt->domain));
 	map = isl_map_from_range(isl_map_domain(map));
-	for (int pos = n_arg; pos < stmt->n_arg; ++pos)
+	for (int pos = 0; pos < n; ++pos)
 		stmt->args[pos] = embed(stmt->args[pos], map);
 	isl_map_free(map);
 

@@ -39,7 +39,7 @@ statements:
     - type: call
       name: g
 - line: 17
-  domain: '{ [S_2[i, j] -> [M, N]] : N >= 1 + i and i >= 0 and j >= 0 and M >= 1 +
+  domain: '{ [S_2[i, j] -> [N, M]] : N >= 1 + i and i >= 0 and j >= 0 and M >= 1 +
     j }'
   schedule: '{ S_2[i, j] -> [2, i, j] }'
   body:
@@ -63,15 +63,15 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> M[] }'
-    read: 1
-    write: 0
-  - type: access
     relation: '{ S_2[i, j] -> N[] }'
     read: 1
     write: 0
+  - type: access
+    relation: '{ S_2[i, j] -> M[] }'
+    read: 1
+    write: 0
 - line: 20
-  domain: '{ [S_3[i, j] -> [M, N]] : N >= 1 + i and i >= 0 and j >= 0 and M >= 1 +
+  domain: '{ [S_3[i, j] -> [N, M]] : i >= 0 and N >= 1 + i and j >= 0 and M >= 1 +
     j }'
   schedule: '{ S_3[i, j] -> [3, i, j] }'
   body:
@@ -92,10 +92,10 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_3[i, j] -> M[] }'
+    relation: '{ S_3[i, j] -> N[] }'
     read: 1
     write: 0
   - type: access
-    relation: '{ S_3[i, j] -> N[] }'
+    relation: '{ S_3[i, j] -> M[] }'
     read: 1
     write: 0
