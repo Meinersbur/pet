@@ -101,6 +101,8 @@ private:
 	struct pet_scop *extract(clang::WhileStmt *stmt);
 	struct pet_scop *extract(clang::CompoundStmt *stmt);
 	struct pet_scop *extract(clang::LabelStmt *stmt);
+	struct pet_scop *extract(clang::ContinueStmt *stmt);
+	struct pet_scop *extract(clang::BreakStmt *stmt);
 
 	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr,
 				__isl_take isl_id *label = NULL);

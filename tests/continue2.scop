@@ -1,0 +1,279 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ __pet_test_1[i] : i >= 0 and i <= 99 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ __pet_test_0[i] : i >= 0 and i <= 99 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ __pet_test_2[i] : i >= 0 and i <= 99 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ __pet_test_3[i] : i >= 0 and i <= 99 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ j[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 10
+  domain: '{ S_0[i] : i >= 0 and i <= 59 }'
+  schedule: '{ S_0[i] -> [0, i, 0, 0, 0, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i] -> __pet_test_1[i] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: '>'
+      arguments:
+      - type: access
+        relation: '{ S_0[i] -> a[i] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_0[i] -> [5] }'
+        read: 1
+        write: 0
+- line: 11
+  domain: '{ [S_1[i] -> [1]] : i >= 0 and i <= 59 }'
+  schedule: '{ S_1[i] -> [0, i, 0, 0, 0, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[i] -> j[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '{ S_1[i] -> __pet_test_1[i] }'
+    read: 1
+    write: 0
+- line: 12
+  domain: '{ [S_2[i] -> [1]] : i >= 0 and i <= 59 }'
+  schedule: '{ S_2[i] -> [0, i, 0, 0, 0, 1, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[i] -> __pet_test_0[i] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: ==
+      arguments:
+      - type: access
+        relation: '{ S_2[i] -> j[] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_2[i] -> [0] }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '{ S_2[i] -> __pet_test_1[i] }'
+    read: 1
+    write: 0
+- line: 14
+  domain: '{ [S_3[i] -> [1, 0]] : i >= 0 and i <= 59 }'
+  schedule: '{ S_3[i] -> [0, i, 0, 0, 0, 1, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_3[i] -> a[i] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_3[i] -> [i] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '{ S_3[i] -> __pet_test_1[i] }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '{ S_3[i] -> __pet_test_0[i] }'
+    read: 1
+    write: 0
+- line: 16
+  domain: '{ [S_4[i] -> [0]] : i >= 0 and i <= 59 }'
+  schedule: '{ S_4[i] -> [0, i, 0, 0, 0, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_4[i] -> a[i] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_4[i] -> [0] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '{ S_4[i] -> __pet_test_1[i] }'
+    read: 1
+    write: 0
+- line: -1
+  domain: '{ S_5[i] : i >= 0 and i <= 59 }'
+  schedule: '{ S_5[i] -> [0, i, 0, 0, 0, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_5[i] -> __pet_test_2[i] }'
+      read: 0
+      write: 1
+    - type: ternary
+      arguments:
+      - type: access
+        relation: '{ S_5[i] -> __pet_test_1[i] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ [S_5[i] -> [1]] -> __pet_test_0[i] }'
+        read: 1
+        write: 0
+        arguments:
+        - type: access
+          relation: '{ S_5[i] -> __pet_test_1[i] }'
+          read: 1
+          write: 0
+      - type: access
+        relation: '{ S_5[i] -> [0] }'
+        read: 1
+        write: 0
+- line: 17
+  domain: '{ [S_6[i] -> [0]] : i >= 0 and i <= 59 }'
+  schedule: '{ S_6[i] -> [0, i, 0, 0, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_6[i] -> j[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '{ S_6[i] -> __pet_test_2[i] }'
+    read: 1
+    write: 0
+- line: 19
+  domain: '{ S_7[i] : i >= 60 and i <= 99 }'
+  schedule: '{ S_7[i] -> [0, i, 0, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_7[i] -> a[i] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_7[i] -> [i] }'
+      read: 1
+      write: 0
+- line: -1
+  domain: '{ S_8[i] : i >= 0 and i <= 99 }'
+  schedule: '{ S_8[i] -> [0, i, 0, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_8[i] -> __pet_test_3[i] }'
+      read: 0
+      write: 1
+    - type: ternary
+      arguments:
+      - type: access
+        relation: '{ S_8[i] -> [1] : i <= 59; S_8[i] -> [0] : i >= 60 }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_8[i] -> __pet_test_2[i] : i <= 59 }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_8[i] -> [0] }'
+        read: 1
+        write: 0
+- line: 20
+  domain: '{ [S_9[i] -> [0]] : i >= 0 and i <= 99 }'
+  schedule: '{ S_9[i] -> [0, i, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_9[i] -> j[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '{ S_9[i] -> __pet_test_3[i] }'
+    read: 1
+    write: 0
+- line: 21
+  domain: '{ [S_10[i] -> [0]] : i >= 0 and i <= 99 }'
+  schedule: '{ S_10[i] -> [0, i, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_10[i] -> a[i] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: +
+      arguments:
+      - type: access
+        relation: '{ S_10[i] -> a[i] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_10[i] -> [1] }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '{ S_10[i] -> __pet_test_3[i] }'
+    read: 1
+    write: 0

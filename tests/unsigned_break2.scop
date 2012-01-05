@@ -1,0 +1,77 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ __pet_test_0[k] : k >= 252 and k <= 261 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 11
+  domain: '{ [S_0[k] -> [0]] : exists (e0 = [(257 - k)/256]: k >= 252 and k <= 261
+    and 256e0 <= 255 - k and 256e0 >= 2 - k); [S_0[256] -> [0]] }'
+  schedule: '{ S_0[k] -> [0, k, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[k] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[k] -> [5] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '{ S_0[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k }'
+    read: 1
+    write: 0
+- line: 12
+  domain: '{ [S_1[k] -> [0]] : k >= 252 and k <= 261 }'
+  schedule: '{ S_1[k] -> [0, k, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[k] -> __pet_test_0[k] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '{ S_1[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k }'
+    read: 1
+    write: 0
+- line: 14
+  domain: '{ [S_2[k] -> [0, 0]] : k >= 252 and k <= 261 }'
+  schedule: '{ S_2[k] -> [0, k, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[k] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_2[k] -> [o0] : exists (e0 = [(-k + o0)/256]: 256e0 = -k + o0
+        and o0 <= 255 and o0 >= 0) }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '{ S_2[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '{ S_2[k] -> __pet_test_0[k] }'
+    read: 1
+    write: 0

@@ -1,0 +1,44 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 8
+  domain: '{ S_0[i, j] : j >= 0 and j <= i and i <= 99 }'
+  schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i, j] -> a[i] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[i, j] -> [0] }'
+      read: 1
+      write: 0
+- line: 11
+  domain: '{ S_1[i, j] : j >= 0 and j <= -1 + i and i <= 99 }'
+  schedule: '{ S_1[i, j] -> [0, i, j, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[i, j] -> a[i] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: +
+      arguments:
+      - type: access
+        relation: '{ S_1[i, j] -> [i] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_1[i, j] -> [j] }'
+        read: 1
+        write: 0

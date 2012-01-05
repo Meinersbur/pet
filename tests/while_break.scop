@@ -1,0 +1,280 @@
+context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
+arrays:
+- context: '{  :  }'
+  extent: '[N] -> { __pet_test_0[t] : t >= 0 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[N] -> { __pet_test_1[t] : N = 0 and t >= 1; __pet_test_1[0] }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[N] -> { __pet_test_2[t] : t >= 0 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[N] -> { __pet_test_3[t] : t >= 0 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[N] -> { a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 10
+  domain: '[N] -> { S_0[t] : N = 0 and t >= 1; S_0[0] }'
+  schedule: '{ S_0[t] -> [0, t, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_0[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_0[t] -> [5] }'
+      read: 1
+      write: 0
+- line: 13
+  domain: '[N] -> { S_1[t] : N = 0 and t >= 1; S_1[0] : N = 0 }'
+  schedule: '{ S_1[t] -> [0, t, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_1[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_1[t] -> [6] }'
+      read: 1
+      write: 0
+- line: 16
+  domain: '[N] -> { [S_2[t] -> [0]] : t >= 0 }'
+  schedule: '{ S_2[t] -> [1, t, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_2[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_2[t] -> [5] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[N] -> { S_2[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 17
+  domain: '[N] -> { [S_3[t] -> [0]] : t >= 0 }'
+  schedule: '{ S_3[t] -> [1, t, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_3[t] -> __pet_test_0[t] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '[N] -> { S_3[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 19
+  domain: '[N] -> { [S_4[t] -> [0, 0]] : t >= 0 }'
+  schedule: '{ S_4[t] -> [1, t, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_4[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_4[t] -> [6] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[N] -> { S_4[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '[N] -> { S_4[t] -> __pet_test_0[t] }'
+    read: 1
+    write: 0
+- line: 21
+  domain: '[N] -> { [S_5[t] -> [1]] : N = 0 and t >= 1; [S_5[0] -> [1]] }'
+  schedule: '{ S_5[t] -> [2, t, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_5[t] -> __pet_test_1[t] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '[N] -> { S_5[t] -> __pet_test_1[o0] : N = 0 and o0 <= -1 + t and o0
+      >= 1; S_5[t] -> __pet_test_1[0] : t >= 1 }'
+    read: 1
+    write: 0
+- line: 22
+  domain: '[N] -> { [S_6[t] -> [1]] : N = 0 and t >= 1; [S_6[0] -> [1]] }'
+  schedule: '{ S_6[t] -> [2, t, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_6[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_6[t] -> [5] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[N] -> { S_6[t] -> __pet_test_1[o0] : N = 0 and o0 <= t and o0 >= 1;
+      S_6[t] -> __pet_test_1[0] }'
+    read: 1
+    write: 0
+- line: 25
+  domain: '[N] -> { [S_7[t] -> [1]] : N = 0 and t >= 1; [S_7[0] -> [1]] : N = 0 }'
+  schedule: '{ S_7[t] -> [2, t, 1, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_7[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_7[t] -> [6] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[N] -> { S_7[t] -> __pet_test_1[o0] : o0 <= t and o0 >= 1; S_7[t] ->
+      __pet_test_1[0] }'
+    read: 1
+    write: 0
+- line: 27
+  domain: '[N] -> { [S_8[t] -> [1, 0]] : t >= 0 }'
+  schedule: '{ S_8[t] -> [3, t, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_8[t] -> __pet_test_2[t] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '[N] -> { S_8[t] -> __pet_test_2[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '[N] -> { S_8[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 28
+  domain: '[N] -> { [S_9[t] -> [1, 0]] : t >= 0 }'
+  schedule: '{ S_9[t] -> [3, t, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_9[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_9[t] -> [5] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[N] -> { S_9[t] -> __pet_test_2[o0] : o0 <= t and o0 >= 0 }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '[N] -> { S_9[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 29
+  domain: '[N] -> { [S_10[t] -> [1, 0]] : t >= 0 }'
+  schedule: '{ S_10[t] -> [3, t, 1, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_10[t] -> __pet_test_3[t] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+  arguments:
+  - type: access
+    relation: '[N] -> { S_10[t] -> __pet_test_2[o0] : o0 <= t and o0 >= 0 }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '[N] -> { S_10[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 31
+  domain: '[N] -> { [S_11[t] -> [1, 0, 0]] : t >= 0 }'
+  schedule: '{ S_11[t] -> [3, t, 1, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_11[t] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_11[t] -> [6] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[N] -> { S_11[t] -> __pet_test_2[o0] : o0 <= t and o0 >= 0 }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '[N] -> { S_11[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+  - type: access
+    relation: '[N] -> { S_11[t] -> __pet_test_3[t] }'
+    read: 1
+    write: 0

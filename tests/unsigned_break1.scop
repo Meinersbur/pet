@@ -1,0 +1,40 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 8
+  domain: '{ S_0[k] : exists (e0 = [(507 - k)/256]: k >= 0 and k <= 255 and 256e0
+    <= 257 - k and 256e0 >= 252 - k) }'
+  schedule: '{ S_0[k] -> [0, o1, 0] : exists (e0 = [(k - o1)/256]: 256e0 = k - o1
+    and o1 >= 252 and k <= 255 and k >= 0 and o1 <= 257) }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[k] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[k] -> [5] }'
+      read: 1
+      write: 0
+- line: 11
+  domain: '{ S_1[k] : k <= 255 and k >= 252; S_1[0] }'
+  schedule: '{ S_1[k] -> [0, o1, 2] : exists (e0 = [(k - o1)/256]: 256e0 = k - o1
+    and o1 >= 252 and k <= 255 and k >= 0 and o1 <= 257) }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[k] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_1[k] -> [6] }'
+      read: 1
+      write: 0

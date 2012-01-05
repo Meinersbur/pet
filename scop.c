@@ -70,6 +70,28 @@ static char *op_str[] = {
 	[pet_op_address_of] = "&"
 };
 
+/* pet_scop with extra information that is only used during parsing.
+ *
+ * In particular, we keep track of conditions under which we want
+ * to skip the rest of the current loop iteration (skip[pet_skip_now])
+ * and of conditions under which we want to skip subsequent
+ * loop iterations (skip[pet_skip_later]).
+ *
+ * The conditions are represented either by a variable, which
+ * is assumed to attain values zero and one, or by a boolean affine
+ * expression.  The condition holds if the variable has value one
+ * or if the affine expression has value one (typically for only
+ * part of the parameter space).
+ *
+ * A missing condition (skip[type] == NULL) means that we don't want
+ * to skip anything.
+ */
+struct pet_scop_ext {
+	struct pet_scop scop;
+
+	isl_set *skip[2];
+};
+
 const char *pet_op_str(enum pet_op_type op)
 {
 	return op_str[op];
@@ -646,9 +668,12 @@ void pet_array_dump(struct pet_array *array)
 		array->live_out ? "live-out" : "");
 }
 
+/* Alloc a pet_scop structure, with extra room for information that
+ * is only used during parsing.
+ */
 struct pet_scop *pet_scop_alloc(isl_ctx *ctx)
 {
-	return isl_calloc_type(ctx, struct pet_scop);
+	return &isl_calloc_type(ctx, struct pet_scop_ext)->scop;
 }
 
 /* Construct a pet_scop with room for n statements.
@@ -785,10 +810,98 @@ error:
 	return NULL;
 }
 
-/* Construct a pet_scop that contains the arrays and the statements
- * in "scop1" and "scop2".
+/* Does "set" represent an element of an unnamed space, i.e.,
+ * does it represent an affine expression?
  */
-struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
+static int set_is_affine(__isl_keep isl_set *set)
+{
+	int has_id;
+
+	has_id = isl_set_has_tuple_id(set);
+	if (has_id < 0)
+		return -1;
+
+	return !has_id;
+}
+
+/* Combine ext1->skip[type] and ext2->skip[type] into ext->skip[type].
+ * ext may be equal to either ext1 or ext2.
+ *
+ * The two skips that need to be combined are assumed to be affine expressions.
+ *
+ * We need to skip in ext if we need to skip in either ext1 or ext2.
+ * We don't need to skip in ext if we don't need to skip in both ext1 and ext2.
+ */
+static struct pet_scop_ext *combine_skips(struct pet_scop_ext *ext,
+	struct pet_scop_ext *ext1, struct pet_scop_ext *ext2,
+	enum pet_skip type)
+{
+	isl_set *set, *skip1, *skip2;
+
+	if (!ext)
+		return NULL;
+	if (!ext1->skip[type] && !ext2->skip[type])
+		return ext;
+	if (!ext1->skip[type]) {
+		if (ext == ext2)
+			return ext;
+		ext->skip[type] = ext2->skip[type];
+		ext2->skip[type] = NULL;
+		return ext;
+	}
+	if (!ext2->skip[type]) {
+		if (ext == ext1)
+			return ext;
+		ext->skip[type] = ext1->skip[type];
+		ext1->skip[type] = NULL;
+		return ext;
+	}
+
+	if (!set_is_affine(ext1->skip[type]) ||
+	    !set_is_affine(ext2->skip[type]))
+		isl_die(isl_set_get_ctx(ext1->skip[type]), isl_error_internal,
+			"can only combine affine skips",
+			return pet_scop_free(&ext->scop));
+
+	skip1 = isl_set_copy(ext1->skip[type]);
+	skip2 = isl_set_copy(ext2->skip[type]);
+	set = isl_set_intersect(
+			isl_set_fix_si(isl_set_copy(skip1), isl_dim_set, 0, 0),
+			isl_set_fix_si(isl_set_copy(skip2), isl_dim_set, 0, 0));
+	set = isl_set_union(set, isl_set_fix_si(skip1, isl_dim_set, 0, 1));
+	set = isl_set_union(set, isl_set_fix_si(skip2, isl_dim_set, 0, 1));
+	set = isl_set_coalesce(set);
+	isl_set_free(ext1->skip[type]);
+	ext1->skip[type] = NULL;
+	isl_set_free(ext2->skip[type]);
+	ext2->skip[type] = NULL;
+	ext->skip[type] = set;
+	if (!ext->skip[type])
+		return pet_scop_free(&ext->scop);
+
+	return ext;
+}
+
+/* Combine scop1->skip[type] and scop2->skip[type] into scop->skip[type],
+ * where type takes on the values pet_skip_now and pet_skip_later.
+ * scop may be equal to either scop1 or scop2.
+ */
+static struct pet_scop *scop_combine_skips(struct pet_scop *scop,
+	struct pet_scop *scop1, struct pet_scop *scop2)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+	struct pet_scop_ext *ext1 = (struct pet_scop_ext *) scop1;
+	struct pet_scop_ext *ext2 = (struct pet_scop_ext *) scop2;
+
+	ext = combine_skips(ext, ext1, ext2, pet_skip_now);
+	ext = combine_skips(ext, ext1, ext2, pet_skip_later);
+	return &ext->scop;
+}
+
+/* Construct a pet_scop that contains the arrays, statements and
+ * skip information in "scop1" and "scop2".
+ */
+static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
 {
 	int i;
@@ -798,11 +911,13 @@ struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 		goto error;
 
 	if (scop1->n_stmt == 0) {
+		scop2 = scop_combine_skips(scop2, scop1, scop2);
 		pet_scop_free(scop1);
 		return scop2;
 	}
 
 	if (scop2->n_stmt == 0) {
+		scop1 = scop_combine_skips(scop1, scop1, scop2);
 		pet_scop_free(scop2);
 		return scop1;
 	}
@@ -839,6 +954,7 @@ struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop1->context));
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop2->context));
+	scop = scop_combine_skips(scop, scop1, scop2);
 
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);
@@ -849,9 +965,67 @@ error:
 	return NULL;
 }
 
+/* Apply the skip condition "skip" to "scop".
+ * That is, make sure "scop" is not executed when the condition holds.
+ *
+ * If "skip" is an affine expression, we add the conditions under
+ * which the expression is zero to the iteration domains.
+ * Otherwise, we add a filter on the variable attaining the value zero.
+ */
+static struct pet_scop *restrict_skip(struct pet_scop *scop,
+	__isl_take isl_set *skip)
+{
+	isl_map *skip_map;
+	int is_aff;
+
+	if (!scop || !skip)
+		goto error;
+
+	is_aff = set_is_affine(skip);
+	if (is_aff < 0)
+		goto error;
+
+	if (!is_aff)
+		return pet_scop_filter(scop, isl_map_from_range(skip), 0);
+
+	skip = isl_set_fix_si(skip, isl_dim_set, 0, 0);
+	scop = pet_scop_restrict(scop, isl_set_params(skip));
+
+	return scop;
+error:
+	isl_set_free(skip);
+	return pet_scop_free(scop);
+}
+
+/* Construct a pet_scop that contains the arrays, statements and
+ * skip information in "scop1" and "scop2", where the two scops
+ * are executed "in sequence".  That is, breaks and continues
+ * in scop1 have an effect on scop2.
+ */
+struct pet_scop *pet_scop_add_seq(isl_ctx *ctx, struct pet_scop *scop1,
+	struct pet_scop *scop2)
+{
+	if (scop1 && pet_scop_has_skip(scop1, pet_skip_now))
+		scop2 = restrict_skip(scop2,
+					pet_scop_get_skip(scop1, pet_skip_now));
+	return pet_scop_add(ctx, scop1, scop2);
+}
+
+/* Construct a pet_scop that contains the arrays, statements and
+ * skip information in "scop1" and "scop2", where the two scops
+ * are executed "in parallel".  That is, any break or continue
+ * in scop1 has no effect on scop2.
+ */
+struct pet_scop *pet_scop_add_par(isl_ctx *ctx, struct pet_scop *scop1,
+	struct pet_scop *scop2)
+{
+	return pet_scop_add(ctx, scop1, scop2);
+}
+
 void *pet_scop_free(struct pet_scop *scop)
 {
 	int i;
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
 
 	if (!scop)
 		return NULL;
@@ -865,6 +1039,8 @@ void *pet_scop_free(struct pet_scop *scop)
 		for (i = 0; i < scop->n_stmt; ++i)
 			pet_stmt_free(scop->stmts[i]);
 	free(scop->stmts);
+	isl_set_free(ext->skip[pet_skip_now]);
+	isl_set_free(ext->skip[pet_skip_later]);
 	free(scop);
 	return NULL;
 }
@@ -872,6 +1048,7 @@ void *pet_scop_free(struct pet_scop *scop)
 void pet_scop_dump(struct pet_scop *scop)
 {
 	int i;
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
 
 	if (!scop)
 		return;
@@ -882,6 +1059,12 @@ void pet_scop_dump(struct pet_scop *scop)
 		pet_array_dump(scop->arrays[i]);
 	for (i = 0; i < scop->n_stmt; ++i)
 		pet_stmt_dump(scop->stmts[i]);
+
+	if (ext->skip[0]) {
+		fprintf(stderr, "skip\n");
+		isl_set_dump(ext->skip[0]);
+		isl_set_dump(ext->skip[1]);
+	}
 }
 
 /* Return 1 if the two pet_arrays are equivalent.
@@ -1317,6 +1500,10 @@ static __isl_give isl_set *context_embed(__isl_take isl_set *context,
  * "iv_map" maps a possibly virtual iterator to the real iterator.
  * That is, it maps the iterator used in "dom" and the domain of "sched"
  * to the iterator that some of the parameters in "scop" may refer to.
+ *
+ * Any skip conditions within the loop have no effect outside of the loop.
+ * The caller is responsible for making sure skip[pet_skip_later] has been
+ * taken into account.
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_map *sched, __isl_take isl_map *iv_map,
@@ -1326,6 +1513,9 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 
 	if (!scop)
 		goto error;
+
+	pet_scop_reset_skip(scop, pet_skip_now);
+	pet_scop_reset_skip(scop, pet_skip_later);
 
 	scop->context = context_embed(scop->context, dom, iv_map, id);
 	if (!scop->context)
@@ -1375,7 +1565,47 @@ error:
 	return pet_stmt_free(stmt);
 }
 
-/* Add extra conditions on the parameters to all iteration domains.
+/* Add extra conditions to scop->skip[type].
+ *
+ * The new skip condition only holds if it held before
+ * and the condition is true.  It does not hold if it did not hold
+ * before or the condition is false.
+ *
+ * The skip condition is assumed to be an affine expression.
+ */
+static struct pet_scop *pet_scop_restrict_skip(struct pet_scop *scop,
+	enum pet_skip type, __isl_keep isl_set *cond)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+	isl_set *skip;
+	isl_set *set;
+
+	if (!scop)
+		return NULL;
+	if (!ext->skip[type])
+		return scop;
+
+	if (!set_is_affine(ext->skip[type]))
+		isl_die(isl_set_get_ctx(ext->skip[type]), isl_error_internal,
+			"can only resrict affine skips",
+			return pet_scop_free(scop));
+
+	skip = ext->skip[type];
+	skip = isl_set_intersect_params(skip, isl_set_copy(cond));
+	set = isl_set_from_params(isl_set_copy(cond));
+	set = isl_set_complement(set);
+	set = isl_set_add_dims(set, isl_dim_set, 1);
+	set = isl_set_fix_si(set, isl_dim_set, 0, 0);
+	skip = isl_set_union(skip, set);
+	ext->skip[type] = skip;
+	if (!ext->skip[type])
+		return pet_scop_free(scop);
+
+	return scop;
+}
+
+/* Add extra conditions on the parameters to all iteration domains
+ * and skip conditions.
  *
  * A parameter value is valid for the result if it was valid
  * for the original scop and satisfies "cond" or if it does
@@ -1386,6 +1616,9 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond)
 {
 	int i;
+
+	scop = pet_scop_restrict_skip(scop, pet_skip_now, cond);
+	scop = pet_scop_restrict_skip(scop, pet_skip_later, cond);
 
 	if (!scop)
 		goto error;
@@ -1592,6 +1825,170 @@ error:
 	return pet_stmt_free(stmt);
 }
 
+/* Does "scop" have a skip condition of the given "type"?
+ */
+int pet_scop_has_skip(struct pet_scop *scop, enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop)
+		return -1;
+	return ext->skip[type] != NULL;
+}
+
+/* Does "scop" have a skip condition of the given "type" that
+ * is an affine expression?
+ */
+int pet_scop_has_affine_skip(struct pet_scop *scop, enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop)
+		return -1;
+	if (!ext->skip[type])
+		return 0;
+	return set_is_affine(ext->skip[type]);
+}
+
+/* Does "scop" have a skip condition of the given "type" that
+ * is not an affine expression?
+ */
+int pet_scop_has_var_skip(struct pet_scop *scop, enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+	int aff;
+
+	if (!scop)
+		return -1;
+	if (!ext->skip[type])
+		return 0;
+	aff = set_is_affine(ext->skip[type]);
+	if (aff < 0)
+		return -1;
+	return !aff;
+}
+
+/* Does "scop" have a skip condition of the given "type" that
+ * is affine and holds on the entire domain?
+ */
+int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+	isl_set *set;
+	int is_aff;
+	int is_univ;
+
+	is_aff = pet_scop_has_affine_skip(scop, type);
+	if (is_aff < 0 || !is_aff)
+		return is_aff;
+
+	set = isl_set_copy(ext->skip[type]);
+	set = isl_set_fix_si(set, isl_dim_set, 0, 1);
+	set = isl_set_params(set);
+	is_univ = isl_set_plain_is_universe(set);
+	isl_set_free(set);
+
+	return is_univ;
+}
+
+/* Replace scop->skip[type] by "skip".
+ */
+struct pet_scop *pet_scop_set_skip(struct pet_scop *scop,
+	enum pet_skip type, __isl_take isl_set *skip)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop || !skip)
+		goto error;
+
+	isl_set_free(ext->skip[type]);
+	ext->skip[type] = skip;
+
+	return scop;
+error:
+	isl_set_free(skip);
+	return pet_scop_free(scop);
+}
+
+/* Return a copy of scop->skip[type].
+ */
+__isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
+	enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop)
+		return NULL;
+
+	return isl_set_copy(ext->skip[type]);
+}
+
+/* Return a map to the skip condition of the given type.
+ */
+__isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
+	enum pet_skip type)
+{
+	return isl_map_from_range(pet_scop_get_skip(scop, type));
+}
+
+/* Return an access pet_expr corresponding to the skip condition
+ * of the given type.
+ */
+struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
+	enum pet_skip type)
+{
+	return pet_expr_from_access(pet_scop_get_skip_map(scop, type));
+}
+
+/* Drop the the skip condition scop->skip[type].
+ */
+void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop)
+		return;
+
+	isl_set_free(ext->skip[type]);
+	ext->skip[type] = NULL;
+}
+
+/* Make the skip condition (if any) depend on the value of "test" being
+ * equal to "satisfied".
+ *
+ * We only support the case where the original skip condition is universal,
+ * i.e., where skipping is unconditional, and where satisfied == 1.
+ * In this case, the skip condition is changed to skip only when 
+ * "test" is equal to one.
+ */
+static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
+	enum pet_skip type, __isl_keep isl_map *test, int satisfied)
+{
+	int is_univ = 0;
+
+	if (!scop)
+		return NULL;
+	if (!pet_scop_has_skip(scop, type))
+		return scop;
+
+	if (satisfied)
+		is_univ = pet_scop_has_universal_skip(scop, type);
+	if (is_univ < 0)
+		return pet_scop_free(scop);
+	if (satisfied && is_univ) {
+		scop = pet_scop_set_skip(scop, type,
+					 isl_map_range(isl_map_copy(test)));
+		if (!scop)
+			return NULL;
+	} else {
+		isl_die(isl_map_get_ctx(test), isl_error_internal,
+			"skip expression cannot be filtered",
+			return pet_scop_free(scop));
+	}
+
+	return scop;
+}
+
 /* Make all statements in "scop" depend on the value of "test"
  * being equal to "satisfied" by adjusting their domains.
  */
@@ -1600,7 +1997,10 @@ struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 {
 	int i;
 
-	if (!scop)
+	scop = pet_scop_filter_skip(scop, pet_skip_now, test, satisfied);
+	scop = pet_scop_filter_skip(scop, pet_skip_later, test, satisfied);
+
+	if (!scop || !test)
 		goto error;
 
 	for (i = 0; i < scop->n_stmt; ++i) {

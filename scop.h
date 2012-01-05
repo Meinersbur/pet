@@ -9,6 +9,11 @@
 extern "C" {
 #endif
 
+/* Do we want to skip the rest of the current loop iteration (pet_skip_now)
+ * or subsequent loop iterations (pet_skip_later)?
+ */
+enum pet_skip { pet_skip_now = 0, pet_skip_later = 1 };
+
 const char *pet_type_str(enum pet_expr_type type);
 enum pet_expr_type pet_str_type(const char *str);
 
@@ -45,7 +50,9 @@ struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos);
 struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt);
 struct pet_scop *pet_scop_alloc(isl_ctx *ctx);
 struct pet_scop *pet_scop_empty(isl_ctx *ctx);
-struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
+struct pet_scop *pet_scop_add_seq(isl_ctx *ctx, struct pet_scop *scop1,
+	struct pet_scop *scop2);
+struct pet_scop *pet_scop_add_par(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2);
 
 int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2);
@@ -76,6 +83,20 @@ struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
 	void *user);
 
 int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id);
+
+int pet_scop_has_skip(struct pet_scop *scop, enum pet_skip type);
+int pet_scop_has_affine_skip(struct pet_scop *scop, enum pet_skip type);
+int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type);
+int pet_scop_has_var_skip(struct pet_scop *scop, enum pet_skip type);
+struct pet_scop *pet_scop_set_skip(struct pet_scop *scop,
+	enum pet_skip type, __isl_take isl_set *skip);
+__isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
+	enum pet_skip type);
+__isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
+	enum pet_skip type);
+struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
+	enum pet_skip type);
+void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);
 
 #if defined(__cplusplus)
 }
