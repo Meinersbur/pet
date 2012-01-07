@@ -1101,9 +1101,54 @@ static __isl_give isl_set *set_project_out_unnamed_params(
 	return set;
 }
 
+/* Update the context with respect to an embedding into a loop
+ * with iteration domain "dom" and induction variable "id".
+ *
+ * If the current context is independent of "id", we don't need
+ * to do anything.
+ * Otherwise, a parameter value is invalid for the embedding if
+ * any of the corresponding iterator values is invalid.
+ * That is, a parameter value is valid only if all the corresponding
+ * iterator values are valid.
+ * We therefore compute the set of parameters
+ *
+ *	forall i in dom : valid (i)
+ *
+ * or
+ *
+ *	not exists i in dom : not valid(i)
+ *
+ * i.e.,
+ *
+ *	not exists i in dom \ valid(i)
+ *
+ * If there are any unnamed parameters in "dom", then we consider
+ * a parameter value to be valid if it is valid for any value of those
+ * unnamed parameters.  They are therefore projected out at the end.
+ */
+static __isl_give isl_set *context_embed(__isl_take isl_set *context,
+	__isl_keep isl_set *dom, __isl_keep isl_id *id)
+{
+	int pos;
+
+	pos = isl_set_find_dim_by_id(context, isl_dim_param, id);
+	if (pos < 0)
+		return context;
+
+	context = isl_set_from_params(context);
+	context = isl_set_add_dims(context, isl_dim_set, 1);
+	context = isl_set_equate(context, isl_dim_param, pos, isl_dim_set, 0);
+	context = isl_set_project_out(context, isl_dim_param, pos, 1);
+	context = isl_set_subtract(isl_set_copy(dom), context);
+	context = isl_set_params(context);
+	context = isl_set_complement(context);
+	context = set_project_out_unnamed_params(context);
+	return context;
+}
+
 /* Embed all statements and arrays in "scop" in an extra outer loop
  * with iteration domain "dom" and schedule "sched".
- * "var_id" represents the induction variable of the loop.
+ * "id" represents the induction variable of the loop.
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_map *sched, __isl_take isl_id *id)
@@ -1111,6 +1156,10 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	int i;
 
 	if (!scop)
+		goto error;
+
+	scop->context = context_embed(scop->context, dom, id);
+	if (!scop->context)
 		goto error;
 
 	for (i = 0; i < scop->n_stmt; ++i) {
