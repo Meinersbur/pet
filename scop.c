@@ -645,6 +645,81 @@ struct pet_scop *pet_scop_empty(isl_ctx *ctx)
 	return scop_alloc(ctx, 0);
 }
 
+/* Update "context" with respect to the valid parameter values for "access".
+ */
+static __isl_give isl_set *access_extract_context(__isl_keep isl_map *access,
+	__isl_take isl_set *context)
+{
+	context = isl_set_intersect(context,
+					isl_map_params(isl_map_copy(access)));
+	return context;
+}
+
+/* Update "context" with respect to the valid parameter values for "expr".
+ *
+ * If "expr" represents a ternary operator, then a parameter value
+ * needs to be valid for the condition and for at least one of the
+ * remaining two arguments.
+ * If the condition is an access, then we can be a bit more specific.
+ * The parameter then has to be valid for the second argument for
+ * non-zero accesses and valid for the third argument for zero accesses.
+ */
+static __isl_give isl_set *expr_extract_context(struct pet_expr *expr,
+	__isl_take isl_set *context)
+{
+	int i;
+
+	if (expr->type == pet_expr_ternary) {
+		isl_set *context1, *context2;
+
+		context = expr_extract_context(expr->args[0], context);
+		context1 = expr_extract_context(expr->args[1],
+						isl_set_copy(context));
+		context2 = expr_extract_context(expr->args[2], context);
+
+		if (expr->args[0]->type == pet_expr_access &&
+		    expr->args[0]->n_arg == 0) {
+			isl_map *access;
+			isl_set *zero_set;
+
+			access = isl_map_copy(expr->args[0]->acc.access);
+			access = isl_map_fix_si(access, isl_dim_out, 0, 0);
+			zero_set = isl_map_params(access);
+			context1 = isl_set_subtract(context1,
+						    isl_set_copy(zero_set));
+			context2 = isl_set_intersect(context2, zero_set);
+		}
+
+		context = isl_set_union(context1, context2);
+		context = isl_set_coalesce(context);
+
+		return context;
+	}
+
+	for (i = 0; i < expr->n_arg; ++i)
+		context = expr_extract_context(expr->args[i], context);
+
+	if (expr->type == pet_expr_access)
+		context = access_extract_context(expr->acc.access, context);
+
+	return context;
+}
+
+/* Update "context" with respect to the valid parameter values for "stmt".
+ */
+static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
+	__isl_take isl_set *context)
+{
+	int i;
+
+	for (i = 0; i < stmt->n_arg; ++i)
+		context = expr_extract_context(stmt->args[i], context);
+
+	context = expr_extract_context(stmt->body, context);
+
+	return context;
+}
+
 /* Construct a pet_scop that contains the given pet_stmt.
  */
 struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt)
@@ -655,6 +730,10 @@ struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt)
 		return NULL;
 
 	scop = scop_alloc(ctx, 1);
+
+	scop->context = stmt_extract_context(stmt, scop->context);
+	if (!scop->context)
+		goto error;
 
 	scop->stmts[0] = stmt;
 
