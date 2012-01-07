@@ -571,6 +571,41 @@ static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
 	return pwaff;
 }
 
+/* Limit the domain of "pwaff" to those elements where the function
+ * value satisfies
+ *
+ *	2^{width-1} <= pwaff < 2^{width-1}
+ */
+static __isl_give isl_pw_aff *avoid_overflow(__isl_take isl_pw_aff *pwaff,
+	unsigned width)
+{
+	isl_int v;
+	isl_space *space = isl_pw_aff_get_domain_space(pwaff);
+	isl_local_space *ls = isl_local_space_from_space(space);
+	isl_aff *bound;
+	isl_set *dom;
+	isl_pw_aff *b;
+
+	isl_int_init(v);
+	isl_int_set_si(v, 1);
+	isl_int_mul_2exp(v, v, width - 1);
+
+	bound = isl_aff_zero_on_domain(ls);
+	bound = isl_aff_add_constant(bound, v);
+	b = isl_pw_aff_from_aff(bound);
+
+	dom = isl_pw_aff_lt_set(isl_pw_aff_copy(pwaff), isl_pw_aff_copy(b));
+	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
+
+	b = isl_pw_aff_neg(b);
+	dom = isl_pw_aff_ge_set(isl_pw_aff_copy(pwaff), b);
+	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
+
+	isl_int_clear(v);
+
+	return pwaff;
+}
+
 /* Return the piecewise affine expression "set ? 1 : 0" defined on "dom".
  */
 static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
@@ -584,11 +619,13 @@ static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
 
 /* Extract an affine expression from some binary operations.
  * If the result of the expression is unsigned, then we wrap it
- * based on the size of the type.
+ * based on the size of the type.  Otherwise, we ensure that
+ * no overflow occurs.
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
 {
 	isl_pw_aff *res;
+	unsigned width;
 
 	switch (expr->getOpcode()) {
 	case BO_Add:
@@ -618,8 +655,11 @@ __isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
 		return NULL;
 	}
 
+	width = ast_context.getIntWidth(expr->getType());
 	if (expr->getType()->isUnsignedIntegerType())
-		res = wrap(res, ast_context.getIntWidth(expr->getType()));
+		res = wrap(res, width);
+	else
+		res = avoid_overflow(res, width);
 
 	return res;
 }

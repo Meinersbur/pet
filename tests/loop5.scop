@@ -1,0 +1,23 @@
+context: '[m, n] -> {  : m <= 2147483645 and n <= 2147483646 and n >= -2147483648
+  and m >= -2147483648 }'
+arrays:
+- context: '{  :  }'
+  extent: '[m, n] -> { a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 7
+  domain: '[m, n] -> { S_0[i] : i <= m and i >= n }'
+  schedule: '[n, m] -> { S_0[i] -> [0, i] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[m, n] -> { S_0[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '[m, n] -> { S_0[i] -> [5] }'
+      read: 1
+      write: 0

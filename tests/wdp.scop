@@ -7,13 +7,13 @@ arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { x[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
-- context: '[N] -> {  : N >= -1 }'
+- context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
   extent: '[N] -> { y[i0] : i0 >= 0 and i0 <= N }'
   element_type: int
-- context: '[N] -> {  : N >= -1 }'
+- context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
   extent: '[N] -> { t[i0] : i0 >= 0 and i0 <= N }'
   element_type: int
-- context: '[N] -> {  : N >= -2 }'
+- context: '[N] -> {  : N >= -2 and N <= 2147483645 }'
   extent: '[N] -> { z[i0] : i0 >= 0 and i0 <= 1 + N }'
   element_type: int
 statements:

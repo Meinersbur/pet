@@ -1,0 +1,45 @@
+context: '[n, m] -> {  : n <= 2147483647 and m <= 2147483647 - n and m >= -2147483648
+  and n >= -2147483648 and m <= 2147483647 }'
+arrays:
+- context: '{  :  }'
+  extent: '[n, m] -> { A[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[n, m] -> { B[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[n, m] -> { C[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 6
+  domain: '[n, m] -> { S_0[i, j] : j <= m and j >= 0 and i <= n and i >= 0 }'
+  schedule: '[m, n] -> { S_0[i, j] -> [0, i, j] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n, m] -> { S_0[i, j] -> C[i + j] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: +
+      arguments:
+      - type: access
+        relation: '[n, m] -> { S_0[i, j] -> C[i + j] }'
+        read: 1
+        write: 0
+      - type: binary
+        operation: '*'
+        arguments:
+        - type: access
+          relation: '[n, m] -> { S_0[i, j] -> A[i] }'
+          read: 1
+          write: 0
+        - type: access
+          relation: '[n, m] -> { S_0[i, j] -> B[j] }'
+          read: 1
+          write: 0
