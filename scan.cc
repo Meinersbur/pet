@@ -2580,7 +2580,8 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	BinaryOperator *ass_then, *ass_else;
 	isl_map *write_then, *write_else;
 	isl_set *cond, *comp;
-	isl_map *map, *map_true, *map_false;
+	isl_map *map;
+	isl_pw_aff *pa;
 	int equal;
 	struct pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
 	bool save_nesting = nesting_enabled;
@@ -2605,16 +2606,11 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	}
 
 	nesting_enabled = allow_nested;
-	cond = isl_pw_aff_non_zero_set(extract_condition(stmt->getCond()));
+	pa = extract_condition(stmt->getCond());
 	nesting_enabled = save_nesting;
-	comp = isl_set_complement(isl_set_copy(cond));
-	map_true = isl_map_from_domain(isl_set_from_params(isl_set_copy(cond)));
-	map_true = isl_map_add_dims(map_true, isl_dim_out, 1);
-	map_true = isl_map_fix_si(map_true, isl_dim_out, 0, 1);
-	map_false = isl_map_from_domain(isl_set_from_params(isl_set_copy(comp)));
-	map_false = isl_map_add_dims(map_false, isl_dim_out, 1);
-	map_false = isl_map_fix_si(map_false, isl_dim_out, 0, 0);
-	map = isl_map_union_disjoint(map_true, map_false);
+	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(pa));
+	comp = isl_pw_aff_zero_set(isl_pw_aff_copy(pa));
+	map = isl_map_from_range(isl_set_from_pw_aff(pa));
 
 	pe_cond = pet_expr_from_access(map);
 
