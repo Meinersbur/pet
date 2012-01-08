@@ -248,6 +248,8 @@ PetScan::~PetScan()
 
 	for (it = expressions.begin(); it != expressions.end(); ++it)
 		isl_pw_aff_free(*it);
+
+	isl_union_map_free(value_bounds);
 }
 
 /* Called if we found something we (currently) cannot handle.

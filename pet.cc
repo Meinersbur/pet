@@ -388,11 +388,22 @@ struct PetASTConsumer : public ASTConsumer {
 	bool autodetect;
 	isl_ctx *ctx;
 	struct pet_scop *scop;
+	PragmaValueBoundsHandler *vb_handler;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
 		ScopLoc &loc, const char *function, bool autodetect) :
 		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
-		scop(NULL), function(function), autodetect(autodetect) { }
+		scop(NULL), function(function), autodetect(autodetect),
+		vb_handler(NULL) { }
+
+	void handle_value_bounds(Sema *sema) {
+		vb_handler = new PragmaValueBoundsHandler(ctx, *sema);
+		PP.AddPragmaHandler(vb_handler);
+	}
+
+	__isl_give isl_union_map *get_value_bounds() {
+		return isl_union_map_copy(vb_handler->value_bounds);
+	}
 
 	virtual HandleTopLevelDeclReturn HandleTopLevelDecl(DeclGroupRef dg) {
 		DeclGroupRef::iterator it;
@@ -400,6 +411,7 @@ struct PetASTConsumer : public ASTConsumer {
 		if (scop)
 			return HandleTopLevelDeclContinue;
 		for (it = dg.begin(); it != dg.end(); ++it) {
+			isl_union_map *vb = vb_handler->value_bounds;
 			FunctionDecl *fd = dyn_cast<clang::FunctionDecl>(*it);
 			if (!fd)
 				continue;
@@ -409,7 +421,8 @@ struct PetASTConsumer : public ASTConsumer {
 			    fd->getNameInfo().getAsString() != function)
 				continue;
 			if (autodetect) {
-				PetScan ps(ctx, PP, ast_context, loc, 1);
+				PetScan ps(PP, ast_context, loc, 1,
+					    isl_union_map_copy(vb));
 				scop = ps.scan(fd);
 				if (scop)
 					break;
@@ -423,7 +436,8 @@ struct PetASTConsumer : public ASTConsumer {
 				continue;
 			if (SM.getFileOffset(fd->getLocEnd()) < loc.start)
 				continue;
-			PetScan ps(ctx, PP, ast_context, loc, 0);
+			PetScan ps(PP, ast_context, loc, 0,
+				    isl_union_map_copy(vb));
 			scop = ps.scan(fd);
 			break;
 		}
@@ -600,7 +614,6 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	isl_set *context_value;
 	pet_scop *scop;
 	set<ValueDecl *> live_out;
-	PragmaValueBoundsHandler *vb_handler;
 	isl_union_map *value_bounds;
 
 	CompilerInstance *Clang = new CompilerInstance();
@@ -657,8 +670,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	context_value = isl_set_universe(dim);
 	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
 							context_value));
-	vb_handler = new PragmaValueBoundsHandler(ctx, *sema);
-	PP.AddPragmaHandler(vb_handler);
+	consumer.handle_value_bounds(sema);
 
 	Diags.getClient()->BeginSourceFile(Clang->getLangOpts(), &PP);
 	ParseAST(*sema);
@@ -681,12 +693,10 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 
 	scop = pet_scop_anonymize(scop);
 
-	value_bounds = isl_union_map_copy(vb_handler->value_bounds);
+	update_arrays(scop, consumer.get_value_bounds(), live_out);
 
 	delete sema;
 	delete Clang;
-
-	update_arrays(scop, value_bounds, live_out);
 
 	return scop;
 }

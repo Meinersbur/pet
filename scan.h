@@ -62,10 +62,17 @@ struct PetScan {
 	 */
 	std::set<isl_pw_aff *> expressions;
 
-	PetScan(isl_ctx *ctx, clang::Preprocessor &PP,
-		clang::ASTContext &ast_context, ScopLoc &loc, int autodetect) :
-		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
-		autodetect(autodetect),
+	/* A union of mappings of the form
+	 *	{ identifier[] -> [i] : lower_bound <= i <= upper_bound }
+	 */
+	isl_union_map *value_bounds;
+
+	PetScan(clang::Preprocessor &PP,
+		clang::ASTContext &ast_context, ScopLoc &loc, int autodetect,
+		__isl_take isl_union_map *value_bounds) :
+		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
+		ast_context(ast_context), loc(loc),
+		autodetect(autodetect), value_bounds(value_bounds),
 		n_stmt(0), n_test(0), partial(0), allow_nested(true),
 		nesting_enabled(false) { }
 
