@@ -1,5 +1,6 @@
 /*
  * Copyright 2011 Leiden University. All rights reserved.
+ * Copyright 2012 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -112,25 +113,31 @@ static ValueDecl *get_value_decl(Sema &sema, Token &token)
  *
  *	#pragma value_bounds identifier lower_bound upper_bound
  *
- * For each such pragma, add a mapping from the ValueDecl corresponding
- * to "identifier" to a set { [i] : lower_bound <= i <= upper_bound }
- * to the map value_bounds.
+ * For each such pragma, add a mapping
+ *	{ identifier[] -> [i] : lower_bound <= i <= upper_bound }
+ * to value_bounds.
  */
 struct PragmaValueBoundsHandler : public PragmaHandler {
 	Sema &sema;
 	isl_ctx *ctx;
-	map<ValueDecl *, isl_set *> &value_bounds;
+	isl_union_map *value_bounds;
 
-	PragmaValueBoundsHandler(isl_ctx *ctx, Sema &sema,
-				map<ValueDecl *, isl_set *> &value_bounds) :
-		PragmaHandler("value_bounds"), ctx(ctx), sema(sema),
-		value_bounds(value_bounds) {}
+	PragmaValueBoundsHandler(isl_ctx *ctx, Sema &sema) :
+	    PragmaHandler("value_bounds"), ctx(ctx), sema(sema) {
+		isl_space *space = isl_space_params_alloc(ctx, 0);
+		value_bounds = isl_union_map_empty(space);
+	}
+
+	~PragmaValueBoundsHandler() {
+		isl_union_map_free(value_bounds);
+	}
 
 	virtual void HandlePragma(Preprocessor &PP,
 				  PragmaIntroducerKind Introducer,
 				  Token &ScopTok) {
+		isl_id *id;
 		isl_space *dim;
-		isl_set *set;
+		isl_map *map;
 		ValueDecl *vd;
 		Token token;
 		int lb;
@@ -159,12 +166,14 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 
 		ub = get_int(token.getLiteralData());
 
-		dim = isl_space_set_alloc(ctx, 0, 1);
-		set = isl_set_universe(dim);
-		set = isl_set_lower_bound_si(set, isl_dim_set, 0, lb);
-		set = isl_set_upper_bound_si(set, isl_dim_set, 0, ub);
+		dim = isl_space_alloc(ctx, 0, 0, 1);
+		map = isl_map_universe(dim);
+		map = isl_map_lower_bound_si(map, isl_dim_out, 0, lb);
+		map = isl_map_upper_bound_si(map, isl_dim_out, 0, ub);
+		id = isl_id_alloc(ctx, vd->getName().str().c_str(), vd);
+		map = isl_map_set_tuple_id(map, isl_dim_in, id);
 
-		value_bounds[vd] = set;
+		value_bounds = isl_union_map_add_map(value_bounds, map);
 	}
 };
 
@@ -471,33 +480,46 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 
 bool MyDiagnosticPrinter::cloned = false;
 
+/* For each array in "scop", set its value_bounds property
+ * based on the infofrmation in "value_bounds" and
+ * mark it as live_out if it appears in "live_out".
+ */
 static void update_arrays(struct pet_scop *scop,
-	map<ValueDecl *, isl_set *> &value_bounds,
-	set<ValueDecl *> &live_out)
+	__isl_take isl_union_map *value_bounds, set<ValueDecl *> &live_out)
 {
-	map<ValueDecl *, isl_set *>::iterator vb_it;
 	set<ValueDecl *>::iterator lo_it;
+	isl_ctx *ctx = isl_union_map_get_ctx(value_bounds);
 
-	if (!scop)
+	if (!scop) {
+		isl_union_map_free(value_bounds);
 		return;
+	}
 
 	for (int i = 0; i < scop->n_array; ++i) {
 		isl_id *id;
+		isl_space *space;
+		isl_map *bounds;
 		ValueDecl *decl;
 		pet_array *array = scop->arrays[i];
 
 		id = isl_set_get_tuple_id(array->extent);
 		decl = (ValueDecl *)isl_id_get_user(id);
-		isl_id_free(id);
 
-		vb_it = value_bounds.find(decl);
-		if (vb_it != value_bounds.end())
-			array->value_bounds = isl_set_copy(vb_it->second);
+		space = isl_space_alloc(ctx, 0, 0, 1);
+		space = isl_space_set_tuple_id(space, isl_dim_in, id);
+
+		bounds = isl_union_map_extract_map(value_bounds, space);
+		if (!isl_map_plain_is_empty(bounds))
+			array->value_bounds = isl_map_range(bounds);
+		else
+			isl_map_free(bounds);
 
 		lo_it = live_out.find(decl);
 		if (lo_it != live_out.end())
 			array->live_out = 1;
 	}
+
+	isl_union_map_free(value_bounds);
 }
 
 #ifdef USE_ARRAYREF
@@ -578,8 +600,8 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	isl_set *context_value;
 	pet_scop *scop;
 	set<ValueDecl *> live_out;
-	map<ValueDecl *, isl_set *> value_bounds;
-	map<ValueDecl *, isl_set *>::iterator vb_it;
+	PragmaValueBoundsHandler *vb_handler;
+	isl_union_map *value_bounds;
 
 	CompilerInstance *Clang = new CompilerInstance();
 	DiagnosticOptions DO;
@@ -635,7 +657,8 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	context_value = isl_set_universe(dim);
 	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
 							context_value));
-	PP.AddPragmaHandler(new PragmaValueBoundsHandler(ctx, *sema, value_bounds));
+	vb_handler = new PragmaValueBoundsHandler(ctx, *sema);
+	PP.AddPragmaHandler(vb_handler);
 
 	Diags.getClient()->BeginSourceFile(Clang->getLangOpts(), &PP);
 	ParseAST(*sema);
@@ -658,13 +681,12 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 
 	scop = pet_scop_anonymize(scop);
 
+	value_bounds = isl_union_map_copy(vb_handler->value_bounds);
+
 	delete sema;
 	delete Clang;
 
 	update_arrays(scop, value_bounds, live_out);
-
-	for (vb_it = value_bounds.begin(); vb_it != value_bounds.end(); vb_it++)
-		isl_set_free(vb_it->second);
 
 	return scop;
 }
