@@ -2020,6 +2020,65 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
 	map = isl_map_reverse(map);
 }
 
+/* Project out the parameter "id" from "set".
+ */
+static __isl_give isl_set *set_project_out_by_id(__isl_take isl_set *set,
+	__isl_keep isl_id *id)
+{
+	int pos;
+
+	pos = isl_set_find_dim_by_id(set, isl_dim_param, id);
+	if (pos >= 0)
+		set = isl_set_project_out(set, isl_dim_param, pos, 1);
+
+	return set;
+}
+
+/* Compute the set of parameters for which "set1" is a subset of "set2".
+ *
+ * set1 is a subset of set2 if
+ *
+ *	forall i in set1 : i in set2
+ *
+ * or
+ *
+ *	not exists i in set1 and i not in set2
+ *
+ * i.e.,
+ *
+ *	not exists i in set1 \ set2
+ */
+static __isl_give isl_set *enforce_subset(__isl_take isl_set *set1,
+	__isl_take isl_set *set2)
+{
+	return isl_set_complement(isl_set_params(isl_set_subtract(set1, set2)));
+}
+
+/* Compute the set of parameter values for which "cond" holds
+ * on the next iteration for each element of "dom".
+ *
+ * We first construct mapping { [i] -> [i + inc] }, apply that to "dom"
+ * and then compute the set of parameters for which the result is a subset
+ * of "cond".
+ */
+static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
+	__isl_take isl_set *dom, isl_int inc)
+{
+	isl_space *space;
+	isl_aff *aff;
+	isl_map *next;
+
+	space = isl_set_get_space(dom);
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
+	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
+	aff = isl_aff_add_constant(aff, inc);
+	next = isl_map_from_basic_map(isl_basic_map_from_aff(aff));
+
+	dom = isl_set_apply(dom, next);
+
+	return enforce_subset(dom, cond);
+}
+
 /* Construct a pet_scop for a for statement.
  * The for loop is required to be of the form
  *
@@ -2077,6 +2136,12 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
  * Before extracting a pet_scop from the body we remove all
  * assignments in assigned_value to variables that are assigned
  * somewhere in the body of the loop.
+ *
+ * Valid parameters for a for loop are those for which the initial
+ * value itself, the increment on each domain iteration and
+ * the condition on both the initial value and
+ * the result of incrementing the iterator for each iteration of the domain
+ * can be evaluated.
  */
 struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 {
@@ -2098,7 +2163,12 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool is_simple;
 	bool is_virtual;
 	isl_map *wrap = NULL;
-	isl_pw_aff *pa, *pa_inc;
+	isl_pw_aff *pa, *pa_inc, *init_val;
+	isl_set *valid_init;
+	isl_set *valid_cond;
+	isl_set *valid_cond_init;
+	isl_set *valid_cond_next;
+	isl_set *valid_inc;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -2137,7 +2207,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		isl_int_clear(inc);
 		return NULL;
 	}
-	isl_pw_aff_free(pa_inc);
+	valid_inc = isl_pw_aff_domain(pa_inc);
 
 	is_unsigned = iv->getType()->isUnsignedIntegerType();
 
@@ -2157,24 +2227,39 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	if (!pa)
 		pa = extract_condition(stmt->getCond());
+	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
 	cond = embed(cond, isl_id_copy(id));
+	valid_cond = isl_set_coalesce(valid_cond);
+	valid_cond = embed(valid_cond, isl_id_copy(id));
+	valid_inc = embed(valid_inc, isl_id_copy(id));
 	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 
+	init_val = extract_affine(rhs);
+	valid_cond_init = enforce_subset(
+		isl_set_from_pw_aff(isl_pw_aff_copy(init_val)),
+		isl_set_copy(valid_cond));
 	if (is_one && !is_virtual) {
+		isl_pw_aff_free(init_val);
 		pa = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
 				lhs, rhs, init);
+		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(pa));
+		valid_init = set_project_out_by_id(valid_init, id);
 		domain = isl_pw_aff_non_zero_set(pa);
 	} else {
-		isl_pw_aff *lb = extract_affine(rhs);
-		domain = strided_domain(isl_id_copy(id), lb, inc);
+		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(init_val));
+		domain = strided_domain(isl_id_copy(id), init_val, inc);
 	}
 
 	domain = embed(domain, isl_id_copy(id));
 	if (is_virtual) {
+		isl_map *rev_wrap;
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
-		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
+		rev_wrap = isl_map_reverse(isl_map_copy(wrap));
+		cond = isl_set_apply(cond, isl_map_copy(rev_wrap));
+		valid_cond = isl_set_apply(valid_cond, isl_map_copy(rev_wrap));
+		valid_inc = isl_set_apply(valid_inc, rev_wrap);
 	}
 	cond = isl_set_gist(cond, isl_set_copy(domain));
 	is_simple = is_simple_bound(cond, inc);
@@ -2191,6 +2276,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	else
 		sched = isl_map_oppose(sched, isl_dim_in, 0, isl_dim_out, 0);
 
+	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain), inc);
+	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
+
 	if (is_virtual && !is_simple) {
 		wrap = isl_map_set_dim_id(wrap,
 					    isl_dim_out, 0, isl_id_copy(id));
@@ -2205,6 +2293,12 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	clear_assignment(assigned_value, iv);
 
 	isl_int_clear(inc);
+
+	scop = pet_scop_restrict_context(scop, valid_init);
+	scop = pet_scop_restrict_context(scop, valid_inc);
+	scop = pet_scop_restrict_context(scop, valid_cond_next);
+	scop = pet_scop_restrict_context(scop, valid_cond_init);
+
 	return scop;
 }
 

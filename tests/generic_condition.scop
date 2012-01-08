@@ -1,4 +1,4 @@
-context: '{  :  }'
+context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
