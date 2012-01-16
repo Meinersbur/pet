@@ -3377,6 +3377,7 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 		scop = scan(stmt);
 	scop = pet_scop_detect_parameter_accesses(scop);
 	scop = scan_arrays(scop);
+	scop = pet_scop_gist(scop, value_bounds);
 
 	return scop;
 }

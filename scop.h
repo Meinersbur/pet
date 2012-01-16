@@ -58,6 +58,9 @@ struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
 
+struct pet_scop *pet_scop_gist(struct pet_scop *scop,
+	__isl_keep isl_union_map *value_bounds);
+
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop);
 
 struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,

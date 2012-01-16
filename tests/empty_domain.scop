@@ -12,10 +12,10 @@ statements:
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_0[i] -> a[i] }'
+      relation: '[N] -> { S_0[i] -> a[o0] : 1 = 0 }'
       read: 0
       write: 1
     - type: access
-      relation: '[N] -> { S_0[i] -> [i] }'
+      relation: '[N] -> { S_0[i] -> [o0] : 1 = 0 }'
       read: 1
       write: 0

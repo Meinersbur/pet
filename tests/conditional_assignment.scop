@@ -113,9 +113,8 @@ statements:
     - type: ternary
       arguments:
       - type: access
-        relation: '[N] -> { [S_4[i] -> [i1]] -> [1] : i1 >= -i and i1 <= -1 + N -
-          i; [S_4[i] -> [i1]] -> [0] : i1 <= -1 - i or (i1 >= -i and i1 >= N - i)
-          }'
+        relation: '[N, M] -> { [S_4[i] -> [i1]] -> [1] : i1 <= -1 + N - i and i1 >=
+          -i; [S_4[-1 + N] -> [1]] -> [0]; [S_4[0] -> [-1]] -> [0] }'
         read: 1
         write: 0
         arguments:
@@ -137,8 +136,8 @@ statements:
             read: 1
             write: 0
       - type: access
-        relation: '[N] -> { [S_4[i] -> [i1]] -> [0] : i1 <= -1 - i or (i1 >= -i and
-          i1 >= N - i) }'
+        relation: '[N, M] -> { [S_4[-1 + N] -> [1]] -> [0]; [S_4[0] -> [-1]] -> [0]
+          }'
         read: 1
         write: 0
         arguments:

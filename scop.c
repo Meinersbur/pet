@@ -429,6 +429,31 @@ struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
 	return expr;
 }
 
+/* Modify all expressions of type pet_expr_access in "expr"
+ * by calling "fn" on them.
+ */
+struct pet_expr *pet_expr_foreach_access_expr(struct pet_expr *expr,
+	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
+	void *user)
+{
+	int i;
+
+	if (!expr)
+		return NULL;
+
+	for (i = 0; i < expr->n_arg; ++i) {
+		expr->args[i] = pet_expr_foreach_access_expr(expr->args[i],
+								fn, user);
+		if (!expr->args[i])
+			return pet_expr_free(expr);
+	}
+
+	if (expr->type == pet_expr_access)
+		expr = fn(expr, user);
+
+	return expr;
+}
+
 /* Modify the given access relation based on the given iteration space
  * transformation.
  * If the access has any arguments then the domain of the access relation
@@ -1872,6 +1897,185 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_anonymize(scop->stmts[i]);
+		if (!scop->stmts[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
+}
+
+/* Given a set "domain", return a wrapped relation with the given set
+ * as domain and a range of dimension "n_arg", where each coordinate
+ * is either unbounded or, if the corresponding element of args is of
+ * type pet_expr_access, bounded by the bounds specified by "value_bounds".
+ */
+static __isl_give isl_set *apply_value_bounds(__isl_take isl_set *domain,
+	unsigned n_arg, struct pet_expr **args,
+	__isl_keep isl_union_map *value_bounds)
+{
+	int i;
+	isl_map *map;
+	isl_space *space;
+	isl_ctx *ctx = isl_set_get_ctx(domain);
+
+	map = isl_map_from_domain(domain);
+	space = isl_map_get_space(map);
+	space = isl_space_add_dims(space, isl_dim_out, 1);
+
+	for (i = 0; i < n_arg; ++i) {
+		isl_map *map_i;
+		struct pet_expr *arg = args[i];
+		isl_id *id;
+		isl_space *space2;
+
+		map_i = isl_map_universe(isl_space_copy(space));
+		if (arg->type == pet_expr_access) {
+			isl_map *vb;
+			id = isl_map_get_tuple_id(arg->acc.access, isl_dim_out);
+			space2 = isl_space_alloc(ctx, 0, 0, 1);
+			space2 = isl_space_set_tuple_id(space2, isl_dim_in, id);
+			vb = isl_union_map_extract_map(value_bounds, space2);
+			if (!isl_map_plain_is_empty(vb))
+				map_i = isl_map_intersect_range(map_i,
+							    isl_map_range(vb));
+			else
+				isl_map_free(vb);
+		}
+		map = isl_map_flat_range_product(map, map_i);
+	}
+	isl_space_free(space);
+
+	return isl_map_wrap(map);
+}
+
+/* Data used in access_gist() callback.
+ */
+struct pet_access_gist_data {
+	isl_set *domain;
+	isl_union_map *value_bounds;
+};
+
+/* Given an expression "expr" of type pet_expr_access, compute
+ * the gist of the associated access relation with respect to
+ * data->domain and the bounds on the values of the arguments
+ * of the expression.
+ */
+static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
+{
+	struct pet_access_gist_data *data = user;
+	isl_set *domain;
+
+	domain = isl_set_copy(data->domain);
+	if (expr->n_arg > 0)
+		domain = apply_value_bounds(domain, expr->n_arg, expr->args,
+						data->value_bounds);
+
+	expr->acc.access = isl_map_gist_domain(expr->acc.access, domain);
+	if (!expr->acc.access)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
+/* Compute the gist of the iteration domain and all access relations
+ * of "stmt" based on the constraints on the parameters specified by "context"
+ * and the constraints on the values of nested accesses specified
+ * by "value_bounds".
+ */
+static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
+	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds)
+{
+	int i;
+	isl_space *space;
+	isl_set *domain;
+	struct pet_access_gist_data data;
+
+	if (!stmt)
+		return NULL;
+
+	data.domain = isl_set_copy(stmt->domain);
+	data.value_bounds = value_bounds;
+	if (stmt->n_arg > 0)
+		data.domain = isl_map_domain(isl_set_unwrap(data.domain));
+
+	data.domain = isl_set_intersect_params(data.domain,
+						isl_set_copy(context));
+
+	for (i = 0; i < stmt->n_arg; ++i) {
+		stmt->args[i] = pet_expr_foreach_access_expr(stmt->args[i],
+							&access_gist, &data);
+		if (!stmt->args[i])
+			goto error;
+	}
+
+	stmt->body = pet_expr_foreach_access_expr(stmt->body,
+							&access_gist, &data);
+	if (!stmt->body)
+		goto error;
+
+	isl_set_free(data.domain);
+
+	space = isl_set_get_space(stmt->domain);
+	if (isl_space_is_wrapping(space))
+		space = isl_space_domain(isl_space_unwrap(space));
+	domain = isl_set_universe(space);
+	domain = isl_set_intersect_params(domain, isl_set_copy(context));
+	if (stmt->n_arg > 0)
+		domain = apply_value_bounds(domain, stmt->n_arg, stmt->args,
+						value_bounds);
+	stmt->domain = isl_set_gist(stmt->domain, domain);
+	if (!stmt->domain)
+		return pet_stmt_free(stmt);
+
+	return stmt;
+error:
+	isl_set_free(data.domain);
+	return pet_stmt_free(stmt);
+}
+
+/* Compute the gist of the extent of the array
+ * based on the constraints on the parameters specified by "context".
+ */
+static struct pet_array *array_gist(struct pet_array *array,
+	__isl_keep isl_set *context)
+{
+	if (!array)
+		return NULL;
+
+	array->extent = isl_set_gist_params(array->extent,
+						isl_set_copy(context));
+	if (!array->extent)
+		return pet_array_free(array);
+
+	return array;
+}
+
+/* Compute the gist of all sets and relations in "scop"
+ * based on the constraints on the parameters specified by "scop->context"
+ * and the constraints on the values of nested accesses specified
+ * by "value_bounds".
+ */
+struct pet_scop *pet_scop_gist(struct pet_scop *scop,
+	__isl_keep isl_union_map *value_bounds)
+{
+	int i;
+
+	if (!scop)
+		return NULL;
+
+	scop->context = isl_set_coalesce(scop->context);
+	if (!scop->context)
+		return pet_scop_free(scop);
+
+	for (i = 0; i < scop->n_array; ++i) {
+		scop->arrays[i] = array_gist(scop->arrays[i], scop->context);
+		if (!scop->arrays[i])
+			return pet_scop_free(scop);
+	}
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = stmt_gist(scop->stmts[i], scop->context,
+					    value_bounds);
 		if (!scop->stmts[i])
 			return pet_scop_free(scop);
 	}
