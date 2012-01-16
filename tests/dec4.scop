@@ -1,4 +1,4 @@
-context: '[N] -> {  : N >= 0 }'
+context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
@@ -6,7 +6,7 @@ arrays:
 statements:
 - line: 8
   domain: '[N] -> { S_0[i] : exists (e0 = [(-2 - N + i)/3]: 3e0 = -2 - N + i and i
-    <= -1 + N and i >= 0) }'
+    >= 0 and i <= -1 + N) }'
   schedule: '[N] -> { S_0[i] -> [0, -i] }'
   body:
     type: binary

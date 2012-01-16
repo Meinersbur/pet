@@ -1,4 +1,5 @@
-context: '[N, M] -> {  : N >= 0 and M >= 0 }'
+context: '[N, M] -> {  : N >= 0 and M >= 0 and N <= 2147483647 and M <= 2147483647
+  }'
 arrays:
 - context: '[M, N] -> {  : N >= 0 and M >= 0 }'
   extent: '[N, M] -> { in1[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <=
@@ -19,42 +20,42 @@ arrays:
   element_type: int
 statements:
 - line: 21
-  domain: '{ S_0[] }'
+  domain: '[N, M] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '{ S_0[] -> in2[] }'
+      relation: '[N, M] -> { S_0[] -> in2[] }'
       read: 0
       write: 1
     - type: call
       name: g2
 - line: 23
-  domain: '[N] -> { S_1[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N, M] -> { S_1[i] : i >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_1[i] -> [1, i, 0] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_1[i] -> m[] }'
+      relation: '[N, M] -> { S_1[i] -> m[] }'
       read: 0
       write: 1
     - type: binary
       operation: +
       arguments:
       - type: access
-        relation: '[N] -> { S_1[i] -> [i] }'
+        relation: '[N, M] -> { S_1[i] -> [i] }'
         read: 1
         write: 0
       - type: access
-        relation: '[N] -> { S_1[i] -> [1] }'
+        relation: '[N, M] -> { S_1[i] -> [1] }'
         read: 1
         write: 0
 - line: 25
-  domain: '[M, N] -> { S_2[i, j] : i >= 0 and i <= -1 + N and j >= 0 and j <= -1 +
+  domain: '[N, M] -> { S_2[i, j] : j >= 0 and i >= 0 and i <= -1 + N and j <= -1 +
     M }'
   schedule: '[M, N] -> { S_2[i, j] -> [1, i, 1, j] }'
   body:
@@ -62,7 +63,7 @@ statements:
     operation: =
     arguments:
     - type: access
-      relation: '[M, N] -> { S_2[i, j] -> m[] }'
+      relation: '[N, M] -> { S_2[i, j] -> m[] }'
       read: 0
       write: 1
     - type: call
@@ -72,15 +73,15 @@ statements:
         name: h
         arguments:
         - type: access
-          relation: '[M, N] -> { S_2[i, j] -> m[] }'
+          relation: '[N, M] -> { S_2[i, j] -> m[] }'
           read: 1
           write: 0
       - type: access
-        relation: '[M, N] -> { S_2[i, j] -> in1[i, j] }'
+        relation: '[N, M] -> { S_2[i, j] -> in1[i, j] }'
         read: 1
         write: 0
 - line: 26
-  domain: '[N] -> { S_3[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N, M] -> { S_3[i] : i >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_3[i] -> [1, i, 2] }'
   body:
     type: call
@@ -90,37 +91,37 @@ statements:
       name: h
       arguments:
       - type: access
-        relation: '[N] -> { S_3[i] -> m[] }'
+        relation: '[N, M] -> { S_3[i] -> m[] }'
         read: 1
         write: 0
     - type: access
-      relation: '[N] -> { S_3[i] -> A[i, o1] }'
+      relation: '[N, M] -> { S_3[i] -> A[i, o1] }'
       read: 0
       write: 1
 - line: 28
-  domain: '{ S_4[] }'
+  domain: '[N, M] -> { S_4[] }'
   schedule: '{ S_4[] -> [2] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '{ S_4[] -> A[5, 6] }'
+      relation: '[N, M] -> { S_4[] -> A[5, 6] }'
       read: 0
       write: 1
     - type: access
-      relation: '{ S_4[] -> [0] }'
+      relation: '[N, M] -> { S_4[] -> [0] }'
       read: 1
       write: 0
 - line: 30
-  domain: '[N] -> { S_5[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N, M] -> { S_5[i] : i >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_5[i] -> [3, i] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_5[i] -> C[i] }'
+      relation: '[N, M] -> { S_5[i] -> C[i] }'
       read: 0
       write: 1
     - type: ternary
@@ -132,20 +133,20 @@ statements:
         write: 0
         arguments:
         - type: access
-          relation: '[N] -> { S_5[i] -> in2[] }'
+          relation: '[N, M] -> { S_5[i] -> in2[] }'
           read: 1
           write: 0
       - type: call
         name: f
         arguments:
         - type: access
-          relation: '[N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and i1
-            <= -1 + N - i }'
+          relation: '[N, M] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 <= -1 + N
+            - i and i1 >= -i }'
           read: 1
           write: 0
           arguments:
           - type: access
-            relation: '[N] -> { S_5[i] -> in2[] }'
+            relation: '[N, M] -> { S_5[i] -> in2[] }'
             read: 1
             write: 0
       - type: access
@@ -155,6 +156,6 @@ statements:
         write: 0
         arguments:
         - type: access
-          relation: '[N] -> { S_5[i] -> in2[] }'
+          relation: '[N, M] -> { S_5[i] -> in2[] }'
           read: 1
           write: 0

@@ -1,5 +1,6 @@
 /*
  * Copyright 2011 Leiden University. All rights reserved.
+ * Copyright 2012 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -348,6 +349,43 @@ __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 __isl_give isl_pw_aff *PetScan::extract_affine(ImplicitCastExpr *expr)
 {
 	return extract_affine(expr->getSubExpr());
+}
+
+static unsigned get_type_size(ValueDecl *decl)
+{
+	return decl->getASTContext().getIntWidth(decl->getType());
+}
+
+/* Bound parameter "pos" of "set" to the possible values of "decl".
+ */
+static __isl_give isl_set *set_parameter_bounds(__isl_take isl_set *set,
+	unsigned pos, ValueDecl *decl)
+{
+	unsigned width;
+	isl_int v;
+
+	isl_int_init(v);
+
+	width = get_type_size(decl);
+	if (decl->getType()->isUnsignedIntegerType()) {
+		set = isl_set_lower_bound_si(set, isl_dim_param, pos, 0);
+		isl_int_set_si(v, 1);
+		isl_int_mul_2exp(v, v, width);
+		isl_int_sub_ui(v, v, 1);
+		set = isl_set_upper_bound(set, isl_dim_param, pos, v);
+	} else {
+		isl_int_set_si(v, 1);
+		isl_int_mul_2exp(v, v, width - 1);
+		isl_int_sub_ui(v, v, 1);
+		set = isl_set_upper_bound(set, isl_dim_param, pos, v);
+		isl_int_neg(v, v);
+		isl_int_sub_ui(v, v, 1);
+		set = isl_set_lower_bound(set, isl_dim_param, pos, v);
+	}
+
+	isl_int_clear(v);
+
+	return set;
 }
 
 /* Extract an affine expression from the DeclRefExpr "expr".
@@ -1874,11 +1912,6 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	return isl_set_project_out(set, isl_dim_set, 0, 1);
 }
 
-static unsigned get_type_size(ValueDecl *decl)
-{
-	return decl->getASTContext().getIntWidth(decl->getType());
-}
-
 /* Assuming "cond" represents a simple bound on a loop where the loop
  * iterator "iv" is incremented (or decremented) by one, check if wrapping
  * is possible.
@@ -3356,6 +3389,37 @@ error:
 	return NULL;
 }
 
+/* Bound all parameters in scop->context to the possible values
+ * of the corresponding C variable.
+ */
+static struct pet_scop *add_parameter_bounds(struct pet_scop *scop)
+{
+	int n;
+
+	if (!scop)
+		return NULL;
+
+	n = isl_set_dim(scop->context, isl_dim_param);
+	for (int i = 0; i < n; ++i) {
+		isl_id *id;
+		ValueDecl *decl;
+
+		id = isl_set_get_dim_id(scop->context, isl_dim_param, i);
+		decl = (ValueDecl *) isl_id_get_user(id);
+		isl_id_free(id);
+
+		scop->context = set_parameter_bounds(scop->context, i, decl);
+
+		if (!scop->context)
+			goto error;
+	}
+
+	return scop;
+error:
+	pet_scop_free(scop);
+	return NULL;
+}
+
 /* Construct a pet_scop from the given function.
  */
 struct pet_scop *PetScan::scan(FunctionDecl *fd)
@@ -3371,6 +3435,7 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 		scop = scan(stmt);
 	scop = pet_scop_detect_parameter_accesses(scop);
 	scop = scan_arrays(scop);
+	scop = add_parameter_bounds(scop);
 	scop = pet_scop_gist(scop, value_bounds);
 
 	return scop;

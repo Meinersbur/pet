@@ -1,4 +1,5 @@
-context: '[N, K] -> {  : K >= 0 and N >= 0 }'
+context: '[N, K] -> {  : K >= 0 and N >= 0 and N <= 2147483647 and K <= 2147483647
+  }'
 arrays:
 - context: '[K] -> {  : K >= 0 }'
   extent: '[K] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + K }'
@@ -12,41 +13,41 @@ arrays:
   live_out: 1
 statements:
 - line: 9
-  domain: '[N, M] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >= 0 and j <= -1 +
-    N }'
+  domain: '[N, K, M] -> { S_0[i, j] : j >= 0 and j <= -1 + N and i >= 0 and i <= -1
+    + M }'
   schedule: '[N, M] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '[N, M] -> { S_0[i, j] -> C[i, j] }'
+      relation: '[N, K, M] -> { S_0[i, j] -> C[i, j] }'
       read: 0
       write: 1
     - type: access
-      relation: '[N, M] -> { S_0[i, j] -> [0] }'
+      relation: '[N, K, M] -> { S_0[i, j] -> [0] }'
       read: 1
       write: 0
 - line: 11
-  domain: '[K, N, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
-    -1 + N and k >= 0 and k <= -1 + K }'
+  domain: '[N, K, M] -> { S_1[i, j, k] : j <= -1 + N and k <= -1 + K and i >= 0 and
+    i <= -1 + M and k >= 0 and j >= 0 }'
   schedule: '[K, N, M] -> { S_1[i, j, k] -> [0, i, j, 1, k] }'
   body:
     type: binary
     operation: +=
     arguments:
     - type: access
-      relation: '[K, N, M] -> { S_1[i, j, k] -> C[i, j] }'
+      relation: '[N, K, M] -> { S_1[i, j, k] -> C[i, j] }'
       read: 1
       write: 1
     - type: binary
       operation: '*'
       arguments:
       - type: access
-        relation: '[K, N, M] -> { S_1[i, j, k] -> A[i, k] }'
+        relation: '[N, K, M] -> { S_1[i, j, k] -> A[i, k] }'
         read: 1
         write: 0
       - type: access
-        relation: '[K, N, M] -> { S_1[i, j, k] -> B[k, j] }'
+        relation: '[N, K, M] -> { S_1[i, j, k] -> B[k, j] }'
         read: 1
         write: 0
