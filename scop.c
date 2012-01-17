@@ -717,6 +717,9 @@ struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 		scop2->arrays[i] = NULL;
 	}
 
+	scop = pet_scop_restrict_context(scop, isl_set_copy(scop1->context));
+	scop = pet_scop_restrict_context(scop, isl_set_copy(scop2->context));
+
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);
 	return scop;
