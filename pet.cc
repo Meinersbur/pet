@@ -385,11 +385,11 @@ struct PetASTConsumer : public ASTConsumer {
 		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
 		scop(NULL), function(function), autodetect(autodetect) { }
 
-	virtual void HandleTopLevelDecl(DeclGroupRef dg) {
+	virtual HandleTopLevelDeclReturn HandleTopLevelDecl(DeclGroupRef dg) {
 		DeclGroupRef::iterator it;
 
 		if (scop)
-			return;
+			return HandleTopLevelDeclContinue;
 		for (it = dg.begin(); it != dg.end(); ++it) {
 			FunctionDecl *fd = dyn_cast<clang::FunctionDecl>(*it);
 			if (!fd)
@@ -418,6 +418,8 @@ struct PetASTConsumer : public ASTConsumer {
 			scop = ps.scan(fd);
 			break;
 		}
+
+		return HandleTopLevelDeclContinue;
 	}
 };
 
