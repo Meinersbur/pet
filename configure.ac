@@ -27,7 +27,7 @@ if test "$llvm_config_found" != yes; then
 fi
 CLANG_CXXFLAGS=`$llvm_config --cxxflags`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
-CLANG_LIBS=`$llvm_config --libs`
+CLANG_LIBS=`$llvm_config --libs analysis`
 CLANG_PREFIX=`$llvm_config --prefix`
 AC_DEFINE_UNQUOTED(CLANG_PREFIX, ["$CLANG_PREFIX"], [Clang installation prefix])
 
