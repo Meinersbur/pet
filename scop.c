@@ -1205,6 +1205,11 @@ error:
 }
 
 /* Add extra conditions on the parameters to all iteration domains.
+ *
+ * A parameter value is valid for the result if it was valid
+ * for the original scop and satisfies "cond" or if it does
+ * not satisfy "cond" as in this case the scop is not executed
+ * and the original constraints on the parameters are irrelevant.
  */
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond)
@@ -1212,6 +1217,13 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	int i;
 
 	if (!scop)
+		goto error;
+
+	scop->context = isl_set_intersect(scop->context, isl_set_copy(cond));
+	scop->context = isl_set_union(scop->context,
+				isl_set_complement(isl_set_copy(cond)));
+	scop->context = isl_set_coalesce(scop->context);
+	if (!scop->context)
 		goto error;
 
 	for (i = 0; i < scop->n_stmt; ++i) {
