@@ -2051,6 +2051,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool is_one;
 	bool is_unsigned;
 	bool is_simple;
+	bool is_virtual;
 	isl_map *wrap = NULL;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
@@ -2115,8 +2116,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
 	is_simple = is_simple_bound(cond, inc);
-	if (is_unsigned &&
-	    (!is_simple || !is_one || can_wrap(cond, iv, inc))) {
+	is_virtual = is_unsigned &&
+	    (!is_simple || !is_one || can_wrap(cond, iv, inc));
+	if (is_virtual) {
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
 		is_simple = is_simple && is_simple_bound(cond, inc);
@@ -2134,7 +2136,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	else
 		sched = isl_map_oppose(sched, isl_dim_in, 0, isl_dim_out, 0);
 
-	if (is_unsigned && !is_simple) {
+	if (is_virtual && !is_simple) {
 		wrap = isl_map_set_dim_id(wrap,
 					    isl_dim_out, 0, isl_id_copy(id));
 		sched = isl_map_intersect_domain(sched, isl_set_copy(domain));
