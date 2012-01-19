@@ -2121,6 +2121,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
 	}
+	cond = isl_set_gist(cond, isl_set_copy(domain));
 	is_simple = is_simple_bound(cond, inc);
 	if (!is_simple)
 		cond = valid_for_each_iteration(cond,
