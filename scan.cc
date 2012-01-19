@@ -3124,19 +3124,22 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 
 	if (!scop) {
 		isl_set *set;
+		isl_set *valid;
 
 		if (!cond)
 			cond = extract_condition(stmt->getCond());
+		valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
 		set = isl_pw_aff_non_zero_set(cond);
 		scop = pet_scop_restrict(scop_then, isl_set_copy(set));
 
 		if (stmt->getElse()) {
-			set = isl_set_complement(set);
+			set = isl_set_subtract(isl_set_copy(valid), set);
 			scop_else = pet_scop_restrict(scop_else, set);
 			scop = pet_scop_add(ctx, scop, scop_else);
 		} else
 			isl_set_free(set);
 		scop = resolve_nested(scop);
+		scop = pet_scop_restrict_context(scop, valid);
 	} else {
 		scop = pet_scop_prefix(scop, 0);
 		scop_then = pet_scop_prefix(scop_then, 1);
