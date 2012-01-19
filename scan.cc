@@ -1345,12 +1345,21 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 }
 
 /* Construct a pet_expr representing a conditional operation.
+ *
+ * We first try to extract the condition as an affine expression.
+ * If that fails, we construct a pet_expr tree representing the condition.
  */
 struct pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 {
 	struct pet_expr *cond, *lhs, *rhs;
+	isl_pw_aff *pa;
 
-	cond = extract_expr(expr->getCond());
+	pa = try_extract_affine(expr->getCond());
+	if (pa) {
+		isl_set *test = isl_set_from_pw_aff(pa);
+		cond = pet_expr_from_access(isl_map_from_range(test));
+	} else
+		cond = extract_expr(expr->getCond());
 	lhs = extract_expr(expr->getTrueExpr());
 	rhs = extract_expr(expr->getFalseExpr());
 
