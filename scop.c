@@ -1081,6 +1081,23 @@ error:
 	return NULL;
 }
 
+/* Project out all unnamed parameters from "set" and return the result.
+ */
+static __isl_give isl_set *set_project_out_unnamed_params(
+	__isl_take isl_set *set)
+{
+	int i, n;
+
+	n = isl_set_dim(set, isl_dim_param);
+	for (i = n - 1; i >= 0; --i) {
+		if (isl_set_has_dim_name(set, isl_dim_param, i))
+			continue;
+		set = isl_set_project_out(set, isl_dim_param, i, 1);
+	}
+
+	return set;
+}
+
 /* Embed all statements and arrays in "scop" in an extra outer loop
  * with iteration domain "dom" and schedule "sched".
  * "var_id" represents the induction variable of the loop.
@@ -2081,4 +2098,26 @@ struct pet_scop *pet_scop_gist(struct pet_scop *scop,
 	}
 
 	return scop;
+}
+
+/* Intersect the context of "scop" with "context".
+ * To ensure that we don't introduce any unnamed parameters in
+ * the context of "scop", we first remove the unnamed parameters
+ * from "context".
+ */
+struct pet_scop *pet_scop_restrict_context(struct pet_scop *scop,
+	__isl_take isl_set *context)
+{
+	if (!scop)
+		goto error;
+
+	context = set_project_out_unnamed_params(context);
+	scop->context = isl_set_intersect(scop->context, context);
+	if (!scop->context)
+		return pet_scop_free(scop);
+
+	return scop;
+error:
+	isl_set_free(context);
+	return pet_scop_free(scop);
 }
