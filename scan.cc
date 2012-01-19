@@ -2105,7 +2105,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (!cond)
 		cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
-	is_simple = is_simple_bound(cond, inc);
 	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 
@@ -2121,8 +2120,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (is_virtual) {
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
-		is_simple = is_simple && is_simple_bound(cond, inc);
 	}
+	is_simple = is_simple_bound(cond, inc);
 	if (!is_simple)
 		cond = valid_for_each_iteration(cond,
 						isl_set_copy(domain), inc);
