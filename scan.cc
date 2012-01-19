@@ -1885,7 +1885,7 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
 
 /* Construct a domain of the form
  *
- * [id] -> { [] : exists a: id = init + a * inc and a >= 0 }
+ * [id] -> { : exists a: id = init + a * inc and a >= 0 }
  */
 static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	__isl_take isl_pw_aff *init, isl_int inc)
@@ -1909,7 +1909,7 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 
 	set = isl_set_lower_bound_si(set, isl_dim_set, 0, 0);
 
-	return isl_set_project_out(set, isl_dim_set, 0, 1);
+	return isl_set_params(set);
 }
 
 /* Assuming "cond" represents a simple bound on a loop where the loop
