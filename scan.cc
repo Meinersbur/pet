@@ -2094,15 +2094,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
-	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
-	if (is_one)
-		domain = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
-				lhs, rhs, init);
-	else {
-		isl_pw_aff *lb = extract_affine(rhs);
-		domain = strided_domain(isl_id_copy(id), lb, inc);
-	}
-
 	scop = extract(stmt->getBody());
 
 	cond = try_extract_nested_condition(stmt->getCond());
@@ -2114,9 +2105,19 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (!cond)
 		cond = extract_condition(stmt->getCond());
 	cond = embed(cond, isl_id_copy(id));
-	domain = embed(domain, isl_id_copy(id));
 	is_simple = is_simple_bound(cond, inc);
+	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
+
+	if (is_one && !is_virtual)
+		domain = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
+				lhs, rhs, init);
+	else {
+		isl_pw_aff *lb = extract_affine(rhs);
+		domain = strided_domain(isl_id_copy(id), lb, inc);
+	}
+
+	domain = embed(domain, isl_id_copy(id));
 	if (is_virtual) {
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
