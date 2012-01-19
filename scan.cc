@@ -1912,7 +1912,7 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	return isl_set_params(set);
 }
 
-/* Assuming "cond" represents a simple bound on a loop where the loop
+/* Assuming "cond" represents a bound on a loop where the loop
  * iterator "iv" is incremented (or decremented) by one, check if wrapping
  * is possible.
  *
@@ -2116,8 +2116,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	cond = embed(cond, isl_id_copy(id));
 	domain = embed(domain, isl_id_copy(id));
 	is_simple = is_simple_bound(cond, inc);
-	is_virtual = is_unsigned &&
-	    (!is_simple || !is_one || can_wrap(cond, iv, inc));
+	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 	if (is_virtual) {
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
 		cond = isl_set_apply(cond, isl_map_reverse(isl_map_copy(wrap)));
