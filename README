@@ -1,16 +1,34 @@
 Requirements:
 
+- pkg-config (http://www.freedesktop.org/wiki/Software/pkg-config)
+	(not needed when compiling a release using the included isl)
 - gmp (http://gmplib.org/)
 - libyaml (http://pyyaml.org/wiki/LibYAML)
 - LLVM/clang libraries, 2.9 or higher (http://clang.llvm.org/get_started.html)
+	Unless you have some other reasons for wanting to use the svn version,
+	it's best to install the latest release (3.0).
+	The svn version occasionally introduces incompatibilities.
+	Nevertheless, if you encounter any such incompatibilities, please
+	report them so that they can be fixed.
+	Also, if you are following the instructions on how to build
+	the svn version, make sure you also install LLVM
+	(through "make install").  You may want to specify an installation
+	directory using the --prefix configure option.
 
-Compilation:
+Preparing:
+
+Grab the latest release and extract it or get the source from
+the git repository as follows.  This process requires autoconf,
+automake and libtool.
 
 	git clone git://repo.or.cz/pet.git
 	cd pet
 	git submodule init
 	git submodule update
 	./autogen.sh
+
+Compilation:
+
 	./configure
 	make
 	make check
