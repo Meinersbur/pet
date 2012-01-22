@@ -1,5 +1,6 @@
 /*
  * Copyright 2011 Leiden University. All rights reserved.
+ * Copyright 2012 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1755,4 +1756,123 @@ int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id)
 	}
 
 	return 0;
+}
+
+/* Reset the user pointer on all parameter ids in "set".
+ */
+static __isl_give isl_set *set_anonymize(__isl_take isl_set *set)
+{
+	int i, n;
+
+	n = isl_set_dim(set, isl_dim_param);
+	for (i = 0; i < n; ++i) {
+		isl_id *id = isl_set_get_dim_id(set, isl_dim_param, i);
+		const char *name = isl_id_get_name(id);
+		set = isl_set_set_dim_name(set, isl_dim_param, i, name);
+		isl_id_free(id);
+	}
+
+	return set;
+}
+
+/* Reset the user pointer on all parameter ids in "map".
+ */
+static __isl_give isl_map *map_anonymize(__isl_take isl_map *map)
+{
+	int i, n;
+
+	n = isl_map_dim(map, isl_dim_param);
+	for (i = 0; i < n; ++i) {
+		isl_id *id = isl_map_get_dim_id(map, isl_dim_param, i);
+		const char *name = isl_id_get_name(id);
+		map = isl_map_set_dim_name(map, isl_dim_param, i, name);
+		isl_id_free(id);
+	}
+
+	return map;
+}
+
+/* Reset the user pointer on all parameter ids in "array".
+ */
+static struct pet_array *array_anonymize(struct pet_array *array)
+{
+	if (!array)
+		return NULL;
+
+	array->context = set_anonymize(array->context);
+	array->extent = set_anonymize(array->extent);
+	if (!array->context || !array->extent)
+		return pet_array_free(array);
+
+	return array;
+}
+
+/* Reset the user pointer on all parameter ids in "access".
+ */
+static __isl_give isl_map *access_anonymize(__isl_take isl_map *access,
+	void *user)
+{
+	access = map_anonymize(access);
+
+	return access;
+}
+
+/* Reset the user pointer on all parameter ids in "stmt".
+ */
+static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
+{
+	int i;
+	isl_space *space;
+	isl_set *domain;
+
+	if (!stmt)
+		return NULL;
+
+	stmt->domain = set_anonymize(stmt->domain);
+	stmt->schedule = map_anonymize(stmt->schedule);
+	if (!stmt->domain || !stmt->schedule)
+		return pet_stmt_free(stmt);
+
+	for (i = 0; i < stmt->n_arg; ++i) {
+		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
+						    &access_anonymize, NULL);
+		if (!stmt->args[i])
+			return pet_stmt_free(stmt);
+	}
+
+	stmt->body = pet_expr_foreach_access(stmt->body,
+						    &access_anonymize, NULL);
+	if (!stmt->body)
+		return pet_stmt_free(stmt);
+
+	return stmt;
+}
+
+/* Reset the user pointer on all parameter ids in "scop".
+ */
+struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
+{
+	int i;
+
+	if (!scop)
+		return NULL;
+
+	scop->context = set_anonymize(scop->context);
+	scop->context_value = set_anonymize(scop->context_value);
+	if (!scop->context || !scop->context_value)
+		return pet_scop_free(scop);
+
+	for (i = 0; i < scop->n_array; ++i) {
+		scop->arrays[i] = array_anonymize(scop->arrays[i]);
+		if (!scop->arrays[i])
+			return pet_scop_free(scop);
+	}
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = stmt_anonymize(scop->stmts[i]);
+		if (!scop->stmts[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
 }

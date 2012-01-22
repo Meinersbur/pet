@@ -576,6 +576,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	isl_space *dim;
 	isl_set *context;
 	isl_set *context_value;
+	pet_scop *scop;
 	set<ValueDecl *> live_out;
 	map<ValueDecl *, isl_set *> value_bounds;
 	map<ValueDecl *, isl_set *>::iterator vb_it;
@@ -640,25 +641,28 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	ParseAST(*sema);
 	Diags.getClient()->EndSourceFile();
 
-	delete sema;
-	delete Clang;
+	scop = consumer.scop;
 
-	if (consumer.scop) {
-		consumer.scop->context = isl_set_intersect(context,
-						    consumer.scop->context);
-		consumer.scop->context_value = isl_set_intersect(context_value,
-						consumer.scop->context_value);
+	if (scop) {
+		scop->context = isl_set_intersect(context, scop->context);
+		scop->context_value = isl_set_intersect(context_value,
+						scop->context_value);
 	} else {
 		isl_set_free(context);
 		isl_set_free(context_value);
 	}
 
-	update_arrays(consumer.scop, value_bounds, live_out);
+	scop = pet_scop_anonymize(scop);
+
+	delete sema;
+	delete Clang;
+
+	update_arrays(scop, value_bounds, live_out);
 
 	for (vb_it = value_bounds.begin(); vb_it != value_bounds.end(); vb_it++)
 		isl_set_free(vb_it->second);
 
-	return consumer.scop;
+	return scop;
 }
 
 struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
