@@ -642,6 +642,10 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	Diags.getClient()->EndSourceFile();
 
 	scop = consumer.scop;
+	if (Diags.hasErrorOccurred()) {
+		pet_scop_free(scop);
+		scop = NULL;
+	}
 
 	if (scop) {
 		scop->context = isl_set_intersect(context, scop->context);
