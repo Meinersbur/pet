@@ -129,6 +129,8 @@ struct pet_stmt {
  * value_bounds holds constraints on the elements of the array
  * and may be NULL if no such constraints were specified by the user
  *
+ * element_size is the size in bytes of each array element
+ *
  * live_out is set if the array appears in a live-out pragma
  */
 struct pet_array {
@@ -136,6 +138,7 @@ struct pet_array {
 	isl_set *extent;
 	isl_set *value_bounds;
 	char *element_type;
+	int element_size;
 	int live_out;
 };
 

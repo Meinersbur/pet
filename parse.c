@@ -141,6 +141,8 @@ static struct pet_array *extract_array(isl_ctx *ctx, yaml_document_t *document,
 		if (!strcmp((char *) key->data.scalar.value, "element_type"))
 			array->element_type =
 					extract_string(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "element_size"))
+			array->element_size = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "live_out"))
 			array->live_out = extract_int(ctx, document, value);
 	}

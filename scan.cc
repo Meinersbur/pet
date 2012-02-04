@@ -2589,7 +2589,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
  * The array is marked as attaining values 0 and 1 only.
  */
 static struct pet_scop *scop_add_array(struct pet_scop *scop,
-	__isl_keep isl_map *access)
+	__isl_keep isl_map *access, clang::ASTContext &ast_ctx)
 {
 	isl_ctx *ctx = isl_map_get_ctx(access);
 	isl_space *dim;
@@ -2621,6 +2621,7 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
 						isl_dim_set, 0, 1);
 	array->element_type = strdup("int");
+	array->element_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
 
 	scop->arrays[scop->n_array] = array;
 	scop->n_array++;
@@ -3016,7 +3017,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		scop = extract_non_affine_condition(stmt->getCond(),
 						    isl_map_copy(test_access));
 		n_stmt = save_n_stmt;
-		scop = scop_add_array(scop, test_access);
+		scop = scop_add_array(scop, test_access, ast_context);
 		if (!scop) {
 			pet_scop_free(scop_then);
 			pet_scop_free(scop_else);
@@ -3306,6 +3307,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 
 	name = base.getAsString();
 	array->element_type = strdup(name.c_str());
+	array->element_size = decl->getASTContext().getTypeInfo(base).first / 8;
 
 	return array;
 }

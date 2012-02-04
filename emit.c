@@ -58,6 +58,15 @@ static int emit_int(yaml_emitter_t *emitter, int i)
 	return emit_string(emitter, buffer);
 }
 
+static int emit_named_int(yaml_emitter_t *emitter, const char *name, int i)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_int(emitter, i) < 0)
+		return -1;
+	return 0;
+}
+
 static int emit_double(yaml_emitter_t *emitter, double d)
 {
 	char buffer[40];
@@ -138,6 +147,8 @@ static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 	if (emit_string(emitter, "element_type") < 0)
 		return -1;
 	if (emit_string(emitter, array->element_type) < 0)
+		return -1;
+	if (emit_named_int(emitter, "element_size", array->element_size) < 0)
 		return -1;
 
 	if (array->live_out) {

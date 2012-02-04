@@ -737,6 +737,8 @@ void pet_scop_dump(struct pet_scop *scop)
 }
 
 /* Return 1 if the two pet_arrays are equivalent.
+ *
+ * We don't compare element_size as this may be target dependent.
  */
 int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 {
