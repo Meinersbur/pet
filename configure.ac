@@ -58,11 +58,11 @@ AC_EGREP_HEADER([CXXIsProduction], [clang/Driver/Driver.h],
 		[Define if Driver constructor takes CXXIsProduction argument])])
 AC_EGREP_HEADER([void HandleTopLevelDecl\(], [clang/AST/ASTConsumer.h],
 	[AC_DEFINE([HandleTopLevelDeclReturn], [void],
-		   [Return type of HandleTopLevelDeclReturn]),
+		   [Return type of HandleTopLevelDeclReturn])
 	 AC_DEFINE([HandleTopLevelDeclContinue], [],
 		   [Return type of HandleTopLevelDeclReturn])],
 	[AC_DEFINE([HandleTopLevelDeclReturn], [bool],
-		   [Return type of HandleTopLevelDeclReturn]),
+		   [Return type of HandleTopLevelDeclReturn])
 	 AC_DEFINE([HandleTopLevelDeclContinue], [true],
 		   [Return type of HandleTopLevelDeclReturn])])
 AC_LANG_POP
