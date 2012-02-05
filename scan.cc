@@ -52,6 +52,20 @@
 using namespace std;
 using namespace clang;
 
+#ifdef DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION
+static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
+{
+	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
+		SourceLocation(), var, var->getInnerLocStart(), var->getType(),
+		VK_LValue);
+}
+#else
+static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
+{
+	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
+		var, var->getInnerLocStart(), var->getType(), VK_LValue);
+}
+#endif
 
 /* Check if the element type corresponding to the given array type
  * has a const qualifier.
@@ -2030,9 +2044,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 			return NULL;
 		iv = var;
 		rhs = var->getInit();
-		lhs = DeclRefExpr::Create(iv->getASTContext(),
-			var->getQualifierLoc(), iv, var->getInnerLocStart(),
-			var->getType(), VK_LValue);
+		lhs = create_DeclRefExpr(var);
 	} else {
 		unsupported(stmt->getInit());
 		return NULL;
