@@ -423,7 +423,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine_div(BinaryOperator *expr)
 
 	lhs_f = isl_pw_aff_floor(isl_pw_aff_copy(lhs));
 	lhs_c = isl_pw_aff_ceil(lhs);
-	res = isl_pw_aff_cond(cond, lhs_f, lhs_c);
+	res = isl_pw_aff_cond(isl_set_indicator_function(cond), lhs_f, lhs_c);
 
 	return res;
 }
@@ -458,7 +458,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine_mod(BinaryOperator *expr)
 
 	lhs_f = isl_pw_aff_floor(isl_pw_aff_copy(res));
 	lhs_c = isl_pw_aff_ceil(res);
-	res = isl_pw_aff_cond(cond, lhs_f, lhs_c);
+	res = isl_pw_aff_cond(isl_set_indicator_function(cond), lhs_f, lhs_c);
 
 	res = isl_pw_aff_scale(res, v);
 	isl_int_clear(v);
@@ -544,8 +544,8 @@ __isl_give isl_pw_aff *PetScan::extract_implicit_affine(Expr *expr)
 	isl_aff *zero = isl_aff_zero_on_domain(isl_local_space_copy(ls));
 	isl_aff *one = isl_aff_zero_on_domain(ls);
 	one = isl_aff_add_constant_si(one, 1);
-	return isl_pw_aff_cond(cond, isl_pw_aff_from_aff(one),
-					isl_pw_aff_from_aff(zero));
+	return isl_pw_aff_cond(isl_set_indicator_function(cond),
+		isl_pw_aff_from_aff(one), isl_pw_aff_from_aff(zero));
 }
 
 /* Extract an affine expression from some binary operations.
@@ -720,7 +720,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ConditionalOperator *expr)
 	lhs = extract_affine(expr->getTrueExpr());
 	rhs = extract_affine(expr->getFalseExpr());
 
-	return isl_pw_aff_cond(cond, lhs, rhs);
+	return isl_pw_aff_cond(isl_set_indicator_function(cond), lhs, rhs);
 }
 
 /* Extract an affine expression, if possible, from "expr".
