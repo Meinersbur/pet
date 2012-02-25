@@ -612,8 +612,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
 	case BO_NE:
 	case BO_LAnd:
 	case BO_LOr:
-		res = extract_condition(expr);
-		break;
+		return extract_condition(expr);
 	default:
 		unsupported(expr);
 		return NULL;
