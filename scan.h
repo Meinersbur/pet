@@ -163,8 +163,8 @@ private:
 	__isl_give isl_pw_aff *try_extract_affine(clang::Expr *expr);
 	bool is_affine(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
-	__isl_give isl_set *try_extract_nested_condition(clang::Expr *expr);
-	bool is_nested_allowed(__isl_keep isl_set *set, pet_scop *scop);
+	__isl_give isl_pw_aff *try_extract_nested_condition(clang::Expr *expr);
+	bool is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop);
 
 	__isl_give isl_pw_aff *extract_affine(const llvm::APInt &val);
 	__isl_give isl_pw_aff *extract_affine(clang::Expr *expr);
@@ -178,16 +178,15 @@ private:
 	__isl_give isl_pw_aff *extract_affine(clang::ArraySubscriptExpr *expr);
 	__isl_give isl_pw_aff *extract_affine(clang::ConditionalOperator *expr);
 
-	__isl_give isl_pw_aff *extract_implicit_affine(clang::Expr *expr);
-	__isl_give isl_set *extract_implicit_condition(clang::Expr *expr);
+	__isl_give isl_pw_aff *extract_implicit_condition(clang::Expr *expr);
 
-	__isl_give isl_set *extract_condition(clang::UnaryOperator *expr);
-	__isl_give isl_set *extract_condition(clang::Expr *expr);
-	__isl_give isl_set *extract_comparison(clang::BinaryOperator *expr);
-	__isl_give isl_set *extract_comparison(clang::BinaryOperatorKind op,
+	__isl_give isl_pw_aff *extract_condition(clang::UnaryOperator *expr);
+	__isl_give isl_pw_aff *extract_condition(clang::Expr *expr);
+	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperator *expr);
+	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperatorKind op,
 		clang::Expr *LHS, clang::Expr *RHS, clang::Stmt *comp);
-	__isl_give isl_set *extract_boolean(clang::BinaryOperator *expr);
-	__isl_give isl_set *extract_boolean(clang::UnaryOperator *expr);
+	__isl_give isl_pw_aff *extract_boolean(clang::BinaryOperator *expr);
+	__isl_give isl_pw_aff *extract_boolean(clang::UnaryOperator *expr);
 
 	void unsupported(clang::Stmt *stmt, const char *msg = NULL);
 };

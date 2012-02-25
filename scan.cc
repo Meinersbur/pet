@@ -571,13 +571,15 @@ static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
 	return pwaff;
 }
 
-/* Extract an affine expression from a boolean expression.
- * In particular, return the expression "expr ? 1 : 0".
+/* Return the piecewise affine expression "set ? 1 : 0" defined on "dom".
  */
-__isl_give isl_pw_aff *PetScan::extract_implicit_affine(Expr *expr)
+static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
+	__isl_take isl_set *dom)
 {
-	isl_set *cond = extract_condition(expr);
-	return isl_set_indicator_function(cond);
+	isl_pw_aff *pa;
+	pa = isl_set_indicator_function(set);
+	pa = isl_pw_aff_intersect_domain(pa, dom);
+	return pa;
 }
 
 /* Extract an affine expression from some binary operations.
@@ -610,7 +612,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
 	case BO_NE:
 	case BO_LAnd:
 	case BO_LOr:
-		res = extract_implicit_affine(expr);
+		res = extract_condition(expr);
 		break;
 	default:
 		unsupported(expr);
@@ -630,7 +632,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(UnaryOperator *expr)
 	if (expr->getOpcode() == UO_Minus)
 		return isl_pw_aff_neg(extract_affine(expr->getSubExpr()));
 	if (expr->getOpcode() == UO_LNot)
-		return extract_implicit_affine(expr);
+		return extract_condition(expr);
 
 	unsupported(expr);
 	return NULL;
@@ -745,14 +747,13 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ArraySubscriptExpr *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(ConditionalOperator *expr)
 {
-	isl_set *cond;
-	isl_pw_aff *lhs, *rhs;
+	isl_pw_aff *cond, *lhs, *rhs, *res;
 
 	cond = extract_condition(expr->getCond());
 	lhs = extract_affine(expr->getTrueExpr());
 	rhs = extract_affine(expr->getFalseExpr());
 
-	return isl_pw_aff_cond(isl_set_indicator_function(cond), lhs, rhs);
+	return isl_pw_aff_cond(cond, lhs, rhs);
 }
 
 /* Extract an affine expression, if possible, from "expr".
@@ -979,7 +980,42 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
 	return is_minmax(expr, "max", lhs, rhs);
 }
 
-/* Extract a set of values satisfying the comparison "LHS op RHS"
+/* Return "lhs && rhs", defined on the shared definition domain.
+ */
+static __isl_give isl_pw_aff *pw_aff_and(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	isl_set *cond;
+	isl_set *dom;
+
+	dom = isl_set_intersect(isl_pw_aff_domain(isl_pw_aff_copy(lhs)),
+				 isl_pw_aff_domain(isl_pw_aff_copy(rhs)));
+	cond = isl_set_intersect(isl_pw_aff_non_zero_set(lhs),
+				 isl_pw_aff_non_zero_set(rhs));
+	return indicator_function(cond, dom);
+}
+
+/* Return "lhs && rhs", with shortcut semantics.
+ * That is, if lhs is false, then the result is defined even if rhs is not.
+ * In practice, we compute lhs ? rhs : lhs.
+ */
+static __isl_give isl_pw_aff *pw_aff_and_then(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	return isl_pw_aff_cond(isl_pw_aff_copy(lhs), rhs, lhs);
+}
+
+/* Return "lhs || rhs", with shortcut semantics.
+ * That is, if lhs is true, then the result is defined even if rhs is not.
+ * In practice, we compute lhs ? lhs : rhs.
+ */
+static __isl_give isl_pw_aff *pw_aff_or_else(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	return isl_pw_aff_cond(isl_pw_aff_copy(lhs), lhs, rhs);
+}
+
+/* Extract an affine expressions representing the comparison "LHS op RHS"
  * "comp" is the original statement that "LHS op RHS" is derived from
  * and is used for diagnostics.
  *
@@ -987,22 +1023,25 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
  *
  *	a <= min(b,c)
  *
- * then the set is constructed as the intersection of the set corresponding
- * to the comparisons
+ * then the expression is constructed as the conjunction of
+ * the comparisons
  *
  *	a <= b		and		a <= c
  *
  * A similar optimization is performed for max(a,b) <= c.
- * We do this because that will lead to simpler representations of the set.
+ * We do this because that will lead to simpler representations
+ * of the expression.
  * If isl is ever enhanced to explicitly deal with min and max expressions,
  * this optimization can be removed.
  */
-__isl_give isl_set *PetScan::extract_comparison(BinaryOperatorKind op,
+__isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
 	Expr *LHS, Expr *RHS, Stmt *comp)
 {
 	isl_pw_aff *lhs;
 	isl_pw_aff *rhs;
+	isl_pw_aff *res;
 	isl_set *cond;
+	isl_set *dom;
 
 	if (op == BO_GT)
 		return extract_comparison(BO_LT, RHS, LHS, comp);
@@ -1011,21 +1050,23 @@ __isl_give isl_set *PetScan::extract_comparison(BinaryOperatorKind op,
 
 	if (op == BO_LT || op == BO_LE) {
 		Expr *expr1, *expr2;
-		isl_set *set1, *set2;
 		if (is_min(RHS, expr1, expr2)) {
-			set1 = extract_comparison(op, LHS, expr1, comp);
-			set2 = extract_comparison(op, LHS, expr2, comp);
-			return isl_set_intersect(set1, set2);
+			lhs = extract_comparison(op, LHS, expr1, comp);
+			rhs = extract_comparison(op, LHS, expr2, comp);
+			return pw_aff_and(lhs, rhs);
 		}
 		if (is_max(LHS, expr1, expr2)) {
-			set1 = extract_comparison(op, expr1, RHS, comp);
-			set2 = extract_comparison(op, expr2, RHS, comp);
-			return isl_set_intersect(set1, set2);
+			lhs = extract_comparison(op, expr1, RHS, comp);
+			rhs = extract_comparison(op, expr2, RHS, comp);
+			return pw_aff_and(lhs, rhs);
 		}
 	}
 
 	lhs = extract_affine(LHS);
 	rhs = extract_affine(RHS);
+
+	dom = isl_pw_aff_domain(isl_pw_aff_copy(lhs));
+	dom = isl_set_intersect(dom, isl_pw_aff_domain(isl_pw_aff_copy(rhs)));
 
 	switch (op) {
 	case BO_LT:
@@ -1043,63 +1084,67 @@ __isl_give isl_set *PetScan::extract_comparison(BinaryOperatorKind op,
 	default:
 		isl_pw_aff_free(lhs);
 		isl_pw_aff_free(rhs);
+		isl_set_free(dom);
 		unsupported(comp);
 		return NULL;
 	}
 
 	cond = isl_set_coalesce(cond);
+	res = indicator_function(cond, dom);
 
-	return cond;
+	return res;
 }
 
-__isl_give isl_set *PetScan::extract_comparison(BinaryOperator *comp)
+__isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp)
 {
 	return extract_comparison(comp->getOpcode(), comp->getLHS(),
 				comp->getRHS(), comp);
 }
 
-/* Extract a set of values satisfying the negation (logical not)
+/* Extract an affine expression representing the negation (logical not)
  * of a subexpression.
  */
-__isl_give isl_set *PetScan::extract_boolean(UnaryOperator *op)
+__isl_give isl_pw_aff *PetScan::extract_boolean(UnaryOperator *op)
 {
-	isl_set *cond;
+	isl_set *set_cond, *dom;
+	isl_pw_aff *cond, *res;
 
 	cond = extract_condition(op->getSubExpr());
 
-	return isl_set_complement(cond);
+	dom = isl_pw_aff_domain(isl_pw_aff_copy(cond));
+
+	set_cond = isl_pw_aff_zero_set(cond);
+
+	res = indicator_function(set_cond, dom);
+
+	return res;
 }
 
-/* Extract a set of values satisfying the union (logical or)
- * or intersection (logical and) of two subexpressions.
+/* Extract an affine expression representing the disjunction (logical or)
+ * or conjunction (logical and) of two subexpressions.
  */
-__isl_give isl_set *PetScan::extract_boolean(BinaryOperator *comp)
+__isl_give isl_pw_aff *PetScan::extract_boolean(BinaryOperator *comp)
 {
-	isl_set *lhs;
-	isl_set *rhs;
-	isl_set *cond;
+	isl_pw_aff *lhs, *rhs;
 
 	lhs = extract_condition(comp->getLHS());
 	rhs = extract_condition(comp->getRHS());
 
 	switch (comp->getOpcode()) {
 	case BO_LAnd:
-		cond = isl_set_intersect(lhs, rhs);
-		break;
+		return pw_aff_and_then(lhs, rhs);
 	case BO_LOr:
-		cond = isl_set_union(lhs, rhs);
-		break;
+		return pw_aff_or_else(lhs, rhs);
 	default:
-		isl_set_free(lhs);
-		isl_set_free(rhs);
-		unsupported(comp);
-		return NULL;
+		isl_pw_aff_free(lhs);
+		isl_pw_aff_free(rhs);
 	}
 
-	return cond;
+	unsupported(comp);
+	return NULL;
 }
 
-__isl_give isl_set *PetScan::extract_condition(UnaryOperator *expr)
+__isl_give isl_pw_aff *PetScan::extract_condition(UnaryOperator *expr)
 {
 	switch (expr->getOpcode()) {
 	case UO_LNot:
@@ -1110,24 +1155,37 @@ __isl_give isl_set *PetScan::extract_condition(UnaryOperator *expr)
 	}
 }
 
-/* Extract a set of values satisfying the condition "expr != 0".
+/* Extract the affine expression "expr != 0 ? 1 : 0".
  */
-__isl_give isl_set *PetScan::extract_implicit_condition(Expr *expr)
+__isl_give isl_pw_aff *PetScan::extract_implicit_condition(Expr *expr)
 {
-	return isl_pw_aff_non_zero_set(extract_affine(expr));
+	isl_pw_aff *res;
+	isl_set *set, *dom;
+
+	res = extract_affine(expr);
+
+	dom = isl_pw_aff_domain(isl_pw_aff_copy(res));
+	set = isl_pw_aff_non_zero_set(res);
+
+	res = indicator_function(set, dom);
+
+	return res;
 }
 
-/* Extract a set of values satisfying the condition expressed by "expr".
+/* Extract an affine expression from a boolean expression.
+ * In particular, return the expression "expr ? 1 : 0".
  *
  * If the expression doesn't look like a condition, we assume it
- * is an affine expression and return the condition "expr != 0".
+ * is an affine expression and return the condition "expr != 0 ? 1 : 0".
  */
-__isl_give isl_set *PetScan::extract_condition(Expr *expr)
+__isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 {
 	BinaryOperator *comp;
 
-	if (!expr)
-		return isl_set_universe(isl_space_params_alloc(ctx, 0));
+	if (!expr) {
+		isl_set *u = isl_set_universe(isl_space_params_alloc(ctx, 0));
+		return indicator_function(u, isl_set_copy(u));
+	}
 
 	if (expr->getStmtClass() == Stmt::ParenExprClass)
 		return extract_condition(cast<ParenExpr>(expr)->getSubExpr());
@@ -1819,7 +1877,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		return NULL;
 	}
 
-	set = extract_condition(cond);
+	set = isl_pw_aff_non_zero_set(extract_condition(cond));
 	is_universe = isl_set_plain_is_universe(set);
 	isl_set_free(set);
 
@@ -2053,6 +2111,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool is_simple;
 	bool is_virtual;
 	isl_map *wrap = NULL;
+	isl_pw_aff *pa;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -2096,22 +2155,24 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	scop = extract(stmt->getBody());
 
-	cond = try_extract_nested_condition(stmt->getCond());
-	if (cond && !is_nested_allowed(cond, scop)) {
-		isl_set_free(cond);
-		cond = NULL;
+	pa = try_extract_nested_condition(stmt->getCond());
+	if (pa && !is_nested_allowed(pa, scop)) {
+		isl_pw_aff_free(pa);
+		pa = NULL;
 	}
 
-	if (!cond)
-		cond = extract_condition(stmt->getCond());
+	if (!pa)
+		pa = extract_condition(stmt->getCond());
+	cond = isl_pw_aff_non_zero_set(pa);
 	cond = embed(cond, isl_id_copy(id));
 	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 
-	if (is_one && !is_virtual)
-		domain = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
+	if (is_one && !is_virtual) {
+		pa = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
 				lhs, rhs, init);
-	else {
+		domain = isl_pw_aff_non_zero_set(pa);
+	} else {
 		isl_pw_aff *lb = extract_affine(rhs);
 		domain = strided_domain(isl_id_copy(id), lb, inc);
 	}
@@ -2437,42 +2498,42 @@ bool PetScan::is_affine(Expr *expr)
  */
 bool PetScan::is_affine_condition(Expr *expr)
 {
-	isl_set *set;
+	isl_pw_aff *cond;
 	int save_autodetect = autodetect;
 	bool save_nesting = nesting_enabled;
 
 	autodetect = 1;
 	nesting_enabled = false;
 
-	set = extract_condition(expr);
-	isl_set_free(set);
+	cond = extract_condition(expr);
+	isl_pw_aff_free(cond);
 
 	autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
 
-	return set != NULL;
+	return cond != NULL;
 }
 
 /* Check if we can extract a condition from "expr".
- * Return the condition as an isl_set if we can and NULL otherwise.
+ * Return the condition as an isl_pw_aff if we can and NULL otherwise.
  * If allow_nested is set, then the condition may involve parameters
  * corresponding to nested accesses.
  * We turn on autodetection so that we won't generate any warnings.
  */
-__isl_give isl_set *PetScan::try_extract_nested_condition(Expr *expr)
+__isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr)
 {
-	isl_set *set;
+	isl_pw_aff *cond;
 	int save_autodetect = autodetect;
 	bool save_nesting = nesting_enabled;
 
 	autodetect = 1;
 	nesting_enabled = allow_nested;
-	set = extract_condition(expr);
+	cond = extract_condition(expr);
 
 	autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
 
-	return set;
+	return cond;
 }
 
 /* If the top-level expression of "stmt" is an assignment, then
@@ -2544,7 +2605,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	}
 
 	nesting_enabled = allow_nested;
-	cond = extract_condition(stmt->getCond());
+	cond = isl_pw_aff_non_zero_set(extract_condition(stmt->getCond()));
 	nesting_enabled = save_nesting;
 	comp = isl_set_complement(isl_set_copy(cond));
 	map_true = isl_map_from_domain(isl_set_from_params(isl_set_copy(cond)));
@@ -2904,15 +2965,15 @@ static bool has_nested(__isl_keep isl_space *space)
 	return false;
 }
 
-/* Does "set" involve any parameters that refer to nested
+/* Does "pa" involve any parameters that refer to nested
  * accesses, i.e., parameters with no name?
  */
-static bool has_nested(__isl_keep isl_set *set)
+static bool has_nested(__isl_keep isl_pw_aff *pa)
 {
 	isl_space *space;
 	bool nested;
 
-	space = isl_set_get_space(set);
+	space = isl_pw_aff_get_space(pa);
 	nested = has_nested(space);
 	isl_space_free(space);
 
@@ -2934,17 +2995,17 @@ static bool is_assigned(pet_expr *expr, pet_scop *scop)
 	return assigned;
 }
 
-/* Are all nested access parameters in "set" allowed given "scop".
+/* Are all nested access parameters in "pa" allowed given "scop".
  * In particular, is none of them written by anywhere inside "scop".
  */
-bool PetScan::is_nested_allowed(__isl_keep isl_set *set, pet_scop *scop)
+bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 {
 	int nparam;
 
-	nparam = isl_set_dim(set, isl_dim_param);
+	nparam = isl_pw_aff_dim(pa, isl_dim_param);
 	for (int i = 0; i < nparam; ++i) {
 		Expr *nested;
-		isl_id *id = isl_set_get_dim_id(set, isl_dim_param, i);
+		isl_id *id = isl_pw_aff_get_dim_id(pa, isl_dim_param, i);
 		pet_expr *expr;
 		bool allowed;
 
@@ -3006,7 +3067,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	struct pet_scop *scop_then, *scop_else, *scop;
 	assigned_value_cache cache(assigned_value);
 	isl_map *test_access = NULL;
-	isl_set *cond;
+	isl_pw_aff *cond;
 	int stmt_id;
 
 	scop = extract_conditional_assignment(stmt);
@@ -3024,12 +3085,12 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		if (autodetect) {
 			if (scop_then && !scop_else) {
 				partial = true;
-				isl_set_free(cond);
+				isl_pw_aff_free(cond);
 				return scop_then;
 			}
 			if (!scop_then && scop_else) {
 				partial = true;
-				isl_set_free(cond);
+				isl_pw_aff_free(cond);
 				return scop_else;
 			}
 		}
@@ -3038,7 +3099,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	if (cond &&
 	    (!is_nested_allowed(cond, scop_then) ||
 	     (stmt->getElse() && !is_nested_allowed(cond, scop_else)))) {
-		isl_set_free(cond);
+		isl_pw_aff_free(cond);
 		cond = NULL;
 	}
 	if (allow_nested && !cond) {
@@ -3058,16 +3119,19 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	}
 
 	if (!scop) {
+		isl_set *set;
+
 		if (!cond)
 			cond = extract_condition(stmt->getCond());
-		scop = pet_scop_restrict(scop_then, isl_set_copy(cond));
+		set = isl_pw_aff_non_zero_set(cond);
+		scop = pet_scop_restrict(scop_then, isl_set_copy(set));
 
 		if (stmt->getElse()) {
-			cond = isl_set_complement(cond);
-			scop_else = pet_scop_restrict(scop_else, cond);
+			set = isl_set_complement(set);
+			scop_else = pet_scop_restrict(scop_else, set);
 			scop = pet_scop_add(ctx, scop, scop_else);
 		} else
-			isl_set_free(cond);
+			isl_set_free(set);
 		scop = resolve_nested(scop);
 	} else {
 		scop = pet_scop_prefix(scop, 0);
