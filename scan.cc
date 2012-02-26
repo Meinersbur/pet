@@ -539,13 +539,7 @@ static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
 __isl_give isl_pw_aff *PetScan::extract_implicit_affine(Expr *expr)
 {
 	isl_set *cond = extract_condition(expr);
-	isl_space *space = isl_set_get_space(cond);
-	isl_local_space *ls = isl_local_space_from_space(space);
-	isl_aff *zero = isl_aff_zero_on_domain(isl_local_space_copy(ls));
-	isl_aff *one = isl_aff_zero_on_domain(ls);
-	one = isl_aff_add_constant_si(one, 1);
-	return isl_pw_aff_cond(isl_set_indicator_function(cond),
-		isl_pw_aff_from_aff(one), isl_pw_aff_from_aff(zero));
+	return isl_set_indicator_function(cond);
 }
 
 /* Extract an affine expression from some binary operations.
