@@ -118,12 +118,15 @@ AM_CONDITIONAL(BUNDLED_ISL, test $with_isl = bundled)
 
 AC_SUBST(ISL_CFLAGS)
 AC_SUBST(ISL_LIBS)
+AC_SUBST(ISL_SRCDIR)
 case "$with_isl" in
 bundled)
 	ISL_CFLAGS="-I\$(top_srcdir)/isl/include -I\$(top_builddir)/isl/include"
 	ISL_CFLAGS="$ISL_CFLAGS $GMP_CPPFLAGS"
+	ISL_SRCDIR="$srcdir/isl"
 	;;
 build)
+	ISL_SRCDIR="$isl_srcdir"
 	ISL_BUILDDIR=`echo @abs_builddir@ | $with_isl_builddir/config.status --file=-`
 	ISL_CFLAGS="-I$isl_srcdir/include -I$ISL_BUILDDIR/include"
 	ISL_CFLAGS="$ISL_CFLAGS $GMP_CPPFLAGS"
@@ -160,6 +163,9 @@ if test "$with_libyaml" != "no"; then
 	extra_noinst_programs="pet_scop_cmp"
 	extra_tests="pet_test.sh"
 fi
+if test "$with_isl" != "system"; then
+	extra_tests="$extra_tests codegen_test.sh"
+fi
 
 PACKAGE_CFLAGS="$PACKAGE_CFLAGS_ISL"
 PACKAGE_LIBS="-lpet -lisl"
@@ -171,6 +177,7 @@ echo '#define GIT_HEAD_ID "'$GIT_HEAD_ID'"' > gitversion.h
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_FILES([pet_test.sh], [chmod +x pet_test.sh])
+AC_CONFIG_FILES([codegen_test.sh], [chmod +x codegen_test.sh])
 if test $with_isl = bundled; then
 	AC_CONFIG_SUBDIRS(isl)
 fi
