@@ -2701,7 +2701,7 @@ int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id)
 	return 0;
 }
 
-/* Reset the user pointer on all parameter ids in "set".
+/* Reset the user pointer on the tuple id and all parameter ids in "set".
  */
 static __isl_give isl_set *set_anonymize(__isl_take isl_set *set)
 {
@@ -2715,10 +2715,17 @@ static __isl_give isl_set *set_anonymize(__isl_take isl_set *set)
 		isl_id_free(id);
 	}
 
+	if (!isl_set_is_params(set) && isl_set_has_tuple_id(set)) {
+		isl_id *id = isl_set_get_tuple_id(set);
+		const char *name = isl_id_get_name(id);
+		set = isl_set_set_tuple_name(set, name);
+		isl_id_free(id);
+	}
+
 	return set;
 }
 
-/* Reset the user pointer on all parameter ids in "map".
+/* Reset the user pointer on the tuple ids and all parameter ids in "map".
  */
 static __isl_give isl_map *map_anonymize(__isl_take isl_map *map)
 {
@@ -2729,6 +2736,20 @@ static __isl_give isl_map *map_anonymize(__isl_take isl_map *map)
 		isl_id *id = isl_map_get_dim_id(map, isl_dim_param, i);
 		const char *name = isl_id_get_name(id);
 		map = isl_map_set_dim_name(map, isl_dim_param, i, name);
+		isl_id_free(id);
+	}
+
+	if (isl_map_has_tuple_id(map, isl_dim_in)) {
+		isl_id *id = isl_map_get_tuple_id(map, isl_dim_in);
+		const char *name = isl_id_get_name(id);
+		map = isl_map_set_tuple_name(map, isl_dim_in, name);
+		isl_id_free(id);
+	}
+
+	if (isl_map_has_tuple_id(map, isl_dim_out)) {
+		isl_id *id = isl_map_get_tuple_id(map, isl_dim_out);
+		const char *name = isl_id_get_name(id);
+		map = isl_map_set_tuple_name(map, isl_dim_out, name);
 		isl_id_free(id);
 	}
 
@@ -2750,7 +2771,7 @@ static struct pet_array *array_anonymize(struct pet_array *array)
 	return array;
 }
 
-/* Reset the user pointer on all parameter ids in "access".
+/* Reset the user pointer on all parameter and tuple ids in "access".
  */
 static __isl_give isl_map *access_anonymize(__isl_take isl_map *access,
 	void *user)
@@ -2760,7 +2781,7 @@ static __isl_give isl_map *access_anonymize(__isl_take isl_map *access,
 	return access;
 }
 
-/* Reset the user pointer on all parameter ids in "stmt".
+/* Reset the user pointer on all parameter and tuple ids in "stmt".
  */
 static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 {
@@ -2791,7 +2812,7 @@ static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 	return stmt;
 }
 
-/* Reset the user pointer on all parameter ids in "scop".
+/* Reset the user pointer on all parameter and tuple ids in "scop".
  */
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 {
