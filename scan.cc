@@ -1721,10 +1721,10 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 	clang::ValueDecl *iv, isl_int &inc)
 {
-	Expr *lhs, *rhs;
+	Expr *lhs;
 	DeclRefExpr *ref;
 	bool neg = false;
-
+	isl_pw_aff *val;
 	BinaryOperatorKind opcode;
 
 	opcode = op->getOpcode();
@@ -1747,28 +1747,17 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 		return false;
 	}
 
-	rhs = op->getRHS();
+	val = extract_affine(op->getRHS());
 
-	if (rhs->getStmtClass() == Stmt::UnaryOperatorClass) {
-		UnaryOperator *op = cast<UnaryOperator>(rhs);
-		if (op->getOpcode() != UO_Minus) {
-			unsupported(op);
-			return false;
-		}
-
-		neg = !neg;
-
-		rhs = op->getSubExpr();
-	}
-
-	if (rhs->getStmtClass() != Stmt::IntegerLiteralClass) {
+	if (isl_pw_aff_foreach_piece(val, &extract_cst, &inc) < 0) {
+		isl_pw_aff_free(val);
 		unsupported(op);
 		return false;
 	}
-
-	extract_int(cast<IntegerLiteral>(rhs), &inc);
 	if (neg)
 		isl_int_neg(inc, inc);
+
+	isl_pw_aff_free(val);
 
 	return true;
 }
