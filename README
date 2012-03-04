@@ -22,6 +22,9 @@ Requirements:
 	You will then have to add this option manually to CXXFLAGS while
 	configuring pet.
 
+	The ubuntu package libclang-dev (3.0-3) is not sufficient as it does
+	not contain the required libraries.
+
 Preparing:
 
 Grab the latest release and extract it or get the source from
