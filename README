@@ -15,6 +15,13 @@ Requirements:
 	(through "make install").  You may want to specify an installation
 	directory using the --prefix configure option.
 
+	If you configure LLVM using cmake, you may end up with clang libraries
+	that have been compiled with -fno-rtti without this option appearing
+	in the output of "llvm-config --cxxflags".  You may then run into
+	errors about undefined reference to the 'typeinfo' of some classes.
+	You will then have to add this option manually to CXXFLAGS while
+	configuring pet.
+
 Preparing:
 
 Grab the latest release and extract it or get the source from
