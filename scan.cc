@@ -1603,37 +1603,42 @@ VarDecl *PetScan::extract_induction_variable(Stmt *init, Decl *decl)
 }
 
 /* Check that op is of the form iv++ or iv--.
- * "inc" is accordingly set to 1 or -1.
+ * Return an affine expression "1" or "-1" accordingly.
  */
-bool PetScan::check_unary_increment(UnaryOperator *op, clang::ValueDecl *iv,
-	isl_int &inc)
+__isl_give isl_pw_aff *PetScan::extract_unary_increment(
+	clang::UnaryOperator *op, clang::ValueDecl *iv)
 {
 	Expr *sub;
 	DeclRefExpr *ref;
+	isl_space *space;
+	isl_aff *aff;
 
 	if (!op->isIncrementDecrementOp()) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
-
-	if (op->isIncrementOp())
-		isl_int_set_si(inc, 1);
-	else
-		isl_int_set_si(inc, -1);
 
 	sub = op->getSubExpr();
 	if (sub->getStmtClass() != Stmt::DeclRefExprClass) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
 	ref = cast<DeclRefExpr>(sub);
 	if (ref->getDecl() != iv) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
-	return true;
+	space = isl_space_params_alloc(ctx, 0);
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
+
+	if (op->isIncrementOp())
+		aff = isl_aff_add_constant_si(aff, 1);
+	else
+		aff = isl_aff_add_constant_si(aff, -1);
+
+	return isl_pw_aff_from_aff(aff);
 }
 
 /* If the isl_pw_aff on which isl_pw_aff_foreach_piece is called
@@ -1661,13 +1666,13 @@ static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
  *
  *	iv = iv + inc
  *
- * with inc a constant and set "inc" accordingly.
+ * and return inc as an affine expression.
  *
- * We extract an affine expression from the RHS and the subtract iv.
- * The result should be a constant.
+ * We extract an affine expression from the RHS, subtract iv and return
+ * the result.
  */
-bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
-	isl_int &inc)
+__isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
+	clang::ValueDecl *iv)
 {
 	Expr *lhs;
 	DeclRefExpr *ref;
@@ -1678,19 +1683,19 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 
 	if (op->getOpcode() != BO_Assign) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
 	lhs = op->getLHS();
 	if (lhs->getStmtClass() != Stmt::DeclRefExprClass) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
 	ref = cast<DeclRefExpr>(lhs);
 	if (ref->getDecl() != iv) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
 	val = extract_affine(op->getRHS());
@@ -1704,22 +1709,14 @@ bool PetScan::check_binary_increment(BinaryOperator *op, clang::ValueDecl *iv,
 
 	val = isl_pw_aff_sub(val, isl_pw_aff_from_aff(aff));
 
-	if (isl_pw_aff_foreach_piece(val, &extract_cst, &inc) < 0) {
-		isl_pw_aff_free(val);
-		unsupported(op);
-		return false;
-	}
-
-	isl_pw_aff_free(val);
-
-	return true;
+	return val;
 }
 
-/* Check that op is of the form iv += cst or iv -= cst.
- * "inc" is set to cst or -cst accordingly.
+/* Check that op is of the form iv += cst or iv -= cst
+ * and return an affine expression corresponding oto cst or -cst accordingly.
  */
-bool PetScan::check_compound_increment(CompoundAssignOperator *op,
-	clang::ValueDecl *iv, isl_int &inc)
+__isl_give isl_pw_aff *PetScan::extract_compound_increment(
+	CompoundAssignOperator *op, clang::ValueDecl *iv)
 {
 	Expr *lhs;
 	DeclRefExpr *ref;
@@ -1730,7 +1727,7 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 	opcode = op->getOpcode();
 	if (opcode != BO_AddAssign && opcode != BO_SubAssign) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 	if (opcode == BO_SubAssign)
 		neg = true;
@@ -1738,53 +1735,46 @@ bool PetScan::check_compound_increment(CompoundAssignOperator *op,
 	lhs = op->getLHS();
 	if (lhs->getStmtClass() != Stmt::DeclRefExprClass) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
 	ref = cast<DeclRefExpr>(lhs);
 	if (ref->getDecl() != iv) {
 		unsupported(op);
-		return false;
+		return NULL;
 	}
 
 	val = extract_affine(op->getRHS());
-
-	if (isl_pw_aff_foreach_piece(val, &extract_cst, &inc) < 0) {
-		isl_pw_aff_free(val);
-		unsupported(op);
-		return false;
-	}
 	if (neg)
-		isl_int_neg(inc, inc);
+		val = isl_pw_aff_neg(val);
 
-	isl_pw_aff_free(val);
-
-	return true;
+	return val;
 }
 
 /* Check that the increment of the given for loop increments
- * (or decrements) the induction variable "iv".
- * "up" is set to true if the induction variable is incremented.
+ * (or decrements) the induction variable "iv" and return
+ * the increment as an affine expression if successful.
  */
-bool PetScan::check_increment(ForStmt *stmt, ValueDecl *iv, isl_int &v)
+__isl_give isl_pw_aff *PetScan::extract_increment(clang::ForStmt *stmt,
+	ValueDecl *iv)
 {
 	Stmt *inc = stmt->getInc();
 
 	if (!inc) {
 		unsupported(stmt);
-		return false;
+		return NULL;
 	}
 
 	if (inc->getStmtClass() == Stmt::UnaryOperatorClass)
-		return check_unary_increment(cast<UnaryOperator>(inc), iv, v);
+		return extract_unary_increment(cast<UnaryOperator>(inc), iv);
 	if (inc->getStmtClass() == Stmt::CompoundAssignOperatorClass)
-		return check_compound_increment(
-				cast<CompoundAssignOperator>(inc), iv, v);
+		return extract_compound_increment(
+				cast<CompoundAssignOperator>(inc), iv);
 	if (inc->getStmtClass() == Stmt::BinaryOperatorClass)
-		return check_binary_increment(cast<BinaryOperator>(inc), iv, v);
+		return extract_binary_increment(cast<BinaryOperator>(inc), iv);
 
 	unsupported(inc);
-	return false;
+	return NULL;
 }
 
 /* Embed the given iteration domain in an extra outer loop
@@ -2108,7 +2098,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool is_simple;
 	bool is_virtual;
 	isl_map *wrap = NULL;
-	isl_pw_aff *pa;
+	isl_pw_aff *pa, *pa_inc;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -2136,11 +2126,18 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		return NULL;
 	}
 
+	pa_inc = extract_increment(stmt, iv);
+	if (!pa_inc)
+		return NULL;
+
 	isl_int_init(inc);
-	if (!check_increment(stmt, iv, inc)) {
+	if (isl_pw_aff_foreach_piece(pa_inc, &extract_cst, &inc) < 0) {
+		isl_pw_aff_free(pa_inc);
+		unsupported(stmt->getInc());
 		isl_int_clear(inc);
 		return NULL;
 	}
+	isl_pw_aff_free(pa_inc);
 
 	is_unsigned = iv->getType()->isUnsignedIntegerType();
 

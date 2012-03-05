@@ -110,14 +110,16 @@ private:
 	clang::ValueDecl *extract_induction_variable(clang::BinaryOperator *stmt);
 	clang::VarDecl *extract_induction_variable(clang::Stmt *init,
 				clang::Decl *stmt);
-	bool check_unary_increment(clang::UnaryOperator *op,
-				clang::ValueDecl *iv, isl_int &inc);
-	bool check_binary_increment(clang::BinaryOperator *op,
-				clang::ValueDecl *iv, isl_int &inc);
-	bool check_compound_increment(clang::CompoundAssignOperator *op,
-				clang::ValueDecl *iv, isl_int &inc);
-	bool check_increment(clang::ForStmt *stmt, clang::ValueDecl *iv,
-				isl_int &inc);
+	__isl_give isl_pw_aff *extract_unary_increment(clang::UnaryOperator *op,
+				clang::ValueDecl *iv);
+	__isl_give isl_pw_aff *extract_binary_increment(
+				clang::BinaryOperator *op,
+				clang::ValueDecl *iv);
+	__isl_give isl_pw_aff *extract_compound_increment(
+				clang::CompoundAssignOperator *op,
+				clang::ValueDecl *iv);
+	__isl_give isl_pw_aff *extract_increment(clang::ForStmt *stmt,
+				clang::ValueDecl *iv);
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
 	struct pet_scop *extract_infinite_loop(clang::Stmt *body);
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
