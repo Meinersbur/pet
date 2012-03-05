@@ -1642,8 +1642,9 @@ __isl_give isl_pw_aff *PetScan::extract_unary_increment(
 }
 
 /* If the isl_pw_aff on which isl_pw_aff_foreach_piece is called
- * has a single constant expression on a universe domain, then
- * put this constant in *user.
+ * has a single constant expression, then put this constant in *user.
+ * The caller is assumed to have checked that this function will
+ * be called exactly once.
  */
 static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
 	void *user)
@@ -1651,10 +1652,10 @@ static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
 	isl_int *inc = (isl_int *)user;
 	int res = 0;
 
-	if (!isl_set_plain_is_universe(set) || !isl_aff_is_cst(aff))
-		res = -1;
-	else
+	if (isl_aff_is_cst(aff))
 		isl_aff_get_constant(aff, inc);
+	else
+		res = -1;
 
 	isl_set_free(set);
 	isl_aff_free(aff);
@@ -2201,7 +2202,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		return NULL;
 
 	isl_int_init(inc);
-	if (isl_pw_aff_foreach_piece(pa_inc, &extract_cst, &inc) < 0) {
+	if (isl_pw_aff_n_piece(pa_inc) != 1 ||
+	    isl_pw_aff_foreach_piece(pa_inc, &extract_cst, &inc) < 0) {
 		isl_pw_aff_free(pa_inc);
 		unsupported(stmt->getInc());
 		isl_int_clear(inc);
