@@ -3024,6 +3024,50 @@ error:
 	return NULL;
 }
 
+/* Check whether any of the arguments i of "stmt" starting at position "n"
+ * is equal to one of the first "n" arguments j.
+ * If so, combine the constraints on arguments i and j and remove
+ * argument i.
+ */
+static struct pet_stmt *remove_duplicate_arguments(struct pet_stmt *stmt, int n)
+{
+	int i, j;
+	isl_map *map;
+
+	if (!stmt)
+		return NULL;
+	if (n == 0)
+		return stmt;
+	if (n == stmt->n_arg)
+		return stmt;
+
+	map = isl_set_unwrap(stmt->domain);
+
+	for (i = stmt->n_arg - 1; i >= n; --i) {
+		for (j = 0; j < n; ++j)
+			if (pet_expr_is_equal(stmt->args[i], stmt->args[j]))
+				break;
+		if (j >= n)
+			continue;
+
+		map = isl_map_equate(map, isl_dim_out, i, isl_dim_out, j);
+		map = isl_map_project_out(map, isl_dim_out, i, 1);
+
+		pet_expr_free(stmt->args[i]);
+		for (j = i; j + 1 < stmt->n_arg; ++j)
+			stmt->args[j] = stmt->args[j + 1];
+		stmt->n_arg--;
+	}
+
+	stmt->domain = isl_map_wrap(map);
+	if (!stmt->domain)
+		goto error;
+	return stmt;
+error:
+	pet_stmt_free(stmt);
+	return NULL;
+}
+
 /* Look for parameters in the iteration domain of "stmt" that
  * refer to nested accesses.  In particular, these are
  * parameters with no name.
@@ -3094,6 +3138,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 	isl_map_free(map);
 
 	stmt = remove_nested_parameters(stmt);
+	stmt = remove_duplicate_arguments(stmt, n);
 
 	return stmt;
 error:
