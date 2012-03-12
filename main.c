@@ -33,18 +33,21 @@
 
 #include <isl/arg.h>
 #include <isl/ctx.h>
+#include <isl/options.h>
 
 #include "options.h"
 #include "scop.h"
 #include "scop_yaml.h"
 
 struct options {
+	struct isl_options	*isl;
 	struct pet_options	*pet;
 	char			*input;
 };
 
 ISL_ARGS_START(struct options, options_args)
-ISL_ARG_CHILD(struct options, pet, NULL, &pet_options_args, NULL)
+ISL_ARG_CHILD(struct options, isl, "isl", &isl_options_args, "isl options")
+ISL_ARG_CHILD(struct options, pet, NULL, &pet_options_args, "pet options")
 ISL_ARG_ARG(struct options, input, "input", NULL)
 ISL_ARGS_END
 
