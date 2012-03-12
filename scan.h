@@ -91,6 +91,9 @@ private:
 		__isl_take isl_map *access);
 
 	struct pet_scop *extract_conditional_assignment(clang::IfStmt *stmt);
+	struct pet_scop *extract_non_affine_if(clang::Expr *cond,
+		struct pet_scop *scop_then, struct pet_scop *scop_else,
+		bool have_else, int stmt_id);
 
 	struct pet_scop *extract(clang::Stmt *stmt);
 	struct pet_scop *extract(clang::StmtRange stmt_range);

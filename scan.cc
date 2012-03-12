@@ -3441,6 +3441,46 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 	return true;
 }
 
+/* Construct a pet_scop for a non-affine if statement.
+ *
+ * We create a separate statement that writes the result
+ * of the non-affine condition to a virtual scalar.
+ * A constraint requiring the value of this virtual scalar to be one
+ * is added to the iteration domains of the then branch.
+ * Similarly, a constraint requiring the value of this virtual scalar
+ * to be zero is added to the iteration domains of the else branch, if any.
+ * We adjust the schedules to ensure that the virtual scalar is written
+ * before it is read.
+ */
+struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
+	struct pet_scop *scop_then, struct pet_scop *scop_else,
+	bool have_else, int stmt_id)
+{
+	struct pet_scop *scop;
+	isl_map *test_access;
+	int save_n_stmt = n_stmt;
+
+	test_access = create_test_access(ctx, n_test++);
+	n_stmt = stmt_id;
+	scop = extract_non_affine_condition(cond, isl_map_copy(test_access));
+	n_stmt = save_n_stmt;
+	scop = scop_add_array(scop, test_access, ast_context);
+
+	scop = pet_scop_prefix(scop, 0);
+	scop_then = pet_scop_prefix(scop_then, 1);
+	scop_then = pet_scop_filter(scop_then, isl_map_copy(test_access), 1);
+	if (have_else) {
+		scop_else = pet_scop_prefix(scop_else, 1);
+		scop_else = pet_scop_filter(scop_else, test_access, 0);
+		scop_then = pet_scop_add(ctx, scop_then, scop_else);
+	} else
+		isl_map_free(test_access);
+
+	scop = pet_scop_add(ctx, scop, scop_then);
+
+	return scop;
+}
+
 /* Construct a pet_scop for an if statement.
  *
  * If the condition fits the pattern of a conditional assignment,
@@ -3457,7 +3497,8 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
  * as output dimensions in the wrapping iteration domain.
  * If it also written _inside_ the then or else branch, then
  * we treat the condition as non-affine.
- * As explained below, this will introduce an extra statement.
+ * As explained in extract_non_affine_if, this will introduce
+ * an extra statement.
  * For aesthetic reasons, we want this statement to have a statement
  * number that is lower than those of the then and else branches.
  * In order to evaluate if will need such a statement, however, we
@@ -3465,21 +3506,16 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
  * We therefore reserve a statement number if we might have to
  * introduce such an extra statement.
  *
- * If the condition is not affine, then we create a separate
- * statement that writes the result of the condition to a virtual scalar.
- * A constraint requiring the value of this virtual scalar to be one
- * is added to the iteration domains of the then branch.
- * Similarly, a constraint requiring the value of this virtual scalar
- * to be zero is added to the iteration domains of the else branch, if any.
- * We adjust the schedules to ensure that the virtual scalar is written
- * before it is read.
+ * If the condition is not affine, then the scop is created in
+ * extract_non_affine_if.
  */
 struct pet_scop *PetScan::extract(IfStmt *stmt)
 {
 	struct pet_scop *scop_then, *scop_else, *scop;
-	isl_map *test_access = NULL;
 	isl_pw_aff *cond;
 	int stmt_id;
+	isl_set *set;
+	isl_set *valid;
 
 	scop = extract_conditional_assignment(stmt);
 	if (scop)
@@ -3517,53 +3553,24 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		isl_pw_aff_free(cond);
 		cond = NULL;
 	}
-	if (allow_nested && !cond) {
-		int save_n_stmt = n_stmt;
-		test_access = create_test_access(ctx, n_test++);
-		n_stmt = stmt_id;
-		scop = extract_non_affine_condition(stmt->getCond(),
-						    isl_map_copy(test_access));
-		n_stmt = save_n_stmt;
-		scop = scop_add_array(scop, test_access, ast_context);
-		if (!scop) {
-			pet_scop_free(scop_then);
-			pet_scop_free(scop_else);
-			isl_map_free(test_access);
-			return NULL;
-		}
-	}
+	if (allow_nested && !cond)
+		return extract_non_affine_if(stmt->getCond(), scop_then,
+					scop_else, stmt->getElse(), stmt_id);
 
-	if (!scop) {
-		isl_set *set;
-		isl_set *valid;
+	if (!cond)
+		cond = extract_condition(stmt->getCond());
+	valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
+	set = isl_pw_aff_non_zero_set(cond);
+	scop = pet_scop_restrict(scop_then, isl_set_copy(set));
 
-		if (!cond)
-			cond = extract_condition(stmt->getCond());
-		valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
-		set = isl_pw_aff_non_zero_set(cond);
-		scop = pet_scop_restrict(scop_then, isl_set_copy(set));
-
-		if (stmt->getElse()) {
-			set = isl_set_subtract(isl_set_copy(valid), set);
-			scop_else = pet_scop_restrict(scop_else, set);
-			scop = pet_scop_add(ctx, scop, scop_else);
-		} else
-			isl_set_free(set);
-		scop = resolve_nested(scop);
-		scop = pet_scop_restrict_context(scop, valid);
-	} else {
-		scop = pet_scop_prefix(scop, 0);
-		scop_then = pet_scop_prefix(scop_then, 1);
-		scop_then = pet_scop_filter(scop_then,
-						isl_map_copy(test_access), 1);
-		scop = pet_scop_add(ctx, scop, scop_then);
-		if (stmt->getElse()) {
-			scop_else = pet_scop_prefix(scop_else, 1);
-			scop_else = pet_scop_filter(scop_else, test_access, 0);
-			scop = pet_scop_add(ctx, scop, scop_else);
-		} else
-			isl_map_free(test_access);
-	}
+	if (stmt->getElse()) {
+		set = isl_set_subtract(isl_set_copy(valid), set);
+		scop_else = pet_scop_restrict(scop_else, set);
+		scop = pet_scop_add(ctx, scop, scop_else);
+	} else
+		isl_set_free(set);
+	scop = resolve_nested(scop);
+	scop = pet_scop_restrict_context(scop, valid);
 
 	return scop;
 }
