@@ -679,7 +679,7 @@ static __isl_give isl_set *access_extract_context(__isl_keep isl_map *access,
  * If "expr" represents a ternary operator, then a parameter value
  * needs to be valid for the condition and for at least one of the
  * remaining two arguments.
- * If the condition is an access, then we can be a bit more specific.
+ * If the condition is an affine expression, then we can be a bit more specific.
  * The parameter then has to be valid for the second argument for
  * non-zero accesses and valid for the third argument for zero accesses.
  */
@@ -689,15 +689,19 @@ static __isl_give isl_set *expr_extract_context(struct pet_expr *expr,
 	int i;
 
 	if (expr->type == pet_expr_ternary) {
+		int is_aff;
 		isl_set *context1, *context2;
+
+		is_aff = pet_expr_is_affine(expr->args[0]);
+		if (is_aff < 0)
+			goto error;
 
 		context = expr_extract_context(expr->args[0], context);
 		context1 = expr_extract_context(expr->args[1],
 						isl_set_copy(context));
 		context2 = expr_extract_context(expr->args[2], context);
 
-		if (expr->args[0]->type == pet_expr_access &&
-		    expr->args[0]->n_arg == 0) {
+		if (is_aff) {
 			isl_map *access;
 			isl_set *zero_set;
 
@@ -722,6 +726,9 @@ static __isl_give isl_set *expr_extract_context(struct pet_expr *expr,
 		context = access_extract_context(expr->acc.access, context);
 
 	return context;
+error:
+	isl_set_free(context);
+	return NULL;
 }
 
 /* Update "context" with respect to the valid parameter values for "stmt".
