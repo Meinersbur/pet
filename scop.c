@@ -326,6 +326,25 @@ void pet_expr_dump(struct pet_expr *expr)
 	expr_dump(expr, 0);
 }
 
+/* Does "expr" represent an access to an unnamed space, i.e.,
+ * does it represent an affine expression?
+ */
+int pet_expr_is_affine(struct pet_expr *expr)
+{
+	int has_id;
+
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_access)
+		return 0;
+
+	has_id = isl_map_has_tuple_id(expr->acc.access, isl_dim_out);
+	if (has_id < 0)
+		return -1;
+
+	return !has_id;
+}
+
 /* Return 1 if the two pet_exprs are equivalent.
  */
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)

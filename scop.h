@@ -27,6 +27,7 @@ struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double d);
 void pet_expr_dump(struct pet_expr *expr);
 void *pet_expr_free(struct pet_expr *expr);
 
+int pet_expr_is_affine(struct pet_expr *expr);
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2);
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
 	__isl_take isl_set *cond);
