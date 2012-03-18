@@ -50,7 +50,7 @@ statements:
     read: 1
     write: 0
 - line: 13
-  domain: '{ [S_2[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   schedule: '{ S_2[i, j] -> [0, i, j, 2] }'
   body:
     type: binary
@@ -73,10 +73,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> __pet_test_0[i, o1] : o1 >= 0 and o1 <= -1 + j }'
-    read: 1
-    write: 0
-  - type: access
-    relation: '{ S_2[i, j] -> __pet_test_0[i, j] }'
+    relation: '{ S_2[i, j] -> __pet_test_0[i, o1] : o1 >= 0 and o1 <= -1 + j; S_2[i,
+      j] -> __pet_test_0[i, j] }'
     read: 1
     write: 0

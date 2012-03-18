@@ -2017,6 +2017,128 @@ error:
 	return pet_scop_free(scop);
 }
 
+/* Do the filters "i" and "j" always have the same value?
+ */
+static int equal_filter_values(__isl_keep isl_set *domain, int i, int j)
+{
+	isl_map *map, *test;
+	int equal;
+
+	map = isl_set_unwrap(isl_set_copy(domain));
+	test = isl_map_universe(isl_map_get_space(map));
+	test = isl_map_equate(test, isl_dim_out, i, isl_dim_out, j);
+	equal = isl_map_is_subset(map, test);
+	isl_map_free(map);
+	isl_map_free(test);
+
+	return equal;
+}
+
+/* Merge filters "i" and "j" into a single filter ("i") with as filter
+ * access relation, the union of the two access relations.
+ */
+static struct pet_stmt *merge_filter_pair(struct pet_stmt *stmt, int i, int j)
+{
+	int k;
+	isl_map *map;
+
+	if (!stmt)
+		return NULL;
+
+	stmt->args[i]->acc.access = isl_map_union(stmt->args[i]->acc.access,
+				    isl_map_copy(stmt->args[j]->acc.access));
+	stmt->args[i]->acc.access = isl_map_coalesce(stmt->args[i]->acc.access);
+
+	pet_expr_free(stmt->args[j]);
+	for (k = j; k < stmt->n_arg - 1; ++k)
+		stmt->args[k] = stmt->args[k + 1];
+	stmt->n_arg--;
+
+	map = isl_set_unwrap(stmt->domain);
+	map = isl_map_project_out(map, isl_dim_out, j, 1);
+	stmt->domain = isl_map_wrap(map);
+
+	if (!stmt->domain || !stmt->args[i]->acc.access)
+		return pet_stmt_free(stmt);
+
+	return stmt;
+}
+
+/* Look for any pair of filters that access the same filter variable
+ * and that have the same filter value and merge them into a single
+ * filter with as filter access relation the union of the filter access
+ * relations.
+ */
+static struct pet_stmt *stmt_merge_filters(struct pet_stmt *stmt)
+{
+	int i, j;
+	isl_space *space_i, *space_j;
+
+	if (!stmt)
+		return NULL;
+	if (stmt->n_arg <= 1)
+		return stmt;
+
+	for (i = 0; i < stmt->n_arg - 1; ++i) {
+		if (stmt->args[i]->type != pet_expr_access)
+			continue;
+		if (pet_expr_is_affine(stmt->args[i]))
+			continue;
+
+		space_i = isl_map_get_space(stmt->args[i]->acc.access);
+		
+		for (j = stmt->n_arg - 1; j > i; --j) {
+			int eq;
+
+			if (stmt->args[j]->type != pet_expr_access)
+				continue;
+			if (pet_expr_is_affine(stmt->args[j]))
+				continue;
+
+			space_j = isl_map_get_space(stmt->args[j]->acc.access);
+
+			eq = isl_space_is_equal(space_i, space_j);
+			if (eq >= 0 && eq)
+				eq = equal_filter_values(stmt->domain, i, j);
+			if (eq >= 0 && eq)
+				stmt = merge_filter_pair(stmt, i, j);
+
+			isl_space_free(space_j);
+
+			if (eq < 0 || !stmt)
+				break;
+		}
+
+		isl_space_free(space_i);
+
+		if (j > i || !stmt)
+			return pet_stmt_free(stmt);
+	}
+
+	return stmt;
+}
+
+/* Look for any pair of filters that access the same filter variable
+ * and that have the same filter value and merge them into a single
+ * filter with as filter access relation the union of the filter access
+ * relations.
+ */
+struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop)
+{
+	int i;
+
+	if (!scop)
+		return NULL;
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = stmt_merge_filters(scop->stmts[i]);
+		if (!scop->stmts[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
+}
+
 /* Add all parameters in "expr" to "dim" and return the result.
  */
 static __isl_give isl_space *expr_collect_params(struct pet_expr *expr,

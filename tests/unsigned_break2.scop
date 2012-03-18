@@ -51,7 +51,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '{ [S_2[k] -> [0, 0]] : k >= 252 and k <= 261 }'
+  domain: '{ [S_2[k] -> [0]] : k >= 252 and k <= 261 }'
   schedule: '{ S_2[k] -> [0, k, 2] }'
   body:
     type: binary
@@ -68,10 +68,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_2[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k }'
-    read: 1
-    write: 0
-  - type: access
-    relation: '{ S_2[k] -> __pet_test_0[k] }'
+    relation: '{ S_2[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k; S_2[k] ->
+      __pet_test_0[k] }'
     read: 1
     write: 0

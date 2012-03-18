@@ -70,6 +70,7 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 	__isl_take isl_map *test, int satisfied);
 struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 	__isl_take isl_map *test, int satisfied);
+struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop);
 
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
 

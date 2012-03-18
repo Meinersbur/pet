@@ -1958,6 +1958,7 @@ static struct pet_scop *scop_add_break(struct pet_scop *scop,
 		prev = isl_map_lex_lt_first(isl_map_get_space(break_access), 1);
 	break_access = isl_map_intersect(break_access, prev);
 	scop = pet_scop_filter(scop, break_access, 0);
+	scop = pet_scop_merge_filters(scop);
 
 	return scop;
 }
