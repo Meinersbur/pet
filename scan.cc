@@ -53,7 +53,14 @@
 using namespace std;
 using namespace clang;
 
-#ifdef DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION
+#if defined(DECLREFEXPR_CREATE_REQUIRES_BOOL)
+static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
+{
+	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
+		SourceLocation(), var, false, var->getInnerLocStart(),
+		var->getType(), VK_LValue);
+}
+#elif defined(DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION)
 static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
 {
 	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
