@@ -71,6 +71,12 @@ AC_EGREP_HEADER([HasTemplateKWAndArgsInfo], [clang/AST/Expr.h],
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
+SAVE_LDFLAGS="$LDFLAGS"
+LDFLAGS="$CLANG_LDFLAGS $LDFLAGS"
+AC_SUBST(LIB_CLANG_EDIT)
+AC_CHECK_LIB([clangEdit], [main], [LIB_CLANG_EDIT=-lclangEdit], [])
+LDFLAGS="$SAVE_LDFLAGS"
+
 AX_SUBMODULE(isl,build|bundled|system,bundled)
 AM_CONDITIONAL(BUNDLED_ISL, test $with_isl = bundled)
 

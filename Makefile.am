@@ -43,7 +43,8 @@ libpet_la_SOURCES = \
 	version.c \
 	pet.cc
 libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
-libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema -lclangAnalysis \
+libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema \
+	$(LIB_CLANG_EDIT) -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
 	$(CLANG_LIBS) $(CLANG_LDFLAGS) $(LIB_ISL)
 
