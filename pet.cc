@@ -728,9 +728,9 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 		isl_set_free(context_value);
 	}
 
-	scop = pet_scop_anonymize(scop);
-
 	update_arrays(scop, consumer.get_value_bounds(), live_out);
+
+	scop = pet_scop_anonymize(scop);
 
 	delete sema;
 	delete Clang;
