@@ -920,7 +920,8 @@ __isl_give isl_map *PetScan::extract_access(Expr *expr)
 	return NULL;
 }
 
-/* Assign the affine expression "index" to the output dimension "pos" of "map"
+/* Assign the affine expression "index" to the output dimension "pos" of "map",
+ * restrict the domain to those values that result in a non-negative index
  * and return the result.
  */
 __isl_give isl_map *set_index(__isl_take isl_map *map, int pos,
@@ -929,7 +930,10 @@ __isl_give isl_map *set_index(__isl_take isl_map *map, int pos,
 	isl_map *index_map;
 	int len = isl_map_dim(map, isl_dim_out);
 	isl_id *id;
+	isl_set *domain;
 
+	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
+	index = isl_pw_aff_intersect_domain(index, domain);
 	index_map = isl_map_from_range(isl_set_from_pw_aff(index));
 	index_map = isl_map_insert_dims(index_map, isl_dim_out, 0, pos);
 	index_map = isl_map_add_dims(index_map, isl_dim_out, len - pos - 1);

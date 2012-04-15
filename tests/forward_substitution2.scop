@@ -3,12 +3,15 @@ arrays:
 - context: '{  :  }'
   extent: '{ N[] }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
   extent: '{ c[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 5
   domain: '{ S_0[] }'
@@ -48,7 +51,7 @@ statements:
     operation: =
     arguments:
     - type: access
-      relation: '{ [S_2[] -> [i0]] -> a[i0] }'
+      relation: '{ [S_2[] -> [i0]] -> a[i0] : i0 >= 0 }'
       read: 0
       write: 1
       arguments:
