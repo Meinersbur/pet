@@ -68,7 +68,8 @@ static char *op_str[] = {
 	[pet_op_post_dec] = "--",
 	[pet_op_pre_inc] = "++",
 	[pet_op_pre_dec] = "--",
-	[pet_op_address_of] = "&"
+	[pet_op_address_of] = "&",
+	[pet_op_kill] = "kill"
 };
 
 /* pet_scop with extra information that is only used during parsing.
@@ -154,6 +155,21 @@ struct pet_expr *pet_expr_from_access(__isl_take isl_map *access)
 error:
 	isl_map_free(access);
 	return NULL;
+}
+
+/* Construct a pet_expr that kills the elements specified by "access".
+ */
+struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access)
+{
+	isl_ctx *ctx;
+	struct pet_expr *expr;
+
+	ctx = isl_map_get_ctx(access);
+	expr = pet_expr_from_access(access);
+	if (!expr)
+		return NULL;
+	expr->acc.read = 0;
+	return pet_expr_new_unary(ctx, pet_op_kill, expr);
 }
 
 /* Construct a unary pet_expr that performs "op" on "arg".
@@ -1091,6 +1107,10 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 	if (array1->live_out != array2->live_out)
 		return 0;
 	if (array1->uniquely_defined != array2->uniquely_defined)
+		return 0;
+	if (array1->declared != array2->declared)
+		return 0;
+	if (array1->exposed != array2->exposed)
 		return 0;
 
 	return 1;

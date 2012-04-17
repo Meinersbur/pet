@@ -20,6 +20,7 @@ enum pet_expr_type pet_str_type(const char *str);
 enum pet_op_type pet_str_op(const char *str);
 
 struct pet_expr *pet_expr_from_access(__isl_take isl_map *access);
+struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access);
 struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,
 	struct pet_expr *arg);
 struct pet_expr *pet_expr_new_binary(isl_ctx *ctx, enum pet_op_type op,

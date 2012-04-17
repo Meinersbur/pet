@@ -149,6 +149,10 @@ static struct pet_array *extract_array(isl_ctx *ctx, yaml_document_t *document,
 				"uniquely_defined"))
 			array->uniquely_defined =
 					extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "declared"))
+			array->declared = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "exposed"))
+			array->exposed = extract_int(ctx, document, value);
 	}
 
 	return array;

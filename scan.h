@@ -99,17 +99,24 @@ private:
 		struct pet_scop *scop_then, struct pet_scop *scop_else,
 		bool have_else, int stmt_id);
 
-	struct pet_scop *extract(clang::Stmt *stmt);
-	struct pet_scop *extract(clang::StmtRange stmt_range);
+	struct pet_scop *kill(clang::Stmt *stmt, struct pet_array *array);
+
+	struct pet_scop *extract(clang::Stmt *stmt,
+		bool skip_declarations = false);
+	struct pet_scop *extract(clang::StmtRange stmt_range, bool block,
+		bool skip_declarations);
 	struct pet_scop *extract(clang::IfStmt *stmt);
 	struct pet_scop *extract(clang::WhileStmt *stmt);
-	struct pet_scop *extract(clang::CompoundStmt *stmt);
+	struct pet_scop *extract(clang::CompoundStmt *stmt,
+		bool skip_declarations = false);
 	struct pet_scop *extract(clang::LabelStmt *stmt);
 	struct pet_scop *extract(clang::ContinueStmt *stmt);
 	struct pet_scop *extract(clang::BreakStmt *stmt);
+	struct pet_scop *extract(clang::DeclStmt *expr);
 
 	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr,
 				__isl_take isl_id *label = NULL);
+	struct pet_stmt *extract_kill(struct pet_scop *scop);
 
 	clang::BinaryOperator *initialization_assignment(clang::Stmt *init);
 	clang::Decl *initialization_declaration(clang::Stmt *init);
@@ -158,6 +165,7 @@ private:
 	__isl_give isl_map *extract_access(clang::Expr *expr);
 	__isl_give isl_map *extract_access(clang::ImplicitCastExpr *expr);
 	__isl_give isl_map *extract_access(clang::DeclRefExpr *expr);
+	__isl_give isl_map *extract_access(clang::ValueDecl *decl);
 	__isl_give isl_map *extract_access(clang::IntegerLiteral *expr);
 
 	int extract_int(clang::Expr *expr, isl_int *v);

@@ -55,6 +55,7 @@ enum pet_op_type {
 	pet_op_pre_inc,
 	pet_op_pre_dec,
 	pet_op_address_of,
+	pet_op_kill,
 	pet_op_last
 };
 
@@ -151,6 +152,9 @@ struct pet_stmt {
  * if uniquely_defined is set then the array is written by a single access
  * such that any element that is ever read
  * is known to be assigned exactly once before the read
+ *
+ * declared is set if the array was declared somewhere inside the scop.
+ * exposed is set if the declared array is visible outside the scop.
  */
 struct pet_array {
 	isl_set *context;
@@ -160,6 +164,8 @@ struct pet_array {
 	int element_size;
 	int live_out;
 	int uniquely_defined;
+	int declared;
+	int exposed;
 };
 
 /* The context describes the set of parameter values for which

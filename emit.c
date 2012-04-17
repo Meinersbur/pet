@@ -165,6 +165,11 @@ static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 			return -1;
 	}
 
+	if (array->declared && emit_named_int(emitter, "declared", 1) < 0)
+		return -1;
+	if (array->exposed && emit_named_int(emitter, "exposed", 1) < 0)
+		return -1;
+
 	if (!yaml_mapping_end_event_initialize(&event))
 		return -1;
 	if (!yaml_emitter_emit(emitter, &event))

@@ -1,0 +1,101 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ b[] }'
+  element_type: int
+  element_size: 4
+  declared: 1
+  exposed: 1
+- context: '{  :  }'
+  extent: '{ c[] }'
+  element_type: int
+  element_size: 4
+  declared: 1
+  exposed: 1
+- context: '{  :  }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 5
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0, 0] }'
+  body:
+    type: unary
+    operation: kill
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> b[] }'
+      read: 0
+      write: 0
+- line: 5
+  domain: '{ S_1[] }'
+  schedule: '{ S_1[] -> [0, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[] -> b[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_1[] -> [1] }'
+      read: 1
+      write: 0
+- line: 6
+  domain: '{ S_2[] }'
+  schedule: '{ S_2[] -> [1, 0] }'
+  body:
+    type: unary
+    operation: kill
+    arguments:
+    - type: access
+      relation: '{ S_2[] -> c[] }'
+      read: 0
+      write: 0
+- line: 6
+  domain: '{ S_3[] }'
+  schedule: '{ S_3[] -> [1, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_3[] -> c[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_3[] -> b[] }'
+      read: 1
+      write: 0
+- line: 7
+  domain: '{ S_4[] }'
+  schedule: '{ S_4[] -> [2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_4[] -> b[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_4[] -> [2] }'
+      read: 1
+      write: 0
+- line: 8
+  domain: '{ S_5[] }'
+  schedule: '{ S_5[] -> [3] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_5[] -> a[1] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_5[] -> [5] }'
+      read: 1
+      write: 0

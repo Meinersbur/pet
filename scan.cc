@@ -892,7 +892,18 @@ static QualType base_type(QualType qt)
  */
 __isl_give isl_map *PetScan::extract_access(DeclRefExpr *expr)
 {
-	ValueDecl *decl = expr->getDecl();
+	return extract_access(expr->getDecl());
+}
+
+/* Extract an access relation from a variable.
+ * If the variable has name "A" and its type corresponds to an
+ * array of depth d, then the returned access relation is of the
+ * form
+ *
+ *	{ [] -> A[i_1,...,i_d] }
+ */
+__isl_give isl_map *PetScan::extract_access(ValueDecl *decl)
+{
 	int depth = array_depth(decl->getType().getTypePtr());
 	isl_id *id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
 	isl_space *dim = isl_space_alloc(ctx, 0, 0, depth);
@@ -1448,6 +1459,71 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 		assign(lhs, expr->getRHS());
 
 	return pet_expr_new_binary(ctx, op, lhs, rhs);
+}
+
+/* Construct a pet_scop with a single statement killing the entire
+ * array "array".
+ */
+struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
+{
+	isl_map *access;
+	struct pet_expr *expr;
+
+	if (!array)
+		return NULL;
+	access = isl_map_from_range(isl_set_copy(array->extent));
+	expr = pet_expr_kill_from_access(access);
+	return extract(stmt, expr);
+}
+
+/* Construct a pet_scop for a (single) variable declaration.
+ *
+ * The scop contains the variable being declared (as an array)
+ * and a statement killing the array.
+ *
+ * If the variable is initialized in the AST, then the scop
+ * also contains an assignment to the variable.
+ */
+struct pet_scop *PetScan::extract(DeclStmt *stmt)
+{
+	Decl *decl;
+	VarDecl *vd;
+	struct pet_expr *lhs, *rhs, *pe;
+	struct pet_scop *scop_decl, *scop;
+	struct pet_array *array;
+
+	if (!stmt->isSingleDecl()) {
+		unsupported(stmt);
+		return NULL;
+	}
+
+	decl = stmt->getSingleDecl();
+	vd = cast<VarDecl>(decl);
+
+	array = extract_array(ctx, vd);
+	if (array)
+		array->declared = 1;
+	scop_decl = kill(stmt, array);
+	scop_decl = pet_scop_add_array(scop_decl, array);
+
+	if (!vd->getInit())
+		return scop_decl;
+
+	lhs = pet_expr_from_access(extract_access(vd));
+	rhs = extract_expr(vd->getInit());
+
+	mark_write(lhs);
+	assign(lhs, vd->getInit());
+
+	pe = pet_expr_new_binary(ctx, pet_op_assign, lhs, rhs);
+	scop = extract(stmt, pe);
+
+	scop_decl = pet_scop_prefix(scop_decl, 0);
+	scop = pet_scop_prefix(scop, 1);
+
+	scop = pet_scop_add_seq(ctx, scop_decl, scop);
+
+	return scop;
 }
 
 /* Construct a pet_expr representing a conditional operation.
@@ -2835,9 +2911,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	return scop;
 }
 
-struct pet_scop *PetScan::extract(CompoundStmt *stmt)
+struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 {
-	return extract(stmt->children());
+	return extract(stmt->children(), true, skip_declarations);
 }
 
 /* Does parameter "pos" of "map" refer to a nested access?
@@ -4169,8 +4245,12 @@ struct pet_scop *PetScan::extract(BreakStmt *stmt)
 }
 
 /* Try and construct a pet_scop corresponding to "stmt".
+ *
+ * If "stmt" is a compound statement, then "skip_declarations"
+ * indicates whether we should skip initial declarations in the
+ * compound statement.
  */
-struct pet_scop *PetScan::extract(Stmt *stmt)
+struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 {
 	if (isa<Expr>(stmt))
 		return extract(stmt, extract_expr(cast<Expr>(stmt)));
@@ -4183,13 +4263,15 @@ struct pet_scop *PetScan::extract(Stmt *stmt)
 	case Stmt::IfStmtClass:
 		return extract(cast<IfStmt>(stmt));
 	case Stmt::CompoundStmtClass:
-		return extract(cast<CompoundStmt>(stmt));
+		return extract(cast<CompoundStmt>(stmt), skip_declarations);
 	case Stmt::LabelStmtClass:
 		return extract(cast<LabelStmt>(stmt));
 	case Stmt::ContinueStmtClass:
 		return extract(cast<ContinueStmt>(stmt));
 	case Stmt::BreakStmtClass:
 		return extract(cast<BreakStmt>(stmt));
+	case Stmt::DeclStmtClass:
+		return extract(cast<DeclStmt>(stmt));
 	default:
 		unsupported(stmt);
 	}
@@ -4371,26 +4453,86 @@ struct pet_scop *pet_skip_info_seq::add(struct pet_scop *scop, int offset)
 	return scop;
 }
 
+/* Extract a clone of the kill statement in "scop".
+ * "scop" is expected to have been created from a DeclStmt
+ * and should have the kill as its first statement.
+ */
+struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
+{
+	struct pet_expr *kill;
+	struct pet_stmt *stmt;
+	isl_map *access;
+
+	if (!scop)
+		return NULL;
+	if (scop->n_stmt < 1)
+		isl_die(ctx, isl_error_internal,
+			"expecting at least one statement", return NULL);
+	stmt = scop->stmts[0];
+	if (stmt->body->type != pet_expr_unary ||
+	    stmt->body->op != pet_op_kill)
+		isl_die(ctx, isl_error_internal,
+			"expecting kill statement", return NULL);
+
+	access = isl_map_copy(stmt->body->args[0]->acc.access);
+	access = isl_map_reset_tuple_id(access, isl_dim_in);
+	kill = pet_expr_kill_from_access(access);
+	return pet_stmt_from_pet_expr(ctx, stmt->line, NULL, n_stmt++, kill);
+}
+
+/* Mark all arrays in "scop" as being exposed.
+ */
+static struct pet_scop *mark_exposed(struct pet_scop *scop)
+{
+	if (!scop)
+		return NULL;
+	for (int i = 0; i < scop->n_array; ++i)
+		scop->arrays[i]->exposed = 1;
+	return scop;
+}
+
 /* Try and construct a pet_scop corresponding to (part of)
  * a sequence of statements.
+ *
+ * "block" is set if the sequence respresents the children of
+ * a compound statement.
+ * "skip_declarations" is set if we should skip initial declarations
+ * in the sequence of statements.
  *
  * If there are any breaks or continues in the individual statements,
  * then we may have to compute a new skip condition.
  * This is handled using a pet_skip_info_seq object.
  * On initialization, the object checks if skip conditions need
  * to be computed.  If so, it does so in "extract" and adds them in "add".
+ *
+ * If "block" is set, then we need to insert kill statements at
+ * the end of the block for any array that has been declared by
+ * one of the statements in the sequence.  Each of these declarations
+ * results in the construction of a kill statement at the place
+ * of the declaration, so we simply collect duplicates of
+ * those kill statements and append these duplicates to the constructed scop.
+ *
+ * If "block" is not set, then any array declared by one of the statements
+ * in the sequence is marked as being exposed.
  */
-struct pet_scop *PetScan::extract(StmtRange stmt_range)
+struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
+	bool skip_declarations)
 {
 	pet_scop *scop;
 	StmtIterator i;
 	int j;
 	bool partial_range = false;
+	set<struct pet_stmt *> kills;
+	set<struct pet_stmt *>::iterator it;
 
 	scop = pet_scop_empty(ctx);
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j) {
 		Stmt *child = *i;
 		struct pet_scop *scop_i;
+
+		if (skip_declarations &&
+		    child->getStmtClass() == Stmt::DeclStmtClass)
+			continue;
 
 		scop_i = extract(child);
 		if (scop && partial) {
@@ -4401,6 +4543,12 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range)
 		skip.extract(this);
 		if (skip)
 			scop_i = pet_scop_prefix(scop_i, 0);
+		if (scop_i && child->getStmtClass() == Stmt::DeclStmtClass) {
+			if (block)
+				kills.insert(extract_kill(scop_i));
+			else
+				scop_i = mark_exposed(scop_i);
+		}
 		scop_i = pet_scop_prefix(scop_i, j);
 		if (options->autodetect) {
 			if (scop_i)
@@ -4417,6 +4565,13 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range)
 
 		if (partial)
 			break;
+	}
+
+	for (it = kills.begin(); it != kills.end(); ++it) {
+		pet_scop *scop_j;
+		scop_j = pet_scop_from_pet_stmt(ctx, *it);
+		scop_j = pet_scop_prefix(scop_j, j);
+		scop = pet_scop_add_seq(ctx, scop, scop_j);
 	}
 
 	if (scop && partial_range)
@@ -4474,7 +4629,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			break;
 	}
 
-	return extract(StmtRange(start, end));
+	return extract(StmtRange(start, end), false, false);
 }
 
 /* Set the size of index "pos" of "array" to "size".
@@ -4734,7 +4889,7 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 	stmt = fd->getBody();
 
 	if (options->autodetect)
-		scop = extract(stmt);
+		scop = extract(stmt, true);
 	else
 		scop = scan(stmt);
 	scop = pet_scop_detect_parameter_accesses(scop);
