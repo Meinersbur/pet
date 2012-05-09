@@ -385,15 +385,15 @@ struct PetASTConsumer : public ASTConsumer {
 	ASTContext &ast_context;
 	ScopLoc &loc;
 	const char *function;
-	bool autodetect;
+	pet_options *options;
 	isl_ctx *ctx;
 	struct pet_scop *scop;
 	PragmaValueBoundsHandler *vb_handler;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
-		ScopLoc &loc, const char *function, bool autodetect) :
+		ScopLoc &loc, const char *function, pet_options *options) :
 		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
-		scop(NULL), function(function), autodetect(autodetect),
+		scop(NULL), function(function), options(options),
 		vb_handler(NULL) { }
 
 	void handle_value_bounds(Sema *sema) {
@@ -420,8 +420,8 @@ struct PetASTConsumer : public ASTConsumer {
 			if (function &&
 			    fd->getNameInfo().getAsString() != function)
 				continue;
-			if (autodetect) {
-				PetScan ps(PP, ast_context, loc, 1,
+			if (options->autodetect) {
+				PetScan ps(PP, ast_context, loc, options,
 					    isl_union_map_copy(vb));
 				scop = ps.scan(fd);
 				if (scop)
@@ -436,7 +436,7 @@ struct PetASTConsumer : public ASTConsumer {
 				continue;
 			if (SM.getFileOffset(fd->getLocEnd()) < loc.start)
 				continue;
-			PetScan ps(PP, ast_context, loc, 0,
+			PetScan ps(PP, ast_context, loc, options,
 				    isl_union_map_copy(vb));
 			scop = ps.scan(fd);
 			break;
@@ -656,7 +656,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 
 	Clang->createASTContext();
 	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(),
-				loc, function, options->autodetect);
+				loc, function, options);
 	Sema *sema = new Sema(PP, Clang->getASTContext(), consumer);
 
 	if (!options->autodetect) {

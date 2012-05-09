@@ -28,14 +28,11 @@ struct PetScan {
 	 */
 	ScopLoc &loc;
 	isl_ctx *ctx;
+	pet_options *options;
 	/* The sequence number of the next statement. */
 	int n_stmt;
 	/* The sequence number of the next virtual scalar. */
 	int n_test;
-	/* If autodetect is false, a scop delimited by pragmas is extracted,
-	 * otherwise we take any scop that we can find.
-	 */
-	bool autodetect;
 	/* Set if the pet_scop returned by an extract method only
 	 * represents part of the input tree.
 	 */
@@ -68,11 +65,11 @@ struct PetScan {
 	isl_union_map *value_bounds;
 
 	PetScan(clang::Preprocessor &PP,
-		clang::ASTContext &ast_context, ScopLoc &loc, int autodetect,
-		__isl_take isl_union_map *value_bounds) :
+		clang::ASTContext &ast_context, ScopLoc &loc,
+		pet_options *options, __isl_take isl_union_map *value_bounds) :
 		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
 		ast_context(ast_context), loc(loc),
-		autodetect(autodetect), value_bounds(value_bounds),
+		options(options), value_bounds(value_bounds),
 		n_stmt(0), n_test(0), partial(0), allow_nested(true),
 		nesting_enabled(false) { }
 

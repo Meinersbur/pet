@@ -44,6 +44,7 @@
 #include <isl/aff.h>
 #include <isl/set.h>
 
+#include "options.h"
 #include "scan.h"
 #include "scop.h"
 #include "scop_plus.h"
@@ -267,7 +268,7 @@ PetScan::~PetScan()
  */
 void PetScan::unsupported(Stmt *stmt, const char *msg)
 {
-	if (autodetect)
+	if (options->autodetect)
 		return;
 
 	SourceLocation loc = stmt->getLocStart();
@@ -2607,15 +2608,15 @@ struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
 __isl_give isl_pw_aff *PetScan::try_extract_affine(Expr *expr)
 {
 	isl_pw_aff *pwaff;
-	int save_autodetect = autodetect;
+	int save_autodetect = options->autodetect;
 	bool save_nesting = nesting_enabled;
 
-	autodetect = 1;
+	options->autodetect = 1;
 	nesting_enabled = false;
 
 	pwaff = extract_affine(expr);
 
-	autodetect = save_autodetect;
+	options->autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
 
 	return pwaff;
@@ -2640,16 +2641,16 @@ bool PetScan::is_affine(Expr *expr)
 bool PetScan::is_affine_condition(Expr *expr)
 {
 	isl_pw_aff *cond;
-	int save_autodetect = autodetect;
+	int save_autodetect = options->autodetect;
 	bool save_nesting = nesting_enabled;
 
-	autodetect = 1;
+	options->autodetect = 1;
 	nesting_enabled = false;
 
 	cond = extract_condition(expr);
 	isl_pw_aff_free(cond);
 
-	autodetect = save_autodetect;
+	options->autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
 
 	return cond != NULL;
@@ -2664,14 +2665,14 @@ bool PetScan::is_affine_condition(Expr *expr)
 __isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr)
 {
 	isl_pw_aff *cond;
-	int save_autodetect = autodetect;
+	int save_autodetect = options->autodetect;
 	bool save_nesting = nesting_enabled;
 
-	autodetect = 1;
+	options->autodetect = 1;
 	nesting_enabled = allow_nested;
 	cond = extract_condition(expr);
 
-	autodetect = save_autodetect;
+	options->autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
 
 	return cond;
@@ -3219,7 +3220,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 
 	if (stmt->getElse()) {
 		scop_else = extract(stmt->getElse());
-		if (autodetect) {
+		if (options->autodetect) {
 			if (scop_then && !scop_else) {
 				partial = true;
 				isl_pw_aff_free(cond);
@@ -3354,7 +3355,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range)
 			break;
 		}
 		scop_i = pet_scop_prefix(scop_i, j);
-		if (autodetect) {
+		if (options->autodetect) {
 			if (scop_i)
 				scop = pet_scop_add(ctx, scop, scop_i);
 			else
@@ -3635,7 +3636,7 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 
 	stmt = fd->getBody();
 
-	if (autodetect)
+	if (options->autodetect)
 		scop = extract(stmt);
 	else
 		scop = scan(stmt);

@@ -6,6 +6,9 @@ extern "C" {
 #endif
 
 struct pet_options {
+	/* If autodetect is false, a scop delimited by pragmas is extracted,
+	 * otherwise we take any scop that we can find.
+	 */
 	int	autodetect;
 	int	n_path;
 	const char **paths;
