@@ -2728,6 +2728,9 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	struct pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
 	bool save_nesting = nesting_enabled;
 
+	if (!options->detect_conditional_assignment)
+		return NULL;
+
 	ass_then = top_assignment_or_null(stmt->getThen());
 	ass_else = top_assignment_or_null(stmt->getElse());
 

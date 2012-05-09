@@ -10,6 +10,7 @@ struct pet_options {
 	 * otherwise we take any scop that we can find.
 	 */
 	int	autodetect;
+	int	detect_conditional_assignment;
 	int	n_path;
 	const char **paths;
 	int	n_define;

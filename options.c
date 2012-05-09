@@ -41,6 +41,8 @@ static void print_version(void)
 
 ISL_ARGS_START(struct pet_options, pet_options_args)
 ISL_ARG_BOOL(struct pet_options, autodetect, 0, "autodetect", 0, NULL)
+ISL_ARG_BOOL(struct pet_options, detect_conditional_assignment,
+	0, "detect-conditional-assignment", 1, NULL)
 ISL_ARG_STR_LIST(struct pet_options, n_path, paths, 'I', "include-path",
 	"path", NULL)
 ISL_ARG_STR_LIST(struct pet_options, n_define, defines, 'D', NULL,
