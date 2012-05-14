@@ -56,6 +56,7 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond);
 struct pet_scop *pet_scop_restrict_context(struct pet_scop *scop,
 	__isl_take isl_set *context);
+struct pet_scop *pet_scop_reset_context(struct pet_scop *scop);
 struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 	__isl_take isl_map *test, int satisfied);
 

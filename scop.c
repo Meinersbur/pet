@@ -2303,3 +2303,22 @@ error:
 	isl_set_free(context);
 	return pet_scop_free(scop);
 }
+
+/* Drop the current context of "scop".  That is, replace the context
+ * by a universal set.
+ */
+struct pet_scop *pet_scop_reset_context(struct pet_scop *scop)
+{
+	isl_space *space;
+
+	if (!scop)
+		return NULL;
+
+	space = isl_set_get_space(scop->context);
+	isl_set_free(scop->context);
+	scop->context = isl_set_universe(space);
+	if (!scop->context)
+		return pet_scop_free(scop);
+
+	return scop;
+}
