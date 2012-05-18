@@ -747,7 +747,6 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 	}
 
 	return aff1;
-
 }
 
 /* This method is called when we come across an access that is
