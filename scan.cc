@@ -3691,6 +3691,12 @@ static struct pet_scop *add_parameter_bounds(struct pet_scop *scop)
 		ValueDecl *decl;
 
 		id = isl_set_get_dim_id(scop->context, isl_dim_param, i);
+		if (is_nested_parameter(id)) {
+			isl_id_free(id);
+			isl_die(isl_set_get_ctx(scop->context),
+				isl_error_internal,
+				"unresolved nested parameter", goto error);
+		}
 		decl = (ValueDecl *) isl_id_get_user(id);
 		isl_id_free(id);
 
