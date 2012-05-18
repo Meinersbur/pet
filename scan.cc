@@ -915,6 +915,8 @@ __isl_give isl_map *PetScan::extract_access(Expr *expr)
 		return extract_access(cast<DeclRefExpr>(expr));
 	case Stmt::ArraySubscriptExprClass:
 		return extract_access(cast<ArraySubscriptExpr>(expr));
+	case Stmt::IntegerLiteralClass:
+		return extract_access(cast<IntegerLiteral>(expr));
 	default:
 		unsupported(expr);
 	}
@@ -1438,20 +1440,7 @@ struct pet_expr *PetScan::extract_access_expr(Expr *expr)
 	isl_map *access;
 	struct pet_expr *pe;
 
-	switch (expr->getStmtClass()) {
-	case Stmt::ArraySubscriptExprClass:
-		access = extract_access(cast<ArraySubscriptExpr>(expr));
-		break;
-	case Stmt::DeclRefExprClass:
-		access = extract_access(cast<DeclRefExpr>(expr));
-		break;
-	case Stmt::IntegerLiteralClass:
-		access = extract_access(cast<IntegerLiteral>(expr));
-		break;
-	default:
-		unsupported(expr);
-		return NULL;
-	}
+	access = extract_access(expr);
 
 	pe = pet_expr_from_access(access);
 
