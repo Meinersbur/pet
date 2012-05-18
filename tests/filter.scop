@@ -1,0 +1,31 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ test[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 7
+  domain: '{ [S_1[] -> [test]] : test <= -1 or test >= 1 }'
+  schedule: '{ S_1[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[] -> a[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_1[] -> [5] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '[index] -> { S_1[] -> test[index] : index >= 0 or index >= 0 }'
+    read: 1
+    write: 0

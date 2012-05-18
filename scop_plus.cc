@@ -78,6 +78,10 @@ static void stmt_collect_arrays(struct pet_stmt *stmt, set<ValueDecl *> &arrays)
 {
 	if (!stmt)
 		return;
+
+	for (int i = 0; i < stmt->n_arg; ++i)
+		expr_collect_arrays(stmt->args[i], arrays);
+
 	expr_collect_arrays(stmt->body, arrays);
 }
 
