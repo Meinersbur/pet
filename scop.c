@@ -1330,6 +1330,7 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	scop->context = isl_set_union(scop->context,
 				isl_set_complement(isl_set_copy(cond)));
 	scop->context = isl_set_coalesce(scop->context);
+	scop->context = set_project_out_unnamed_params(scop->context);
 	if (!scop->context)
 		goto error;
 
