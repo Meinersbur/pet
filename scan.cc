@@ -3282,7 +3282,6 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 struct pet_scop *PetScan::extract(IfStmt *stmt)
 {
 	struct pet_scop *scop_then, *scop_else, *scop;
-	assigned_value_cache cache(assigned_value);
 	isl_map *test_access = NULL;
 	isl_pw_aff *cond;
 	int stmt_id;
@@ -3295,9 +3294,13 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	if (allow_nested && (!cond || has_nested(cond)))
 		stmt_id = n_stmt++;
 
-	scop_then = extract(stmt->getThen());
+	{
+		assigned_value_cache cache(assigned_value);
+		scop_then = extract(stmt->getThen());
+	}
 
 	if (stmt->getElse()) {
+		assigned_value_cache cache(assigned_value);
 		scop_else = extract(stmt->getElse());
 		if (options->autodetect) {
 			if (scop_then && !scop_else) {
