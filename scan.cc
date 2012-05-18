@@ -755,6 +755,10 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
  * If nesting is allowed, we return a new parameter that corresponds
  * to this nested access.  Otherwise, we simply complain.
  *
+ * Note that we currently don't allow nested accesses themselves
+ * to contain any nested accesses, so we check if we can extract
+ * the access without any nesting and complain if we can't.
+ *
  * The new parameter is resolved in resolve_nested.
  */
 isl_pw_aff *PetScan::nested_access(Expr *expr)
@@ -763,11 +767,21 @@ isl_pw_aff *PetScan::nested_access(Expr *expr)
 	isl_space *dim;
 	isl_aff *aff;
 	isl_set *dom;
+	isl_map *access;
 
 	if (!nesting_enabled) {
 		unsupported(expr);
 		return NULL;
 	}
+
+	allow_nested = false;
+	access = extract_access(expr);
+	allow_nested = true;
+	if (!access) {
+		unsupported(expr);
+		return NULL;
+	}
+	isl_map_free(access);
 
 	id = isl_id_alloc(ctx, NULL, expr);
 	dim = isl_space_params_alloc(ctx, 1);

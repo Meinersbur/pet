@@ -1,0 +1,70 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ __pet_test_0[] }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ test[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ index[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 6
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> index[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+- line: 7
+  domain: '{ S_1[] }'
+  schedule: '{ S_1[] -> [1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[] -> __pet_test_0[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ [S_1[] -> [i0]] -> test[i0] : i0 >= 0 }'
+      read: 1
+      write: 0
+      arguments:
+      - type: access
+        relation: '{ S_1[] -> index[] }'
+        read: 1
+        write: 0
+- line: 8
+  domain: '{ [S_2[] -> [1]] }'
+  schedule: '{ S_2[] -> [1, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[] -> index[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_2[] -> [5] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '{ S_2[] -> __pet_test_0[] }'
+    read: 1
+    write: 0
