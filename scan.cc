@@ -3639,9 +3639,9 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 }
 
 /* Construct a list of pet_arrays, one for each array (or scalar)
- * accessed inside "scop" add this list to "scop" and return the result.
+ * accessed inside "scop", add this list to "scop" and return the result.
  *
- * The context of "scop" is updated with the intesection of
+ * The context of "scop" is updated with the intersection of
  * the contexts of all arrays, i.e., constraints on the parameters
  * that ensure that the arrays have a valid (non-negative) size.
  */
