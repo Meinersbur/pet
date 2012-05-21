@@ -63,12 +63,22 @@ static char *op_str[] = {
 	[pet_op_lt] = "<",
 	[pet_op_gt] = ">",
 	[pet_op_minus] = "-",
+	[pet_op_post_inc] = "++",
+	[pet_op_post_dec] = "--",
+	[pet_op_pre_inc] = "++",
+	[pet_op_pre_dec] = "--",
 	[pet_op_address_of] = "&"
 };
 
 const char *pet_op_str(enum pet_op_type op)
 {
 	return op_str[op];
+}
+
+int pet_op_is_inc_dec(enum pet_op_type op)
+{
+	return op == pet_op_post_inc || op == pet_op_post_dec ||
+	    op == pet_op_pre_inc || op == pet_op_pre_dec;
 }
 
 const char *pet_type_str(enum pet_expr_type type)

@@ -44,6 +44,10 @@ enum pet_op_type {
 	pet_op_lt,
 	pet_op_gt,
 	pet_op_minus,
+	pet_op_post_inc,
+	pet_op_post_dec,
+	pet_op_pre_inc,
+	pet_op_pre_dec,
 	pet_op_address_of,
 	pet_op_last
 };
@@ -165,6 +169,7 @@ struct pet_scop {
 
 /* Return a textual representation of the operator. */
 const char *pet_op_str(enum pet_op_type op);
+int pet_op_is_inc_dec(enum pet_op_type op);
 
 /* Extract a pet_scop from a C source file.
  * If function is not NULL, then the pet_scop is extracted from

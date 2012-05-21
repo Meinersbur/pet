@@ -1284,6 +1284,14 @@ static enum pet_op_type UnaryOperatorKind2pet_op_type(UnaryOperatorKind kind)
 	switch (kind) {
 	case UO_Minus:
 		return pet_op_minus;
+	case UO_PostInc:
+		return pet_op_post_inc;
+	case UO_PostDec:
+		return pet_op_post_dec;
+	case UO_PreInc:
+		return pet_op_pre_inc;
+	case UO_PreDec:
+		return pet_op_pre_dec;
 	default:
 		return pet_op_last;
 	}
@@ -1337,6 +1345,12 @@ struct pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 	}
 
 	arg = extract_expr(expr->getSubExpr());
+
+	if (expr->isIncrementDecrementOp() &&
+	    arg && arg->type == pet_expr_access) {
+		mark_write(arg);
+		arg->acc.read = 1;
+	}
 
 	return pet_expr_new_unary(ctx, op, arg);
 }
