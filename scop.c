@@ -998,6 +998,19 @@ struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos)
 	return scop;
 }
 
+/* Given a set with a parameter at "param_pos" that refers to the
+ * iterator, "move" the iterator to the first set dimension.
+ * That is, equate the parameter to the first set dimension and then
+ * project it out.
+ */
+static __isl_give isl_set *internalize_iv(__isl_take isl_set *set,
+	int param_pos)
+{
+	set = isl_set_equate(set, isl_dim_param, param_pos, isl_dim_set, 0);
+	set = isl_set_project_out(set, isl_dim_param, param_pos, 1);
+	return set;
+}
+
 /* Data used in embed_access.
  * extend adds an iterator to the iteration domain
  * var_id represents the induction variable of the corresponding loop
@@ -1047,9 +1060,9 @@ static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 
 	pos = isl_map_find_dim_by_id(access, isl_dim_param, data->var_id);
 	if (pos >= 0) {
-		access = isl_map_equate(access,
-					isl_dim_param, pos, isl_dim_in, 0);
-		access = isl_map_project_out(access, isl_dim_param, pos, 1);
+		isl_set *set = isl_map_wrap(access);
+		set = internalize_iv(set, pos);
+		access = isl_set_unwrap(set);
 	}
 	access = isl_map_set_dim_id(access, isl_dim_in, 0,
 					isl_id_copy(data->var_id));
@@ -1125,12 +1138,8 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 	}
 
 	pos = isl_set_find_dim_by_id(stmt->domain, isl_dim_param, var_id);
-	if (pos >= 0) {
-		stmt->domain = isl_set_equate(stmt->domain,
-					    isl_dim_param, pos, isl_dim_set, 0);
-		stmt->domain = isl_set_project_out(stmt->domain,
-						    isl_dim_param, pos, 1);
-	}
+	if (pos >= 0)
+		stmt->domain = internalize_iv(stmt->domain, pos);
 
 	stmt->schedule = isl_map_flat_product(sched, stmt->schedule);
 	stmt->schedule = isl_map_set_tuple_id(stmt->schedule,
@@ -1138,10 +1147,9 @@ struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt, __isl_take isl_set *dom,
 
 	pos = isl_map_find_dim_by_id(stmt->schedule, isl_dim_param, var_id);
 	if (pos >= 0) {
-		stmt->schedule = isl_map_equate(stmt->schedule,
-					    isl_dim_param, pos, isl_dim_in, 0);
-		stmt->schedule = isl_map_project_out(stmt->schedule,
-						    isl_dim_param, pos, 1);
+		isl_set *set = isl_map_wrap(stmt->schedule);
+		set = internalize_iv(set, pos);
+		stmt->schedule = isl_set_unwrap(set);
 	}
 
 	dim = isl_space_map_from_set(dim);
