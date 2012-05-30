@@ -2347,6 +2347,27 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	return enforce_subset(dom, cond);
 }
 
+/* Does "id" refer to a nested access?
+ */
+static bool is_nested_parameter(__isl_keep isl_id *id)
+{
+	return id && isl_id_get_user(id) && !isl_id_get_name(id);
+}
+
+/* Does parameter "pos" of "space" refer to a nested access?
+ */
+static bool is_nested_parameter(__isl_keep isl_space *space, int pos)
+{
+	bool nested;
+	isl_id *id;
+
+	id = isl_space_get_dim_id(space, isl_dim_param, pos);
+	nested = is_nested_parameter(id);
+	isl_id_free(id);
+
+	return nested;
+}
+
 /* Construct a pet_scop for a for statement.
  * The for loop is required to be of the form
  *
@@ -2575,27 +2596,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 struct pet_scop *PetScan::extract(CompoundStmt *stmt)
 {
 	return extract(stmt->children());
-}
-
-/* Does "id" refer to a nested access?
- */
-static bool is_nested_parameter(__isl_keep isl_id *id)
-{
-	return id && isl_id_get_user(id) && !isl_id_get_name(id);
-}
-
-/* Does parameter "pos" of "space" refer to a nested access?
- */
-static bool is_nested_parameter(__isl_keep isl_space *space, int pos)
-{
-	bool nested;
-	isl_id *id;
-
-	id = isl_space_get_dim_id(space, isl_dim_param, pos);
-	nested = is_nested_parameter(id);
-	isl_id_free(id);
-
-	return nested;
 }
 
 /* Does parameter "pos" of "map" refer to a nested access?
