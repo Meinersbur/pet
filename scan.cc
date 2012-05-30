@@ -1911,7 +1911,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
 	isl_id *id;
 	isl_set *domain;
-	isl_map *sched;
+	isl_map *ident;
 	struct pet_scop *scop;
 
 	scop = extract(body);
@@ -1920,8 +1920,8 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id));
-	sched = identity_map(domain);
-	scop = pet_scop_embed(scop, domain, sched, id);
+	ident = identity_map(domain);
+	scop = pet_scop_embed(scop, domain, isl_map_copy(ident), ident, id);
 
 	return scop;
 }
@@ -2105,7 +2105,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	isl_id *id;
 	isl_map *test_access;
 	isl_set *domain;
-	isl_map *sched;
+	isl_map *ident;
 	isl_pw_aff *pa;
 	struct pet_scop *scop, *scop_body;
 
@@ -2126,18 +2126,19 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id));
-	sched = identity_map(domain);
+	ident = identity_map(domain);
 
 	test_access = create_test_access(ctx, n_test++);
 	scop = extract_non_affine_condition(cond, isl_map_copy(test_access));
 	scop = scop_add_array(scop, test_access, ast_context);
 	scop = pet_scop_prefix(scop, 0);
-	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_map_copy(sched),
-				isl_id_copy(id));
+	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_map_copy(ident),
+				isl_map_copy(ident), isl_id_copy(id));
 	scop_body = extract(stmt->getBody());
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
-	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain), sched, id);
+	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
+				isl_map_copy(ident), ident, id);
 
 	scop = scop_add_while(scop, scop_body, test_access, domain, 1);
 
@@ -2483,7 +2484,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool is_unsigned;
 	bool is_simple;
 	bool is_virtual;
-	isl_map *wrap = NULL;
+	isl_map *wrap = NULL, *ident;
 	isl_pw_aff *pa, *pa_inc, *init_val;
 	isl_set *valid_init;
 	isl_set *valid_cond;
@@ -2608,8 +2609,10 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		domain = isl_set_apply(domain, isl_map_copy(wrap));
 		sched = isl_map_apply_domain(sched, wrap);
 	}
+	space = isl_set_get_space(domain);
+	ident = isl_map_identity(isl_space_map_from_set(space));
 
-	scop = pet_scop_embed(scop, domain, sched, id);
+	scop = pet_scop_embed(scop, domain, sched, ident, id);
 	scop = resolve_nested(scop);
 	clear_assignment(assigned_value, iv);
 

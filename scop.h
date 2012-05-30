@@ -51,7 +51,8 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2);
 
 struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos);
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
-	__isl_take isl_map *sched, __isl_take isl_id *id);
+	__isl_take isl_map *sched, __isl_take isl_map *iv_map,
+	__isl_take isl_id *id);
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond);
 struct pet_scop *pet_scop_restrict_context(struct pet_scop *scop,
