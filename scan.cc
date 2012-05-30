@@ -1957,6 +1957,59 @@ static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
 	return isl_map_universe(dim);
 }
 
+/* Add an array with the given extent ("access") to the list
+ * of arrays in "scop" and return the extended pet_scop.
+ * The array is marked as attaining values 0 and 1 only and
+ * as each element being assigned at most once.
+ */
+static struct pet_scop *scop_add_array(struct pet_scop *scop,
+	__isl_keep isl_map *access, clang::ASTContext &ast_ctx)
+{
+	isl_ctx *ctx = isl_map_get_ctx(access);
+	isl_space *dim;
+	struct pet_array **arrays;
+	struct pet_array *array;
+
+	if (!scop)
+		return NULL;
+	if (!ctx)
+		goto error;
+
+	arrays = isl_realloc_array(ctx, scop->arrays, struct pet_array *,
+				    scop->n_array + 1);
+	if (!arrays)
+		goto error;
+	scop->arrays = arrays;
+
+	array = isl_calloc_type(ctx, struct pet_array);
+	if (!array)
+		goto error;
+
+	array->extent = isl_map_range(isl_map_copy(access));
+	dim = isl_space_params_alloc(ctx, 0);
+	array->context = isl_set_universe(dim);
+	dim = isl_space_set_alloc(ctx, 0, 1);
+	array->value_bounds = isl_set_universe(dim);
+	array->value_bounds = isl_set_lower_bound_si(array->value_bounds,
+						isl_dim_set, 0, 0);
+	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
+						isl_dim_set, 0, 1);
+	array->element_type = strdup("int");
+	array->element_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
+	array->uniquely_defined = 1;
+
+	scop->arrays[scop->n_array] = array;
+	scop->n_array++;
+
+	if (!array->extent || !array->context)
+		goto error;
+
+	return scop;
+error:
+	pet_scop_free(scop);
+	return NULL;
+}
+
 /* Check if the while loop is of the form
  *
  *	while (affine expression)
@@ -2881,59 +2934,6 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 	scop = resolve_nested(scop);
 
 	return scop;
-}
-
-/* Add an array with the given extent ("access") to the list
- * of arrays in "scop" and return the extended pet_scop.
- * The array is marked as attaining values 0 and 1 only and
- * as each element being assigned at most once.
- */
-static struct pet_scop *scop_add_array(struct pet_scop *scop,
-	__isl_keep isl_map *access, clang::ASTContext &ast_ctx)
-{
-	isl_ctx *ctx = isl_map_get_ctx(access);
-	isl_space *dim;
-	struct pet_array **arrays;
-	struct pet_array *array;
-
-	if (!scop)
-		return NULL;
-	if (!ctx)
-		goto error;
-
-	arrays = isl_realloc_array(ctx, scop->arrays, struct pet_array *,
-				    scop->n_array + 1);
-	if (!arrays)
-		goto error;
-	scop->arrays = arrays;
-
-	array = isl_calloc_type(ctx, struct pet_array);
-	if (!array)
-		goto error;
-
-	array->extent = isl_map_range(isl_map_copy(access));
-	dim = isl_space_params_alloc(ctx, 0);
-	array->context = isl_set_universe(dim);
-	dim = isl_space_set_alloc(ctx, 0, 1);
-	array->value_bounds = isl_set_universe(dim);
-	array->value_bounds = isl_set_lower_bound_si(array->value_bounds,
-						isl_dim_set, 0, 0);
-	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
-						isl_dim_set, 0, 1);
-	array->element_type = strdup("int");
-	array->element_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
-	array->uniquely_defined = 1;
-
-	scop->arrays[scop->n_array] = array;
-	scop->n_array++;
-
-	if (!array->extent || !array->context)
-		goto error;
-
-	return scop;
-error:
-	pet_scop_free(scop);
-	return NULL;
 }
 
 extern "C" {
