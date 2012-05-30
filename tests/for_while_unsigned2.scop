@@ -1,0 +1,107 @@
+context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
+arrays:
+- context: '{  :  }'
+  extent: '[n] -> { __pet_test_0[x1, x2] : exists (e0 = [(x2)/3]: 3e0 = x2 and x1
+    >= 0 and x1 <= -1 + n and x2 <= 9) }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[n] -> { a[i0, i1] : i1 <= 255 and i0 >= 0 and i1 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[n] -> { s[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 12
+  domain: '[n] -> { S1[x1] : x1 >= 0 and x1 <= -1 + n }'
+  schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n] -> { S1[x1] -> s[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: f
+- line: 13
+  domain: '[n] -> { [S_1[x1, x2] -> [1]] : exists (e0 = [(x2)/3]: 3e0 = x2 and x1
+    >= 0 and x1 <= -1 + n and x2 <= 9) }'
+  schedule: '[n] -> { S_1[x1, x2] -> [0, x1, 1, -x2, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, x2] }'
+      read: 0
+      write: 1
+    - type: call
+      name: P
+      arguments:
+      - type: access
+        relation: '[n] -> { S_1[x1, x2] -> [x1] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '[n] -> { S_1[x1, x2] -> [o0] : exists (e0 = [(-x2 + o0)/256]: 256e0
+          = -x2 + o0 and o0 <= 255 and o0 >= 0) }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, o1] : exists (e0 = [(o1)/3]:
+      3e0 = o1 and o1 <= 9 and o1 >= 3 + x2) }'
+    read: 1
+    write: 0
+- line: 15
+  domain: '[n] -> { [S2[x1, x2, x3] -> [1]] : exists (e0 = [(255 - x2)/256], e1 =
+    [(x2)/3]: 3e1 = x2 and x3 >= 0 and x1 <= -1 + n and x1 >= 0 and x2 <= 9 and 256e0
+    >= -x2 + x3 and 256e0 <= 255 - x2 and 256e0 >= -x2) }'
+  schedule: '[n] -> { S2[x1, x2, x3] -> [0, x1, 1, -x2, 1, 0, x3] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[n] -> { S2[x1, x2, x3] -> s[] }'
+      read: 0
+      write: 1
+    - type: call
+      name: g
+      arguments:
+      - type: binary
+        operation: +
+        arguments:
+        - type: access
+          relation: '[n] -> { S2[x1, x2, x3] -> s[] }'
+          read: 1
+          write: 0
+        - type: access
+          relation: '[n] -> { S2[x1, x2, x3] -> a[o0, 255 - o0] : exists (e0 = [(x2)/3],
+            e1 = [(-253x2 - 3o0)/768]: 3e0 = x2 and 768e1 = -253x2 - 3o0 and o0 <=
+            255 and o0 >= 0) }'
+          read: 1
+          write: 0
+  arguments:
+  - type: access
+    relation: '[n] -> { S2[x1, x2, x3] -> __pet_test_0[x1, o1] : exists (e0 = [(o1)/3]:
+      3e0 = o1 and o1 <= 9 and o1 >= x2) }'
+    read: 1
+    write: 0
+- line: 17
+  domain: '[n] -> { R[x1] : x1 >= 0 and x1 <= -1 + n }'
+  schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
+  body:
+    type: call
+    name: h
+    arguments:
+    - type: access
+      relation: '[n] -> { R[x1] -> s[] }'
+      read: 1
+      write: 0

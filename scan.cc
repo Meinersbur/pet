@@ -2414,6 +2414,9 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  *
  * The condition is allowed to contain nested accesses, provided
  * they are not being written to inside the body of the loop.
+ * Otherwise, or if the condition is otherwise non-affine, the for loop is
+ * essentially treated as a while loop, with iteration domain
+ * { [i] : i >= init }.
  *
  * We extract a pet_scop for the body and then embed it in a loop with
  * iteration domain and schedule
@@ -2429,6 +2432,17 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  * Where condition' is equal to condition if the latter is
  * a simple upper [lower] bound and a condition that is extended
  * to apply to all previous iterations otherwise.
+ *
+ * If the condition is non-affine, then we drop the condition from the
+ * iteration domain and instead create a separate statement
+ * for evaluating the condition.  The body is then filtered to depend
+ * on the result of the condition evaluating to true on all iterations
+ * up to the current iteration, while the evaluation the condition itself
+ * is filtered to depend on the result of the condition evaluating to true
+ * on all previous iterations.
+ * The context of the scop representing the body is dropped
+ * because we don't know how many times the body will be executed,
+ * if at all.
  *
  * If the stride of the loop is not 1, then "i >= init" is replaced by
  *
@@ -2450,6 +2464,10 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  * However, the is_simple_bound condition is not enough since it doesn't
  * check if there even is an upper bound.
  *
+ * If the loop condition is non-affine, then we keep the virtual
+ * iterator in the iteration domain and instead replace all accesses
+ * to the original iterator by the wrapping of the virtual iterator.
+ *
  * Wrapping on unsigned iterators can be avoided entirely if
  * loop condition is simple, the loop iterator is incremented
  * [decremented] by one and the last value before wrapping cannot
@@ -2464,6 +2482,8 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  * the condition on both the initial value and
  * the result of incrementing the iterator for each iteration of the domain
  * can be evaluated.
+ * If the loop condition is non-affine, then we only consider validity
+ * of the initial value.
  */
 struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 {
@@ -2477,20 +2497,23 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_map *sched;
 	isl_set *cond = NULL;
 	isl_id *id;
-	struct pet_scop *scop;
+	struct pet_scop *scop, *scop_cond = NULL;
 	assigned_value_cache cache(assigned_value);
 	isl_int inc;
 	bool is_one;
 	bool is_unsigned;
 	bool is_simple;
 	bool is_virtual;
-	isl_map *wrap = NULL, *ident;
+	bool keep_virtual = false;
+	isl_map *wrap = NULL;
 	isl_pw_aff *pa, *pa_inc, *init_val;
 	isl_set *valid_init;
 	isl_set *valid_cond;
 	isl_set *valid_cond_init;
 	isl_set *valid_cond_next;
 	isl_set *valid_inc;
+	isl_map *test_access = NULL;
+	int stmt_id;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -2540,18 +2563,36 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
+	pa = try_extract_nested_condition(stmt->getCond());
+	if (allow_nested && (!pa || has_nested(pa)))
+		stmt_id = n_stmt++;
+
 	scop = extract(stmt->getBody());
 
-	pa = try_extract_nested_condition(stmt->getCond());
 	if (pa && !is_nested_allowed(pa, scop)) {
 		isl_pw_aff_free(pa);
 		pa = NULL;
 	}
 
-	if (!pa)
-		pa = extract_condition(stmt->getCond());
+	if (!allow_nested && !pa)
+		pa = try_extract_affine_condition(stmt->getCond());
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
+	if (allow_nested && !cond) {
+		int save_n_stmt = n_stmt;
+		test_access = create_test_access(ctx, n_test++);
+		n_stmt = stmt_id;
+		scop_cond = extract_non_affine_condition(stmt->getCond(),
+						    isl_map_copy(test_access));
+		n_stmt = save_n_stmt;
+		scop_cond = scop_add_array(scop_cond, test_access, ast_context);
+		scop_cond = pet_scop_prefix(scop_cond, 0);
+		scop = pet_scop_reset_context(scop);
+		scop = pet_scop_prefix(scop, 1);
+		keep_virtual = true;
+		cond = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	}
+
 	cond = embed(cond, isl_id_copy(id));
 	valid_cond = isl_set_coalesce(valid_cond);
 	valid_cond = embed(valid_cond, isl_id_copy(id));
@@ -2602,26 +2643,37 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain), inc);
 	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
 
-	if (is_virtual) {
+	if (is_virtual && !keep_virtual) {
 		wrap = isl_map_set_dim_id(wrap,
 					    isl_dim_out, 0, isl_id_copy(id));
 		sched = isl_map_intersect_domain(sched, isl_set_copy(domain));
 		domain = isl_set_apply(domain, isl_map_copy(wrap));
 		sched = isl_map_apply_domain(sched, wrap);
 	}
-	space = isl_set_get_space(domain);
-	ident = isl_map_identity(isl_space_map_from_set(space));
+	if (!(is_virtual && keep_virtual)) {
+		space = isl_set_get_space(domain);
+		wrap = isl_map_identity(isl_space_map_from_set(space));
+	}
 
-	scop = pet_scop_embed(scop, domain, sched, ident, id);
+	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
+		    isl_map_copy(sched), isl_map_copy(wrap), isl_id_copy(id));
+	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = resolve_nested(scop);
+	if (test_access) {
+		scop = scop_add_while(scop_cond, scop, test_access, domain,
+					isl_int_sgn(inc));
+		isl_set_free(valid_inc);
+	} else {
+		scop = pet_scop_restrict_context(scop, valid_inc);
+		scop = pet_scop_restrict_context(scop, valid_cond_next);
+		scop = pet_scop_restrict_context(scop, valid_cond_init);
+		isl_set_free(domain);
+	}
 	clear_assignment(assigned_value, iv);
 
 	isl_int_clear(inc);
 
 	scop = pet_scop_restrict_context(scop, valid_init);
-	scop = pet_scop_restrict_context(scop, valid_inc);
-	scop = pet_scop_restrict_context(scop, valid_cond_next);
-	scop = pet_scop_restrict_context(scop, valid_cond_init);
 
 	return scop;
 }

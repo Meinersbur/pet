@@ -4,13 +4,16 @@ arrays:
   extent: '{ N[] }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 100 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
   extent: '{ M[] }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 100 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
-  extent: '{ a[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= 99 and i1 <= 99 }'
+  extent: '{ a[i0, i1] : i1 >= 0 and i1 <= 99 and i0 >= 0 and i0 <= 99 }'
   element_type: int
+  element_size: 4
 statements:
 - line: 13
   domain: '{ S_0[] }'
@@ -39,63 +42,63 @@ statements:
     - type: call
       name: g
 - line: 17
-  domain: '{ [S_2[i, j] -> [N, M]] : N >= 1 + i and i >= 0 and j >= 0 and M >= 1 +
+  domain: '{ [S_4[i, j] -> [N, M]] : N >= 1 + i and j >= 0 and i >= 0 and M >= 1 +
     j }'
-  schedule: '{ S_2[i, j] -> [2, i, j] }'
+  schedule: '{ S_4[i, j] -> [2, i, j] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '{ S_2[i, j] -> a[i, j] }'
+      relation: '{ S_4[i, j] -> a[i, j] }'
       read: 0
       write: 1
     - type: binary
       operation: +
       arguments:
       - type: access
-        relation: '{ S_2[i, j] -> [i] }'
+        relation: '{ S_4[i, j] -> [i] }'
         read: 1
         write: 0
       - type: access
-        relation: '{ S_2[i, j] -> [j] }'
+        relation: '{ S_4[i, j] -> [j] }'
         read: 1
         write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> N[] }'
+    relation: '{ S_4[i, j] -> N[] }'
     read: 1
     write: 0
   - type: access
-    relation: '{ S_2[i, j] -> M[] }'
+    relation: '{ S_4[i, j] -> M[] }'
     read: 1
     write: 0
 - line: 20
-  domain: '{ [S_3[i, j] -> [N, M]] : i >= 0 and N >= 1 + i and j >= 0 and M >= 1 +
+  domain: '{ [S_7[i, j] -> [N, M]] : N >= 1 + i and j >= 0 and i >= 0 and M >= 1 +
     j }'
-  schedule: '{ S_3[i, j] -> [3, i, j] }'
+  schedule: '{ S_7[i, j] -> [3, i, j] }'
   body:
     type: call
     name: h
     arguments:
     - type: access
-      relation: '{ S_3[i, j] -> [i] }'
+      relation: '{ S_7[i, j] -> [i] }'
       read: 1
       write: 0
     - type: access
-      relation: '{ S_3[i, j] -> [j] }'
+      relation: '{ S_7[i, j] -> [j] }'
       read: 1
       write: 0
     - type: access
-      relation: '{ S_3[i, j] -> a[i, j] }'
+      relation: '{ S_7[i, j] -> a[i, j] }'
       read: 1
       write: 0
   arguments:
   - type: access
-    relation: '{ S_3[i, j] -> N[] }'
+    relation: '{ S_7[i, j] -> N[] }'
     read: 1
     write: 0
   - type: access
-    relation: '{ S_3[i, j] -> M[] }'
+    relation: '{ S_7[i, j] -> M[] }'
     read: 1
     write: 0
