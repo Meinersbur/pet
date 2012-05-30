@@ -1867,6 +1867,22 @@ static __isl_give isl_set *embed(__isl_take isl_set *set,
 	return set;
 }
 
+/* Create the infinite iteration domain
+ *
+ *	{ [id] : id >= 0 }
+ *
+ */
+static __isl_give isl_set *infinite_domain(__isl_take isl_id *id)
+{
+	isl_ctx *ctx = isl_id_get_ctx(id);
+	isl_set *domain;
+
+	domain = isl_set_nat_universe(isl_space_set_alloc(ctx, 0, 1));
+	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, id);
+
+	return domain;
+}
+
 /* Construct a pet_scop for an infinite loop around the given body.
  *
  * We extract a pet_scop for the body and then embed it in a loop with
@@ -1891,8 +1907,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 		return NULL;
 
 	id = isl_id_alloc(ctx, "t", NULL);
-	domain = isl_set_nat_universe(isl_space_set_alloc(ctx, 0, 1));
-	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
+	domain = infinite_domain(isl_id_copy(id));
 	dim = isl_space_from_domain(isl_set_get_space(domain));
 	dim = isl_space_add_dims(dim, isl_dim_out, 1);
 	sched = isl_map_universe(dim);
