@@ -2368,6 +2368,36 @@ static bool is_nested_parameter(__isl_keep isl_space *space, int pos)
 	return nested;
 }
 
+/* Does "space" involve any parameters that refer to nested
+ * accesses, i.e., parameters with no name?
+ */
+static bool has_nested(__isl_keep isl_space *space)
+{
+	int nparam;
+
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (int i = 0; i < nparam; ++i)
+		if (is_nested_parameter(space, i))
+			return true;
+
+	return false;
+}
+
+/* Does "pa" involve any parameters that refer to nested
+ * accesses, i.e., parameters with no name?
+ */
+static bool has_nested(__isl_keep isl_pw_aff *pa)
+{
+	isl_space *space;
+	bool nested;
+
+	space = isl_pw_aff_get_space(pa);
+	nested = has_nested(space);
+	isl_space_free(space);
+
+	return nested;
+}
+
 /* Construct a pet_scop for a for statement.
  * The for loop is required to be of the form
  *
@@ -3305,36 +3335,6 @@ struct pet_scop *PetScan::resolve_nested(struct pet_scop *scop)
 error:
 	pet_scop_free(scop);
 	return NULL;
-}
-
-/* Does "space" involve any parameters that refer to nested
- * accesses, i.e., parameters with no name?
- */
-static bool has_nested(__isl_keep isl_space *space)
-{
-	int nparam;
-
-	nparam = isl_space_dim(space, isl_dim_param);
-	for (int i = 0; i < nparam; ++i)
-		if (is_nested_parameter(space, i))
-			return true;
-
-	return false;
-}
-
-/* Does "pa" involve any parameters that refer to nested
- * accesses, i.e., parameters with no name?
- */
-static bool has_nested(__isl_keep isl_pw_aff *pa)
-{
-	isl_space *space;
-	bool nested;
-
-	space = isl_pw_aff_get_space(pa);
-	nested = has_nested(space);
-	isl_space_free(space);
-
-	return nested;
 }
 
 /* Given an access expression "expr", is the variable accessed by
