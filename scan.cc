@@ -1883,6 +1883,19 @@ static __isl_give isl_set *infinite_domain(__isl_take isl_id *id)
 	return domain;
 }
 
+/* Create an identity mapping on the space containing "domain".
+ */
+static __isl_give isl_map *identity_map(__isl_keep isl_set *domain)
+{
+	isl_space *space;
+	isl_map *id;
+
+	space = isl_space_map_from_set(isl_set_get_space(domain));
+	id = isl_map_identity(space);
+
+	return id;
+}
+
 /* Construct a pet_scop for an infinite loop around the given body.
  *
  * We extract a pet_scop for the body and then embed it in a loop with
@@ -1897,7 +1910,6 @@ static __isl_give isl_set *infinite_domain(__isl_take isl_id *id)
 struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
 	isl_id *id;
-	isl_space *dim;
 	isl_set *domain;
 	isl_map *sched;
 	struct pet_scop *scop;
@@ -1908,10 +1920,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id));
-	dim = isl_space_from_domain(isl_set_get_space(domain));
-	dim = isl_space_add_dims(dim, isl_dim_out, 1);
-	sched = isl_map_universe(dim);
-	sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
+	sched = identity_map(domain);
 	scop = pet_scop_embed(scop, domain, sched, id);
 
 	return scop;
