@@ -2471,7 +2471,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	Stmt *init;
 	Expr *lhs, *rhs;
 	ValueDecl *iv;
-	isl_space *dim;
+	isl_space *space;
 	isl_set *domain;
 	isl_map *sched;
 	isl_set *cond = NULL;
@@ -2590,9 +2590,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 						isl_set_copy(domain), inc);
 	domain = isl_set_intersect(domain, cond);
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
-	dim = isl_space_from_domain(isl_set_get_space(domain));
-	dim = isl_space_add_dims(dim, isl_dim_out, 1);
-	sched = isl_map_universe(dim);
+	space = isl_space_from_domain(isl_set_get_space(domain));
+	space = isl_space_add_dims(space, isl_dim_out, 1);
+	sched = isl_map_universe(space);
 	if (isl_int_is_pos(inc))
 		sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
 	else
