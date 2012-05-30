@@ -1361,6 +1361,9 @@ error:
 /* Make the statement "stmt" depend on the value of "test"
  * being equal to "satisfied" by adjusting stmt->domain.
  *
+ * The domain of "test" corresponds to the (zero or more) outer dimensions
+ * of the iteration domain.
+ *
  * We insert an argument corresponding to a read to "test"
  * from the iteration domain of "stmt" in front of the list of arguments.
  * We also insert a corresponding output dimension in the wrapped
@@ -1372,8 +1375,9 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 	int i;
 	isl_id *id;
 	isl_ctx *ctx;
-	isl_map *map;
+	isl_map *map, *add_dom;
 	isl_set *dom;
+	int n_test_dom;
 
 	if (!stmt || !test)
 		goto error;
@@ -1387,7 +1391,13 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 	map = isl_map_set_dim_id(map, isl_dim_out, 0, id);
 	map = isl_map_fix_si(map, isl_dim_out, 0, satisfied);
 	dom = isl_set_universe(isl_space_domain(isl_map_get_space(map)));
-	test = isl_map_apply_domain(test, isl_map_from_range(dom));
+	n_test_dom = isl_map_dim(test, isl_dim_in);
+	add_dom = isl_map_from_range(dom);
+	add_dom = isl_map_add_dims(add_dom, isl_dim_in, n_test_dom);
+	for (i = 0; i < n_test_dom; ++i)
+		add_dom = isl_map_equate(add_dom, isl_dim_in, i,
+						    isl_dim_out, i);
+	test = isl_map_apply_domain(test, add_dom);
 
 	stmt->domain = isl_map_wrap(map);
 
