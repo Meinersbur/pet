@@ -2010,13 +2010,37 @@ error:
 	return NULL;
 }
 
+/* Construct a pet_scop for a while loop of the form
+ *
+ *	while (pa)
+ *		body
+ *
+ * In particular, construct a scop for an infinite loop around body and
+ * intersect the domain with the affine expression.
+ * Note that this intersection may result in an empty loop.
+ */
+struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
+	Stmt *body)
+{
+	struct pet_scop *scop;
+	isl_set *dom;
+	isl_set *valid;
+
+	valid = isl_pw_aff_domain(isl_pw_aff_copy(pa));
+	dom = isl_pw_aff_non_zero_set(pa);
+	scop = extract_infinite_loop(body);
+	scop = pet_scop_restrict(scop, dom);
+	scop = pet_scop_restrict_context(scop, valid);
+
+	return scop;
+}
+
 /* Check if the while loop is of the form
  *
  *	while (affine expression)
  *		body
  *
- * If so, construct a scop for an infinite loop around body and intersect
- * the domain with the affine expression, which may result in an empty loop.
+ * If so, call extract_affine_while to construct a scop.
  * Otherwise, fail.
  */
 struct pet_scop *PetScan::extract(WhileStmt *stmt)
@@ -2031,19 +2055,8 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	}
 
 	pa = try_extract_affine_condition(cond);
-	if (pa) {
-		struct pet_scop *scop;
-		isl_set *dom;
-		isl_set *valid;
-
-		valid = isl_pw_aff_domain(isl_pw_aff_copy(pa));
-		dom = isl_pw_aff_non_zero_set(pa);
-		scop = extract_infinite_loop(stmt->getBody());
-		scop = pet_scop_restrict(scop, dom);
-		scop = pet_scop_restrict_context(scop, valid);
-
-		return scop;
-	}
+	if (pa)
+		return extract_affine_while(pa, stmt->getBody());
 
 	unsupported(stmt);
 	return NULL;

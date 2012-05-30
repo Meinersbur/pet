@@ -120,6 +120,8 @@ private:
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
 	struct pet_scop *extract_infinite_loop(clang::Stmt *body);
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
+	struct pet_scop *extract_affine_while(__isl_take isl_pw_aff *pa,
+				clang::Stmt *body);
 
 	void mark_write(struct pet_expr *access);
 	struct pet_expr *extract_expr(clang::Expr *expr);
