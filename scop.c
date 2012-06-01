@@ -646,6 +646,11 @@ void pet_array_dump(struct pet_array *array)
 		array->live_out ? "live-out" : "");
 }
 
+struct pet_scop *pet_scop_alloc(isl_ctx *ctx)
+{
+	return isl_calloc_type(ctx, struct pet_scop);
+}
+
 /* Construct a pet_scop with room for n statements.
  */
 static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
@@ -653,7 +658,7 @@ static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 	isl_space *space;
 	struct pet_scop *scop;
 
-	scop = isl_calloc_type(ctx, struct pet_scop);
+	scop = pet_scop_alloc(ctx);
 	if (!scop)
 		return NULL;
 

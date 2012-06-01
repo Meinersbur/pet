@@ -383,7 +383,7 @@ static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 		isl_die(ctx, isl_error_invalid, "expecting mapping",
 			return NULL);
 
-	scop = isl_calloc_type(ctx, struct pet_scop);
+	scop = pet_scop_alloc(ctx);
 	if (!scop)
 		return NULL;
 

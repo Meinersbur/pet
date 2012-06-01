@@ -43,6 +43,7 @@ void *pet_array_free(struct pet_array *array);
 struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos);
 
 struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt);
+struct pet_scop *pet_scop_alloc(isl_ctx *ctx);
 struct pet_scop *pet_scop_empty(isl_ctx *ctx);
 struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2);
