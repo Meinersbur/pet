@@ -2202,8 +2202,10 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
  * need to intersect the domain of the schedule with the virtual domain
  * first, since some iterations in the wrapped domain may be scheduled
  * several times, typically an infinite number of times.
- * Note that there is no need to perform this final wrapping
- * if the loop condition (after wrapping) is simple.
+ * Note that there may be no need to perform this final wrapping
+ * if the loop condition (after wrapping) satisfies certain conditions.
+ * However, the is_simple_bound condition is not enough since it doesn't
+ * check if there even is an upper bound.
  *
  * Wrapping on unsigned iterators can be avoided entirely if
  * loop condition is simple, the loop iterator is incremented
@@ -2357,14 +2359,13 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain), inc);
 	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
 
-	if (is_virtual && !is_simple) {
+	if (is_virtual) {
 		wrap = isl_map_set_dim_id(wrap,
 					    isl_dim_out, 0, isl_id_copy(id));
 		sched = isl_map_intersect_domain(sched, isl_set_copy(domain));
 		domain = isl_set_apply(domain, isl_map_copy(wrap));
 		sched = isl_map_apply_domain(sched, wrap);
-	} else
-		isl_map_free(wrap);
+	}
 
 	scop = pet_scop_embed(scop, domain, sched, id);
 	scop = resolve_nested(scop);
