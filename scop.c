@@ -1412,6 +1412,40 @@ error:
 	return pet_scop_free(scop);
 }
 
+/* Insert an argument expression corresponding to "test" in front
+ * of the list of arguments described by *n_arg and *args.
+ */
+static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
+	__isl_keep isl_map *test)
+{
+	int i;
+	isl_ctx *ctx = isl_map_get_ctx(test);
+
+	if (!test)
+		return -1;
+
+	if (!*args) {
+		*args = isl_calloc_array(ctx, struct pet_expr *, 1);
+		if (!*args)
+			return -1;
+	} else {
+		struct pet_expr **ext;
+		ext = isl_calloc_array(ctx, struct pet_expr *, 1 + *n_arg);
+		if (!ext)
+			return -1;
+		for (i = 0; i < *n_arg; ++i)
+			ext[1 + i] = (*args)[i];
+		free(*args);
+		*args = ext;
+	}
+	(*n_arg)++;
+	(*args)[0] = pet_expr_from_access(isl_map_copy(test));
+	if (!(*args)[0])
+		return -1;
+
+	return 0;
+}
+
 /* Make the statement "stmt" depend on the value of "test"
  * being equal to "satisfied" by adjusting stmt->domain.
  *
@@ -1455,24 +1489,7 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 
 	stmt->domain = isl_map_wrap(map);
 
-	ctx = isl_map_get_ctx(test);
-	if (!stmt->args) {
-		stmt->args = isl_calloc_array(ctx, struct pet_expr *, 1);
-		if (!stmt->args)
-			goto error;
-	} else {
-		struct pet_expr **args;
-		args = isl_calloc_array(ctx, struct pet_expr *, 1 + stmt->n_arg);
-		if (!args)
-			goto error;
-		for (i = 0; i < stmt->n_arg; ++i)
-			args[1 + i] = stmt->args[i];
-		free(stmt->args);
-		stmt->args = args;
-	}
-	stmt->n_arg++;
-	stmt->args[0] = pet_expr_from_access(isl_map_copy(test));
-	if (!stmt->args[0])
+	if (args_insert_access(&stmt->n_arg, &stmt->args, test) < 0)
 		goto error;
 
 	isl_map_free(test);
