@@ -1495,6 +1495,54 @@ static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
 	return 0;
 }
 
+/* Make the expression "expr" depend on the value of "test"
+ * being equal to "satisfied".
+ *
+ * If "test" is an affine expression, we simply add the conditions
+ * on the expression have the value "satisfied" to all access relations.
+ *
+ * Otherwise, we add a filter to "expr" (which is then assumed to be
+ * an access expression) corresponding to "test" being equal to "satisfied".
+ */
+struct pet_expr *pet_expr_filter(struct pet_expr *expr,
+	__isl_take isl_map *test, int satisfied)
+{
+	isl_id *id;
+	isl_ctx *ctx;
+	isl_space *space;
+	isl_map *map;
+
+	if (!expr || !test)
+		goto error;
+
+	if (!isl_map_has_tuple_id(test, isl_dim_out)) {
+		test = isl_map_fix_si(test, isl_dim_out, 0, satisfied);
+		return pet_expr_restrict(expr, isl_map_params(test));
+	}
+
+	ctx = isl_map_get_ctx(test);
+	if (expr->type != pet_expr_access)
+		isl_die(ctx, isl_error_invalid,
+			"can only filter access expressions", goto error);
+
+	space = isl_space_domain(isl_map_get_space(expr->acc.access));
+	id = isl_map_get_tuple_id(test, isl_dim_out);
+	map = insert_filter_map(space, id, satisfied);
+
+	expr->acc.access = isl_map_apply_domain(expr->acc.access, map);
+	if (!expr->acc.access)
+		goto error;
+
+	if (args_insert_access(&expr->n_arg, &expr->args, test) < 0)
+		goto error;
+
+	isl_map_free(test);
+	return expr;
+error:
+	isl_map_free(test);
+	return pet_expr_free(expr);
+}
+
 /* Make the statement "stmt" depend on the value of "test"
  * being equal to "satisfied" by adjusting stmt->domain.
  *
