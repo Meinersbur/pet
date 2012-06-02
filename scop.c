@@ -1358,7 +1358,7 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Make the statements "stmt" depend on the value of "test"
+/* Make the statement "stmt" depend on the value of "test"
  * being equal to "satisfied" by adjusting stmt->domain.
  *
  * We insert an argument corresponding to a read to "test"
