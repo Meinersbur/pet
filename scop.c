@@ -1412,6 +1412,55 @@ error:
 	return pet_scop_free(scop);
 }
 
+/* Construct a map that inserts a filter value with name "id" and value
+ * "satisfied" in the list of filter values embedded in the set space "space".
+ *
+ * If "space" does not contain any filter values yet, we first create
+ * a map that inserts 0 filter values, i.e.,
+ *
+ *	space -> [space -> []]
+ *
+ * We can now assume that space is of the form [dom -> [filters]]
+ * We construct an identity mapping on dom and a mapping on filters
+ * that inserts the new filter
+ *
+ *	dom -> dom
+ *	[filters] -> [satisfied, filters]
+ *
+ * and then compute the cross product
+ *
+ *	[dom -> [filters]] -> [dom -> [satisfied, filters]]
+ */
+static __isl_give isl_map *insert_filter_map(__isl_take isl_space *space,
+	__isl_take isl_id *id, int satisfied)
+{
+	isl_space *space2;
+	isl_map *map, *map_dom, *map_ran;
+	isl_set *dom;
+
+	if (isl_space_is_wrapping(space)) {
+		space2 = isl_space_map_from_set(isl_space_copy(space));
+		map = isl_map_identity(space2);
+		space = isl_space_unwrap(space);
+	} else {
+		space = isl_space_from_domain(space);
+		map = isl_map_universe(isl_space_copy(space));
+		map = isl_map_reverse(isl_map_domain_map(map));
+	}
+
+	space2 = isl_space_domain(isl_space_copy(space));
+	map_dom = isl_map_identity(isl_space_map_from_set(space2));
+	space = isl_space_range(space);
+	map_ran = isl_map_identity(isl_space_map_from_set(space));
+	map_ran = isl_map_insert_dims(map_ran, isl_dim_out, 0, 1);
+	map_ran = isl_map_set_dim_id(map_ran, isl_dim_out, 0, id);
+	map_ran = isl_map_fix_si(map_ran, isl_dim_out, 0, satisfied);
+
+	map = isl_map_apply_range(map, isl_map_product(map_dom, map_ran));
+
+	return map;
+}
+
 /* Insert an argument expression corresponding to "test" in front
  * of the list of arguments described by *n_arg and *args.
  */
@@ -1464,21 +1513,19 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 	isl_id *id;
 	isl_ctx *ctx;
 	isl_map *map, *add_dom;
+	isl_space *space;
 	isl_set *dom;
 	int n_test_dom;
 
 	if (!stmt || !test)
 		goto error;
 
-	if (isl_set_is_wrapping(stmt->domain))
-		map = isl_set_unwrap(stmt->domain);
-	else
-		map = isl_map_from_domain(stmt->domain);
-	map = isl_map_insert_dims(map, isl_dim_out, 0, 1);
 	id = isl_map_get_tuple_id(test, isl_dim_out);
-	map = isl_map_set_dim_id(map, isl_dim_out, 0, id);
-	map = isl_map_fix_si(map, isl_dim_out, 0, satisfied);
-	dom = isl_set_universe(isl_space_domain(isl_map_get_space(map)));
+	map = insert_filter_map(isl_set_get_space(stmt->domain), id, satisfied);
+	stmt->domain = isl_set_apply(stmt->domain, map);
+
+	space = isl_space_unwrap(isl_set_get_space(stmt->domain));
+	dom = isl_set_universe(isl_space_domain(space));
 	n_test_dom = isl_map_dim(test, isl_dim_in);
 	add_dom = isl_map_from_range(dom);
 	add_dom = isl_map_add_dims(add_dom, isl_dim_in, n_test_dom);
@@ -1486,8 +1533,6 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 		add_dom = isl_map_equate(add_dom, isl_dim_in, i,
 						    isl_dim_out, i);
 	test = isl_map_apply_domain(test, add_dom);
-
-	stmt->domain = isl_map_wrap(map);
 
 	if (args_insert_access(&stmt->n_arg, &stmt->args, test) < 0)
 		goto error;
