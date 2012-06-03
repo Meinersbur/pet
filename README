@@ -57,8 +57,9 @@ and
     #pragma endscop
 
 The code in between needs to consist only of expression statements,
-if statements and for statements.  All access relations, loop initializations
-and conditions need to be piecewise quasi-affine.
+if statements and for statements.  All access relations and loop initializations
+need to be piecewise quasi-affine.  Conditions are allowed to be non-affine,
+in which case a separate statement is constructed to evaluate the condition.
 
 If the autodetect option has been set, pet will try to automatically
 detect a scop and no pragmas are required.  On the other hand, pet
