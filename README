@@ -6,7 +6,7 @@ Requirements:
 - libyaml (http://pyyaml.org/wiki/LibYAML)
 - LLVM/clang libraries, 2.9 or higher (http://clang.llvm.org/get_started.html)
 	Unless you have some other reasons for wanting to use the svn version,
-	it's best to install the latest release (3.0).
+	it's best to install the latest release (3.1).
 	The svn version occasionally introduces incompatibilities.
 	Nevertheless, if you encounter any such incompatibilities, please
 	report them so that they can be fixed.
