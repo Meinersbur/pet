@@ -119,7 +119,7 @@ system)
 	PACKAGE_CFLAGS_ISL="$ISL_CFLAGS"
 esac
 
-AX_SUBMODULE(libyaml,system,system)
+AX_SUBMODULE(libyaml,system|no,system)
 AC_SUBST(LIBYAML_CPPFLAGS)
 AC_SUBST(LIBYAML_LDFLAGS)
 if test "x$with_libyaml_prefix" != "x"; then
@@ -127,6 +127,23 @@ if test "x$with_libyaml_prefix" != "x"; then
 fi
 if test "x$with_libyaml_exec_prefix" != "x"; then
 	LIBYAML_LDFLAGS="-L$with_libyaml_exec_prefix/lib"
+fi
+
+if test "$with_libyaml" = "system"; then
+	SAVE_CPPFLAGS=$CPPFLAGS
+	CPPFLAGS="$CPPFLAGS $LIBYAML_CPPFLAGS"
+	AC_CHECK_HEADER([yaml.h],[],[with_libyaml="no"])
+	CPPFLAGS="$SAVE_CPPFLAGS"
+fi
+
+AC_SUBST(extra_bin_programs)
+AC_SUBST(extra_noinst_programs)
+AC_SUBST(extra_tests)
+
+if test "$with_libyaml" != "no"; then
+	extra_bin_programs="pet"
+	extra_noinst_programs="pet_scop_cmp"
+	extra_tests="pet_test.sh"
 fi
 
 PACKAGE_CFLAGS="$PACKAGE_CFLAGS_ISL"

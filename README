@@ -4,6 +4,7 @@ Requirements:
 	(not needed when compiling a release using the included isl)
 - gmp (http://gmplib.org/)
 - libyaml (http://pyyaml.org/wiki/LibYAML)
+	(only needed if you want to compile the pet executable)
 - LLVM/clang libraries, 2.9 or higher (http://clang.llvm.org/get_started.html)
 	Unless you have some other reasons for wanting to use the svn version,
 	it's best to install the latest release (3.1).

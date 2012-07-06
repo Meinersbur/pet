@@ -15,9 +15,11 @@ ACLOCAL_AMFLAGS = -I m4
 LIB_ISL = $(ISL_LA) @ISL_LIBS@
 
 lib_LTLIBRARIES = libpet.la
-bin_PROGRAMS = pet
-noinst_PROGRAMS = pet_scop_cmp
-TESTS = pet_test.sh
+bin_PROGRAMS = @extra_bin_programs@
+noinst_PROGRAMS = @extra_noinst_programs@
+EXTRA_PROGRAMS = pet pet_scop_cmp
+TESTS = @extra_tests@
+EXTRA_TESTS = pet_test.sh
 
 include_HEADERS = include/pet.h
 
