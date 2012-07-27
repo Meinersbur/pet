@@ -35,6 +35,7 @@
 #include <set>
 #include <map>
 #include <iostream>
+#include <clang/AST/ASTContext.h>
 #include <clang/AST/ASTDiagnostic.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/RecursiveASTVisitor.h>
