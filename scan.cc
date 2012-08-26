@@ -2255,9 +2255,9 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 static bool is_simple_bound(__isl_keep isl_set *cond, isl_int inc)
 {
 	if (isl_int_is_pos(inc))
-		return !isl_set_dim_has_lower_bound(cond, isl_dim_set, 0);
+		return !isl_set_dim_has_any_lower_bound(cond, isl_dim_set, 0);
 	else
-		return !isl_set_dim_has_upper_bound(cond, isl_dim_set, 0);
+		return !isl_set_dim_has_any_upper_bound(cond, isl_dim_set, 0);
 }
 
 /* Extend a condition on a given iteration of a loop to one that
