@@ -15,6 +15,8 @@ struct pet_options {
 	const char **paths;
 	int	n_define;
 	const char **defines;
+
+	unsigned signed_overflow;
 };
 
 ISL_ARG_CTX_DECL(pet_options, struct pet_options, pet_options_args)

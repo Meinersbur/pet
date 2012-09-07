@@ -615,6 +615,20 @@ static __isl_give isl_pw_aff *avoid_overflow(__isl_take isl_pw_aff *pwaff,
 	return pwaff;
 }
 
+/* Handle potential overflows on signed computations.
+ *
+ * If options->signed_overflow is set to PET_OVERFLOW_AVOID,
+ * the we adjust the domain of "pa" to avoid overflows.
+ */
+__isl_give isl_pw_aff *PetScan::signed_overflow(__isl_take isl_pw_aff *pa,
+	unsigned width)
+{
+	if (options->signed_overflow == PET_OVERFLOW_AVOID)
+		pa = avoid_overflow(pa, width);
+
+	return pa;
+}
+
 /* Return the piecewise affine expression "set ? 1 : 0" defined on "dom".
  */
 static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
@@ -668,7 +682,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
 	if (expr->getType()->isUnsignedIntegerType())
 		res = wrap(res, width);
 	else
-		res = avoid_overflow(res, width);
+		res = signed_overflow(res, width);
 
 	return res;
 }

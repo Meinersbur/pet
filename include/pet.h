@@ -19,6 +19,11 @@ ISL_ARG_DECL(pet_options, struct pet_options, pet_options_args)
 int pet_options_set_autodetect(isl_ctx *ctx, int val);
 int pet_options_get_autodetect(isl_ctx *ctx);
 
+#define	PET_OVERFLOW_AVOID	0
+#define	PET_OVERFLOW_IGNORE	1
+int pet_options_set_signed_overflow(isl_ctx *ctx, int val);
+int pet_options_get_signed_overflow(isl_ctx *ctx);
+
 enum pet_expr_type {
 	pet_expr_access,
 	pet_expr_call,
