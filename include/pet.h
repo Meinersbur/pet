@@ -82,7 +82,7 @@ enum pet_ter_arg_type {
 
 /* d is valid when type == pet_expr_double
  * acc is valid when type == pet_expr_access
- * call is valid when type == pet_expr_call
+ * name is valid when type == pet_expr_call
  * op is valid otherwise
  *
  * acc.access usually maps an iteration space to a data space.
