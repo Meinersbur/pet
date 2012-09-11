@@ -1333,6 +1333,8 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 		return pet_op_mul;
 	case BO_Div:
 		return pet_op_div;
+	case BO_Rem:
+		return pet_op_mod;
 	case BO_EQ:
 		return pet_op_eq;
 	case BO_LE:

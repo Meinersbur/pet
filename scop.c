@@ -58,6 +58,7 @@ static char *op_str[] = {
 	[pet_op_sub] = "-",
 	[pet_op_mul] = "*",
 	[pet_op_div] = "/",
+	[pet_op_mod] = "%",
 	[pet_op_eq] = "==",
 	[pet_op_le] = "<=",
 	[pet_op_lt] = "<",
