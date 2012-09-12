@@ -449,30 +449,21 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine_div(BinaryOperator *expr)
 {
-	Expr *rhs_expr;
-	isl_pw_aff *lhs, *lhs_f, *lhs_c;
-	isl_pw_aff *res;
-	isl_int v;
-	isl_set *cond;
+	int is_cst;
+	isl_pw_aff *rhs, *lhs;
 
-	rhs_expr = expr->getRHS();
-	isl_int_init(v);
-	if (extract_int(rhs_expr, &v) < 0) {
-		isl_int_clear(v);
+	rhs = extract_affine(expr->getRHS());
+	is_cst = isl_pw_aff_is_cst(rhs);
+	if (is_cst < 0 || !is_cst) {
+		isl_pw_aff_free(rhs);
+		if (!is_cst)
+			unsupported(expr);
 		return NULL;
 	}
 
 	lhs = extract_affine(expr->getLHS());
-	cond = isl_pw_aff_nonneg_set(isl_pw_aff_copy(lhs));
 
-	lhs = isl_pw_aff_scale_down(lhs, v);
-	isl_int_clear(v);
-
-	lhs_f = isl_pw_aff_floor(isl_pw_aff_copy(lhs));
-	lhs_c = isl_pw_aff_ceil(lhs);
-	res = isl_pw_aff_cond(isl_set_indicator_function(cond), lhs_f, lhs_c);
-
-	return res;
+	return isl_pw_aff_tdiv_q(lhs, rhs);
 }
 
 /* Extract an affine expression from a modulo operation.
@@ -484,35 +475,21 @@ __isl_give isl_pw_aff *PetScan::extract_affine_div(BinaryOperator *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine_mod(BinaryOperator *expr)
 {
-	Expr *rhs_expr;
-	isl_pw_aff *lhs, *lhs_f, *lhs_c;
-	isl_pw_aff *res;
-	isl_int v;
-	isl_set *cond;
+	int is_cst;
+	isl_pw_aff *rhs, *lhs;
 
-	rhs_expr = expr->getRHS();
-	if (rhs_expr->getStmtClass() != Stmt::IntegerLiteralClass) {
-		unsupported(expr);
+	rhs = extract_affine(expr->getRHS());
+	is_cst = isl_pw_aff_is_cst(rhs);
+	if (is_cst < 0 || !is_cst) {
+		isl_pw_aff_free(rhs);
+		if (!is_cst)
+			unsupported(expr);
 		return NULL;
 	}
 
 	lhs = extract_affine(expr->getLHS());
-	cond = isl_pw_aff_nonneg_set(isl_pw_aff_copy(lhs));
 
-	isl_int_init(v);
-	extract_int(cast<IntegerLiteral>(rhs_expr), &v);
-	res = isl_pw_aff_scale_down(isl_pw_aff_copy(lhs), v);
-
-	lhs_f = isl_pw_aff_floor(isl_pw_aff_copy(res));
-	lhs_c = isl_pw_aff_ceil(res);
-	res = isl_pw_aff_cond(isl_set_indicator_function(cond), lhs_f, lhs_c);
-
-	res = isl_pw_aff_scale(res, v);
-	isl_int_clear(v);
-
-	res = isl_pw_aff_sub(lhs, res);
-
-	return res;
+	return isl_pw_aff_tdiv_r(lhs, rhs);
 }
 
 /* Extract an affine expression from a multiplication operation.

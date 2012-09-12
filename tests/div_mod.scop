@@ -1,0 +1,113 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 9
+  domain: '{ S_0[-2] }'
+  schedule: '{ S_0[i] -> [0, i, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: /
+      arguments:
+      - type: access
+        relation: '{ S_0[i] -> [5] }'
+        read: 1
+        write: 0
+      - type: unary
+        operation: '-'
+        arguments:
+        - type: access
+          relation: '{ S_0[i] -> [2] }'
+          read: 1
+          write: 0
+- line: 11
+  domain: '{ S_1[2] }'
+  schedule: '{ S_1[i] -> [0, i, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: /
+      arguments:
+      - type: unary
+        operation: '-'
+        arguments:
+        - type: access
+          relation: '{ S_1[i] -> [5] }'
+          read: 1
+          write: 0
+      - type: unary
+        operation: '-'
+        arguments:
+        - type: access
+          relation: '{ S_1[i] -> [2] }'
+          read: 1
+          write: 0
+- line: 13
+  domain: '{ S_2[1] }'
+  schedule: '{ S_2[i] -> [0, i, 2] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: '%'
+      arguments:
+      - type: access
+        relation: '{ S_2[i] -> [5] }'
+        read: 1
+        write: 0
+      - type: unary
+        operation: '-'
+        arguments:
+        - type: access
+          relation: '{ S_2[i] -> [2] }'
+          read: 1
+          write: 0
+- line: 15
+  domain: '{ S_3[-1] }'
+  schedule: '{ S_3[i] -> [0, i, 3] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_3[i] -> a[] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: '%'
+      arguments:
+      - type: unary
+        operation: '-'
+        arguments:
+        - type: access
+          relation: '{ S_3[i] -> [5] }'
+          read: 1
+          write: 0
+      - type: unary
+        operation: '-'
+        arguments:
+        - type: access
+          relation: '{ S_3[i] -> [2] }'
+          read: 1
+          write: 0
