@@ -4399,6 +4399,13 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range)
 	return scop;
 }
 
+/* Return the file offset of the expansion location of "Loc".
+ */
+static unsigned getExpansionOffset(SourceManager &SM, SourceLocation Loc)
+{
+	return SM.getFileOffset(SM.getExpansionLoc(Loc));
+}
+
 /* Check if the scop marked by the user is exactly this Stmt
  * or part of this Stmt.
  * If so, return a pet_scop corresponding to the marked region.
@@ -4409,8 +4416,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	SourceManager &SM = PP.getSourceManager();
 	unsigned start_off, end_off;
 
-	start_off = SM.getFileOffset(stmt->getLocStart());
-	end_off = SM.getFileOffset(stmt->getLocEnd());
+	start_off = getExpansionOffset(SM, stmt->getLocStart());
+	end_off = getExpansionOffset(SM, stmt->getLocEnd());
 
 	if (start_off > loc.end)
 		return NULL;
@@ -4425,8 +4432,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 		Stmt *child = *start;
 		if (!child)
 			continue;
-		start_off = SM.getFileOffset(child->getLocStart());
-		end_off = SM.getFileOffset(child->getLocEnd());
+		start_off = getExpansionOffset(SM, child->getLocStart());
+		end_off = getExpansionOffset(SM, child->getLocEnd());
 		if (start_off < loc.start && end_off > loc.end)
 			return scan(child);
 		if (start_off >= loc.start)

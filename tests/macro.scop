@@ -1,0 +1,9 @@
+context: '{  :  }'
+arrays: []
+statements:
+- line: 7
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: call
+    name: f
