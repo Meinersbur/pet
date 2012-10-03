@@ -3019,3 +3019,29 @@ struct pet_scop *pet_scop_reset_context(struct pet_scop *scop)
 
 	return scop;
 }
+
+/* Append "array" to the arrays of "scop".
+ */
+struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
+	struct pet_array *array)
+{
+	isl_ctx *ctx;
+	struct pet_array **arrays;
+
+	if (!array || !scop)
+		goto error;
+
+	ctx = isl_set_get_ctx(scop->context);
+	arrays = isl_realloc_array(ctx, scop->arrays, struct pet_array *,
+				    scop->n_array + 1);
+	if (!arrays)
+		goto error;
+	scop->arrays = arrays;
+	scop->arrays[scop->n_array] = array;
+	scop->n_array++;
+
+	return scop;
+error:
+	pet_array_free(array);
+	return pet_scop_free(scop);
+}

@@ -2052,19 +2052,12 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 {
 	isl_ctx *ctx = isl_map_get_ctx(access);
 	isl_space *dim;
-	struct pet_array **arrays;
 	struct pet_array *array;
 
 	if (!scop)
 		return NULL;
 	if (!ctx)
 		goto error;
-
-	arrays = isl_realloc_array(ctx, scop->arrays, struct pet_array *,
-				    scop->n_array + 1);
-	if (!arrays)
-		goto error;
-	scop->arrays = arrays;
 
 	array = isl_calloc_type(ctx, struct pet_array);
 	if (!array)
@@ -2083,11 +2076,10 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	array->element_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
 	array->uniquely_defined = 1;
 
-	scop->arrays[scop->n_array] = array;
-	scop->n_array++;
-
 	if (!array->extent || !array->context)
-		goto error;
+		array = pet_array_free(array);
+
+	scop = pet_scop_add_array(scop, array);
 
 	return scop;
 error:

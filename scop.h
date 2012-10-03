@@ -99,6 +99,9 @@ struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	enum pet_skip type);
 void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);
 
+struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
+	struct pet_array *array);
+
 #if defined(__cplusplus)
 }
 #endif
