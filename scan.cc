@@ -4536,6 +4536,40 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	return set_upper_bounds(array, type, pos + 1);
 }
 
+/* Is "T" the type of a variable length array with static size?
+ */
+static bool is_vla_with_static_size(QualType T)
+{
+	const VariableArrayType *vlatype;
+
+	if (!T->isVariableArrayType())
+		return false;
+	vlatype = cast<VariableArrayType>(T);
+	return vlatype->getSizeModifier() == VariableArrayType::Static;
+}
+
+/* Return the type of "decl" as an array.
+ *
+ * In particular, if "decl" is a parameter declaration that
+ * is a variable length array with a static size, then
+ * return the original type (i.e., the variable length array).
+ * Otherwise, return the type of decl.
+ */
+static QualType get_array_type(ValueDecl *decl)
+{
+	ParmVarDecl *parm;
+	QualType T;
+
+	parm = dyn_cast<ParmVarDecl>(decl);
+	if (!parm)
+		return decl->getType();
+
+	T = parm->getOriginalType();
+	if (!is_vla_with_static_size(T))
+		return decl->getType();
+	return T;
+}
+
 /* Construct and return a pet_array corresponding to the variable "decl".
  * In particular, initialize array->extent to
  *
@@ -4547,7 +4581,7 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 {
 	struct pet_array *array;
-	QualType qt = decl->getType();
+	QualType qt = get_array_type(decl);
 	const Type *type = qt.getTypePtr();
 	int depth = array_depth(type);
 	QualType base = base_type(qt);
