@@ -643,7 +643,7 @@ void pet_stmt_dump(struct pet_stmt *stmt)
 	stmt_dump(stmt, 0);
 }
 
-void *pet_array_free(struct pet_array *array)
+struct pet_array *pet_array_free(struct pet_array *array)
 {
 	if (!array)
 		return NULL;
@@ -2194,8 +2194,8 @@ static __isl_give isl_space *array_collect_params(struct pet_array *array,
 
 	return dim;
 error:
-	isl_space_free(dim);
-	return pet_array_free(array);
+	pet_array_free(array);
+	return isl_space_free(dim);
 }
 
 /* Add all parameters in "scop" to "dim" and return the result.

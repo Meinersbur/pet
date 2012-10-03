@@ -43,7 +43,7 @@ void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
 void pet_array_dump(struct pet_array *array);
-void *pet_array_free(struct pet_array *array);
+struct pet_array *pet_array_free(struct pet_array *array);
 
 struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos);
 
