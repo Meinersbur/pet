@@ -1366,6 +1366,9 @@ void PetScan::mark_write(struct pet_expr *access)
 	isl_id *id;
 	ValueDecl *decl;
 
+	if (!access)
+		return;
+
 	access->acc.write = 1;
 	access->acc.read = 0;
 
