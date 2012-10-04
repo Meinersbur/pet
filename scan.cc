@@ -1381,6 +1381,38 @@ void PetScan::mark_write(struct pet_expr *access)
 	isl_id_free(id);
 }
 
+/* Assign "rhs" to "lhs".
+ *
+ * In particular, if "lhs" is a scalar variable, then mark
+ * the variable as having been assigned.  If, furthermore, "rhs"
+ * is an affine expression, then keep track of this value in assigned_value
+ * so that we can plug it in when we later come across the same variable.
+ */
+void PetScan::assign(struct pet_expr *lhs, Expr *rhs)
+{
+	isl_id *id;
+	ValueDecl *decl;
+	isl_pw_aff *pa;
+
+	if (!lhs)
+		return;
+	if (lhs->type != pet_expr_access)
+		return;
+	if (isl_map_dim(lhs->acc.access, isl_dim_out) != 0)
+		return;
+
+	id = isl_map_get_tuple_id(lhs->acc.access, isl_dim_out);
+	decl = (ValueDecl *) isl_id_get_user(id);
+	isl_id_free(id);
+
+	pa = try_extract_affine(rhs);
+	clear_assignment(assigned_value, decl);
+	if (!pa)
+		return;
+	assigned_value[decl] = pa;
+	insert_expression(pa);
+}
+
 /* Construct a pet_expr representing a binary operator expression.
  *
  * If the top level operator is an assignment and the LHS is an access,
@@ -1412,20 +1444,8 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 			lhs->acc.read = 1;
 	}
 
-	if (expr->getOpcode() == BO_Assign &&
-	    lhs && lhs->type == pet_expr_access &&
-	    isl_map_dim(lhs->acc.access, isl_dim_out) == 0) {
-		isl_id *id = isl_map_get_tuple_id(lhs->acc.access, isl_dim_out);
-		ValueDecl *decl = (ValueDecl *) isl_id_get_user(id);
-		Expr *rhs = expr->getRHS();
-		isl_pw_aff *pa = try_extract_affine(rhs);
-		clear_assignment(assigned_value, decl);
-		if (pa) {
-			assigned_value[decl] = pa;
-			insert_expression(pa);
-		}
-		isl_id_free(id);
-	}
+	if (expr->getOpcode() == BO_Assign)
+		assign(lhs, expr->getRHS());
 
 	return pet_expr_new_binary(ctx, op, lhs, rhs);
 }

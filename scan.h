@@ -79,6 +79,8 @@ struct PetScan {
 
 	static int extract_int(clang::IntegerLiteral *expr, isl_int *v);
 private:
+	void assign(struct pet_expr *lhs, clang::Expr *rhs);
+
 	__isl_give isl_pw_aff *signed_overflow(__isl_take isl_pw_aff *pa,
 		unsigned width);
 	void insert_expression(__isl_take isl_pw_aff *expr);
