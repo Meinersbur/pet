@@ -85,7 +85,8 @@ static void stmt_collect_arrays(struct pet_stmt *stmt, set<ValueDecl *> &arrays)
 	expr_collect_arrays(stmt->body, arrays);
 }
 
-/* Collect the set of all accessed arrays (or scalars) in "scop"
+/* Collect the set of all accessed arrays (or scalars) in "scop",
+ * except those that already appear in scop->arrays,
  * and put them in "arrays".
  */
 void pet_scop_collect_arrays(struct pet_scop *scop, set<ValueDecl *> &arrays)
@@ -95,4 +96,13 @@ void pet_scop_collect_arrays(struct pet_scop *scop, set<ValueDecl *> &arrays)
 
 	for (int i = 0; i < scop->n_stmt; ++i)
 		stmt_collect_arrays(scop->stmts[i], arrays);
+
+	for (int i = 0; i < scop->n_array; ++i) {
+		ValueDecl *decl;
+		isl_id *id = isl_set_get_tuple_id(scop->arrays[i]->extent);
+		decl = (ValueDecl *)isl_id_get_user(id);
+		isl_id_free(id);
+
+		arrays.erase(decl);
+	}
 }
