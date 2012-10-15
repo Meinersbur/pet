@@ -182,8 +182,16 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 		DeclRefExpr *ref;
 		ValueDecl *decl;
 
-		if (expr->getOpcode() != UO_AddrOf)
+		switch (expr->getOpcode()) {
+		case UO_AddrOf:
+		case UO_PostInc:
+		case UO_PostDec:
+		case UO_PreInc:
+		case UO_PreDec:
+			break;
+		default:
 			return true;
+		}
 		if (skip.find(expr) != skip.end())
 			return true;
 
