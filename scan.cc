@@ -2206,6 +2206,9 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		return NULL;
 	}
 
+	clear_assignments clear(assigned_value);
+	clear.TraverseStmt(stmt->getBody());
+
 	pa = try_extract_affine_condition(cond);
 	if (pa)
 		return extract_affine_while(pa, stmt->getBody());

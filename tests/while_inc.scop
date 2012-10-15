@@ -1,0 +1,100 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ __pet_test_0[t] : t >= 0 }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ T[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 5
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> i[] }'
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[] -> [0] }'
+      read: 1
+      write: 0
+- line: 6
+  domain: '{ [S_1[t] -> [1]] : t >= 0 }'
+  schedule: '{ S_1[t] -> [1, t, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[t] -> __pet_test_0[t] }'
+      read: 0
+      write: 1
+    - type: binary
+      operation: <
+      arguments:
+      - type: access
+        relation: '{ S_1[t] -> i[] }'
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_1[t] -> [100] }'
+        read: 1
+        write: 0
+  arguments:
+  - type: access
+    relation: '{ S_1[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 7
+  domain: '{ [S_2[t] -> [1]] : t >= 0 }'
+  schedule: '{ S_2[t] -> [1, t, 1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ [S_2[t] -> [i1]] -> T[i1] : i1 >= 0 }'
+      read: 0
+      write: 1
+      arguments:
+      - type: access
+        relation: '{ S_2[t] -> i[] }'
+        read: 1
+        write: 0
+    - type: access
+      relation: '{ S_2[t] -> i[] }'
+      read: 1
+      write: 0
+  arguments:
+  - type: access
+    relation: '{ S_2[t] -> __pet_test_0[o0] : o0 <= t and o0 >= 0 }'
+    read: 1
+    write: 0
+- line: 8
+  domain: '{ [S_3[t] -> [1]] : t >= 0 }'
+  schedule: '{ S_3[t] -> [1, t, 1, 1] }'
+  body:
+    type: unary
+    operation: ++
+    arguments:
+    - type: access
+      relation: '{ S_3[t] -> i[] }'
+      read: 1
+      write: 1
+  arguments:
+  - type: access
+    relation: '{ S_3[t] -> __pet_test_0[o0] : o0 <= t and o0 >= 0 }'
+    read: 1
+    write: 0
