@@ -56,7 +56,11 @@
 #include <clang/Frontend/DiagnosticOptions.h>
 #endif
 #include <clang/Frontend/TextDiagnosticPrinter.h>
+#ifdef HAVE_LEX_HEADERSEARCHOPTIONS_H
+#include <clang/Lex/HeaderSearchOptions.h>
+#else
 #include <clang/Frontend/HeaderSearchOptions.h>
+#endif
 #include <clang/Frontend/LangStandard.h>
 #include <clang/Frontend/PreprocessorOptions.h>
 #include <clang/Frontend/FrontendOptions.h>

@@ -78,6 +78,10 @@ AC_EGREP_HEADER([HasTemplateKWAndArgsInfo], [clang/AST/Expr.h],
 AC_CHECK_HEADER([clang/Basic/DiagnosticOptions.h],
 	[AC_DEFINE([HAVE_BASIC_DIAGNOSTICOPTIONS_H], [],
 		   [Define if clang/Basic/DiagnosticOptions.h exists])])
+AC_CHECK_HEADER([clang/Lex/HeaderSearchOptions.h],
+	[AC_DEFINE([HAVE_LEX_HEADERSEARCHOPTIONS_H], [],
+		   [Define if clang/Lex/HeaderSearchOptions.h exists])], [],
+	[#include <clang/Basic/LLVM.h>])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
