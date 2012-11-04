@@ -629,7 +629,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 		Clang->setInvocation(invocation);
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());
-	TargetOptions TO;
+	TargetOptions &TO = Clang->getTargetOpts();
 	TO.Triple = llvm::sys::getDefaultTargetTriple();
 	TargetInfo *target = TargetInfo::CreateTargetInfo(Diags, TO);
 	Clang->setTarget(target);
