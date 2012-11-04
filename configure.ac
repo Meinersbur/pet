@@ -75,6 +75,9 @@ AC_EGREP_HEADER([isEnclosingLocal,], [clang/AST/Expr.h],
 AC_EGREP_HEADER([HasTemplateKWAndArgsInfo], [clang/AST/Expr.h],
 	[AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION], [],
 		[Define if DeclRefExpr::Create takes SourceLocation argument])])
+AC_CHECK_HEADER([clang/Basic/DiagnosticOptions.h],
+	[AC_DEFINE([HAVE_BASIC_DIAGNOSTICOPTIONS_H], [],
+		   [Define if clang/Basic/DiagnosticOptions.h exists])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

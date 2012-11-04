@@ -32,6 +32,8 @@
  * Leiden University.
  */ 
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <map>
 #include <iostream>
@@ -48,7 +50,11 @@
 #include <clang/Driver/Tool.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/CompilerInvocation.h>
+#ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
+#include <clang/Basic/DiagnosticOptions.h>
+#else
 #include <clang/Frontend/DiagnosticOptions.h>
+#endif
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Frontend/HeaderSearchOptions.h>
 #include <clang/Frontend/LangStandard.h>
@@ -70,8 +76,6 @@
 
 #include "options.h"
 #include "scan.h"
-
-#include "config.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
 
@@ -474,12 +478,21 @@ static bool is_implicit(const IdentifierInfo *ident)
 struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 	const DiagnosticOptions *DiagOpts;
 	static bool cloned;
+#ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
+	MyDiagnosticPrinter(DiagnosticOptions *DO) :
+		TextDiagnosticPrinter(llvm::errs(), DO) {}
+	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
+		cloned = true;
+		return new MyDiagnosticPrinter(&Diags.getDiagnosticOptions());
+	}
+#else
 	MyDiagnosticPrinter(const DiagnosticOptions &DO) :
 		DiagOpts(&DO), TextDiagnosticPrinter(llvm::errs(), DO) {}
 	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
 		cloned = true;
 		return new MyDiagnosticPrinter(*DiagOpts);
 	}
+#endif
 	virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
 					const DiagnosticInfo &info) {
 		if (info.getID() == diag::ext_implicit_function_decl &&
@@ -594,6 +607,23 @@ static CompilerInvocation *construct_invocation(const char *filename,
 
 #endif
 
+#ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
+
+static MyDiagnosticPrinter *construct_printer(void)
+{
+	return new MyDiagnosticPrinter(new DiagnosticOptions());
+}
+
+#else
+
+static MyDiagnosticPrinter *construct_printer(void)
+{
+	DiagnosticOptions DO;
+	return new MyDiagnosticPrinter(DO);
+}
+
+#endif
+
 /* Extract a pet_scop from the C source file called "filename".
  * If "function" is not NULL, extract the pet_scop from the function
  * with that name.
@@ -617,8 +647,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	isl_union_map *value_bounds;
 
 	CompilerInstance *Clang = new CompilerInstance();
-	DiagnosticOptions DO;
-	MyDiagnosticPrinter *printer = new MyDiagnosticPrinter(DO);
+	MyDiagnosticPrinter *printer = construct_printer();
 	Clang->createDiagnostics(0, NULL, printer);
 	if (printer->cloned)
 		delete printer;
