@@ -82,6 +82,10 @@ AC_CHECK_HEADER([clang/Lex/HeaderSearchOptions.h],
 	[AC_DEFINE([HAVE_LEX_HEADERSEARCHOPTIONS_H], [],
 		   [Define if clang/Lex/HeaderSearchOptions.h exists])], [],
 	[#include <clang/Basic/LLVM.h>])
+AC_CHECK_HEADER([clang/Lex/PreprocessorOptions.h],
+	[AC_DEFINE([HAVE_LEX_PREPROCESSOROPTIONS_H], [],
+		   [Define if clang/Lex/PreprocessorOptions.h exists])], [],
+	[#include <clang/Basic/LLVM.h>])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

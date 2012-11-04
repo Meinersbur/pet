@@ -62,7 +62,11 @@
 #include <clang/Frontend/HeaderSearchOptions.h>
 #endif
 #include <clang/Frontend/LangStandard.h>
+#ifdef HAVE_LEX_PREPROCESSOROPTIONS_H
+#include <clang/Lex/PreprocessorOptions.h>
+#else
 #include <clang/Frontend/PreprocessorOptions.h>
+#endif
 #include <clang/Frontend/FrontendOptions.h>
 #include <clang/Frontend/Utils.h>
 #include <clang/Lex/HeaderSearch.h>
