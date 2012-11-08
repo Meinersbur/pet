@@ -617,17 +617,16 @@ static CompilerInvocation *construct_invocation(const char *filename,
 
 #ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
 
-static MyDiagnosticPrinter *construct_printer(void)
+static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang)
 {
 	return new MyDiagnosticPrinter(new DiagnosticOptions());
 }
 
 #else
 
-static MyDiagnosticPrinter *construct_printer(void)
+static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang)
 {
-	DiagnosticOptions DO;
-	return new MyDiagnosticPrinter(DO);
+	return new MyDiagnosticPrinter(Clang->getDiagnosticOpts());
 }
 
 #endif
@@ -655,15 +654,16 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	isl_union_map *value_bounds;
 
 	CompilerInstance *Clang = new CompilerInstance();
-	MyDiagnosticPrinter *printer = construct_printer();
-	Clang->createDiagnostics(0, NULL, printer);
-	if (printer->cloned)
-		delete printer;
+	Clang->createDiagnostics(0, NULL);
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
 	CompilerInvocation *invocation = construct_invocation(filename, Diags);
 	if (invocation)
 		Clang->setInvocation(invocation);
+	MyDiagnosticPrinter *printer = construct_printer(Clang);
+	Diags.setClient(printer);
+	if (printer->cloned)
+		delete printer;
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());
 	TargetOptions &TO = Clang->getTargetOpts();
