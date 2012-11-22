@@ -232,8 +232,6 @@ int main(int argc, char **argv)
 
 	domain = isl_union_map_domain(isl_union_map_copy(schedule));
 
-	print_options = isl_ast_print_options_alloc(ctx);
-
 	p = isl_printer_to_file(ctx, stdout);
 	p = isl_printer_set_output_format(p, ISL_FORMAT_C);
 	p = isl_printer_start_line(p);
@@ -267,6 +265,7 @@ int main(int argc, char **argv)
 	isl_ast_build_free(build);
 
 	p = isl_printer_indent(p, 2);
+	print_options = isl_ast_print_options_alloc(ctx);
 	p = isl_ast_node_print(tree, p, print_options);
 	p = isl_printer_indent(p, -2);
 	p = isl_printer_start_line(p);
@@ -278,7 +277,6 @@ int main(int argc, char **argv)
 	isl_printer_free(p);
 
 	isl_ast_node_free(tree);
-	isl_ast_print_options_free(print_options);
 	isl_union_set_free(domain);
 	isl_ctx_free(ctx);
 	return 0;
