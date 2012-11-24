@@ -86,6 +86,13 @@ AC_CHECK_HEADER([clang/Lex/PreprocessorOptions.h],
 	[AC_DEFINE([HAVE_LEX_PREPROCESSOROPTIONS_H], [],
 		   [Define if clang/Lex/PreprocessorOptions.h exists])], [],
 	[#include <clang/Basic/LLVM.h>])
+AC_TRY_COMPILE([#include <clang/Basic/TargetInfo.h>], [
+	using namespace clang;
+	TargetOptions *TO;
+	DiagnosticsEngine *Diags;
+	TargetInfo::CreateTargetInfo(*Diags, TO);
+], [AC_DEFINE([CREATETARGETINFO_TAKES_POINTER], [],
+	      [Define if TargetInfo::CreateTargetInfo takes pointer])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

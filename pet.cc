@@ -631,6 +631,28 @@ static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang)
 
 #endif
 
+#ifdef CREATETARGETINFO_TAKES_POINTER
+
+static TargetInfo *create_target_info(CompilerInstance *Clang,
+	DiagnosticsEngine &Diags)
+{
+	TargetOptions &TO = Clang->getTargetOpts();
+	TO.Triple = llvm::sys::getDefaultTargetTriple();
+	return TargetInfo::CreateTargetInfo(Diags, &TO);
+}
+
+#else
+
+static TargetInfo *create_target_info(CompilerInstance *Clang,
+	DiagnosticsEngine &Diags)
+{
+	TargetOptions &TO = Clang->getTargetOpts();
+	TO.Triple = llvm::sys::getDefaultTargetTriple();
+	return TargetInfo::CreateTargetInfo(Diags, TO);
+}
+
+#endif
+
 /* Extract a pet_scop from the C source file called "filename".
  * If "function" is not NULL, extract the pet_scop from the function
  * with that name.
@@ -666,9 +688,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 		delete printer;
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());
-	TargetOptions &TO = Clang->getTargetOpts();
-	TO.Triple = llvm::sys::getDefaultTargetTriple();
-	TargetInfo *target = TargetInfo::CreateTargetInfo(Diags, TO);
+	TargetInfo *target = create_target_info(Clang, Diags);
 	Clang->setTarget(target);
 	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
 					    LangStandard::lang_unspecified);
