@@ -57,7 +57,7 @@ static int extract_int(isl_ctx *ctx, yaml_document_t *document,
 	return atoi((char *) node->data.scalar.value);
 }
 
-static int extract_double(isl_ctx *ctx, yaml_document_t *document,
+static double extract_double(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
 	if (node->type != YAML_SCALAR_NODE)
