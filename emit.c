@@ -230,7 +230,11 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 	case pet_expr_double:
 		if (emit_string(emitter, "value") < 0)
 			return -1;
-		if (emit_double(emitter, expr->d) < 0)
+		if (emit_double(emitter, expr->d.val) < 0)
+			return -1;
+		if (emit_string(emitter, "string") < 0)
+			return -1;
+		if (emit_string(emitter, expr->d.s) < 0)
 			return -1;
 		break;
 	case pet_expr_access:

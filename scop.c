@@ -282,7 +282,7 @@ struct pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 
 /* Construct a pet_expr that represents the double "d".
  */
-struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double d)
+struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double val, const char *s)
 {
 	struct pet_expr *expr;
 
@@ -291,7 +291,10 @@ struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double d)
 		return NULL;
 
 	expr->type = pet_expr_double;
-	expr->d = d;
+	expr->d.val = val;
+	expr->d.s = strdup(s);
+	if (!expr->d.s)
+		return pet_expr_free(expr);
 
 	return expr;
 }
@@ -315,6 +318,8 @@ void *pet_expr_free(struct pet_expr *expr)
 		free(expr->name);
 		break;
 	case pet_expr_double:
+		free(expr->d.s);
+		break;
 	case pet_expr_unary:
 	case pet_expr_binary:
 	case pet_expr_ternary:
@@ -336,7 +341,7 @@ static void expr_dump(struct pet_expr *expr, int indent)
 
 	switch (expr->type) {
 	case pet_expr_double:
-		fprintf(stderr, "%g\n", expr->d);
+		fprintf(stderr, "%s\n", expr->d.s);
 		break;
 	case pet_expr_access:
 		isl_map_dump(expr->acc.access);
@@ -412,7 +417,9 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 			return 0;
 	switch (expr1->type) {
 	case pet_expr_double:
-		if (expr1->d != expr2->d)
+		if (strcmp(expr1->d.s, expr2->d.s))
+			return 0;
+		if (expr1->d.val != expr2->d.val)
 			return 0;
 		break;
 	case pet_expr_access:

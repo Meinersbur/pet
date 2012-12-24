@@ -248,7 +248,9 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 			expr->type = extract_type(ctx, document, value);
 
 		if (!strcmp((char *) key->data.scalar.value, "value"))
-			expr->d = extract_double(ctx, document, value);
+			expr->d.val = extract_double(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "string"))
+			expr->d.s = extract_string(ctx, document, value);
 
 		if (!strcmp((char *) key->data.scalar.value, "relation"))
 			expr->acc.access = extract_map(ctx, document, value);

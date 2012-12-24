@@ -35,6 +35,7 @@
 #include <set>
 #include <map>
 #include <iostream>
+#include <llvm/Support/raw_ostream.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/ASTDiagnostic.h>
 #include <clang/AST/Expr.h>
@@ -1554,10 +1555,30 @@ struct pet_expr *PetScan::extract_expr(ImplicitCastExpr *expr)
 }
 
 /* Construct a pet_expr representing a floating point value.
+ *
+ * If the floating point literal does not appear in a macro,
+ * then we use the original representation in the source code
+ * as the string representation.  Otherwise, we use the pretty
+ * printer to produce a string representation.
  */
 struct pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 {
-	return pet_expr_new_double(ctx, expr->getValueAsApproximateDouble());
+	double d;
+	string s;
+	const LangOptions &LO = PP.getLangOpts();
+	SourceLocation loc = expr->getLocation();
+
+	if (!loc.isMacroID()) {
+		SourceManager &SM = PP.getSourceManager();
+		unsigned len = Lexer::MeasureTokenLength(loc, SM, LO);
+		s = string(SM.getCharacterData(loc), len);
+	} else {
+		llvm::raw_string_ostream S(s);
+		expr->printPretty(S, 0, PrintingPolicy(LO));
+		S.str();
+	}
+	d = expr->getValueAsApproximateDouble();
+	return pet_expr_new_double(ctx, d, s.c_str());
 }
 
 /* Extract an access relation from "expr" and then convert it into

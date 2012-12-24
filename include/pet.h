@@ -97,6 +97,9 @@ enum pet_ter_arg_type {
  * If the data space is unnamed (and 1D), then it represents
  * the set of integers.  That is, the access represents a value that
  * is equal to the index.
+ *
+ * A double is represented as both an (approximate) value "val" and
+ * a string representation "s".
  */
 struct pet_expr {
 	enum pet_expr_type type;
@@ -112,7 +115,10 @@ struct pet_expr {
 		} acc;
 		enum pet_op_type op;
 		char *name;
-		double d;
+		struct {
+			double val;
+			char *s;
+		} d;
 	};
 };
 

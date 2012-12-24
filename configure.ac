@@ -96,6 +96,9 @@ AC_TRY_COMPILE([#include <clang/Basic/TargetInfo.h>], [
 	TargetInfo::CreateTargetInfo(*Diags, TO);
 ], [AC_DEFINE([CREATETARGETINFO_TAKES_POINTER], [],
 	      [Define if TargetInfo::CreateTargetInfo takes pointer])])
+AC_EGREP_HEADER([getLangOpts], [clang/Lex/Preprocessor.h], [],
+	[AC_DEFINE([getLangOpts], [getLangOptions],
+	[Define to getLangOptions for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
