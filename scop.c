@@ -2544,7 +2544,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 }
 
 /* Collect and return all read access relations (if "read" is set)
- * and/or all write * access relations (if "write" is set) in "stmt".
+ * and/or all write access relations (if "write" is set) in "stmt".
  */
 static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	int read, int write, __isl_take isl_space *dim)
@@ -2563,7 +2563,7 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 }
 
 /* Collect and return all read access relations (if "read" is set)
- * and/or all write * access relations (if "write" is set) in "scop".
+ * and/or all write access relations (if "write" is set) in "scop".
  */
 static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	int read, int write)
