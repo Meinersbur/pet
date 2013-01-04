@@ -864,6 +864,8 @@ struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt)
 		return NULL;
 
 	scop = scop_alloc(ctx, 1);
+	if (!scop)
+		goto error;
 
 	scop->context = stmt_extract_context(stmt, scop->context);
 	if (!scop->context)
