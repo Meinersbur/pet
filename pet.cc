@@ -199,7 +199,7 @@ static __isl_give isl_set *extract_initialization(__isl_take isl_set *value,
 	VarDecl *vd;
 	Expr *expr;
 	IntegerLiteral *il;
-	isl_int v;
+	isl_val *v;
 	isl_ctx *ctx;
 	isl_id *id;
 	isl_space *space;
@@ -223,10 +223,8 @@ static __isl_give isl_set *extract_initialization(__isl_take isl_set *value,
 	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
 	set = isl_set_universe(space);
 
-	isl_int_init(v);
-	PetScan::extract_int(il, &v);
-	set = isl_set_fix(set, isl_dim_param, 0, v);
-	isl_int_clear(v);
+	v = PetScan::extract_int(ctx, il);
+	set = isl_set_fix_val(set, isl_dim_param, 0, v);
 
 	return isl_set_intersect(value, set);
 }

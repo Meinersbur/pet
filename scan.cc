@@ -289,44 +289,42 @@ void PetScan::unsupported(Stmt *stmt, const char *msg)
 	DiagnosticBuilder B = diag.Report(loc, id) << stmt->getSourceRange();
 }
 
-/* Extract an integer from "expr" and store it in "v".
+/* Extract an integer from "expr".
  */
-int PetScan::extract_int(IntegerLiteral *expr, isl_int *v)
+__isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
 {
 	const Type *type = expr->getType().getTypePtr();
 	int is_signed = type->hasSignedIntegerRepresentation();
 
 	if (is_signed) {
 		int64_t i = expr->getValue().getSExtValue();
-		isl_int_set_si(*v, i);
+		return isl_val_int_from_si(ctx, i);
 	} else {
 		uint64_t i = expr->getValue().getZExtValue();
-		isl_int_set_ui(*v, i);
+		return isl_val_int_from_ui(ctx, i);
 	}
-
-	return 0;
 }
 
-/* Extract an integer from "expr" and store it in "v".
- * Return -1 if "expr" does not (obviously) represent an integer.
+/* Extract an integer from "expr".
+ * Return NULL if "expr" does not (obviously) represent an integer.
  */
-int PetScan::extract_int(clang::ParenExpr *expr, isl_int *v)
+__isl_give isl_val *PetScan::extract_int(clang::ParenExpr *expr)
 {
-	return extract_int(expr->getSubExpr(), v);
+	return extract_int(expr->getSubExpr());
 }
 
-/* Extract an integer from "expr" and store it in "v".
- * Return -1 if "expr" does not (obviously) represent an integer.
+/* Extract an integer from "expr".
+ * Return NULL if "expr" does not (obviously) represent an integer.
  */
-int PetScan::extract_int(clang::Expr *expr, isl_int *v)
+__isl_give isl_val *PetScan::extract_int(clang::Expr *expr)
 {
 	if (expr->getStmtClass() == Stmt::IntegerLiteralClass)
-		return extract_int(cast<IntegerLiteral>(expr), v);
+		return extract_int(ctx, cast<IntegerLiteral>(expr));
 	if (expr->getStmtClass() == Stmt::ParenExprClass)
-		return extract_int(cast<ParenExpr>(expr), v);
+		return extract_int(cast<ParenExpr>(expr));
 
 	unsupported(expr);
-	return -1;
+	return NULL;
 }
 
 /* Extract an affine expression from the IntegerLiteral "expr".
@@ -337,12 +335,10 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(dim);
-	isl_int v;
+	isl_val *v;
 
-	isl_int_init(v);
-	extract_int(expr, &v);
-	aff = isl_aff_add_constant(aff, v);
-	isl_int_clear(v);
+	v = extract_int(expr);
+	aff = isl_aff_add_constant_val(aff, v);
 
 	return isl_pw_aff_alloc(dom, aff);
 }
@@ -727,7 +723,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 		else
 			aff1 = isl_pw_aff_max(aff1, aff2);
 	} else if (name == "floord" || name == "ceild") {
-		isl_int v;
+		isl_val *v;
 		Expr *arg2 = expr->getArg(1);
 
 		if (arg2->getStmtClass() != Stmt::IntegerLiteralClass) {
@@ -735,10 +731,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 			return NULL;
 		}
 		aff1 = extract_affine(expr->getArg(0));
-		isl_int_init(v);
-		extract_int(cast<IntegerLiteral>(arg2), &v);
-		aff1 = isl_pw_aff_scale_down(aff1, v);
-		isl_int_clear(v);
+		v = extract_int(cast<IntegerLiteral>(arg2));
+		aff1 = isl_pw_aff_scale_down_val(aff1, v);
 		if (name == "floord")
 			aff1 = isl_pw_aff_floor(aff1);
 		else

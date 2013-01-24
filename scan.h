@@ -7,6 +7,7 @@
 
 #include <isl/ctx.h>
 #include <isl/map.h>
+#include <isl/val.h>
 
 #include "scop.h"
 
@@ -77,7 +78,8 @@ struct PetScan {
 
 	struct pet_scop *scan(clang::FunctionDecl *fd);
 
-	static int extract_int(clang::IntegerLiteral *expr, isl_int *v);
+	static __isl_give isl_val *extract_int(isl_ctx *ctx,
+		clang::IntegerLiteral *expr);
 private:
 	void assign(struct pet_expr *lhs, clang::Expr *rhs);
 
@@ -169,8 +171,8 @@ private:
 	__isl_give isl_map *extract_access(clang::ValueDecl *decl);
 	__isl_give isl_map *extract_access(clang::IntegerLiteral *expr);
 
-	int extract_int(clang::Expr *expr, isl_int *v);
-	int extract_int(clang::ParenExpr *expr, isl_int *v);
+	__isl_give isl_val *extract_int(clang::Expr *expr);
+	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
 
 	__isl_give isl_pw_aff *extract_affine_add(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_affine_div(clang::BinaryOperator *expr);
