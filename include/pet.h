@@ -177,12 +177,19 @@ struct pet_array {
 	int exposed;
 };
 
-/* The context describes the set of parameter values for which
+/* The start and end fields contain the offsets in the input file
+ * of the scop, where end points to the first character after the scop.
+ * Internally, end may be zero to indicate that no offset information is
+ * available (yet).
+ * The context describes the set of parameter values for which
  * the scop can be executed.
  * context_value describes assignments to the parameters (if any)
  * outside of the scop.
  */
 struct pet_scop {
+	unsigned start;
+	unsigned end;
+
 	isl_set *context;
 	isl_set *context_value;
 

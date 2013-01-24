@@ -32,6 +32,7 @@
  * Leiden University.
  */ 
 
+#include <string.h>
 #include <set>
 #include <map>
 #include <iostream>
@@ -3154,22 +3155,74 @@ error:
 	return NULL;
 }
 
+/* Return the file offset of the expansion location of "Loc".
+ */
+static unsigned getExpansionOffset(SourceManager &SM, SourceLocation Loc)
+{
+	return SM.getFileOffset(SM.getExpansionLoc(Loc));
+}
+
+#ifdef HAVE_FINDLOCATIONAFTERTOKEN
+
+/* Return a SourceLocation for the location after the first semicolon
+ * after "loc".  If Lexer::findLocationAfterToken is available, we simply
+ * call it and also skip trailing spaces and newline.
+ */
+static SourceLocation location_after_semi(SourceLocation loc, SourceManager &SM,
+	const LangOptions &LO)
+{
+	return Lexer::findLocationAfterToken(loc, tok::semi, SM, LO, true);
+}
+
+#else
+
+/* Return a SourceLocation for the location after the first semicolon
+ * after "loc".  If Lexer::findLocationAfterToken is not available,
+ * we look in the underlying character data for the first semicolon.
+ */
+static SourceLocation location_after_semi(SourceLocation loc, SourceManager &SM,
+	const LangOptions &LO)
+{
+	const char *semi;
+	const char *s = SM.getCharacterData(loc);
+
+	semi = strchr(s, ';');
+	if (!semi)
+		return SourceLocation();
+	return loc.getFileLocWithOffset(semi + 1 - s);
+}
+
+#endif
+
 /* Convert a top-level pet_expr to a pet_scop with one statement.
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
  * The name is given by "label" if it is non-NULL.  Otherwise,
  * it is of the form S_<n_stmt>.
+ * start and end of the pet_scop are derived from those of "stmt".
  */
 struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
 	__isl_take isl_id *label)
 {
 	struct pet_stmt *ps;
+	struct pet_scop *scop;
 	SourceLocation loc = stmt->getLocStart();
+	SourceManager &SM = PP.getSourceManager();
+	const LangOptions &LO = PP.getLangOpts();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
+	unsigned start, end;
 
 	expr = resolve_nested(expr);
 	ps = pet_stmt_from_pet_expr(ctx, line, label, n_stmt++, expr);
-	return pet_scop_from_pet_stmt(ctx, ps);
+	scop = pet_scop_from_pet_stmt(ctx, ps);
+
+	start = getExpansionOffset(SM, loc);
+	loc = stmt->getLocEnd();
+	loc = location_after_semi(loc, SM, LO);
+	end = getExpansionOffset(SM, loc);
+
+	scop = pet_scop_update_start_end(scop, start, end);
+	return scop;
 }
 
 /* Check if we can extract an affine expression from "expr".
@@ -4287,34 +4340,65 @@ struct pet_scop *PetScan::extract(BreakStmt *stmt)
  * If "stmt" is a compound statement, then "skip_declarations"
  * indicates whether we should skip initial declarations in the
  * compound statement.
+ *
+ * If the constructed pet_scop is not a (possibly) partial representation
+ * of "stmt", we update start and end of the pet_scop to those of "stmt".
+ * In particular, if skip_declarations, then we may have skipped declarations
+ * inside "stmt" and so the pet_scop may not represent the entire "stmt".
+ * Note that this function may be called with "stmt" referring to the entire
+ * body of the function, including the outer braces.  In such cases,
+ * skip_declarations will be set and the braces will not be taken into
+ * account in scop->start and scop->end.
  */
 struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 {
+	struct pet_scop *scop;
+	unsigned start, end;
+	SourceLocation loc;
+	SourceManager &SM = PP.getSourceManager();
+
 	if (isa<Expr>(stmt))
 		return extract(stmt, extract_expr(cast<Expr>(stmt)));
 
 	switch (stmt->getStmtClass()) {
 	case Stmt::WhileStmtClass:
-		return extract(cast<WhileStmt>(stmt));
+		scop = extract(cast<WhileStmt>(stmt));
+		break;
 	case Stmt::ForStmtClass:
-		return extract_for(cast<ForStmt>(stmt));
+		scop = extract_for(cast<ForStmt>(stmt));
+		break;
 	case Stmt::IfStmtClass:
-		return extract(cast<IfStmt>(stmt));
+		scop = extract(cast<IfStmt>(stmt));
+		break;
 	case Stmt::CompoundStmtClass:
-		return extract(cast<CompoundStmt>(stmt), skip_declarations);
+		scop = extract(cast<CompoundStmt>(stmt), skip_declarations);
+		break;
 	case Stmt::LabelStmtClass:
-		return extract(cast<LabelStmt>(stmt));
+		scop = extract(cast<LabelStmt>(stmt));
+		break;
 	case Stmt::ContinueStmtClass:
-		return extract(cast<ContinueStmt>(stmt));
+		scop = extract(cast<ContinueStmt>(stmt));
+		break;
 	case Stmt::BreakStmtClass:
-		return extract(cast<BreakStmt>(stmt));
+		scop = extract(cast<BreakStmt>(stmt));
+		break;
 	case Stmt::DeclStmtClass:
-		return extract(cast<DeclStmt>(stmt));
+		scop = extract(cast<DeclStmt>(stmt));
+		break;
 	default:
 		unsupported(stmt);
+		return NULL;
 	}
 
-	return NULL;
+	if (partial || skip_declarations)
+		return scop;
+
+	start = getExpansionOffset(SM, stmt->getLocStart());
+	loc = PP.getLocForEndOfToken(stmt->getLocEnd());
+	end = getExpansionOffset(SM, loc);
+	scop = pet_scop_update_start_end(scop, start, end);
+
+	return scop;
 }
 
 /* Do we need to construct a skip condition of the given type
@@ -4616,13 +4700,6 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 		partial = true;
 
 	return scop;
-}
-
-/* Return the file offset of the expansion location of "Loc".
- */
-static unsigned getExpansionOffset(SourceManager &SM, SourceLocation Loc)
-{
-	return SM.getFileOffset(SM.getExpansionLoc(Loc));
 }
 
 /* Check if the scop marked by the user is exactly this Stmt

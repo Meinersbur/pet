@@ -99,6 +99,9 @@ AC_TRY_COMPILE([#include <clang/Basic/TargetInfo.h>], [
 AC_EGREP_HEADER([getLangOpts], [clang/Lex/Preprocessor.h], [],
 	[AC_DEFINE([getLangOpts], [getLangOptions],
 	[Define to getLangOptions for older versions of clang])])
+AC_EGREP_HEADER([findLocationAfterToken], [clang/Lex/Lexer.h],
+	[AC_DEFINE([HAVE_FINDLOCATIONAFTERTOKEN], [],
+	[Define if SourceManager has findLocationAfterToken method])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

@@ -965,8 +965,46 @@ static struct pet_scop *scop_combine_skips(struct pet_scop *scop,
 	return &ext->scop;
 }
 
-/* Construct a pet_scop that contains the arrays, statements and
- * skip information in "scop1" and "scop2".
+/* Update scop->start and scop->end to include the region from "start"
+ * to "end".  In particular, if scop->end == 0, then "scop" does not
+ * have any offset information yet and we simply take the information
+ * from "start" and "end".  Otherwise, we update the fields if the
+ * region from "start" to "end" is not already included.
+ */
+struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
+	unsigned start, unsigned end)
+{
+	if (!scop)
+		return NULL;
+	if (scop->end == 0) {
+		scop->start = start;
+		scop->end = end;
+	} else {
+		if (start < scop->start)
+			scop->start = start;
+		if (end > scop->end)
+			scop->end = end;
+	}
+
+	return scop;
+}
+
+/* Combine the offset information of "scop1" and "scop2" into "scop".
+ */
+static struct pet_scop *scop_combine_start_end(struct pet_scop *scop,
+	struct pet_scop *scop1, struct pet_scop *scop2)
+{
+	if (scop1->end)
+		scop = pet_scop_update_start_end(scop,
+						scop1->start, scop1->end);
+	if (scop2->end)
+		scop = pet_scop_update_start_end(scop,
+						scop2->start, scop2->end);
+	return scop;
+}
+
+/* Construct a pet_scop that contains the offset information,
+ * arrays, statements and skip information in "scop1" and "scop2".
  */
 static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
@@ -1022,6 +1060,7 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop1->context));
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop2->context));
 	scop = scop_combine_skips(scop, scop1, scop2);
+	scop = scop_combine_start_end(scop, scop1, scop2);
 
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);

@@ -105,6 +105,9 @@ void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);
 struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 	struct pet_array *array);
 
+struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
+	unsigned start, unsigned end);
+
 #if defined(__cplusplus)
 }
 #endif

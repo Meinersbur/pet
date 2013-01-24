@@ -67,6 +67,28 @@ static int emit_named_int(yaml_emitter_t *emitter, const char *name, int i)
 	return 0;
 }
 
+/* Print the unsigned integer "u" to "emitter".
+ */
+static int emit_unsigned(yaml_emitter_t *emitter, unsigned u)
+{
+	char buffer[40];
+
+	snprintf(buffer, sizeof(buffer), "%u", u);
+	return emit_string(emitter, buffer);
+}
+
+/* Print the string "name" and the unsigned integer "u" to "emitter".
+ */
+static int emit_named_unsigned(yaml_emitter_t *emitter, const char *name,
+	unsigned u)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_int(emitter, u) < 0)
+		return -1;
+	return 0;
+}
+
 static int emit_double(yaml_emitter_t *emitter, double d)
 {
 	char buffer[40];
@@ -398,6 +420,10 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 	if (!yaml_emitter_emit(emitter, &event))
 		return -1;
 
+	if (emit_named_unsigned(emitter, "start", scop->start) < 0)
+		return -1;
+	if (emit_named_unsigned(emitter, "end", scop->end) < 0)
+		return -1;
 	if (emit_string(emitter, "context") < 0)
 		return -1;
 	if (emit_set(emitter, scop->context) < 0)
