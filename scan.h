@@ -148,6 +148,7 @@ private:
 	struct pet_expr *extract_expr(clang::ParenExpr *expr);
 	struct pet_expr *extract_expr(clang::ConditionalOperator *expr);
 	struct pet_expr *extract_expr(clang::CallExpr *expr);
+	struct pet_expr *extract_expr(clang::CStyleCastExpr *expr);
 
 	int extract_nested(__isl_keep isl_space *space,
 		int n_arg, struct pet_expr **args,

@@ -245,6 +245,7 @@ static __isl_give isl_pw_aff *expr_extract_pw_aff(struct pet_expr *expr,
 		pa1 = expr_extract_pw_aff(expr->args[1], assignments);
 		pa2 = expr_extract_pw_aff(expr->args[2], assignments);
 		return isl_pw_aff_cond(pa, pa1, pa2);
+	case pet_expr_cast:
 	case pet_expr_double:
 		assert(0);
 	}

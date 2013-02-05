@@ -42,6 +42,7 @@
 static char *type_str[] = {
 	[pet_expr_access] = "access",
 	[pet_expr_call] = "call",
+	[pet_expr_cast] = "cast",
 	[pet_expr_double] = "double",
 	[pet_expr_unary] = "unary",
 	[pet_expr_binary] = "binary",
@@ -280,6 +281,36 @@ struct pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 	return expr;
 }
 
+/* Construct a pet_expr that represents the cast of "arg" to "type_name".
+ */
+struct pet_expr *pet_expr_new_cast(isl_ctx *ctx, const char *type_name,
+	struct pet_expr *arg)
+{
+	struct pet_expr *expr;
+
+	if (!arg)
+		return NULL;
+
+	expr = isl_alloc_type(ctx, struct pet_expr);
+	if (!expr)
+		goto error;
+
+	expr->type = pet_expr_cast;
+	expr->n_arg = 1;
+	expr->type_name = strdup(type_name);
+	expr->args = isl_calloc_array(ctx, struct pet_expr *, 1);
+	if (!expr->type_name || !expr->args)
+		goto error;
+
+	expr->args[0] = arg;
+
+	return expr;
+error:
+	pet_expr_free(arg);
+	pet_expr_free(expr);
+	return NULL;
+}
+
 /* Construct a pet_expr that represents the double "d".
  */
 struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double val, const char *s)
@@ -316,6 +347,9 @@ void *pet_expr_free(struct pet_expr *expr)
 		break;
 	case pet_expr_call:
 		free(expr->name);
+		break;
+	case pet_expr_cast:
+		free(expr->type_name);
 		break;
 	case pet_expr_double:
 		free(expr->d.s);
@@ -369,6 +403,11 @@ static void expr_dump(struct pet_expr *expr, int indent)
 		break;
 	case pet_expr_call:
 		fprintf(stderr, "%s/%d\n", expr->name, expr->n_arg);
+		for (i = 0; i < expr->n_arg; ++i)
+			expr_dump(expr->args[i], indent + 2);
+		break;
+	case pet_expr_cast:
+		fprintf(stderr, "(%s)\n", expr->type_name);
 		for (i = 0; i < expr->n_arg; ++i)
 			expr_dump(expr->args[i], indent + 2);
 		break;
@@ -440,6 +479,10 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 		break;
 	case pet_expr_call:
 		if (strcmp(expr1->name, expr2->name))
+			return 0;
+		break;
+	case pet_expr_cast:
+		if (strcmp(expr1->type_name, expr2->type_name))
 			return 0;
 		break;
 	}

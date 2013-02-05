@@ -27,6 +27,7 @@ int pet_options_get_signed_overflow(isl_ctx *ctx);
 enum pet_expr_type {
 	pet_expr_access,
 	pet_expr_call,
+	pet_expr_cast,
 	pet_expr_double,
 	pet_expr_unary,
 	pet_expr_binary,
@@ -85,6 +86,7 @@ enum pet_ter_arg_type {
 /* d is valid when type == pet_expr_double
  * acc is valid when type == pet_expr_access
  * name is valid when type == pet_expr_call
+ * type is valid when type == pet_expr_cast
  * op is valid otherwise
  *
  * acc.access usually maps an iteration space to a data space.
@@ -115,6 +117,7 @@ struct pet_expr {
 		} acc;
 		enum pet_op_type op;
 		char *name;
+		char *type_name;
 		struct {
 			double val;
 			char *s;

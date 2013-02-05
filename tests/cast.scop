@@ -1,0 +1,29 @@
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ c[] }'
+  element_type: char
+  element_size: 1
+statements:
+- line: 7
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> a[] }'
+      read: 0
+      write: 1
+    - type: cast
+      type_name: int
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> c[] }'
+        read: 1
+        write: 0

@@ -266,6 +266,12 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 		if (emit_string(emitter, expr->name) < 0)
 			return -1;
 		break;
+	case pet_expr_cast:
+		if (emit_string(emitter, "type_name") < 0)
+			return -1;
+		if (emit_string(emitter, expr->type_name) < 0)
+			return -1;
+		break;
 	}
 
 	if (expr->n_arg > 0) {

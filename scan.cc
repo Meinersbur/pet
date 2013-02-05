@@ -1672,6 +1672,21 @@ error:
 	return NULL;
 }
 
+/* Construct a pet_expr representing a (C style) cast.
+ */
+struct pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
+{
+	struct pet_expr *arg;
+	QualType type;
+
+	arg = extract_expr(expr->getSubExpr());
+	if (!arg)
+		return NULL;
+
+	type = expr->getTypeAsWritten();
+	return pet_expr_new_cast(ctx, type.getAsString().c_str(), arg);
+}
+
 /* Try and onstruct a pet_expr representing "expr".
  */
 struct pet_expr *PetScan::extract_expr(Expr *expr)
@@ -1696,6 +1711,8 @@ struct pet_expr *PetScan::extract_expr(Expr *expr)
 		return extract_expr(cast<ConditionalOperator>(expr));
 	case Stmt::CallExprClass:
 		return extract_expr(cast<CallExpr>(expr));
+	case Stmt::CStyleCastExprClass:
+		return extract_expr(cast<CStyleCastExpr>(expr));
 	default:
 		unsupported(expr);
 	}

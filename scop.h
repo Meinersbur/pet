@@ -29,6 +29,8 @@ struct pet_expr *pet_expr_new_ternary(isl_ctx *ctx, struct pet_expr *cond,
 	struct pet_expr *lhs, struct pet_expr *rhs);
 struct pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 	unsigned n_arg);
+struct pet_expr *pet_expr_new_cast(isl_ctx *ctx, const char *type_name,
+	struct pet_expr *arg);
 struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double d, const char *s);
 void pet_expr_dump(struct pet_expr *expr);
 void *pet_expr_free(struct pet_expr *expr);

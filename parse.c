@@ -265,6 +265,9 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 		if (!strcmp((char *) key->data.scalar.value, "name"))
 			expr->name = extract_string(ctx, document, value);
 
+		if (!strcmp((char *) key->data.scalar.value, "type_name"))
+			expr->type_name = extract_string(ctx, document, value);
+
 		if (!strcmp((char *) key->data.scalar.value, "arguments"))
 			expr = extract_arguments(ctx, document, value, expr);
 		if (!expr)
