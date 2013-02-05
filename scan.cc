@@ -4995,6 +4995,9 @@ error:
 }
 
 /* Construct a pet_scop from the given function.
+ *
+ * If the scop was delimited by scop and endscop pragmas, then we override
+ * the file offsets by those derived from the pragmas.
  */
 struct pet_scop *PetScan::scan(FunctionDecl *fd)
 {
@@ -5005,8 +5008,10 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 
 	if (options->autodetect)
 		scop = extract(stmt, true);
-	else
+	else {
 		scop = scan(stmt);
+		scop = pet_scop_update_start_end(scop, loc.start, loc.end);
+	}
 	scop = pet_scop_detect_parameter_accesses(scop);
 	scop = scan_arrays(scop);
 	scop = add_parameter_bounds(scop);

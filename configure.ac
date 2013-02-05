@@ -102,6 +102,9 @@ AC_EGREP_HEADER([getLangOpts], [clang/Lex/Preprocessor.h], [],
 AC_EGREP_HEADER([findLocationAfterToken], [clang/Lex/Lexer.h],
 	[AC_DEFINE([HAVE_FINDLOCATIONAFTERTOKEN], [],
 	[Define if SourceManager has findLocationAfterToken method])])
+AC_EGREP_HEADER([translateLineCol], [clang/Basic/SourceManager.h],
+	[AC_DEFINE([HAVE_TRANSLATELINECOL], [],
+	[Define if SourceManager has translateLineCol method])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

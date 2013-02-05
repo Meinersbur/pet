@@ -303,11 +303,34 @@ struct PragmaParameterHandler : public PragmaHandler {
 	}
 };
 
+#ifdef HAVE_TRANSLATELINECOL
+
+/* Return a SourceLocation for line "line", column "col" of file "FID".
+ */
+SourceLocation translateLineCol(SourceManager &SM, FileID FID, unsigned line,
+	unsigned col)
+{
+	return SM.translateLineCol(FID, line, col);
+}
+
+#else
+
+/* Return a SourceLocation for line "line", column "col" of file "FID".
+ */
+SourceLocation translateLineCol(SourceManager &SM, FileID FID, unsigned line,
+	unsigned col)
+{
+	return SM.getLocation(SM.getFileEntryForID(FID), line, col);
+}
+
+#endif
+
 /* Handle pragmas of the form
  *
  *	#pragma scop
  *
- * In particular, store the current location in loc.start.
+ * In particular, store the location of the line containing
+ * the pragma in loc.start.
  */
 struct PragmaScopHandler : public PragmaHandler {
 	ScopLoc &loc;
@@ -318,7 +341,10 @@ struct PragmaScopHandler : public PragmaHandler {
 				  PragmaIntroducerKind Introducer,
 				  Token &ScopTok) {
 		SourceManager &SM = PP.getSourceManager();
-		loc.start = SM.getFileOffset(ScopTok.getLocation());
+		SourceLocation sloc = ScopTok.getLocation();
+		int line = SM.getExpansionLineNumber(sloc);
+		sloc = translateLineCol(SM, SM.getFileID(sloc), line, 1);
+		loc.start = SM.getFileOffset(sloc);
 	}
 };
 
@@ -326,7 +352,8 @@ struct PragmaScopHandler : public PragmaHandler {
  *
  *	#pragma endscop
  *
- * In particular, store the current location in loc.end.
+ * In particular, store the location of the line following the one containing
+ * the pragma in loc.end.
  */
 struct PragmaEndScopHandler : public PragmaHandler {
 	ScopLoc &loc;
@@ -338,7 +365,10 @@ struct PragmaEndScopHandler : public PragmaHandler {
 				  PragmaIntroducerKind Introducer,
 				  Token &EndScopTok) {
 		SourceManager &SM = PP.getSourceManager();
-		loc.end = SM.getFileOffset(EndScopTok.getLocation());
+		SourceLocation sloc = EndScopTok.getLocation();
+		int line = SM.getExpansionLineNumber(sloc);
+		sloc = translateLineCol(SM, SM.getFileID(sloc), line + 1, 1);
+		loc.end = SM.getFileOffset(sloc);
 	}
 };
 

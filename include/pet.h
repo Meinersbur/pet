@@ -179,6 +179,8 @@ struct pet_array {
 
 /* The start and end fields contain the offsets in the input file
  * of the scop, where end points to the first character after the scop.
+ * If the scop was detected based on scop and endscop pragmas, then
+ * the lines containing these pragmas are included in this range.
  * Internally, end may be zero to indicate that no offset information is
  * available (yet).
  * The context describes the set of parameter values for which
