@@ -375,28 +375,27 @@ static __isl_give isl_set *set_parameter_bounds(__isl_take isl_set *set,
 	unsigned pos, ValueDecl *decl)
 {
 	unsigned width;
-	isl_int v;
+	isl_ctx *ctx;
+	isl_val *bound;
 
-	isl_int_init(v);
-
+	ctx = isl_set_get_ctx(set);
 	width = get_type_size(decl);
 	if (decl->getType()->isUnsignedIntegerType()) {
 		set = isl_set_lower_bound_si(set, isl_dim_param, pos, 0);
-		isl_int_set_si(v, 1);
-		isl_int_mul_2exp(v, v, width);
-		isl_int_sub_ui(v, v, 1);
-		set = isl_set_upper_bound(set, isl_dim_param, pos, v);
+		bound = isl_val_int_from_ui(ctx, width);
+		bound = isl_val_2exp(bound);
+		bound = isl_val_sub_ui(bound, 1);
+		set = isl_set_upper_bound_val(set, isl_dim_param, pos, bound);
 	} else {
-		isl_int_set_si(v, 1);
-		isl_int_mul_2exp(v, v, width - 1);
-		isl_int_sub_ui(v, v, 1);
-		set = isl_set_upper_bound(set, isl_dim_param, pos, v);
-		isl_int_neg(v, v);
-		isl_int_sub_ui(v, v, 1);
-		set = isl_set_lower_bound(set, isl_dim_param, pos, v);
+		bound = isl_val_int_from_ui(ctx, width - 1);
+		bound = isl_val_2exp(bound);
+		bound = isl_val_sub_ui(bound, 1);
+		set = isl_set_upper_bound_val(set, isl_dim_param, pos,
+						isl_val_copy(bound));
+		bound = isl_val_neg(bound);
+		bound = isl_val_sub_ui(bound, 1);
+		set = isl_set_lower_bound_val(set, isl_dim_param, pos, bound);
 	}
-
-	isl_int_clear(v);
 
 	return set;
 }
