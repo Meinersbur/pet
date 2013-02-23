@@ -547,15 +547,14 @@ __isl_give isl_pw_aff *PetScan::extract_affine_add(BinaryOperator *expr)
 static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
 	unsigned width)
 {
-	isl_int mod;
+	isl_ctx *ctx;
+	isl_val *mod;
 
-	isl_int_init(mod);
-	isl_int_set_si(mod, 1);
-	isl_int_mul_2exp(mod, mod, width);
+	ctx = isl_pw_aff_get_ctx(pwaff);
+	mod = isl_val_int_from_ui(ctx, width);
+	mod = isl_val_2exp(mod);
 
-	pwaff = isl_pw_aff_mod(pwaff, mod);
-
-	isl_int_clear(mod);
+	pwaff = isl_pw_aff_mod_val(pwaff, mod);
 
 	return pwaff;
 }
