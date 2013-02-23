@@ -1846,11 +1846,11 @@ __isl_give isl_pw_aff *PetScan::extract_unary_increment(
 static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
 	void *user)
 {
-	isl_int *inc = (isl_int *)user;
+	isl_val **inc = (isl_val **)user;
 	int res = 0;
 
 	if (isl_aff_is_cst(aff))
-		isl_aff_get_constant(aff, inc);
+		*inc = isl_aff_get_constant_val(aff);
 	else
 		res = -1;
 
@@ -2375,9 +2375,9 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
  * upper bounds on the set dimension.
  * Otherwise, it should contain only lower bounds.
  */
-static bool is_simple_bound(__isl_keep isl_set *cond, isl_int inc)
+static bool is_simple_bound(__isl_keep isl_set *cond, __isl_keep isl_val *inc)
 {
-	if (isl_int_is_pos(inc))
+	if (isl_val_is_pos(inc))
 		return !isl_set_dim_has_any_lower_bound(cond, isl_dim_set, 0);
 	else
 		return !isl_set_dim_has_any_upper_bound(cond, isl_dim_set, 0);
@@ -2403,11 +2403,11 @@ static bool is_simple_bound(__isl_keep isl_set *cond, isl_int inc)
  * and then negating the result again.
  */
 static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
-	__isl_take isl_set *domain, isl_int inc)
+	__isl_take isl_set *domain, __isl_take isl_val *inc)
 {
 	isl_map *previous_to_this;
 
-	if (isl_int_is_pos(inc))
+	if (isl_val_is_pos(inc))
 		previous_to_this = isl_map_lex_le(isl_set_get_space(domain));
 	else
 		previous_to_this = isl_map_lex_ge(isl_set_get_space(domain));
@@ -2418,6 +2418,8 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
 	cond = isl_set_apply(cond, previous_to_this);
 	cond = isl_set_complement(cond);
 
+	isl_val_free(inc);
+
 	return cond;
 }
 
@@ -2426,7 +2428,7 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
  * [id] -> { : exists a: id = init + a * inc and a >= 0 }
  */
 static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
-	__isl_take isl_pw_aff *init, isl_int inc)
+	__isl_take isl_pw_aff *init, __isl_take isl_val *inc)
 {
 	isl_aff *aff;
 	isl_space *dim;
@@ -2435,7 +2437,7 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
 	init = isl_pw_aff_insert_dims(init, isl_dim_in, 0, 1);
 	dim = isl_pw_aff_get_domain_space(init);
 	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
-	aff = isl_aff_add_coefficient(aff, isl_dim_in, 0, inc);
+	aff = isl_aff_add_coefficient_val(aff, isl_dim_in, 0, inc);
 	init = isl_pw_aff_add(init, isl_pw_aff_from_aff(aff));
 
 	dim = isl_space_set_alloc(isl_pw_aff_get_ctx(init), 1, 1);
@@ -2458,7 +2460,8 @@ static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
  * for the last value before wrapping, i.e., 2^width - 1 in case of an
  * increasing iterator and 0 in case of a decreasing iterator.
  */
-static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv, isl_int inc)
+static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv,
+	__isl_keep isl_val *inc)
 {
 	bool cw;
 	isl_int limit;
@@ -2467,7 +2470,7 @@ static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv, isl_int inc)
 	test = isl_set_copy(cond);
 
 	isl_int_init(limit);
-	if (isl_int_is_neg(inc))
+	if (isl_val_is_neg(inc))
 		isl_int_set_si(limit, 0);
 	else {
 		isl_int_set_si(limit, 1);
@@ -2555,7 +2558,7 @@ static __isl_give isl_set *enforce_subset(__isl_take isl_set *set1,
  * of "cond".
  */
 static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
-	__isl_take isl_set *dom, isl_int inc)
+	__isl_take isl_set *dom, __isl_take isl_val *inc)
 {
 	isl_space *space;
 	isl_aff *aff;
@@ -2564,7 +2567,7 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	space = isl_set_get_space(dom);
 	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
-	aff = isl_aff_add_constant(aff, inc);
+	aff = isl_aff_add_constant_val(aff, inc);
 	next = isl_map_from_basic_map(isl_basic_map_from_aff(aff));
 
 	dom = isl_set_apply(dom, next);
@@ -2732,7 +2735,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_id *id;
 	struct pet_scop *scop, *scop_cond = NULL;
 	assigned_value_cache cache(assigned_value);
-	isl_int inc;
+	isl_val *inc;
 	bool is_one;
 	bool is_unsigned;
 	bool is_simple;
@@ -2780,12 +2783,12 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (!pa_inc)
 		return NULL;
 
-	isl_int_init(inc);
+	inc = NULL;
 	if (isl_pw_aff_n_piece(pa_inc) != 1 ||
 	    isl_pw_aff_foreach_piece(pa_inc, &extract_cst, &inc) < 0) {
 		isl_pw_aff_free(pa_inc);
 		unsupported(stmt->getInc());
-		isl_int_clear(inc);
+		isl_val_free(inc);
 		return NULL;
 	}
 	valid_inc = isl_pw_aff_domain(pa_inc);
@@ -2846,7 +2849,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_cond = isl_set_coalesce(valid_cond);
 	valid_cond = embed(valid_cond, isl_id_copy(id));
 	valid_inc = embed(valid_inc, isl_id_copy(id));
-	is_one = isl_int_is_one(inc) || isl_int_is_negone(inc);
+	is_one = isl_val_is_one(inc) || isl_val_is_negone(inc);
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 
 	init_val = extract_affine(rhs);
@@ -2855,14 +2858,15 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		isl_set_copy(valid_cond));
 	if (is_one && !is_virtual) {
 		isl_pw_aff_free(init_val);
-		pa = extract_comparison(isl_int_is_pos(inc) ? BO_GE : BO_LE,
+		pa = extract_comparison(isl_val_is_pos(inc) ? BO_GE : BO_LE,
 				lhs, rhs, init);
 		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 		valid_init = set_project_out_by_id(valid_init, id);
 		domain = isl_pw_aff_non_zero_set(pa);
 	} else {
 		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(init_val));
-		domain = strided_domain(isl_id_copy(id), init_val, inc);
+		domain = strided_domain(isl_id_copy(id), init_val,
+					isl_val_copy(inc));
 	}
 
 	domain = embed(domain, isl_id_copy(id));
@@ -2882,23 +2886,24 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	}
 	if (!is_simple)
 		cond = valid_for_each_iteration(cond,
-						isl_set_copy(domain), inc);
+				    isl_set_copy(domain), isl_val_copy(inc));
 	domain = isl_set_intersect(domain, cond);
 	if (has_affine_break) {
 		skip = isl_set_intersect(skip , isl_set_copy(domain));
-		skip = after(skip, isl_int_sgn(inc));
+		skip = after(skip, isl_val_sgn(inc));
 		domain = isl_set_subtract(domain, skip);
 	}
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
 	space = isl_space_from_domain(isl_set_get_space(domain));
 	space = isl_space_add_dims(space, isl_dim_out, 1);
 	sched = isl_map_universe(space);
-	if (isl_int_is_pos(inc))
+	if (isl_val_is_pos(inc))
 		sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
 	else
 		sched = isl_map_oppose(sched, isl_dim_in, 0, isl_dim_out, 0);
 
-	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain), inc);
+	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain),
+					isl_val_copy(inc));
 	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
 
 	if (is_virtual && !keep_virtual) {
@@ -2919,10 +2924,10 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	scop = resolve_nested(scop);
 	if (has_var_break)
 		scop = scop_add_break(scop, break_access, isl_set_copy(domain),
-					isl_int_sgn(inc));
+					isl_val_sgn(inc));
 	if (test_access) {
 		scop = scop_add_while(scop_cond, scop, test_access, domain,
-					isl_int_sgn(inc));
+					isl_val_sgn(inc));
 		isl_set_free(valid_inc);
 	} else {
 		scop = pet_scop_restrict_context(scop, valid_inc);
@@ -2932,7 +2937,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	}
 	clear_assignment(assigned_value, iv);
 
-	isl_int_clear(inc);
+	isl_val_free(inc);
 
 	scop = pet_scop_restrict_context(scop, valid_init);
 
