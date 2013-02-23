@@ -567,19 +567,20 @@ static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
 static __isl_give isl_pw_aff *avoid_overflow(__isl_take isl_pw_aff *pwaff,
 	unsigned width)
 {
-	isl_int v;
+	isl_ctx *ctx;
+	isl_val *v;
 	isl_space *space = isl_pw_aff_get_domain_space(pwaff);
 	isl_local_space *ls = isl_local_space_from_space(space);
 	isl_aff *bound;
 	isl_set *dom;
 	isl_pw_aff *b;
 
-	isl_int_init(v);
-	isl_int_set_si(v, 1);
-	isl_int_mul_2exp(v, v, width - 1);
+	ctx = isl_pw_aff_get_ctx(pwaff);
+	v = isl_val_int_from_ui(ctx, width - 1);
+	v = isl_val_2exp(v);
 
 	bound = isl_aff_zero_on_domain(ls);
-	bound = isl_aff_add_constant(bound, v);
+	bound = isl_aff_add_constant_val(bound, v);
 	b = isl_pw_aff_from_aff(bound);
 
 	dom = isl_pw_aff_lt_set(isl_pw_aff_copy(pwaff), isl_pw_aff_copy(b));
@@ -588,8 +589,6 @@ static __isl_give isl_pw_aff *avoid_overflow(__isl_take isl_pw_aff *pwaff,
 	b = isl_pw_aff_neg(b);
 	dom = isl_pw_aff_ge_set(isl_pw_aff_copy(pwaff), b);
 	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
-
-	isl_int_clear(v);
 
 	return pwaff;
 }
