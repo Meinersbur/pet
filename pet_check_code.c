@@ -437,13 +437,14 @@ static int check_domain(__isl_keep isl_union_map *schedule,
 }
 
 /* Check that the relative order specified by the input schedule is respected
- * by the schedule extracted from the code.
+ * by the schedule extracted from the code, in case the original schedule
+ * is single valued.
  *
  * In particular, check that there is no pair of statement instances
  * such that the first should be scheduled _before_ the second,
  * but is actually scheduled _after_ the second in the code.
  */
-static int check_order(__isl_keep isl_union_map *schedule,
+static int check_order_sv(__isl_keep isl_union_map *schedule,
 	__isl_keep isl_union_map *code_schedule)
 {
 	isl_union_map *t1;
@@ -467,17 +468,58 @@ static int check_order(__isl_keep isl_union_map *schedule,
 	return 0;
 }
 
-/* If the original schedule was single valued, then the schedule extracted
- * from the code should be single valued as well.
+/* Check that the relative order specified by the input schedule is respected
+ * by the schedule extracted from the code, in case the original schedule
+ * is not single valued.
+ *
+ * In particular, check that the order imposed by the schedules on pairs
+ * of statement instances is the same.
  */
-static int check_single_valued(__isl_keep isl_union_map *schedule,
+static int check_order_not_sv(__isl_keep isl_union_map *schedule,
 	__isl_keep isl_union_map *code_schedule)
 {
-	int sv;
+	isl_union_map *t1;
+	isl_union_map *t2;
+	int equal;
 
-	sv = isl_union_map_is_single_valued(schedule);
-	if (sv < 0)
+	t1 = isl_union_map_lex_lt_union_map(isl_union_map_copy(schedule),
+					    isl_union_map_copy(schedule));
+	t2 = isl_union_map_lex_lt_union_map(isl_union_map_copy(code_schedule),
+					    isl_union_map_copy(code_schedule));
+	equal = isl_union_map_is_equal(t1, t2);
+	isl_union_map_free(t1);
+	isl_union_map_free(t2);
+
+	if (equal < 0)
 		return -1;
+	if (!equal)
+		isl_die(isl_union_map_get_ctx(schedule), isl_error_unknown,
+			"order not respected", return -1);
+
+	return 0;
+}
+
+/* Check that the relative order specified by the input schedule is respected
+ * by the schedule extracted from the code.
+ *
+ * "sv" indicated whether the original schedule is single valued.
+ * If so, we use a cheaper test.  Otherwise, we fall back on a more
+ * expensive test.
+ */
+static int check_order(__isl_keep isl_union_map *schedule,
+	__isl_keep isl_union_map *code_schedule, int sv)
+{
+	if (sv)
+		return check_order_sv(schedule, code_schedule);
+	else
+		return check_order_not_sv(schedule, code_schedule);
+}
+
+/* If the original schedule was single valued ("sv" is set),
+ * then the schedule extracted from the code should be single valued as well.
+ */
+static int check_single_valued(__isl_keep isl_union_map *code_schedule, int sv)
+{
 	if (!sv)
 		return 0;
 
@@ -486,7 +528,7 @@ static int check_single_valued(__isl_keep isl_union_map *schedule,
 		return -1;
 
 	if (!sv)
-		isl_die(isl_union_map_get_ctx(schedule), isl_error_unknown,
+		isl_die(isl_union_map_get_ctx(code_schedule), isl_error_unknown,
 			"schedule not single valued", return -1);
 
 	return 0;
@@ -499,10 +541,10 @@ static int check_single_valued(__isl_keep isl_union_map *schedule,
  * In particular, check that
  * - the domains are identical, i.e., the calls in the C code
  *   correspond to the domain elements of the schedule
- * - the calls are performed in an order that is compatible
- *   with the schedule
  * - no function is called twice with the same arguments, provided
  *   the schedule is single-valued
+ * - the calls are performed in an order that is compatible
+ *   with the schedule
  *
  * If the schedule is not single-valued then we would have to check
  * that each function with a given set of arguments is called
@@ -518,6 +560,7 @@ int main(int argc, char **argv)
 	struct options *options;
 	FILE *file;
 	int r;
+	int sv;
 
 	options = options_new_with_defaults();
 	assert(options);
@@ -538,9 +581,11 @@ int main(int argc, char **argv)
 	code_schedule = extract_code_schedule(scop);
 	code_schedule = isl_union_map_intersect_params(code_schedule, context);
 
-	r = check_domain(schedule, code_schedule) ||
-	    check_order(schedule, code_schedule) ||
-	    check_single_valued(schedule, code_schedule);
+	sv = isl_union_map_is_single_valued(schedule);
+	r = sv < 0 ||
+	    check_domain(schedule, code_schedule) ||
+	    check_single_valued(code_schedule, sv) ||
+	    check_order(schedule, code_schedule, sv);
 
 	pet_scop_free(scop);
 	isl_union_map_free(schedule);
