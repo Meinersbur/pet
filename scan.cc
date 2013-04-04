@@ -2464,25 +2464,24 @@ static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv,
 	__isl_keep isl_val *inc)
 {
 	bool cw;
-	isl_int limit;
+	isl_ctx *ctx;
+	isl_val *limit;
 	isl_set *test;
 
 	test = isl_set_copy(cond);
 
-	isl_int_init(limit);
+	ctx = isl_set_get_ctx(test);
 	if (isl_val_is_neg(inc))
-		isl_int_set_si(limit, 0);
+		limit = isl_val_zero(ctx);
 	else {
-		isl_int_set_si(limit, 1);
-		isl_int_mul_2exp(limit, limit, get_type_size(iv));
-		isl_int_sub_ui(limit, limit, 1);
+		limit = isl_val_int_from_ui(ctx, get_type_size(iv));
+		limit = isl_val_2exp(limit);
+		limit = isl_val_sub_ui(limit, 1);
 	}
 
-	test = isl_set_fix(cond, isl_dim_set, 0, limit);
+	test = isl_set_fix_val(cond, isl_dim_set, 0, limit);
 	cw = !isl_set_is_empty(test);
 	isl_set_free(test);
-
-	isl_int_clear(limit);
 
 	return cw;
 }
