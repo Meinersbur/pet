@@ -2497,19 +2497,18 @@ static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv,
 static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
 	ValueDecl *iv)
 {
-	isl_int mod;
+	isl_ctx *ctx;
+	isl_val *mod;
 	isl_aff *aff;
 	isl_map *map;
 
-	isl_int_init(mod);
-	isl_int_set_si(mod, 1);
-	isl_int_mul_2exp(mod, mod, get_type_size(iv));
+	ctx = isl_space_get_ctx(dim);
+	mod = isl_val_int_from_ui(ctx, get_type_size(iv));
+	mod = isl_val_2exp(mod);
 
 	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
-	aff = isl_aff_mod(aff, mod);
-
-	isl_int_clear(mod);
+	aff = isl_aff_mod_val(aff, mod);
 
 	return isl_map_from_basic_map(isl_basic_map_from_aff(aff));
 	map = isl_map_reverse(map);
