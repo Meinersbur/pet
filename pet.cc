@@ -689,6 +689,22 @@ static TargetInfo *create_target_info(CompilerInstance *Clang,
 
 #endif
 
+#ifdef CREATEDIAGNOSTICS_TAKES_ARG
+
+static void create_diagnostics(CompilerInstance *Clang)
+{
+	Clang->createDiagnostics(0, NULL);
+}
+
+#else
+
+static void create_diagnostics(CompilerInstance *Clang)
+{
+	Clang->createDiagnostics();
+}
+
+#endif
+
 /* Extract a pet_scop from the C source file called "filename".
  * If "function" is not NULL, extract the pet_scop from the function
  * with that name.
@@ -712,7 +728,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	isl_union_map *value_bounds;
 
 	CompilerInstance *Clang = new CompilerInstance();
-	Clang->createDiagnostics(0, NULL);
+	create_diagnostics(Clang);
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
 	CompilerInvocation *invocation = construct_invocation(filename, Diags);

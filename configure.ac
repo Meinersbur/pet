@@ -105,6 +105,13 @@ AC_EGREP_HEADER([findLocationAfterToken], [clang/Lex/Lexer.h],
 AC_EGREP_HEADER([translateLineCol], [clang/Basic/SourceManager.h],
 	[AC_DEFINE([HAVE_TRANSLATELINECOL], [],
 	[Define if SourceManager has translateLineCol method])])
+AC_TRY_COMPILE([#include <clang/Frontend/CompilerInstance.h>], [
+	using namespace clang;
+	DiagnosticConsumer *client;
+	CompilerInstance *Clang;
+	Clang->createDiagnostics(client);
+], [], [AC_DEFINE([CREATEDIAGNOSTICS_TAKES_ARG], [],
+	[Define if CompilerInstance::createDiagnostics takes argc and argv])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
