@@ -705,6 +705,22 @@ static void create_diagnostics(CompilerInstance *Clang)
 
 #endif
 
+#ifdef ADDPATH_TAKES_4_ARGUMENTS
+
+void add_path(HeaderSearchOptions &HSO, string Path)
+{
+	HSO.AddPath(Path, frontend::Angled, false, false);
+}
+
+#else
+
+void add_path(HeaderSearchOptions &HSO, string Path)
+{
+	HSO.AddPath(Path, frontend::Angled, true, false, false);
+}
+
+#endif
+
 /* Extract a pet_scop from the C source file called "filename".
  * If "function" is not NULL, extract the pet_scop from the function
  * with that name.
@@ -747,8 +763,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	HeaderSearchOptions &HSO = Clang->getHeaderSearchOpts();
 	HSO.ResourceDir = ResourceDir;
 	for (int i = 0; i < options->n_path; ++i)
-		HSO.AddPath(options->paths[i],
-			frontend::Angled, true, false, false);
+		add_path(HSO, options->paths[i]);
 	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
 	for (int i = 0; i < options->n_define; ++i)
 		PO.addMacroDef(options->defines[i]);
