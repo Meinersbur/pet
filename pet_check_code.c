@@ -323,7 +323,7 @@ static __isl_give isl_union_map *add_assignment(
 	val = isl_map_uncurry(val);
 	val = isl_map_reverse(val);
 
-	dom = isl_map_domain(isl_map_copy(val));
+	dom = isl_set_universe(isl_space_domain(isl_map_get_space(val)));
 	assignments = isl_union_map_subtract_domain(assignments,
 						isl_union_set_from_set(dom));
 	assignments = isl_union_map_add_map(assignments, val);
