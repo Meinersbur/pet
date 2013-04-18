@@ -33,6 +33,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <isl/arg.h>
 #include <isl/aff.h>
 #include <isl/set.h>
