@@ -20,6 +20,7 @@ noinst_PROGRAMS = @extra_noinst_programs@ pet_codegen pet_check_code
 EXTRA_PROGRAMS = pet pet_scop_cmp
 TESTS = @extra_tests@
 EXTRA_TESTS = pet_test.sh codegen_test.sh
+TEST_EXTENSIONS = .sh
 
 include_HEADERS = include/pet.h
 
