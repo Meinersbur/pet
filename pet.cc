@@ -506,28 +506,19 @@ static bool is_implicit(const IdentifierInfo *ident)
 /* Ignore implicit function declaration warnings on
  * "min", "max", "ceild" and "floord" as we detect and handle these
  * in PetScan.
- *
- * The cloned field keeps track of whether the clone method
- * has ever been called.  Newer clangs (by default) clone
- * the DiagnosticConsumer passed to createDiagnostics and
- * then take ownership of the clone, which means that
- * the original has to be deleted by the calling code.
  */
 struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 	const DiagnosticOptions *DiagOpts;
-	static bool cloned;
 #ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
 	MyDiagnosticPrinter(DiagnosticOptions *DO) :
 		TextDiagnosticPrinter(llvm::errs(), DO) {}
 	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-		cloned = true;
 		return new MyDiagnosticPrinter(&Diags.getDiagnosticOptions());
 	}
 #else
 	MyDiagnosticPrinter(const DiagnosticOptions &DO) :
 		DiagOpts(&DO), TextDiagnosticPrinter(llvm::errs(), DO) {}
 	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-		cloned = true;
 		return new MyDiagnosticPrinter(*DiagOpts);
 	}
 #endif
@@ -542,8 +533,6 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 			TextDiagnosticPrinter::HandleDiagnostic(level, info);
 	}
 };
-
-bool MyDiagnosticPrinter::cloned = false;
 
 /* For each array in "scop", set its value_bounds property
  * based on the infofrmation in "value_bounds" and
@@ -750,10 +739,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	CompilerInvocation *invocation = construct_invocation(filename, Diags);
 	if (invocation)
 		Clang->setInvocation(invocation);
-	MyDiagnosticPrinter *printer = construct_printer(Clang);
-	Diags.setClient(printer);
-	if (printer->cloned)
-		delete printer;
+	Diags.setClient(construct_printer(Clang));
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());
 	TargetInfo *target = create_target_info(Clang, Diags);
