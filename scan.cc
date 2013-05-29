@@ -351,12 +351,10 @@ __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(dim);
-	isl_int v;
+	isl_val *v;
 
-	isl_int_init(v);
-	isl_int_set_ui(v, val.getZExtValue());
-	aff = isl_aff_add_constant(aff, v);
-	isl_int_clear(v);
+	v = isl_val_int_from_ui(ctx, val.getZExtValue());
+	aff = isl_aff_add_constant_val(aff, v);
 
 	return isl_pw_aff_alloc(dom, aff);
 }
