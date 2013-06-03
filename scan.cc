@@ -3817,7 +3817,7 @@ static bool need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
 		return need_skip(scop_then, scop_else, have_else, type);
 }
 
-/* Construct an affine expression pet_expr that is evaluates
+/* Construct an affine expression pet_expr that evaluates
  * to the constant "val".
  */
 static struct pet_expr *universally(isl_ctx *ctx, int val)
@@ -3832,7 +3832,7 @@ static struct pet_expr *universally(isl_ctx *ctx, int val)
 	return pet_expr_from_access(map);
 }
 
-/* Construct an affine expression pet_expr that is evaluates
+/* Construct an affine expression pet_expr that evaluates
  * to the constant 1.
  */
 static struct pet_expr *universally_true(isl_ctx *ctx)
@@ -3840,7 +3840,7 @@ static struct pet_expr *universally_true(isl_ctx *ctx)
 	return universally(ctx, 1);
 }
 
-/* Construct an affine expression pet_expr that is evaluates
+/* Construct an affine expression pet_expr that evaluates
  * to the constant 0.
  */
 static struct pet_expr *universally_false(isl_ctx *ctx)
@@ -4524,7 +4524,7 @@ void pet_skip_info_seq::extract(PetScan *scan)
 		drop_skip_later(scop1, scop2);
 }
 
-/* Add the computed skip condition of the give type to "main" and 
+/* Add the computed skip condition of the given type to "main" and
  * add the scop for computing the condition at the given offset (the statement
  * number).  Within this offset, the condition is computed at position 1
  * to ensure that it is computed after the corresponding statement.
