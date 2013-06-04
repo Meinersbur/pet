@@ -2064,17 +2064,15 @@ static __isl_give isl_set *infinite_domain(__isl_take isl_id *id,
 	return domain;
 }
 
-/* Create an identity mapping on the space containing "domain".
+/* Create an identity affine expression on the space containing "domain",
+ * which is assumed to be one-dimensional.
  */
-static __isl_give isl_map *identity_map(__isl_keep isl_set *domain)
+static __isl_give isl_aff *identity_aff(__isl_keep isl_set *domain)
 {
-	isl_space *space;
-	isl_map *id;
+	isl_local_space *ls;
 
-	space = isl_space_map_from_set(isl_set_get_space(domain));
-	id = isl_map_identity(space);
-
-	return id;
+	ls = isl_local_space_from_space(isl_set_get_space(domain));
+	return isl_aff_var_on_domain(ls, isl_dim_set, 0);
 }
 
 /* Create a map that maps elements of a single-dimensional array "id_test"
@@ -2170,7 +2168,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
 	isl_id *id, *id_test;
 	isl_set *domain;
-	isl_map *ident;
+	isl_aff *ident;
 	struct pet_scop *scop;
 	bool has_var_break;
 
@@ -2180,14 +2178,14 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id), scop);
-	ident = identity_map(domain);
+	ident = identity_aff(domain);
 
 	has_var_break = pet_scop_has_var_skip(scop, pet_skip_later);
 	if (has_var_break)
 		id_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
 	scop = pet_scop_embed(scop, isl_set_copy(domain),
-				isl_map_copy(ident), ident, id);
+			    isl_map_from_aff(isl_aff_copy(ident)), ident, id);
 	if (has_var_break)
 		scop = scop_add_break(scop, id_test, domain, isl_val_one(ctx));
 	else
@@ -2372,7 +2370,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	isl_id *id, *id_test, *id_break_test;
 	isl_map *test_access;
 	isl_set *domain;
-	isl_map *ident;
+	isl_aff *ident;
 	isl_pw_aff *pa;
 	struct pet_scop *scop, *scop_body;
 	bool has_var_break;
@@ -2404,19 +2402,20 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id), scop_body);
-	ident = identity_map(domain);
+	ident = identity_aff(domain);
 
 	has_var_break = pet_scop_has_var_skip(scop_body, pet_skip_later);
 	if (has_var_break)
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop = pet_scop_prefix(scop, 0);
-	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_map_copy(ident),
-				isl_map_copy(ident), isl_id_copy(id));
+	scop = pet_scop_embed(scop, isl_set_copy(domain),
+				isl_map_from_aff(isl_aff_copy(ident)),
+				isl_aff_copy(ident), isl_id_copy(id));
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
-				isl_map_copy(ident), ident, id);
+			    isl_map_from_aff(isl_aff_copy(ident)), ident, id);
 
 	if (has_var_break) {
 		scop = scop_add_break(scop, isl_id_copy(id_break_test),
@@ -2547,15 +2546,15 @@ static bool can_wrap(__isl_keep isl_set *cond, ValueDecl *iv,
 	return cw;
 }
 
-/* Given a one-dimensional space, construct the following mapping on this
- * space
+/* Given a one-dimensional space, construct the following affine expression
+ * on this space
  *
  *	{ [v] -> [v mod 2^width] }
  *
  * where width is the number of bits used to represent the values
  * of the unsigned variable "iv".
  */
-static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
+static __isl_give isl_aff *compute_wrapping(__isl_take isl_space *dim,
 	ValueDecl *iv)
 {
 	isl_ctx *ctx;
@@ -2571,7 +2570,7 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
 	aff = isl_aff_mod_val(aff, mod);
 
-	return isl_map_from_basic_map(isl_basic_map_from_aff(aff));
+	return aff;
 }
 
 /* Project out the parameter "id" from "set".
@@ -2801,7 +2800,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool keep_virtual = false;
 	bool has_affine_break;
 	bool has_var_break;
-	isl_map *wrap = NULL;
+	isl_aff *wrap = NULL;
 	isl_pw_aff *pa, *pa_inc, *init_val;
 	isl_set *valid_init;
 	isl_set *valid_cond;
@@ -2930,7 +2929,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (is_virtual) {
 		isl_map *rev_wrap;
 		wrap = compute_wrapping(isl_set_get_space(cond), iv);
-		rev_wrap = isl_map_reverse(isl_map_copy(wrap));
+		rev_wrap = isl_map_from_aff(isl_aff_copy(wrap));
+		rev_wrap = isl_map_reverse(rev_wrap);
 		cond = isl_set_apply(cond, isl_map_copy(rev_wrap));
 		skip = isl_set_apply(skip, isl_map_copy(rev_wrap));
 		valid_cond = isl_set_apply(valid_cond, isl_map_copy(rev_wrap));
@@ -2964,17 +2964,18 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
 
 	if (is_virtual && !keep_virtual) {
-		wrap = isl_map_set_dim_id(wrap,
+		isl_map *wrap_map = isl_map_from_aff(wrap);
+		wrap_map = isl_map_set_dim_id(wrap_map,
 					    isl_dim_out, 0, isl_id_copy(id));
 		sched = isl_map_intersect_domain(sched, isl_set_copy(domain));
-		domain = isl_set_apply(domain, isl_map_copy(wrap));
-		sched = isl_map_apply_domain(sched, wrap);
+		domain = isl_set_apply(domain, isl_map_copy(wrap_map));
+		sched = isl_map_apply_domain(sched, wrap_map);
 	}
 	if (!(is_virtual && keep_virtual))
-		wrap = identity_map(domain);
+		wrap = identity_aff(domain);
 
 	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
-		    isl_map_copy(sched), isl_map_copy(wrap), isl_id_copy(id));
+		    isl_map_copy(sched), isl_aff_copy(wrap), isl_id_copy(id));
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = resolve_nested(scop);
 	if (has_var_break)

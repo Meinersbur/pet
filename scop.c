@@ -1465,21 +1465,22 @@ struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos)
  *
  * The first set dimension may however refer to a virtual iterator,
  * while the parameter refers to the "real" iterator.
- * We therefore need to take into account the mapping "iv_map", which
- * maps the virtual iterator to the real iterator.
+ * We therefore need to take into account the affine expression "iv_map", which
+ * expresses the real iterator in terms of the virtual iterator.
  * In particular, we equate the set dimension to the input of the map
  * and the parameter to the output of the map and then project out
  * everything we don't need anymore.
  */
 static __isl_give isl_set *internalize_iv(__isl_take isl_set *set,
-	int param_pos, __isl_take isl_map *iv_map)
+	int param_pos, __isl_take isl_aff *iv_map)
 {
-	isl_map *map;
+	isl_map *map, *map2;
 	map = isl_map_from_domain(set);
 	map = isl_map_add_dims(map, isl_dim_out, 1);
 	map = isl_map_equate(map, isl_dim_in, 0, isl_dim_out, 0);
-	iv_map = isl_map_align_params(iv_map, isl_map_get_space(map));
-	map = isl_map_apply_range(map, iv_map);
+	map2 = isl_map_from_aff(iv_map);
+	map2 = isl_map_align_params(map2, isl_map_get_space(map));
+	map = isl_map_apply_range(map, map2);
 	map = isl_map_equate(map, isl_dim_param, param_pos, isl_dim_out, 0);
 	map = isl_map_project_out(map, isl_dim_param, param_pos, 1);
 	return isl_map_domain(map);
@@ -1487,12 +1488,12 @@ static __isl_give isl_set *internalize_iv(__isl_take isl_set *set,
 
 /* Data used in embed_access.
  * extend adds an iterator to the iteration domain
- * iv_map maps the virtual iterator to the real iterator
+ * iv_map expresses the real iterator in terms of the virtual iterator
  * var_id represents the induction variable of the corresponding loop
  */
 struct pet_embed_access {
 	isl_map *extend;
-	isl_map *iv_map;
+	isl_aff *iv_map;
 	isl_id *var_id;
 };
 
@@ -1535,7 +1536,7 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 					isl_dim_in, 0, isl_dim_out, 0);
 		if (array_id == data->var_id)
 			access = isl_map_apply_range(access,
-						isl_map_copy(data->iv_map));
+				isl_map_from_aff(isl_aff_copy(data->iv_map)));
 		else
 			access = isl_map_set_tuple_id(access, isl_dim_out,
 							isl_id_copy(array_id));
@@ -1545,7 +1546,7 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 	pos = isl_map_find_dim_by_id(access, isl_dim_param, data->var_id);
 	if (pos >= 0) {
 		isl_set *set = isl_map_wrap(access);
-		set = internalize_iv(set, pos, isl_map_copy(data->iv_map));
+		set = internalize_iv(set, pos, isl_aff_copy(data->iv_map));
 		access = isl_set_unwrap(set);
 	}
 	expr->acc.access = isl_map_set_dim_id(access, isl_dim_in, 0,
@@ -1558,18 +1559,18 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 
 /* Embed all access subexpressions of "expr" in an extra loop.
  * "extend" inserts an outer loop iterator in the iteration domains.
- * "iv_map" maps the virtual iterator to the real iterator
+ * "iv_map" expresses the real iterator in terms of the virtual iterator
  * "var_id" represents the induction variable.
  */
 static struct pet_expr *expr_embed(struct pet_expr *expr,
-	__isl_take isl_map *extend, __isl_take isl_map *iv_map,
+	__isl_take isl_map *extend, __isl_take isl_aff *iv_map,
 	__isl_keep isl_id *var_id)
 {
 	struct pet_embed_access data =
 		{ .extend = extend, .iv_map = iv_map, .var_id = var_id };
 
 	expr = pet_expr_map_access(expr, &embed_access, &data);
-	isl_map_free(iv_map);
+	isl_aff_free(iv_map);
 	isl_map_free(extend);
 	return expr;
 }
@@ -1577,8 +1578,9 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 /* Embed the given pet_stmt in an extra outer loop with iteration domain
  * "dom" and schedule "sched".  "var_id" represents the induction variable
  * of the loop.  "iv_map" maps a possibly virtual iterator to the real iterator.
- * That is, it maps the iterator used in "dom" and the domain of "sched"
- * to the iterator that some of the parameters in "stmt" may refer to.
+ * That is, it expresses the iterator that some of the parameters in "stmt"
+ * may refer to in terms of the iterator used in "dom" and
+ * the domain of "sched".
  *
  * The iteration domain and schedule of the statement are updated
  * according to the iteration domain and schedule of the new loop.
@@ -1595,7 +1597,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
  */
 static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 	__isl_take isl_set *dom, __isl_take isl_map *sched,
-	__isl_take isl_map *iv_map, __isl_take isl_id *var_id)
+	__isl_take isl_aff *iv_map, __isl_take isl_id *var_id)
 {
 	int i;
 	int pos;
@@ -1633,7 +1635,7 @@ static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 	pos = isl_set_find_dim_by_id(stmt->domain, isl_dim_param, var_id);
 	if (pos >= 0)
 		stmt->domain = internalize_iv(stmt->domain, pos,
-						isl_map_copy(iv_map));
+						isl_aff_copy(iv_map));
 
 	stmt->schedule = isl_map_flat_product(sched, stmt->schedule);
 	stmt->schedule = isl_map_set_tuple_id(stmt->schedule,
@@ -1642,7 +1644,7 @@ static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 	pos = isl_map_find_dim_by_id(stmt->schedule, isl_dim_param, var_id);
 	if (pos >= 0) {
 		isl_set *set = isl_map_wrap(stmt->schedule);
-		set = internalize_iv(set, pos, isl_map_copy(iv_map));
+		set = internalize_iv(set, pos, isl_aff_copy(iv_map));
 		stmt->schedule = isl_set_unwrap(set);
 	}
 
@@ -1653,7 +1655,7 @@ static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 				    isl_map_get_tuple_id(extend, isl_dim_out));
 	for (i = 0; i < stmt->n_arg; ++i)
 		stmt->args[i] = expr_embed(stmt->args[i], isl_map_copy(extend),
-					    isl_map_copy(iv_map), var_id);
+					    isl_aff_copy(iv_map), var_id);
 	stmt->body = expr_embed(stmt->body, extend, iv_map, var_id);
 
 	isl_set_free(dom);
@@ -1668,7 +1670,7 @@ static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 error:
 	isl_set_free(dom);
 	isl_map_free(sched);
-	isl_map_free(iv_map);
+	isl_aff_free(iv_map);
 	isl_id_free(var_id);
 	return NULL;
 }
@@ -1725,8 +1727,8 @@ static __isl_give isl_set *set_project_out_unnamed_params(
 
 /* Update the context with respect to an embedding into a loop
  * with iteration domain "dom" and induction variable "id".
- * "iv_map" maps a possibly virtual iterator (used in "dom")
- * to the real iterator (parameter "id").
+ * "iv_map" expresses the real iterator (parameter "id") in terms
+ * of a possibly virtual iterator (used in "dom").
  *
  * If the current context is independent of "id", we don't need
  * to do anything.
@@ -1746,18 +1748,19 @@ static __isl_give isl_set *set_project_out_unnamed_params(
  *
  *	not exists i in dom \ valid(i)
  *
- * Before we subtract valid(i) from dom, we first need to map
- * the real iterator to the virtual iterator.
+ * Before we subtract valid(i) from dom, we first need to substitute
+ * the real iterator for the virtual iterator.
  *
  * If there are any unnamed parameters in "dom", then we consider
  * a parameter value to be valid if it is valid for any value of those
  * unnamed parameters.  They are therefore projected out at the end.
  */
 static __isl_give isl_set *context_embed(__isl_take isl_set *context,
-	__isl_keep isl_set *dom, __isl_keep isl_map *iv_map,
+	__isl_keep isl_set *dom, __isl_keep isl_aff *iv_map,
 	__isl_keep isl_id *id)
 {
 	int pos;
+	isl_multi_aff *ma;
 
 	pos = isl_set_find_dim_by_id(context, isl_dim_param, id);
 	if (pos < 0)
@@ -1767,7 +1770,8 @@ static __isl_give isl_set *context_embed(__isl_take isl_set *context,
 	context = isl_set_add_dims(context, isl_dim_set, 1);
 	context = isl_set_equate(context, isl_dim_param, pos, isl_dim_set, 0);
 	context = isl_set_project_out(context, isl_dim_param, pos, 1);
-	context = isl_set_apply(context, isl_map_reverse(isl_map_copy(iv_map)));
+	ma = isl_multi_aff_from_aff(isl_aff_copy(iv_map));
+	context = isl_set_preimage_multi_aff(context, ma);
 	context = isl_set_subtract(isl_set_copy(dom), context);
 	context = isl_set_params(context);
 	context = isl_set_complement(context);
@@ -1813,15 +1817,16 @@ error:
  * with iteration domain "dom" and schedule "sched".
  * "id" represents the induction variable of the loop.
  * "iv_map" maps a possibly virtual iterator to the real iterator.
- * That is, it maps the iterator used in "dom" and the domain of "sched"
- * to the iterator that some of the parameters in "scop" may refer to.
+ * That is, it expresses the iterator that some of the parameters in "scop"
+ * may refer to in terms of the iterator used in "dom" and
+ * the domain of "sched".
  *
  * Any skip conditions within the loop have no effect outside of the loop.
  * The caller is responsible for making sure skip[pet_skip_later] has been
  * taken into account.
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
-	__isl_take isl_map *sched, __isl_take isl_map *iv_map,
+	__isl_take isl_map *sched, __isl_take isl_aff *iv_map,
 	__isl_take isl_id *id)
 {
 	int i;
@@ -1839,7 +1844,7 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = pet_stmt_embed(scop->stmts[i],
 					isl_set_copy(dom), isl_map_copy(sched),
-					isl_map_copy(iv_map), isl_id_copy(id));
+					isl_aff_copy(iv_map), isl_id_copy(id));
 		if (!scop->stmts[i])
 			goto error;
 	}
@@ -1861,13 +1866,13 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 
 	isl_set_free(dom);
 	isl_map_free(sched);
-	isl_map_free(iv_map);
+	isl_aff_free(iv_map);
 	isl_id_free(id);
 	return scop;
 error:
 	isl_set_free(dom);
 	isl_map_free(sched);
-	isl_map_free(iv_map);
+	isl_aff_free(iv_map);
 	isl_id_free(id);
 	return pet_scop_free(scop);
 }
