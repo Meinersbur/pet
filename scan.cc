@@ -3489,26 +3489,33 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 }
 
 extern "C" {
-	static __isl_give isl_map *embed_access(__isl_take isl_map *access,
-		void *user);
+	static struct pet_expr *embed_access(struct pet_expr *expr, void *user);
 }
 
 /* Apply the map pointed to by "user" to the domain of the access 
- * relation, thereby embedding it in the range of the map.
+ * relation associated to "expr", thereby embedding it in the range of the map.
  * The domain of both relations is the zero-dimensional domain.
  */
-static __isl_give isl_map *embed_access(__isl_take isl_map *access, void *user)
+static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
 	isl_map *map = (isl_map *) user;
 
-	return isl_map_apply_domain(access, isl_map_copy(map));
+	expr->acc.access = isl_map_apply_domain(expr->acc.access,
+						isl_map_copy(map));
+	if (!expr->acc.access)
+		goto error;
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	return NULL;
 }
 
 /* Apply "map" to all access relations in "expr".
  */
 static struct pet_expr *embed(struct pet_expr *expr, __isl_keep isl_map *map)
 {
-	return pet_expr_foreach_access(expr, &embed_access, map);
+	return pet_expr_foreach_access_expr(expr, &embed_access, map);
 }
 
 /* How many parameters of "set" refer to nested accesses, i.e., have no name?
@@ -3542,15 +3549,30 @@ static __isl_give isl_map *remove_nested_parameters(__isl_take isl_map *map)
 	return map;
 }
 
-extern "C" {
-	static __isl_give isl_map *access_remove_nested_parameters(
-		__isl_take isl_map *access, void *user);
+/* Remove all parameters from the access relation of "expr"
+ * that refer to nested accesses.
+ */
+static struct pet_expr *remove_nested_parameters(struct pet_expr *expr)
+{
+	expr->acc.access = remove_nested_parameters(expr->acc.access);
+	if (!expr->acc.access)
+		goto error;
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	return NULL;
 }
 
-static __isl_give isl_map *access_remove_nested_parameters(
-	__isl_take isl_map *access, void *user)
+extern "C" {
+	static struct pet_expr *expr_remove_nested_parameters(
+		struct pet_expr *expr, void *user);
+}
+
+static struct pet_expr *expr_remove_nested_parameters(
+	struct pet_expr *expr, void *user)
 {
-	return remove_nested_parameters(access);
+	return remove_nested_parameters(expr);
 }
 
 /* Remove all nested access parameters from the schedule and all
@@ -3563,13 +3585,13 @@ static struct pet_stmt *remove_nested_parameters(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 	stmt->schedule = remove_nested_parameters(stmt->schedule);
-	stmt->body = pet_expr_foreach_access(stmt->body,
-			    &access_remove_nested_parameters, NULL);
+	stmt->body = pet_expr_foreach_access_expr(stmt->body,
+			    &expr_remove_nested_parameters, NULL);
 	if (!stmt->schedule || !stmt->body)
 		goto error;
 	for (int i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
-			    &access_remove_nested_parameters, NULL);
+		stmt->args[i] = pet_expr_foreach_access_expr(stmt->args[i],
+			    &expr_remove_nested_parameters, NULL);
 		if (!stmt->args[i])
 			goto error;
 	}

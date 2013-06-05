@@ -85,6 +85,9 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop);
 struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
 	__isl_give isl_map *(*fn)(__isl_take isl_map *access, void *user),
 	void *user);
+struct pet_expr *pet_expr_foreach_access_expr(struct pet_expr *expr,
+	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
+	void *user);
 
 int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id);
 
