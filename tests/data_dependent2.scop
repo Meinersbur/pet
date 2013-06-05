@@ -26,10 +26,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[] -> N[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[] -> [5] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 12
@@ -41,6 +43,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[i] -> __pet_test_0[i] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: binary
@@ -48,10 +51,12 @@ statements:
       arguments:
       - type: access
         relation: '{ S_1[i] -> N[] }'
+        reference: __pet_ref_3
         read: 1
         write: 0
       - type: access
         relation: '{ S_1[i] -> [4] }'
+        reference: __pet_ref_4
         read: 1
         write: 0
 - line: 14
@@ -63,6 +68,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_2[i, j] -> a[j] }'
+      reference: __pet_ref_6
       read: 0
       write: 1
     - type: binary
@@ -73,19 +79,23 @@ statements:
         arguments:
         - type: access
           relation: '{ S_2[i, j] -> [5] }'
+          reference: __pet_ref_7
           read: 1
           write: 0
         - type: access
           relation: '{ S_2[i, j] -> [j] }'
+          reference: __pet_ref_8
           read: 1
           write: 0
       - type: access
         relation: '{ S_2[i, j] -> N[] }'
+        reference: __pet_ref_9
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '{ S_2[i, j] -> __pet_test_0[i] }'
+    reference: __pet_ref_5
     read: 1
     write: 0
 - line: 15
@@ -97,6 +107,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_3[i, j] -> N[] }'
+      reference: __pet_ref_11
       read: 0
       write: 1
     - type: call
@@ -104,5 +115,6 @@ statements:
   arguments:
   - type: access
     relation: '{ S_3[i, j] -> __pet_test_0[i] }'
+    reference: __pet_ref_10
     read: 1
     write: 0

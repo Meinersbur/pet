@@ -40,10 +40,12 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_0[t] -> a[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_0[t] -> [5] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 13
@@ -55,10 +57,12 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_1[t] -> a[] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_1[t] -> [6] }'
+      reference: __pet_ref_3
       read: 1
       write: 0
 - line: 16
@@ -70,15 +74,18 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_2[t] -> a[] }'
+      reference: __pet_ref_5
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_2[t] -> [5] }'
+      reference: __pet_ref_6
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_2[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_4
     read: 1
     write: 0
 - line: 17
@@ -90,6 +97,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_3[t] -> __pet_test_0[t] }'
+      reference: __pet_ref_8
       read: 0
       write: 1
     - type: call
@@ -97,6 +105,7 @@ statements:
   arguments:
   - type: access
     relation: '[N] -> { S_3[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_7
     read: 1
     write: 0
 - line: 19
@@ -108,16 +117,19 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_4[t] -> a[] }'
+      reference: __pet_ref_10
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_4[t] -> [6] }'
+      reference: __pet_ref_11
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_4[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t; S_4[t]
       -> __pet_test_0[t] }'
+    reference: __pet_ref_9
     read: 1
     write: 0
 - line: 21
@@ -129,6 +141,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_5[t] -> __pet_test_1[t] }'
+      reference: __pet_ref_13
       read: 0
       write: 1
     - type: call
@@ -137,6 +150,7 @@ statements:
   - type: access
     relation: '[N] -> { S_5[t] -> __pet_test_1[o0] : N = 0 and o0 >= 1 and o0 <= -1
       + t; S_5[t] -> __pet_test_1[0] : t >= 1 }'
+    reference: __pet_ref_12
     read: 1
     write: 0
 - line: 22
@@ -148,16 +162,19 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_6[t] -> a[] }'
+      reference: __pet_ref_15
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_6[t] -> [5] }'
+      reference: __pet_ref_16
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_6[t] -> __pet_test_1[o0] : N = 0 and o0 >= 1 and o0 <= t;
       S_6[t] -> __pet_test_1[0] }'
+    reference: __pet_ref_14
     read: 1
     write: 0
 - line: 25
@@ -169,16 +186,19 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_7[t] -> a[] }'
+      reference: __pet_ref_18
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_7[t] -> [6] }'
+      reference: __pet_ref_19
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_7[t] -> __pet_test_1[o0] : o0 >= 1 and o0 <= t; S_7[t] ->
       __pet_test_1[0] }'
+    reference: __pet_ref_17
     read: 1
     write: 0
 - line: 27
@@ -190,6 +210,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_8[t] -> __pet_test_2[t] }'
+      reference: __pet_ref_22
       read: 0
       write: 1
     - type: call
@@ -197,10 +218,12 @@ statements:
   arguments:
   - type: access
     relation: '[N] -> { S_8[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_20
     read: 1
     write: 0
   - type: access
     relation: '[N] -> { S_8[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_21
     read: 1
     write: 0
 - line: 28
@@ -212,19 +235,23 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_9[t] -> a[] }'
+      reference: __pet_ref_25
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_9[t] -> [5] }'
+      reference: __pet_ref_26
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_9[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= t }'
+    reference: __pet_ref_23
     read: 1
     write: 0
   - type: access
     relation: '[N] -> { S_9[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_24
     read: 1
     write: 0
 - line: 29
@@ -236,6 +263,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_10[t] -> __pet_test_3[t] }'
+      reference: __pet_ref_29
       read: 0
       write: 1
     - type: call
@@ -243,10 +271,12 @@ statements:
   arguments:
   - type: access
     relation: '[N] -> { S_10[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= t }'
+    reference: __pet_ref_27
     read: 1
     write: 0
   - type: access
     relation: '[N] -> { S_10[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_28
     read: 1
     write: 0
 - line: 31
@@ -258,19 +288,23 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_11[t] -> a[] }'
+      reference: __pet_ref_32
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_11[t] -> [6] }'
+      reference: __pet_ref_33
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_11[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= t }'
+    reference: __pet_ref_30
     read: 1
     write: 0
   - type: access
     relation: '[N] -> { S_11[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t; S_11[t]
       -> __pet_test_3[t] }'
+    reference: __pet_ref_31
     read: 1
     write: 0

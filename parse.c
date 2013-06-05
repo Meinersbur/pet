@@ -97,6 +97,16 @@ static __isl_give isl_set *extract_set(isl_ctx *ctx, yaml_document_t *document,
 	return isl_set_read_from_str(ctx, (char *) node->data.scalar.value);
 }
 
+static __isl_give isl_id *extract_id(isl_ctx *ctx, yaml_document_t *document,
+	yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return NULL);
+
+	return isl_id_alloc(ctx, (char *) node->data.scalar.value, NULL);
+}
+
 static __isl_give isl_map *extract_map(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
@@ -268,6 +278,8 @@ static struct pet_expr *extract_expr_access(isl_ctx *ctx,
 
 		if (!strcmp((char *) key->data.scalar.value, "relation"))
 			expr->acc.access = extract_map(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "reference"))
+			expr->acc.ref_id = extract_id(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "read"))
 			expr->acc.read = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "write"))

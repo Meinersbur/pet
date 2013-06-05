@@ -50,6 +50,25 @@ static int emit_string(yaml_emitter_t *emitter, const char *str)
 	return 0;
 }
 
+/* Print the isl_id "id" to "emitter".
+ */
+static int emit_id(yaml_emitter_t *emitter, __isl_keep isl_id *id)
+{
+	return emit_string(emitter, isl_id_get_name(id));
+}
+
+/* Print the string "name" and the isl_id "id" to "emitter".
+ */
+static int emit_named_id(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_id *id)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_id(emitter, id) < 0)
+		return -1;
+	return 0;
+}
+
 static int emit_int(yaml_emitter_t *emitter, int i)
 {
 	char buffer[40];
@@ -263,6 +282,9 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 		if (emit_string(emitter, "relation") < 0)
 			return -1;
 		if (emit_map(emitter, expr->acc.access) < 0)
+			return -1;
+		if (expr->acc.ref_id &&
+		    emit_named_id(emitter, "reference", expr->acc.ref_id) < 0)
 			return -1;
 		if (emit_string(emitter, "read") < 0)
 			return -1;

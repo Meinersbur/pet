@@ -89,6 +89,8 @@ enum pet_ter_arg_type {
  * type is valid when type == pet_expr_cast
  * op is valid otherwise
  *
+ * For each access expression inside the body of a statement, acc.ref_id
+ * is a unique reference identifier.
  * acc.access usually maps an iteration space to a data space.
  * If the access has arguments, however, then the domain of the
  * mapping is a wrapped mapping from the iteration space
@@ -111,6 +113,7 @@ struct pet_expr {
 
 	union {
 		struct {
+			isl_id *ref_id;
 			isl_map *access;
 			int read;
 			int write;

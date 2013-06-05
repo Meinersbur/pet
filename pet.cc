@@ -801,6 +801,7 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 
 	update_arrays(scop, consumer.get_value_bounds(), live_out);
 
+	scop = pet_scop_add_ref_ids(scop);
 	scop = pet_scop_anonymize(scop);
 
 	delete sema;

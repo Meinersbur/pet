@@ -25,6 +25,7 @@ statements:
     arguments:
     - type: access
       relation: '[n, m] -> { S_0[i, j] -> C[i + j] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: binary
@@ -32,6 +33,7 @@ statements:
       arguments:
       - type: access
         relation: '[n, m] -> { S_0[i, j] -> C[i + j] }'
+        reference: __pet_ref_1
         read: 1
         write: 0
       - type: binary
@@ -39,9 +41,11 @@ statements:
         arguments:
         - type: access
           relation: '[n, m] -> { S_0[i, j] -> A[i] }'
+          reference: __pet_ref_2
           read: 1
           write: 0
         - type: access
           relation: '[n, m] -> { S_0[i, j] -> B[j] }'
+          reference: __pet_ref_3
           read: 1
           write: 0

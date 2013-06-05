@@ -344,6 +344,7 @@ void *pet_expr_free(struct pet_expr *expr)
 
 	switch (expr->type) {
 	case pet_expr_access:
+		isl_id_free(expr->acc.ref_id);
 		isl_map_free(expr->acc.access);
 		break;
 	case pet_expr_call:
@@ -379,6 +380,8 @@ static void expr_dump(struct pet_expr *expr, int indent)
 		fprintf(stderr, "%s\n", expr->d.s);
 		break;
 	case pet_expr_access:
+		isl_id_dump(expr->acc.ref_id);
+		fprintf(stderr, "%*s", indent, "");
 		isl_map_dump(expr->acc.access);
 		fprintf(stderr, "%*sread: %d\n", indent + 2,
 				"", expr->acc.read);
@@ -466,6 +469,8 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 		if (expr1->acc.read != expr2->acc.read)
 			return 0;
 		if (expr1->acc.write != expr2->acc.write)
+			return 0;
+		if (expr1->acc.ref_id != expr2->acc.ref_id)
 			return 0;
 		if (!expr1->acc.access || !expr2->acc.access)
 			return 0;
@@ -2800,6 +2805,73 @@ int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id)
 	}
 
 	return 0;
+}
+
+/* Add a reference identifier to access expression "expr".
+ * "user" points to an integer that contains the sequence number
+ * of the next reference.
+ */
+static struct pet_expr *access_add_ref_id(struct pet_expr *expr, void *user)
+{
+	isl_ctx *ctx;
+	char name[50];
+	int *n_ref = user;
+
+	if (!expr)
+		return expr;
+
+	ctx = isl_map_get_ctx(expr->acc.access);
+	snprintf(name, sizeof(name), "__pet_ref_%d", (*n_ref)++);
+	expr->acc.ref_id = isl_id_alloc(ctx, name, NULL);
+	if (!expr->acc.ref_id)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
+/* Add a reference identifier to all access expressions in "stmt".
+ * "n_ref" points to an integer that contains the sequence number
+ * of the next reference.
+ */
+static struct pet_stmt *stmt_add_ref_ids(struct pet_stmt *stmt, int *n_ref)
+{
+	int i;
+
+	if (!stmt)
+		return NULL;
+
+	for (i = 0; i < stmt->n_arg; ++i) {
+		stmt->args[i] = pet_expr_map_access(stmt->args[i],
+						    &access_add_ref_id, n_ref);
+		if (!stmt->args[i])
+			return pet_stmt_free(stmt);
+	}
+
+	stmt->body = pet_expr_map_access(stmt->body, &access_add_ref_id, n_ref);
+	if (!stmt->body)
+		return pet_stmt_free(stmt);
+
+	return stmt;
+}
+
+/* Add a reference identifier to all access expressions in "scop".
+ */
+struct pet_scop *pet_scop_add_ref_ids(struct pet_scop *scop)
+{
+	int i;
+	int n_ref;
+
+	if (!scop)
+		return NULL;
+
+	n_ref = 0;
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = stmt_add_ref_ids(scop->stmts[i], &n_ref);
+		if (!scop->stmts[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
 }
 
 /* Reset the user pointer on the tuple id and all parameter ids in "set".

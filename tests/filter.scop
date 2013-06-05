@@ -20,14 +20,17 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[] -> a[] }'
+      reference: __pet_ref_1
       read: 0
       write: 1
     - type: access
       relation: '{ S_1[] -> [5] }'
+      reference: __pet_ref_2
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '[index] -> { S_1[] -> test[index] : index >= 0 or index >= 0 }'
+    reference: __pet_ref_0
     read: 1
     write: 0

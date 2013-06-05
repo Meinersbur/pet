@@ -23,6 +23,7 @@ statements:
       arguments:
       - type: access
         relation: '{ S_0[i] -> a[] }'
+        reference: __pet_ref_0
         read: 1
         write: 0
     - type: unary
@@ -30,6 +31,7 @@ statements:
       arguments:
       - type: access
         relation: '{ S_0[i] -> a[] }'
+        reference: __pet_ref_1
         read: 0
         write: 1
 - line: 12
@@ -44,6 +46,7 @@ statements:
       arguments:
       - type: access
         relation: '{ S_1[i] -> b[i] }'
+        reference: __pet_ref_2
         read: 1
         write: 0
     - type: unary
@@ -51,5 +54,6 @@ statements:
       arguments:
       - type: access
         relation: '{ S_1[i] -> b[1 + i] }'
+        reference: __pet_ref_3
         read: 0
         write: 1

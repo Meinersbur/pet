@@ -16,10 +16,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[] -> a[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[] -> [5] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 7
@@ -31,5 +33,6 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[] -> a[] }'
+      reference: __pet_ref_2
       read: 1
       write: 1

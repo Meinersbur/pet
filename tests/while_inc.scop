@@ -26,10 +26,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[] -> i[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[] -> [0] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 6
@@ -41,6 +43,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[t] -> __pet_test_0[t] }'
+      reference: __pet_ref_3
       read: 0
       write: 1
     - type: binary
@@ -48,15 +51,18 @@ statements:
       arguments:
       - type: access
         relation: '{ S_1[t] -> i[] }'
+        reference: __pet_ref_4
         read: 1
         write: 0
       - type: access
         relation: '{ S_1[t] -> [100] }'
+        reference: __pet_ref_5
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '{ S_1[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
+    reference: __pet_ref_2
     read: 1
     write: 0
 - line: 7
@@ -68,20 +74,24 @@ statements:
     arguments:
     - type: access
       relation: '{ [S_2[t] -> [i1]] -> T[i1] : i1 >= 0 }'
+      reference: __pet_ref_8
       read: 0
       write: 1
       arguments:
       - type: access
         relation: '{ S_2[t] -> i[] }'
+        reference: __pet_ref_7
         read: 1
         write: 0
     - type: access
       relation: '{ S_2[t] -> i[] }'
+      reference: __pet_ref_9
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '{ S_2[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= t }'
+    reference: __pet_ref_6
     read: 1
     write: 0
 - line: 8
@@ -93,10 +103,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_3[t] -> i[] }'
+      reference: __pet_ref_11
       read: 1
       write: 1
   arguments:
   - type: access
     relation: '{ S_3[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= t }'
+    reference: __pet_ref_10
     read: 1
     write: 0

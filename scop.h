@@ -80,6 +80,7 @@ struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
 struct pet_scop *pet_scop_gist(struct pet_scop *scop,
 	__isl_keep isl_union_map *value_bounds);
 
+struct pet_scop *pet_scop_add_ref_ids(struct pet_scop *scop);
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop);
 
 int pet_expr_foreach_access_expr(struct pet_expr *expr,

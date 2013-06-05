@@ -16,10 +16,12 @@ statements:
     arguments:
     - type: access
       relation: '{ A[] -> a[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ A[] -> [5] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 7
@@ -31,9 +33,11 @@ statements:
     arguments:
     - type: access
       relation: '{ B[] -> a[] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: access
       relation: '{ B[] -> [7] }'
+      reference: __pet_ref_3
       read: 1
       write: 0

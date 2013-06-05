@@ -20,10 +20,12 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_0[i, t, j] -> a[j] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_0[i, t, j] -> [0] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 11
@@ -35,9 +37,11 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_1[i, t, j] -> b[j] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_1[i, t, j] -> a[j] }'
+      reference: __pet_ref_3
       read: 1
       write: 0

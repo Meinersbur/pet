@@ -24,10 +24,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[] -> b[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[] -> [1] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 6
@@ -39,10 +41,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[] -> c[] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: access
       relation: '{ S_1[] -> b[] }'
+      reference: __pet_ref_3
       read: 1
       write: 0
 - line: 7
@@ -54,10 +58,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_2[] -> b[] }'
+      reference: __pet_ref_4
       read: 0
       write: 1
     - type: access
       relation: '{ S_2[] -> [2] }'
+      reference: __pet_ref_5
       read: 1
       write: 0
 - line: 8
@@ -69,9 +75,11 @@ statements:
     arguments:
     - type: access
       relation: '{ S_3[] -> a[1] }'
+      reference: __pet_ref_6
       read: 0
       write: 1
     - type: access
       relation: '{ S_3[] -> [5] }'
+      reference: __pet_ref_7
       read: 1
       write: 0

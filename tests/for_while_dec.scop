@@ -23,6 +23,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { S1[x1] -> s[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: call
@@ -37,6 +38,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, x2] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: call
@@ -44,16 +46,19 @@ statements:
       arguments:
       - type: access
         relation: '[n] -> { S_1[x1, x2] -> [x1] }'
+        reference: __pet_ref_3
         read: 1
         write: 0
       - type: access
         relation: '[n] -> { S_1[x1, x2] -> [x2] }'
+        reference: __pet_ref_4
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, o1] : exists (e0 = [(o1)/3]:
       3e0 = o1 and o1 >= 3 + x2 and o1 <= 9) }'
+    reference: __pet_ref_1
     read: 1
     write: 0
 - line: 14
@@ -66,6 +71,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { S2[x1, x2] -> s[] }'
+      reference: __pet_ref_6
       read: 0
       write: 1
     - type: call
@@ -73,12 +79,14 @@ statements:
       arguments:
       - type: access
         relation: '[n] -> { S2[x1, x2] -> s[] }'
+        reference: __pet_ref_7
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '[n] -> { S2[x1, x2] -> __pet_test_0[x1, o1] : exists (e0 = [(o1)/3]:
       3e0 = o1 and o1 >= x2 and o1 <= 9) }'
+    reference: __pet_ref_5
     read: 1
     write: 0
 - line: 16
@@ -90,5 +98,6 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { R[x1] -> s[] }'
+      reference: __pet_ref_8
       read: 1
       write: 0

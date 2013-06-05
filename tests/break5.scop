@@ -19,10 +19,12 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[i, j] -> a[i] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[i, j] -> [0] }'
+      reference: __pet_ref_1
       read: 1
       write: 0
 - line: 17
@@ -35,6 +37,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[i, j] -> a[i] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: binary
@@ -42,9 +45,11 @@ statements:
       arguments:
       - type: access
         relation: '{ S_1[i, j] -> [i] }'
+        reference: __pet_ref_3
         read: 1
         write: 0
       - type: access
         relation: '{ S_1[i, j] -> [j] }'
+        reference: __pet_ref_4
         read: 1
         write: 0

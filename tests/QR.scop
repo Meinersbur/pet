@@ -27,6 +27,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, K] -> { S_0[j, i] -> R[j, i] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: call
@@ -41,6 +42,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, K] -> { S_1[k, j] -> X[k, j] }'
+      reference: __pet_ref_1
       read: 0
       write: 1
     - type: call
@@ -55,10 +57,12 @@ statements:
     arguments:
     - type: access
       relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
+      reference: __pet_ref_2
       read: 1
       write: 0
     - type: access
       relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
+      reference: __pet_ref_3
       read: 1
       write: 0
     - type: unary
@@ -66,6 +70,7 @@ statements:
       arguments:
       - type: access
         relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
+        reference: __pet_ref_4
         read: 0
         write: 1
     - type: unary
@@ -73,6 +78,7 @@ statements:
       arguments:
       - type: access
         relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
+        reference: __pet_ref_5
         read: 0
         write: 1
     - type: unary
@@ -80,6 +86,7 @@ statements:
       arguments:
       - type: access
         relation: '[N, K] -> { S_2[k, j] -> t[] }'
+        reference: __pet_ref_6
         read: 0
         write: 1
 - line: 29
@@ -92,14 +99,17 @@ statements:
     arguments:
     - type: access
       relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
+      reference: __pet_ref_7
       read: 1
       write: 0
     - type: access
       relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
+      reference: __pet_ref_8
       read: 1
       write: 0
     - type: access
       relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
+      reference: __pet_ref_9
       read: 1
       write: 0
     - type: unary
@@ -107,6 +117,7 @@ statements:
       arguments:
       - type: access
         relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
+        reference: __pet_ref_10
         read: 0
         write: 1
     - type: unary
@@ -114,6 +125,7 @@ statements:
       arguments:
       - type: access
         relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
+        reference: __pet_ref_11
         read: 0
         write: 1
     - type: unary
@@ -121,6 +133,7 @@ statements:
       arguments:
       - type: access
         relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
+        reference: __pet_ref_12
         read: 0
         write: 1
 - line: 34
@@ -132,5 +145,6 @@ statements:
     arguments:
     - type: access
       relation: '[N, K] -> { S_4[j, i] -> R[j, i] }'
+      reference: __pet_ref_13
       read: 1
       write: 0

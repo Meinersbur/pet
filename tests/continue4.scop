@@ -32,6 +32,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[i] -> j[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: call
@@ -45,6 +46,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[i] -> __pet_test_0[i] }'
+      reference: __pet_ref_1
       read: 0
       write: 1
     - type: binary
@@ -52,10 +54,12 @@ statements:
       arguments:
       - type: access
         relation: '{ S_1[i] -> j[] }'
+        reference: __pet_ref_2
         read: 1
         write: 0
       - type: access
         relation: '{ S_1[i] -> [0] }'
+        reference: __pet_ref_3
         read: 1
         write: 0
 - line: 12
@@ -67,15 +71,18 @@ statements:
     arguments:
     - type: access
       relation: '{ S_2[i] -> a[i] }'
+      reference: __pet_ref_5
       read: 0
       write: 1
     - type: access
       relation: '{ S_2[i] -> [i] }'
+      reference: __pet_ref_6
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '{ S_2[i] -> __pet_test_0[i] }'
+    reference: __pet_ref_4
     read: 1
     write: 0
 - line: 13
@@ -87,6 +94,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_3[i] -> j[] }'
+      reference: __pet_ref_8
       read: 0
       write: 1
     - type: call
@@ -94,6 +102,7 @@ statements:
   arguments:
   - type: access
     relation: '{ S_3[i] -> __pet_test_0[i] }'
+    reference: __pet_ref_7
     read: 1
     write: 0
 - line: -1
@@ -105,26 +114,31 @@ statements:
     arguments:
     - type: access
       relation: '{ S_4[i] -> __pet_test_1[i] }'
+      reference: __pet_ref_9
       read: 0
       write: 1
     - type: ternary
       arguments:
       - type: access
         relation: '{ S_4[i] -> __pet_test_0[i] }'
+        reference: __pet_ref_10
         read: 1
         write: 0
       - type: access
         relation: '{ S_4[i] -> [1] }'
+        reference: __pet_ref_11
         read: 1
         write: 0
       - type: access
         relation: '{ [S_4[i] -> [0]] -> [0] : i >= 58 or i <= 56; [S_4[57] -> [0]]
           -> [1] }'
+        reference: __pet_ref_13
         read: 1
         write: 0
         arguments:
         - type: access
           relation: '{ S_4[i] -> __pet_test_0[i] }'
+          reference: __pet_ref_12
           read: 1
           write: 0
 - line: 16
@@ -136,6 +150,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_5[i] -> a[i] }'
+      reference: __pet_ref_15
       read: 0
       write: 1
     - type: binary
@@ -143,14 +158,17 @@ statements:
       arguments:
       - type: access
         relation: '{ S_5[i] -> a[i] }'
+        reference: __pet_ref_16
         read: 1
         write: 0
       - type: access
         relation: '{ S_5[i] -> [1] }'
+        reference: __pet_ref_17
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '{ S_5[i] -> __pet_test_1[i] }'
+    reference: __pet_ref_14
     read: 1
     write: 0

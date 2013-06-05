@@ -20,6 +20,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[i] -> j[] }'
+      reference: __pet_ref_0
       read: 0
       write: 1
     - type: call
@@ -33,14 +34,17 @@ statements:
     arguments:
     - type: access
       relation: '{ S_3[i] -> a[i] }'
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: access
       relation: '{ S_3[i] -> [i] }'
+      reference: __pet_ref_3
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '{ S_3[i] -> j[] }'
+    reference: __pet_ref_1
     read: 1
     write: 0
