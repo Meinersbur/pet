@@ -1,3 +1,5 @@
+start: 52
+end: 176
 context: '[n, m] -> {  : n <= 2147483647 and m <= 2147483647 - n and m >= -2147483648
   and n >= -2147483648 and m <= 2147483647 }'
 arrays:
@@ -15,7 +17,7 @@ arrays:
   element_size: 4
 statements:
 - line: 6
-  domain: '[n, m] -> { S_0[i, j] : j <= m and j >= 0 and i <= n and i >= 0 }'
+  domain: '[n, m] -> { S_0[i, j] : i >= 0 and j <= m and j >= 0 and i <= n }'
   schedule: '[m, n] -> { S_0[i, j] -> [0, i, j] }'
   body:
     type: binary

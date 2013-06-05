@@ -1,25 +1,32 @@
+start: 248
+end: 619
 context: '[N] -> {  : N >= 8 and N <= 16 }'
 arrays:
 - context: '{  :  }'
-  extent: '[N] -> { __pet_test_0[i] : i >= 0 and i <= -1 + N }'
+  extent: '[N] -> { __pet_test_0[i] : i <= -1 + N and i >= 0 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
+  element_size: 4
   uniquely_defined: 1
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { x[i0] : i0 >= 0 and i0 <= -1 + N }'
+  extent: '[N] -> { x[i0] : i0 <= -1 + N and i0 >= 0 }'
   element_type: int
+  element_size: 4
 - context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
-  extent: '[N] -> { y[i0] : i0 >= 0 and i0 <= N }'
+  extent: '[N] -> { y[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
+  element_size: 4
 - context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
-  extent: '[N] -> { t[i0] : i0 >= 0 and i0 <= N }'
+  extent: '[N] -> { t[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
+  element_size: 4
 - context: '[N] -> {  : N >= -2 and N <= 2147483645 }'
-  extent: '[N] -> { z[i0] : i0 >= 0 and i0 <= 1 + N }'
+  extent: '[N] -> { z[i0] : i0 <= 1 + N and i0 >= 0 }'
   element_type: int
+  element_size: 4
 statements:
 - line: 19
-  domain: '[N] -> { S_0[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { S_0[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: binary
@@ -32,7 +39,7 @@ statements:
     - type: call
       name: _Source_x
 - line: 22
-  domain: '[N] -> { S_1[i] : i >= 0 and i <= N }'
+  domain: '[N] -> { S_1[i] : i <= N and i >= 0 }'
   schedule: '[N] -> { S_1[i] -> [1, i] }'
   body:
     type: call
@@ -53,7 +60,7 @@ statements:
         read: 0
         write: 1
 - line: 25
-  domain: '[N] -> { S_2[i] : i >= 0 and i <= 1 + N }'
+  domain: '[N] -> { S_2[i] : i <= 1 + N and i >= 0 }'
   schedule: '[N] -> { S_2[i] -> [2, i] }'
   body:
     type: binary
@@ -66,7 +73,7 @@ statements:
     - type: call
       name: _Source_z
 - line: 29
-  domain: '[N] -> { [S_4[i] -> [0]] : i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { [S_4[i] -> [0]] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_4[i] -> [3, i, 0] }'
   body:
     type: binary
@@ -89,7 +96,7 @@ statements:
     read: 1
     write: 0
 - line: 30
-  domain: '[N] -> { S_5[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { S_5[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_5[i] -> [3, i, 1, 0] }'
   body:
     type: binary
@@ -118,7 +125,7 @@ statements:
         read: 1
         write: 0
 - line: 31
-  domain: '[N] -> { [S_6[i] -> [1]] : i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { [S_6[i] -> [1]] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_6[i] -> [3, i, 1, 1, 0] }'
   body:
     type: binary
@@ -141,7 +148,7 @@ statements:
     read: 1
     write: 0
 - line: 32
-  domain: '[N] -> { [S_7[i] -> [1]] : i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { [S_7[i] -> [1]] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_7[i] -> [3, i, 1, 1, 1] }'
   body:
     type: binary
@@ -164,7 +171,7 @@ statements:
     read: 1
     write: 0
 - line: 34
-  domain: '[N] -> { S_8[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { S_8[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_8[i] -> [3, i, 2] }'
   body:
     type: call

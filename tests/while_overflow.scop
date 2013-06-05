@@ -1,3 +1,5 @@
+start: 74
+end: 177
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
 arrays:
 - context: '{  :  }'
@@ -41,12 +43,12 @@ statements:
       name: t
   arguments:
   - type: access
-    relation: '[N] -> { S_1[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_1[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 14
-  domain: '[N] -> { [S_2[t, i] -> [1]] : t >= 0 and i <= -1 + 2N and N <= 1073741823
-    and i >= 0 }'
+  domain: '[N] -> { [S_2[t, i] -> [1]] : t >= 0 and i >= 0 and N <= 1073741823 and
+    i <= -1 + 2N }'
   schedule: '[N] -> { S_2[t, i] -> [1, t, 1, 0, i] }'
   body:
     type: binary

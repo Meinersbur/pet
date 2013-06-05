@@ -1,8 +1,11 @@
+start: 30
+end: 94
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 8
   domain: '{ S_0[i] : i >= 0 and i <= 9 }'

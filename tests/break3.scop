@@ -1,7 +1,9 @@
+start: 43
+end: 186
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i, j] : j >= 0 and j <= 99 and i >= 0 and i <= 99 }'
+  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -28,7 +30,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_0[i, j] -> __pet_test_0[i, o1] : o1 >= 0 and o1 <= -1 + j }'
+    relation: '{ S_0[i, j] -> __pet_test_0[i, o1] : o1 <= -1 + j and o1 >= 0 }'
     read: 1
     write: 0
 - line: 11
@@ -46,7 +48,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_1[i, j] -> __pet_test_0[i, o1] : o1 >= 0 and o1 <= -1 + j }'
+    relation: '{ S_1[i, j] -> __pet_test_0[i, o1] : o1 <= -1 + j and o1 >= 0 }'
     read: 1
     write: 0
 - line: 13
@@ -73,7 +75,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> __pet_test_0[i, o1] : o1 >= 0 and o1 <= -1 + j; S_2[i,
+    relation: '{ S_2[i, j] -> __pet_test_0[i, o1] : o1 <= -1 + j and o1 >= 0; S_2[i,
       j] -> __pet_test_0[i, j] }'
     read: 1
     write: 0

@@ -1,3 +1,5 @@
+start: 47
+end: 216
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
@@ -98,7 +100,7 @@ statements:
     - type: ternary
       arguments:
       - type: access
-        relation: '{ S_4[i] -> [0] : i <= 56 or i >= 58; S_4[57] -> [1] }'
+        relation: '{ S_4[i] -> [0] : i >= 58 or i <= 56; S_4[57] -> [1] }'
         read: 1
         write: 0
       - type: access

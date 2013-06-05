@@ -1,11 +1,14 @@
+start: 35
+end: 101
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[] }'
+  extent: '[N] -> { a[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 8
-  domain: '[N] -> { S_0[i] : i >= 0 and N <= -1 }'
+  domain: '[N] -> { S_0[i] : N <= -1 and i >= 0 }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: binary

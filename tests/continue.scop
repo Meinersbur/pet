@@ -1,3 +1,5 @@
+start: 33
+end: 182
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
@@ -6,7 +8,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[i, j] : j >= 0 and j <= 99 and i >= 0 and i <= 99 }'
+  domain: '{ S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: binary
@@ -21,8 +23,8 @@ statements:
       read: 1
       write: 0
 - line: 11
-  domain: '{ S_1[i, j] : (j <= 99 and j >= 1 + i and i >= 0) or (j >= 0 and j <= -1
-    + i and i <= 99) }'
+  domain: '{ S_1[i, j] : (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j <= -1 +
+    i) or (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j >= 1 + i) }'
   schedule: '{ S_1[i, j] -> [0, i, j, 2] }'
   body:
     type: binary

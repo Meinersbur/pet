@@ -1,23 +1,31 @@
+start: 225
+end: 507
 context: '[N, M] -> {  : N >= 0 and M >= 0 and N <= 2147483647 and M <= 2147483647
   }'
 arrays:
 - context: '[M, N] -> {  : N >= 0 and M >= 0 }'
-  extent: '[N, M] -> { in1[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <=
-    -1 + M }'
+  extent: '[N, M] -> { in1[i0, i1] : i1 <= -1 + M and i1 >= 0 and i0 <= -1 + N and
+    i0 >= 0 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
-  extent: '{ in2[] }'
+  extent: '[N, M] -> { in2[] }'
   value_bounds: '{ [i0] : i0 >= -1 and i0 <= 1 }'
   element_type: int
+  element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <= 9 }'
+  extent: '[N, M] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
+    9 }'
   element_type: int
+  element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { C[i0] : i0 >= 0 and i0 <= -1 + N }'
+  extent: '[N, M] -> { C[i0] : i0 <= -1 + N and i0 >= 0 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
-  extent: '{ m[] }'
+  extent: '[N, M] -> { m[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 21
   domain: '[N, M] -> { S_0[] }'
@@ -33,7 +41,7 @@ statements:
     - type: call
       name: g2
 - line: 23
-  domain: '[N, M] -> { S_1[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N, M] -> { S_1[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_1[i] -> [1, i, 0] }'
   body:
     type: binary
@@ -55,8 +63,8 @@ statements:
         read: 1
         write: 0
 - line: 25
-  domain: '[N, M] -> { S_2[i, j] : j >= 0 and i >= 0 and i <= -1 + N and j <= -1 +
-    M }'
+  domain: '[N, M] -> { S_2[i, j] : j <= -1 + M and j >= 0 and i <= -1 + N and i >=
+    0 }'
   schedule: '[M, N] -> { S_2[i, j] -> [1, i, 1, j] }'
   body:
     type: binary
@@ -81,7 +89,7 @@ statements:
         read: 1
         write: 0
 - line: 26
-  domain: '[N, M] -> { S_3[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N, M] -> { S_3[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_3[i] -> [1, i, 2] }'
   body:
     type: call
@@ -114,7 +122,7 @@ statements:
       read: 1
       write: 0
 - line: 30
-  domain: '[N, M] -> { S_5[i] : i >= 0 and i <= -1 + N }'
+  domain: '[N, M] -> { S_5[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_5[i] -> [3, i] }'
   body:
     type: binary
@@ -127,8 +135,8 @@ statements:
     - type: ternary
       arguments:
       - type: access
-        relation: '[N, M] -> { [S_5[i] -> [i1]] -> [1] : i1 <= -1 + N - i and i1 >=
-          -i; [S_5[-1 + N] -> [1]] -> [0]; [S_5[0] -> [-1]] -> [0] }'
+        relation: '[N, M] -> { [S_5[i] -> [i1]] -> [1] : i1 >= -i and i1 <= -1 + N
+          - i; [S_5[-1 + N] -> [1]] -> [0]; [S_5[0] -> [-1]] -> [0] }'
         read: 1
         write: 0
         arguments:
@@ -140,8 +148,8 @@ statements:
         name: f
         arguments:
         - type: access
-          relation: '[N, M] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 <= -1 + N
-            - i and i1 >= -i }'
+          relation: '[N, M] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and
+            i1 <= -1 + N - i }'
           read: 1
           write: 0
           arguments:

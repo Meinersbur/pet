@@ -1,13 +1,17 @@
+start: 60
+end: 256
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 10
-  domain: '{ S_0[i, j, k] : (k >= 0 and k <= 255 and i >= 0 and i <= 199 and k <=
-    -1 + i + j and j >= 0 and j <= 199) or (k >= 0 and k <= 255 and i <= 199 and j
-    >= 256 - i and j <= 199) }'
+  domain: '{ S_0[i, j, k] : (exists (e0: i >= 0 and i <= 199 and j >= 0 and j <= 199
+    and k >= 0 and k <= 255 and 256e0 <= k and 256e0 >= 1 - i - j + k and j <= 2147483647
+    - i)) or (i >= 0 and i <= 199 and j >= 0 and j <= 199 and k >= 0 and k <= 255
+    and j >= 256 - i and j <= 2147483647 - i) }'
   schedule: '{ S_0[i, j, k] -> [0, i, j, o3] : (exists (e0 = [(-k + o3)/256]: 256e0
     = -k + o3 and o3 >= 0 and o3 <= -1 + i + j and j <= 2147483647 - i and k >= 0
     and k <= 255)) or (exists (e0 = [(-k + o3)/256]: 256e0 = -k + o3 and o3 >= 0 and

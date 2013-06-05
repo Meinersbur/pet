@@ -1,3 +1,5 @@
+start: 26
+end: 91
 context: '[N] -> {  : N >= -429496729 and N <= 2147483647 }'
 arrays:
 - context: '{  :  }'
@@ -6,7 +8,7 @@ arrays:
   element_size: 4
 statements:
 - line: 6
-  domain: '[N] -> { S_0[] : N >= 1 and N <= 99 }'
+  domain: '[N] -> { S_0[] : N <= 99 and N >= 1 }'
   schedule: '{ S_0[] -> [0] }'
   body:
     type: binary

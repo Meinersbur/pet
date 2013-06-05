@@ -1,3 +1,5 @@
+start: 50
+end: 172
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
@@ -12,8 +14,9 @@ arrays:
   element_size: 4
 statements:
 - line: 11
-  domain: '{ [S_0[k] -> [0]] : exists (e0 = [(257 - k)/256]: k >= 252 and k <= 261
-    and 256e0 <= 255 - k and 256e0 >= 2 - k); [S_0[256] -> [0]] }'
+  domain: '{ [S_0[k] -> [0]] : (exists (e0 = [(k)/256]: 256e0 = k and k >= 252 and
+    k <= 261)) or (exists (e0 = [(257 - k)/256]: k >= 252 and k <= 261 and 256e0 >=
+    2 - k and 256e0 <= 255 - k)) }'
   schedule: '{ S_0[k] -> [0, k, 0] }'
   body:
     type: binary
@@ -29,7 +32,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_0[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k }'
+    relation: '{ S_0[k] -> __pet_test_0[o0] : o0 <= -1 + k and o0 >= 252 }'
     read: 1
     write: 0
 - line: 12
@@ -47,7 +50,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_1[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k }'
+    relation: '{ S_1[k] -> __pet_test_0[o0] : o0 <= -1 + k and o0 >= 252 }'
     read: 1
     write: 0
 - line: 14
@@ -63,12 +66,12 @@ statements:
       write: 1
     - type: access
       relation: '{ S_2[k] -> [o0] : exists (e0 = [(-k + o0)/256]: 256e0 = -k + o0
-        and o0 <= 255 and o0 >= 0) }'
+        and o0 >= 0 and o0 <= 255) }'
       read: 1
       write: 0
   arguments:
   - type: access
-    relation: '{ S_2[k] -> __pet_test_0[o0] : o0 >= 252 and o0 <= -1 + k; S_2[k] ->
+    relation: '{ S_2[k] -> __pet_test_0[o0] : o0 <= -1 + k and o0 >= 252; S_2[k] ->
       __pet_test_0[k] }'
     read: 1
     write: 0

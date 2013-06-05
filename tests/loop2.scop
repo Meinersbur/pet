@@ -1,8 +1,11 @@
+start: 34
+end: 116
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
   element_type: int
+  element_size: 4
 statements:
 - line: 9
   domain: '{ S_0[i] : (i >= 0 and i <= 4) or (i >= 6 and i <= 9) }'

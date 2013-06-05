@@ -1,3 +1,5 @@
+start: 31
+end: 109
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
@@ -54,7 +56,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_1[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '{ S_1[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 7
@@ -79,7 +81,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_2[t] -> __pet_test_0[o0] : o0 <= t and o0 >= 0 }'
+    relation: '{ S_2[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= t }'
     read: 1
     write: 0
 - line: 8
@@ -95,6 +97,6 @@ statements:
       write: 1
   arguments:
   - type: access
-    relation: '{ S_3[t] -> __pet_test_0[o0] : o0 <= t and o0 >= 0 }'
+    relation: '{ S_3[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= t }'
     read: 1
     write: 0

@@ -1,3 +1,5 @@
+start: 45
+end: 294
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
 arrays:
 - context: '{  :  }'
@@ -31,7 +33,7 @@ arrays:
 statements:
 - line: 10
   domain: '[N] -> { S_0[t] : N = 0 and t >= 1; S_0[0] }'
-  schedule: '{ S_0[t] -> [0, t, 0] }'
+  schedule: '[N] -> { S_0[t] -> [0, t, 0] }'
   body:
     type: binary
     operation: =
@@ -46,7 +48,7 @@ statements:
       write: 0
 - line: 13
   domain: '[N] -> { S_1[t] : N = 0 and t >= 1; S_1[0] : N = 0 }'
-  schedule: '{ S_1[t] -> [0, t, 2] }'
+  schedule: '[N] -> { S_1[t] -> [0, t, 2] }'
   body:
     type: binary
     operation: =
@@ -76,7 +78,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_2[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_2[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 17
@@ -94,7 +96,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '[N] -> { S_3[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_3[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 19
@@ -114,13 +116,13 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_4[t] -> __pet_test_0[o0] : o0 <= -1 + t and o0 >= 0; S_4[t]
+    relation: '[N] -> { S_4[t] -> __pet_test_0[o0] : o0 >= 0 and o0 <= -1 + t; S_4[t]
       -> __pet_test_0[t] }'
     read: 1
     write: 0
 - line: 21
   domain: '[N] -> { [S_5[t] -> [1]] : N = 0 and t >= 1; [S_5[0] -> [1]] }'
-  schedule: '{ S_5[t] -> [2, t, 0] }'
+  schedule: '[N] -> { S_5[t] -> [2, t, 0] }'
   body:
     type: binary
     operation: =
@@ -133,13 +135,13 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '[N] -> { S_5[t] -> __pet_test_1[o0] : N = 0 and o0 <= -1 + t and o0
-      >= 1; S_5[t] -> __pet_test_1[0] : t >= 1 }'
+    relation: '[N] -> { S_5[t] -> __pet_test_1[o0] : N = 0 and o0 >= 1 and o0 <= -1
+      + t; S_5[t] -> __pet_test_1[0] : t >= 1 }'
     read: 1
     write: 0
 - line: 22
   domain: '[N] -> { [S_6[t] -> [1]] : N = 0 and t >= 1; [S_6[0] -> [1]] }'
-  schedule: '{ S_6[t] -> [2, t, 1, 0] }'
+  schedule: '[N] -> { S_6[t] -> [2, t, 1, 0] }'
   body:
     type: binary
     operation: =
@@ -154,13 +156,13 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_6[t] -> __pet_test_1[o0] : N = 0 and o0 <= t and o0 >= 1;
+    relation: '[N] -> { S_6[t] -> __pet_test_1[o0] : N = 0 and o0 >= 1 and o0 <= t;
       S_6[t] -> __pet_test_1[0] }'
     read: 1
     write: 0
 - line: 25
   domain: '[N] -> { [S_7[t] -> [1]] : N = 0 and t >= 1; [S_7[0] -> [1]] : N = 0 }'
-  schedule: '{ S_7[t] -> [2, t, 1, 2] }'
+  schedule: '[N] -> { S_7[t] -> [2, t, 1, 2] }'
   body:
     type: binary
     operation: =
@@ -175,7 +177,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_7[t] -> __pet_test_1[o0] : o0 <= t and o0 >= 1; S_7[t] ->
+    relation: '[N] -> { S_7[t] -> __pet_test_1[o0] : o0 >= 1 and o0 <= t; S_7[t] ->
       __pet_test_1[0] }'
     read: 1
     write: 0
@@ -194,11 +196,11 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '[N] -> { S_8[t] -> __pet_test_2[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_8[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
   - type: access
-    relation: '[N] -> { S_8[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_8[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 28
@@ -218,11 +220,11 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_9[t] -> __pet_test_2[o0] : o0 <= t and o0 >= 0 }'
+    relation: '[N] -> { S_9[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= t }'
     read: 1
     write: 0
   - type: access
-    relation: '[N] -> { S_9[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_9[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 29
@@ -240,11 +242,11 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '[N] -> { S_10[t] -> __pet_test_2[o0] : o0 <= t and o0 >= 0 }'
+    relation: '[N] -> { S_10[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= t }'
     read: 1
     write: 0
   - type: access
-    relation: '[N] -> { S_10[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0 }'
+    relation: '[N] -> { S_10[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t }'
     read: 1
     write: 0
 - line: 31
@@ -264,11 +266,11 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[N] -> { S_11[t] -> __pet_test_2[o0] : o0 <= t and o0 >= 0 }'
+    relation: '[N] -> { S_11[t] -> __pet_test_2[o0] : o0 >= 0 and o0 <= t }'
     read: 1
     write: 0
   - type: access
-    relation: '[N] -> { S_11[t] -> __pet_test_3[o0] : o0 <= -1 + t and o0 >= 0; S_11[t]
+    relation: '[N] -> { S_11[t] -> __pet_test_3[o0] : o0 >= 0 and o0 <= -1 + t; S_11[t]
       -> __pet_test_3[t] }'
     read: 1
     write: 0

@@ -1,14 +1,19 @@
+start: 31
+end: 95
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
   extent: '{ b[] }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
   extent: '{ c[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 5
   domain: '{ S_0[] }'

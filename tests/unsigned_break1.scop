@@ -1,3 +1,5 @@
+start: 40
+end: 150
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
@@ -6,10 +8,10 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[k] : exists (e0 = [(507 - k)/256]: k >= 0 and k <= 255 and 256e0
-    <= 257 - k and 256e0 >= 252 - k) }'
+  domain: '{ S_0[k] : exists (e0 = [(-2 + k)/256]: k >= 0 and k <= 255 and 256e0 <=
+    -252 + k and 256e0 >= -257 + k) }'
   schedule: '{ S_0[k] -> [0, o1, 0] : exists (e0 = [(k - o1)/256]: 256e0 = k - o1
-    and o1 >= 252 and k <= 255 and k >= 0 and o1 <= 257) }'
+    and o1 >= 252 and o1 <= 257 and k >= 0 and k <= 255) }'
   body:
     type: binary
     operation: =
@@ -23,9 +25,10 @@ statements:
       read: 1
       write: 0
 - line: 11
-  domain: '{ S_1[k] : k <= 255 and k >= 252; S_1[0] }'
+  domain: '{ S_1[k] : exists (e0 = [(-2 + k)/256]: k >= 2 and k <= 255 and 256e0 <=
+    -252 + k and 256e0 >= -257 + k); S_1[0] }'
   schedule: '{ S_1[k] -> [0, o1, 2] : exists (e0 = [(k - o1)/256]: 256e0 = k - o1
-    and o1 >= 252 and k <= 255 and k >= 0 and o1 <= 257) }'
+    and o1 >= 252 and o1 <= 257 and k >= 0 and k <= 255) }'
   body:
     type: binary
     operation: =

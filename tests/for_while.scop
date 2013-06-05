@@ -1,7 +1,9 @@
+start: 83
+end: 231
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 arrays:
 - context: '{  :  }'
-  extent: '[n] -> { __pet_test_0[x1, x2] : x1 >= 0 and x1 <= -1 + n and x2 >= 0 }'
+  extent: '[n] -> { __pet_test_0[x1, x2] : x1 <= -1 + n and x1 >= 0 and x2 >= 0 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -12,7 +14,7 @@ arrays:
   element_size: 4
 statements:
 - line: 12
-  domain: '[n] -> { S1[x1] : x1 >= 0 and x1 <= -1 + n }'
+  domain: '[n] -> { S1[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
     type: binary
@@ -25,7 +27,7 @@ statements:
     - type: call
       name: f
 - line: 13
-  domain: '[n] -> { [S_1[x1, x2] -> [1]] : x1 >= 0 and x1 <= -1 + n and x2 >= 0 }'
+  domain: '[n] -> { [S_1[x1, x2] -> [1]] : x1 <= -1 + n and x1 >= 0 and x2 >= 0 }'
   schedule: '[n] -> { S_1[x1, x2] -> [0, x1, 1, x2, 0] }'
   body:
     type: binary
@@ -53,7 +55,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '[n] -> { [S2[x1, x2] -> [1]] : x1 >= 0 and x1 <= -1 + n and x2 >= 0 }'
+  domain: '[n] -> { [S2[x1, x2] -> [1]] : x1 <= -1 + n and x1 >= 0 and x2 >= 0 }'
   schedule: '[n] -> { S2[x1, x2] -> [0, x1, 1, x2, 1, 0] }'
   body:
     type: binary
@@ -77,7 +79,7 @@ statements:
     read: 1
     write: 0
 - line: 16
-  domain: '[n] -> { R[x1] : x1 >= 0 and x1 <= -1 + n }'
+  domain: '[n] -> { R[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
   body:
     type: call

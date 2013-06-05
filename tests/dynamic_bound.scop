@@ -1,3 +1,5 @@
+start: 143
+end: 351
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
@@ -11,7 +13,7 @@ arrays:
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '{ a[i0, i1] : i1 >= 0 and i1 <= 99 and i0 >= 0 and i0 <= 99 }'
+  extent: '{ a[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= 99 and i1 <= 99 }'
   element_type: int
   element_size: 4
 statements:
@@ -42,7 +44,7 @@ statements:
     - type: call
       name: g
 - line: 17
-  domain: '{ [S_4[i, j] -> [N, M]] : N >= 1 + i and j >= 0 and i >= 0 and M >= 1 +
+  domain: '{ [S_4[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
     j }'
   schedule: '{ S_4[i, j] -> [2, i, j] }'
   body:
@@ -74,7 +76,7 @@ statements:
     read: 1
     write: 0
 - line: 20
-  domain: '{ [S_7[i, j] -> [N, M]] : N >= 1 + i and j >= 0 and i >= 0 and M >= 1 +
+  domain: '{ [S_7[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
     j }'
   schedule: '{ S_7[i, j] -> [3, i, j] }'
   body:

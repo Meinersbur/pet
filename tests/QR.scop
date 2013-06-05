@@ -1,35 +1,39 @@
+start: 285
+end: 840
 context: '[N, K] -> {  : N >= 8 and N <= 16 and K >= 100 and K <= 1000 }'
 context_value: '[K] -> {  : K = 256 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { R[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + N and i1 <= -1
-    + N }'
+  extent: '[N, K] -> { R[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 <= -1 + N and i1
+    >= 0 }'
   element_type: int
+  element_size: 4
 - context: '[N, K] -> {  : K >= 0 and N >= 0 }'
-  extent: '[K, N] -> { X[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= -1 + K and i1 <=
-    -1 + N }'
+  extent: '[N, K] -> { X[i0, i1] : i1 <= -1 + N and i1 >= 0 and i0 <= -1 + K and i0
+    >= 0 }'
   element_type: int
+  element_size: 4
 - context: '{  :  }'
-  extent: '{ t[] }'
+  extent: '[N, K] -> { t[] }'
   element_type: int
+  element_size: 4
 statements:
 - line: 19
-  domain: '[N] -> { S_0[j, i] : j >= 0 and j <= -1 + N and i >= j and i <= -1 + N
-    }'
+  domain: '[N, K] -> { S_0[j, i] : i >= j and j >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_0[j, i] -> [0, j, i] }'
   body:
     type: binary
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_0[j, i] -> R[j, i] }'
+      relation: '[N, K] -> { S_0[j, i] -> R[j, i] }'
       read: 0
       write: 1
     - type: call
       name: Zero
 - line: 23
-  domain: '[N, K] -> { S_1[k, j] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1 +
-    N }'
+  domain: '[N, K] -> { S_1[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
+    0 }'
   schedule: '[N, K] -> { S_1[k, j] -> [1, k, j] }'
   body:
     type: binary
@@ -42,8 +46,8 @@ statements:
     - type: call
       name: ReadMatrix
 - line: 27
-  domain: '[N, K] -> { S_2[k, j] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1 +
-    N }'
+  domain: '[N, K] -> { S_2[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
+    0 }'
   schedule: '[N, K] -> { S_2[k, j] -> [2, k, j, 0] }'
   body:
     type: call
@@ -79,8 +83,8 @@ statements:
         read: 0
         write: 1
 - line: 29
-  domain: '[N, K] -> { S_3[k, j, i] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1
-    + N and i >= 1 + j and i <= -1 + N }'
+  domain: '[N, K] -> { S_3[k, j, i] : i >= 1 + j and j >= 0 and k <= -1 + K and k
+    >= 0 and i <= -1 + N }'
   schedule: '[N, K] -> { S_3[k, j, i] -> [2, k, j, 1, i] }'
   body:
     type: call
@@ -120,14 +124,13 @@ statements:
         read: 0
         write: 1
 - line: 34
-  domain: '[N] -> { S_4[j, i] : j >= 0 and j <= -1 + N and i >= j and i <= -1 + N
-    }'
+  domain: '[N, K] -> { S_4[j, i] : i >= j and j >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_4[j, i] -> [3, j, i] }'
   body:
     type: call
     name: WriteMatrix
     arguments:
     - type: access
-      relation: '[N] -> { S_4[j, i] -> R[j, i] }'
+      relation: '[N, K] -> { S_4[j, i] -> R[j, i] }'
       read: 1
       write: 0
