@@ -1338,7 +1338,8 @@ struct pet_embed_access {
 	isl_id *var_id;
 };
 
-/* Embed the access relation in an extra outer loop.
+/* Given an access expression, embed the associated access relation
+ * in an extra outer loop.
  *
  * We first update the iteration domain to insert the extra dimension.
  *
@@ -1354,10 +1355,10 @@ struct pet_embed_access {
  * pointer equal to NULL), as created by create_test_access,
  * then it is extended along with the domain of the access.
  */
-static __isl_give isl_map *embed_access(__isl_take isl_map *access,
-	void *user)
+static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
 	struct pet_embed_access *data = user;
+	isl_map *access = expr->acc.access;
 	isl_id *array_id = NULL;
 	int pos;
 
@@ -1385,13 +1386,15 @@ static __isl_give isl_map *embed_access(__isl_take isl_map *access,
 		set = internalize_iv(set, pos, isl_map_copy(data->iv_map));
 		access = isl_set_unwrap(set);
 	}
-	access = isl_map_set_dim_id(access, isl_dim_in, 0,
+	expr->acc.access = isl_map_set_dim_id(access, isl_dim_in, 0,
 					isl_id_copy(data->var_id));
+	if (!expr->acc.access)
+		return pet_expr_free(expr);
 
-	return access;
+	return expr;
 }
 
-/* Embed all access relations in "expr" in an extra loop.
+/* Embed all access subexpressions of "expr" in an extra loop.
  * "extend" inserts an outer loop iterator in the iteration domains.
  * "iv_map" maps the virtual iterator to the real iterator
  * "var_id" represents the induction variable.
@@ -1403,7 +1406,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 	struct pet_embed_access data =
 		{ .extend = extend, .iv_map = iv_map, .var_id = var_id };
 
-	expr = pet_expr_foreach_access(expr, &embed_access, &data);
+	expr = pet_expr_foreach_access_expr(expr, &embed_access, &data);
 	isl_map_free(iv_map);
 	isl_map_free(extend);
 	return expr;
