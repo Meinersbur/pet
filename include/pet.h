@@ -5,6 +5,8 @@
 #include <isl/set.h>
 #include <isl/map.h>
 #include <isl/union_map.h>
+#include <isl/printer.h>
+#include <isl/id_to_ast_expr.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -156,6 +158,14 @@ struct pet_stmt {
 	unsigned n_arg;
 	struct pet_expr **args;
 };
+
+/* Print "stmt" to "p".
+ *
+ * The access expressions in "stmt" are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+__isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
+	__isl_take isl_printer *p, __isl_keep isl_id_to_ast_expr *ref2expr);
 
 /* context holds constraints on the parameter that ensure that
  * this array has a valid (i.e., non-negative) size
