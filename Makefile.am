@@ -37,6 +37,7 @@ libpet_la_SOURCES = \
 	options.h \
 	options.c \
 	print.c \
+	print.h \
 	scan.h \
 	scan.cc \
 	scop.h \

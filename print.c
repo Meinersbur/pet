@@ -36,6 +36,7 @@
 #include <isl/ast.h>
 #include <isl/ast_build.h>
 #include <pet.h>
+#include "print.h"
 #include "scop.h"
 
 /* Internal data structure for pet_stmt_build_ast_exprs.
@@ -387,4 +388,34 @@ __isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
 	p = isl_printer_end_line(p);
 
 	return p;
+}
+
+/* Copy the contents of "input" from offset "start" to "end" to "output".
+ */
+int copy(FILE *input, FILE *output, long start, long end)
+{
+	char buffer[1024];
+	size_t n, m;
+
+	if (end < 0) {
+		fseek(input, 0, SEEK_END);
+		end = ftell(input);
+	}
+
+	fseek(input, start, SEEK_SET);
+
+	while (start < end) {
+		n = end - start;
+		if (n > 1024)
+			n = 1024;
+		n = fread(buffer, 1, n, input);
+		if (n <= 0)
+			return -1;
+		m = fwrite(buffer, 1, n, output);
+		if (n != m)
+			return -1;
+		start += n;
+	}
+
+	return 0;
 }

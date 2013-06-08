@@ -267,6 +267,14 @@ int pet_op_is_inc_dec(enum pet_op_type op);
 struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	const char *filename, const char *function);
 
+/* Transform the C source file "input" by rewriting each scop
+ * (at most one per function) through a call to "transform".
+ * The transformed C code is written to "output".
+ */
+int pet_transform_C_source(isl_ctx *ctx, const char *input, FILE *output,
+	__isl_give isl_printer *(*transform)(__isl_take isl_printer *p,
+		struct pet_scop *scop, void *user), void *user);
+
 /* Update all isl_sets and isl_maps such that they all have the same
  * parameters in the same order.
  */

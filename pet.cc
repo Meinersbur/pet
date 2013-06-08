@@ -82,8 +82,11 @@
 #include <isl/ctx.h>
 #include <isl/constraint.h>
 
+#include <pet.h>
+
 #include "options.h"
 #include "scan.h"
+#include "print.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
 
@@ -891,4 +894,96 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 					&set_first_scop, &scop);
 
 	return scop;
+}
+
+/* Internal data structure for pet_transform_C_source
+ *
+ * transform is the function that should be called to print a scop
+ * in is the input source file
+ * out is the output source file
+ * end is the offset of the end of the previous scop (zero if we have not
+ *	found any scop yet)
+ * p is a printer that prints to out.
+ */
+struct pet_transform_data {
+	__isl_give isl_printer *(*transform)(__isl_take isl_printer *p,
+		struct pet_scop *scop, void *user);
+	void *user;
+
+	FILE *in;
+	FILE *out;
+	unsigned end;
+	isl_printer *p;
+};
+
+/* This function is called each time a scop is detected.
+ *
+ * We first copy the input text code from the end of the previous scop
+ * until the start of "scop" and then print the scop itself through
+ * a call to data->transform.
+ * Finally, we keep track of the end of "scop" so that we can
+ * continue copying when we find the next scop.
+ */
+static int pet_transform(struct pet_scop *scop, void *user)
+{
+	struct pet_transform_data *data = (struct pet_transform_data *) user;
+
+	if (copy(data->in, data->out, data->end, scop->start) < 0)
+		goto error;
+	data->end = scop->end;
+	data->p = data->transform(data->p, scop, data->user);
+	if (!data->p)
+		return -1;
+	return 0;
+error:
+	pet_scop_free(scop);
+	return -1;
+}
+
+/* Transform the C source file "input" by rewriting each scop
+ * (at most one per function) through a call to "transform".
+ * The transformed C code is written to "output".
+ *
+ * For each scop we find, we first copy the input text code
+ * from the end of the previous scop (or the beginning of the file
+ * in case of the first scop) until the start of the scop
+ * and then print the scop itself through a call to "transform".
+ * At the end we copy everything from the end of the final scop
+ * until the end of the input file to "output".
+ */
+int pet_transform_C_source(isl_ctx *ctx, const char *input, FILE *out,
+	__isl_give isl_printer *(*transform)(__isl_take isl_printer *p,
+		struct pet_scop *scop, void *user), void *user)
+{
+	struct pet_transform_data data;
+	int r;
+
+	data.in = stdin;
+	data.out = out;
+	if (input && strcmp(input, "-")) {
+		data.in = fopen(input, "r");
+		if (!data.in)
+			isl_die(ctx, isl_error_unknown, "unable to open file",
+				return -1);
+	}
+
+	data.p = isl_printer_to_file(ctx, data.out);
+	data.p = isl_printer_set_output_format(data.p, ISL_FORMAT_C);
+
+	data.transform = transform;
+	data.user = user;
+	data.end = 0;
+	r = pet_foreach_scop_in_C_source(ctx, input, NULL,
+					&pet_transform, &data);
+
+	isl_printer_free(data.p);
+	if (!data.p)
+		r = -1;
+	if (r == 0 && copy(data.in, data.out, data.end, -1) < 0)
+		r = -1;
+
+	if (data.in != stdin)
+		fclose(data.in);
+
+	return r;
 }
