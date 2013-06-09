@@ -43,6 +43,9 @@ AC_EGREP_HEADER([getDefaultTargetTriple], [llvm/Support/Host.h], [],
 AC_EGREP_HEADER([getExpansionLineNumber], [clang/Basic/SourceLocation.h], [],
 	[AC_DEFINE([getExpansionLineNumber], [getInstantiationLineNumber],
 	[Define to getInstantiationLineNumber for older versions of clang])])
+AC_EGREP_HEADER([getExpansionColumnNumber], [clang/Basic/SourceLocation.h], [],
+	[AC_DEFINE([getExpansionColumnNumber], [getInstantiationColumnNumber],
+	[Define to getInstantiationColumnNumber for older versions of clang])])
 AC_EGREP_HEADER([getExpansionLoc], [clang/Basic/SourceManager.h], [],
 	[AC_DEFINE([getExpansionLoc], [getInstantiationLoc],
 	[Define to getInstantiationLoc for older versions of clang])])
@@ -118,6 +121,9 @@ AC_TRY_COMPILE([#include <clang/Lex/HeaderSearchOptions.h>], [
 	HSO.AddPath("", frontend::Angled, false, false);
 ], [AC_DEFINE([ADDPATH_TAKES_4_ARGUMENTS], [],
 	[Define if HeaderSearchOptions::AddPath takes 4 arguments])])
+AC_EGREP_HEADER([getLocWithOffset], [clang/Basic/SourceLocation.h], [],
+	[AC_DEFINE([getLocWithOffset], [getFileLocWithOffset],
+	[Define to getFileLocWithOffset for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

@@ -3186,6 +3186,44 @@ static SourceLocation location_after_semi(SourceLocation loc, SourceManager &SM,
 
 #endif
 
+/* If the token at "loc" is the first token on the line, then return
+ * a location referring to the start of the line.
+ * Otherwise, return "loc".
+ *
+ * This function is used to extend a scop to the start of the line
+ * if the first token of the scop is also the first token on the line.
+ *
+ * We look for the first token on the line.  If its location is equal to "loc",
+ * then the latter is the location of the first token on the line.
+ */
+static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
+	SourceManager &SM, const LangOptions &LO)
+{
+	std::pair<FileID, unsigned> file_offset_pair;
+	llvm::StringRef file;
+	const char *pos;
+	Token tok;
+	SourceLocation token_loc, line_loc;
+	int col;
+
+	loc = SM.getExpansionLoc(loc);
+	col = SM.getExpansionColumnNumber(loc);
+	line_loc = loc.getLocWithOffset(1 - col);
+	file_offset_pair = SM.getDecomposedLoc(line_loc);
+	file = SM.getBufferData(file_offset_pair.first, NULL);
+	pos = file.data() + file_offset_pair.second;
+
+	Lexer lexer(SM.getLocForStartOfFile(file_offset_pair.first), LO,
+					file.begin(), pos, file.end());
+	lexer.LexFromRawLexer(tok);
+	token_loc = tok.getLocation();
+
+	if (token_loc == loc)
+		return line_loc;
+	else
+		return loc;
+}
+
 /* Convert a top-level pet_expr to a pet_scop with one statement.
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
@@ -3208,6 +3246,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
 	ps = pet_stmt_from_pet_expr(ctx, line, label, n_stmt++, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 
+	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
 	start = getExpansionOffset(SM, loc);
 	loc = stmt->getLocEnd();
 	loc = location_after_semi(loc, SM, LO);
@@ -4348,6 +4387,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	unsigned start, end;
 	SourceLocation loc;
 	SourceManager &SM = PP.getSourceManager();
+	const LangOptions &LO = PP.getLangOpts();
 
 	if (isa<Expr>(stmt))
 		return extract(stmt, extract_expr(cast<Expr>(stmt)));
@@ -4385,7 +4425,9 @@ struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	if (partial || skip_declarations)
 		return scop;
 
-	start = getExpansionOffset(SM, stmt->getLocStart());
+	loc = stmt->getLocStart();
+	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
+	start = getExpansionOffset(SM, loc);
 	loc = PP.getLocForEndOfToken(stmt->getLocEnd());
 	end = getExpansionOffset(SM, loc);
 	scop = pet_scop_update_start_end(scop, start, end);
