@@ -34,7 +34,217 @@
 
 #include <isl/aff.h>
 #include <isl/ast.h>
+#include <isl/ast_build.h>
 #include <pet.h>
+#include "scop.h"
+
+/* Internal data structure for pet_stmt_build_ast_exprs.
+ *
+ * "build" is used to construct an AST expression from an index expression.
+ * "fn_index" is used to transform the index expression prior to
+ *	the construction of the AST expression.
+ * "fn_expr" is used to transform the constructed AST expression.
+ * "ref2expr" collects the results.
+ */
+struct pet_build_ast_expr_data {
+	isl_ast_build *build;
+	__isl_give isl_multi_pw_aff *(*fn_index)(
+		__isl_take isl_multi_pw_aff *mpa, __isl_keep isl_id *id,
+		void *user);
+	void *user_index;
+	__isl_give isl_ast_expr *(*fn_expr)(__isl_take isl_ast_expr *expr,
+		__isl_keep isl_id *id, void *user);
+	void *user_expr;
+	isl_id_to_ast_expr *ref2expr;
+};
+
+/* Given an index expression "index" with nested expressions, replace
+ * those nested expressions by parameters.  The identifiers
+ * of those parameters reference the corresponding arguments
+ * of "expr".  The same identifiers are used in
+ * pet_expr_build_nested_ast_exprs.
+ *
+ * In particular, if "index" is of the form
+ *
+ *	{ [domain -> [e_1, ..., e_n]] -> array[f(e_1, ..., e_n)] }
+ *
+ * then we construct the expression
+ *
+ *	[p_1, ..., p_n] -> { domain -> array[f(p_1, ..., p_n)] }
+ *
+ */
+static __isl_give isl_multi_pw_aff *parametrize_nested_exprs(
+	__isl_take isl_multi_pw_aff *index, struct pet_expr *expr)
+{
+	int i;
+	isl_ctx *ctx;
+	isl_space *space, *space2;
+	isl_local_space *ls;
+	isl_multi_aff *ma, *ma2;
+
+	ctx = isl_multi_pw_aff_get_ctx(index);
+	space = isl_multi_pw_aff_get_domain_space(index);
+	space = isl_space_unwrap(space);
+
+	space2 = isl_space_domain(isl_space_copy(space));
+	ma = isl_multi_aff_identity(isl_space_map_from_set(space2));
+
+	space = isl_space_insert_dims(space, isl_dim_param, 0,
+					expr->n_arg);
+	for (i = 0; i < expr->n_arg; ++i) {
+		isl_id *id = isl_id_alloc(ctx, NULL, expr->args[i]);
+
+		space = isl_space_set_dim_id(space, isl_dim_param, i, id);
+	}
+	space2 = isl_space_domain(isl_space_copy(space));
+	ls = isl_local_space_from_space(space2);
+	ma2 = isl_multi_aff_zero(space);
+	for (i = 0; i < expr->n_arg; ++i) {
+		isl_aff *aff;
+		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
+						isl_dim_param, i);
+		ma2 = isl_multi_aff_set_aff(ma2, i, aff);
+	}
+	isl_local_space_free(ls);
+
+	ma = isl_multi_aff_range_product(ma, ma2);
+
+	return isl_multi_pw_aff_pullback_multi_aff(index, ma);
+}
+
+static __isl_give isl_ast_expr *pet_expr_build_ast_expr(struct pet_expr *expr,
+	struct pet_build_ast_expr_data *data);
+
+/* Construct an associative array from identifiers for the nested
+ * expressions of "expr" to the corresponding isl_ast_expr.
+ * The identifiers reference the corresponding arguments of "expr".
+ * The same identifiers are used in parametrize_nested_exprs.
+ */
+static __isl_give isl_id_to_ast_expr *pet_expr_build_nested_ast_exprs(
+	struct pet_expr *expr, struct pet_build_ast_expr_data *data)
+{
+	int i;
+	isl_ctx *ctx = isl_ast_build_get_ctx(data->build);
+	isl_id_to_ast_expr *id2expr;
+
+	id2expr = isl_id_to_ast_expr_alloc(ctx, expr->n_arg);
+
+	for (i = 0; i < expr->n_arg; ++i) {
+		isl_id *id = isl_id_alloc(ctx, NULL, expr->args[i]);
+		isl_ast_expr *ast_expr;
+
+		ast_expr = pet_expr_build_ast_expr(expr->args[i], data);
+		id2expr = isl_id_to_ast_expr_set(id2expr, id, ast_expr);
+	}
+
+	return id2expr;
+}
+
+/* Construct an AST expression from an access expression.
+ *
+ * If the expression has any arguments, we first convert those
+ * to AST expressions and replace the references to those arguments
+ * in the index expression by parameters.
+ *
+ * Then we apply the index transformation if any was provided by the user.
+ *
+ * If the "access" is actually an affine expression, we print is as such.
+ * Otherwise, we print a proper access.
+ *
+ * If the original expression had any arguments, then they are plugged in now.
+ *
+ * Finally, we apply an AST transformation on the result, if any was provided
+ * by the user.
+ */
+static __isl_give isl_ast_expr *pet_expr_build_ast_expr(struct pet_expr *expr,
+	struct pet_build_ast_expr_data *data)
+{
+	isl_pw_aff *pa;
+	isl_multi_pw_aff *mpa;
+	isl_ast_expr *ast_expr;
+	isl_id_to_ast_expr *id2expr;
+	isl_ast_build *build = data->build;
+
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(isl_ast_build_get_ctx(build), isl_error_invalid,
+			"not an access expression", return NULL);
+
+	mpa = isl_multi_pw_aff_copy(expr->acc.index);
+
+	if (expr->n_arg > 0) {
+		mpa = parametrize_nested_exprs(mpa, expr);
+		id2expr = pet_expr_build_nested_ast_exprs(expr, data);
+	}
+
+	if (data->fn_index)
+		mpa = data->fn_index(mpa, expr->acc.ref_id, data->user_index);
+	mpa = isl_multi_pw_aff_coalesce(mpa);
+
+	if (!pet_expr_is_affine(expr)) {
+		ast_expr = isl_ast_build_access_from_multi_pw_aff(build, mpa);
+	} else {
+		pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
+		ast_expr = isl_ast_build_expr_from_pw_aff(build, pa);
+		isl_multi_pw_aff_free(mpa);
+	}
+	if (expr->n_arg > 0)
+		ast_expr = isl_ast_expr_substitute_ids(ast_expr, id2expr);
+	if (data->fn_expr)
+		ast_expr = data->fn_expr(ast_expr, expr->acc.ref_id,
+					    data->user_index);
+
+	return ast_expr;
+}
+
+/* Construct an AST expression from the access expression "expr" and
+ * add the mapping from reference identifier to AST expression to
+ * data->ref2expr.
+ */
+static int add_access(struct pet_expr *expr, void *user)
+{
+	struct pet_build_ast_expr_data *data = user;
+	isl_id *id;
+	isl_ast_expr *ast_expr;
+
+	ast_expr = pet_expr_build_ast_expr(expr, data);
+
+	id = isl_id_copy(expr->acc.ref_id);
+	data->ref2expr = isl_id_to_ast_expr_set(data->ref2expr, id, ast_expr);
+
+	return 0;
+}
+
+/* Construct an associative array from reference identifiers of
+ * access expressions in "stmt" to the corresponding isl_ast_expr.
+ * Each index expression is first transformed through "fn_index"
+ * (if not NULL).  Then an AST expression is generated using "build".
+ * Finally, the AST expression is transformed using "fn_expr"
+ * (if not NULL).
+ */
+__isl_give isl_id_to_ast_expr *pet_stmt_build_ast_exprs(struct pet_stmt *stmt,
+	__isl_keep isl_ast_build *build,
+	__isl_give isl_multi_pw_aff *(*fn_index)(
+		__isl_take isl_multi_pw_aff *mpa, __isl_keep isl_id *id,
+		void *user), void *user_index,
+	__isl_give isl_ast_expr *(*fn_expr)(__isl_take isl_ast_expr *expr,
+		__isl_keep isl_id *id, void *user), void *user_expr)
+{
+	struct pet_build_ast_expr_data data =
+		{ build, fn_index, user_index, fn_expr, user_expr };
+	isl_ctx *ctx;
+
+	if (!stmt || !build)
+		return NULL;
+
+	ctx = isl_ast_build_get_ctx(build);
+	data.ref2expr = isl_id_to_ast_expr_alloc(ctx, 0);
+	if (pet_expr_foreach_access_expr(stmt->body, &add_access, &data) < 0)
+		data.ref2expr = isl_id_to_ast_expr_free(data.ref2expr);
+
+	return data.ref2expr;
+}
 
 /* Print the access expression "expr" to "p".
  *

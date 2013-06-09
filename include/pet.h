@@ -1,7 +1,9 @@
 #ifndef PET_H
 #define PET_H
 
+#include <isl/aff.h>
 #include <isl/arg.h>
+#include <isl/ast_build.h>
 #include <isl/set.h>
 #include <isl/map.h>
 #include <isl/union_map.h>
@@ -158,6 +160,21 @@ struct pet_stmt {
 	unsigned n_arg;
 	struct pet_expr **args;
 };
+
+/* Construct an associative array from reference identifiers of
+ * access expressions in "stmt" to the corresponding isl_ast_expr.
+ * Each index expression is first transformed through "fn_index"
+ * (if not NULL).  Then an AST expression is generated using "build".
+ * Finally, the AST expression is transformed using "fn_expr"
+ * (if not NULL).
+ */
+__isl_give isl_id_to_ast_expr *pet_stmt_build_ast_exprs(struct pet_stmt *stmt,
+	__isl_keep isl_ast_build *build,
+	__isl_give isl_multi_pw_aff *(*fn_index)(
+		__isl_take isl_multi_pw_aff *mpa, __isl_keep isl_id *id,
+		void *user), void *user_index,
+	__isl_give isl_ast_expr *(*fn_expr)(__isl_take isl_ast_expr *expr,
+		__isl_keep isl_id *id, void *user), void *user_expr);
 
 /* Print "stmt" to "p".
  *
