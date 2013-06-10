@@ -219,11 +219,152 @@ static struct pet_expr *extract_arguments(isl_ctx *ctx,
 	return expr;
 }
 
+/* Extract pet_expr_double specific fields from "node" and
+ * update "expr" accordingly.
+ */
+static struct pet_expr *extract_expr_double(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+{
+	yaml_node_pair_t *pair;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "value"))
+			expr->d.val = extract_double(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "string"))
+			expr->d.s = extract_string(ctx, document, value);
+	}
+
+	return expr;
+}
+
+/* Extract pet_expr_access specific fields from "node" and
+ * update "expr" accordingly.
+ */
+static struct pet_expr *extract_expr_access(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+{
+	yaml_node_pair_t *pair;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "relation"))
+			expr->acc.access = extract_map(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "read"))
+			expr->acc.read = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "write"))
+			expr->acc.write = extract_int(ctx, document, value);
+	}
+
+	return expr;
+}
+
+/* Extract operation expression specific fields from "node" and
+ * update "expr" accordingly.
+ */
+static struct pet_expr *extract_expr_op(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+{
+	yaml_node_pair_t *pair;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "operation"))
+			expr->op = extract_op(ctx, document, value);
+	}
+
+	return expr;
+}
+
+/* Extract pet_expr_call specific fields from "node" and
+ * update "expr" accordingly.
+ */
+static struct pet_expr *extract_expr_call(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+{
+	yaml_node_pair_t *pair;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "name"))
+			expr->name = extract_string(ctx, document, value);
+	}
+
+	return expr;
+}
+
+/* Extract pet_expr_cast specific fields from "node" and
+ * update "expr" accordingly.
+ */
+static struct pet_expr *extract_expr_cast(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+{
+	yaml_node_pair_t *pair;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "type_name"))
+			expr->type_name = extract_string(ctx, document, value);
+	}
+
+	return expr;
+}
+
+/* Extract a pet_expr from "node".
+ *
+ * We first extract the type and arguments of the expression and
+ * then extract additional fields depending on the type.
+ */
 static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
 	struct pet_expr *expr;
-	yaml_node_pair_t * pair;
+	yaml_node_pair_t *pair;
 
 	if (node->type != YAML_MAPPING_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting mapping",
@@ -247,31 +388,30 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 		if (!strcmp((char *) key->data.scalar.value, "type"))
 			expr->type = extract_type(ctx, document, value);
 
-		if (!strcmp((char *) key->data.scalar.value, "value"))
-			expr->d.val = extract_double(ctx, document, value);
-		if (!strcmp((char *) key->data.scalar.value, "string"))
-			expr->d.s = extract_string(ctx, document, value);
-
-		if (!strcmp((char *) key->data.scalar.value, "relation"))
-			expr->acc.access = extract_map(ctx, document, value);
-		if (!strcmp((char *) key->data.scalar.value, "read"))
-			expr->acc.read = extract_int(ctx, document, value);
-		if (!strcmp((char *) key->data.scalar.value, "write"))
-			expr->acc.write = extract_int(ctx, document, value);
-
-		if (!strcmp((char *) key->data.scalar.value, "operation"))
-			expr->op = extract_op(ctx, document, value);
-
-		if (!strcmp((char *) key->data.scalar.value, "name"))
-			expr->name = extract_string(ctx, document, value);
-
-		if (!strcmp((char *) key->data.scalar.value, "type_name"))
-			expr->type_name = extract_string(ctx, document, value);
-
 		if (!strcmp((char *) key->data.scalar.value, "arguments"))
 			expr = extract_arguments(ctx, document, value, expr);
 		if (!expr)
 			return NULL;
+	}
+
+	switch (expr->type) {
+	case pet_expr_access:
+		expr = extract_expr_access(ctx, document, node, expr);
+		break;
+	case pet_expr_double:
+		expr = extract_expr_double(ctx, document, node, expr);
+		break;
+	case pet_expr_call:
+		expr = extract_expr_call(ctx, document, node, expr);
+		break;
+	case pet_expr_cast:
+		expr = extract_expr_cast(ctx, document, node, expr);
+		break;
+	case pet_expr_unary:
+	case pet_expr_binary:
+	case pet_expr_ternary:
+		expr = extract_expr_op(ctx, document, node, expr);
+		break;
 	}
 
 	return expr;
