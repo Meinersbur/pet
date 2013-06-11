@@ -522,36 +522,10 @@ error:
 	return pet_expr_free(expr);
 }
 
-/* Modify all access relations in "expr" by calling "fn" on them.
- */
-struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
-	__isl_give isl_map *(*fn)(__isl_take isl_map *access, void *user),
-	void *user)
-{
-	int i;
-
-	if (!expr)
-		return NULL;
-
-	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] = pet_expr_foreach_access(expr->args[i], fn, user);
-		if (!expr->args[i])
-			return pet_expr_free(expr);
-	}
-
-	if (expr->type == pet_expr_access) {
-		expr->acc.access = fn(expr->acc.access, user);
-		if (!expr->acc.access)
-			return pet_expr_free(expr);
-	}
-
-	return expr;
-}
-
 /* Modify all expressions of type pet_expr_access in "expr"
  * by calling "fn" on them.
  */
-struct pet_expr *pet_expr_foreach_access_expr(struct pet_expr *expr,
+struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
 	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
 	void *user)
 {
@@ -561,7 +535,7 @@ struct pet_expr *pet_expr_foreach_access_expr(struct pet_expr *expr,
 		return NULL;
 
 	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] = pet_expr_foreach_access_expr(expr->args[i],
+		expr->args[i] = pet_expr_foreach_access(expr->args[i],
 								fn, user);
 		if (!expr->args[i])
 			return pet_expr_free(expr);
@@ -573,23 +547,22 @@ struct pet_expr *pet_expr_foreach_access_expr(struct pet_expr *expr,
 	return expr;
 }
 
-/* Modify the given access relation based on the given iteration space
- * transformation.
+/* Modify the access relation of the given access expression
+ * based on the given iteration space transformation.
  * If the access has any arguments then the domain of the access relation
  * is a wrapped mapping from the iteration space to the space of
  * argument values.  We only need to change the domain of this wrapped
  * mapping, so we extend the input transformation with an identity mapping
  * on the space of argument values.
  */
-static __isl_give isl_map *update_domain(__isl_take isl_map *access,
-	void *user)
+static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
 {
 	isl_map *update = user;
 	isl_space *dim;
 
 	update = isl_map_copy(update);
 
-	dim = isl_map_get_space(access);
+	dim = isl_map_get_space(expr->acc.access);
 	dim = isl_space_domain(dim);
 	if (!isl_space_is_wrapping(dim))
 		isl_space_free(dim);
@@ -602,7 +575,11 @@ static __isl_give isl_map *update_domain(__isl_take isl_map *access,
 		update = isl_map_product(update, id);
 	}
 
-	return isl_map_apply_domain(access, update);
+	expr->acc.access = isl_map_apply_domain(expr->acc.access, update);
+	if (!expr->acc.access)
+		return pet_expr_free(expr);
+
+	return expr;
 }
 
 /* Modify all access relations in "expr" based on the given iteration space
@@ -1358,11 +1335,15 @@ struct pet_embed_access {
 static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
 	struct pet_embed_access *data = user;
-	isl_map *access = expr->acc.access;
+	isl_map *access;
 	isl_id *array_id = NULL;
 	int pos;
 
-	access = update_domain(access, data->extend);
+	expr = update_domain(expr, data->extend);
+	if (!expr)
+		return NULL;
+
+	access = expr->acc.access;
 
 	if (isl_map_has_tuple_id(access, isl_dim_out))
 		array_id = isl_map_get_tuple_id(access, isl_dim_out);
@@ -1406,7 +1387,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 	struct pet_embed_access data =
 		{ .extend = extend, .iv_map = iv_map, .var_id = var_id };
 
-	expr = pet_expr_foreach_access_expr(expr, &embed_access, &data);
+	expr = pet_expr_foreach_access(expr, &embed_access, &data);
 	isl_map_free(iv_map);
 	isl_map_free(extend);
 	return expr;
@@ -2869,14 +2850,16 @@ static struct pet_array *array_anonymize(struct pet_array *array)
 	return array;
 }
 
-/* Reset the user pointer on all parameter and tuple ids in "access".
+/* Reset the user pointer on all parameter and tuple ids in
+ * the access relation of the access expression "expr".
  */
-static __isl_give isl_map *access_anonymize(__isl_take isl_map *access,
-	void *user)
+static struct pet_expr *access_anonymize(struct pet_expr *expr, void *user)
 {
-	access = map_anonymize(access);
+	expr->acc.access = map_anonymize(expr->acc.access);
+	if (!expr->acc.access)
+		return pet_expr_free(expr);
 
-	return access;
+	return expr;
 }
 
 /* Reset the user pointer on all parameter and tuple ids in "stmt".
@@ -3037,14 +3020,13 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 						isl_set_copy(context));
 
 	for (i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_foreach_access_expr(stmt->args[i],
+		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
 							&access_gist, &data);
 		if (!stmt->args[i])
 			goto error;
 	}
 
-	stmt->body = pet_expr_foreach_access_expr(stmt->body,
-							&access_gist, &data);
+	stmt->body = pet_expr_foreach_access(stmt->body, &access_gist, &data);
 	if (!stmt->body)
 		goto error;
 

@@ -3515,7 +3515,7 @@ error:
  */
 static struct pet_expr *embed(struct pet_expr *expr, __isl_keep isl_map *map)
 {
-	return pet_expr_foreach_access_expr(expr, &embed_access, map);
+	return pet_expr_foreach_access(expr, &embed_access, map);
 }
 
 /* How many parameters of "set" refer to nested accesses, i.e., have no name?
@@ -3585,12 +3585,12 @@ static struct pet_stmt *remove_nested_parameters(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 	stmt->schedule = remove_nested_parameters(stmt->schedule);
-	stmt->body = pet_expr_foreach_access_expr(stmt->body,
+	stmt->body = pet_expr_foreach_access(stmt->body,
 			    &expr_remove_nested_parameters, NULL);
 	if (!stmt->schedule || !stmt->body)
 		goto error;
 	for (int i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_foreach_access_expr(stmt->args[i],
+		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
 			    &expr_remove_nested_parameters, NULL);
 		if (!stmt->args[i])
 			goto error;
