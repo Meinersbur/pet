@@ -3027,6 +3027,29 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 	return scop;
 }
 
+/* If "value_bounds" contains any bounds on the variable accessed by "arg",
+ * then intersect the range of "map" with the valid set of values.
+ */
+static __isl_give isl_map *access_apply_value_bounds(__isl_take isl_map *map,
+	struct pet_expr *arg, __isl_keep isl_union_map *value_bounds)
+{
+	isl_id *id;
+	isl_map *vb;
+	isl_space *space;
+	isl_ctx *ctx = isl_map_get_ctx(map);
+
+	id = isl_map_get_tuple_id(arg->acc.access, isl_dim_out);
+	space = isl_space_alloc(ctx, 0, 0, 1);
+	space = isl_space_set_tuple_id(space, isl_dim_in, id);
+	vb = isl_union_map_extract_map(value_bounds, space);
+	if (!isl_map_plain_is_empty(vb))
+		map = isl_map_intersect_range(map, isl_map_range(vb));
+	else
+		isl_map_free(vb);
+
+	return map;
+}
+
 /* Given a set "domain", return a wrapped relation with the given set
  * as domain and a range of dimension "n_arg", where each coordinate
  * is either unbounded or, if the corresponding element of args is of
@@ -3039,7 +3062,6 @@ static __isl_give isl_set *apply_value_bounds(__isl_take isl_set *domain,
 	int i;
 	isl_map *map;
 	isl_space *space;
-	isl_ctx *ctx = isl_set_get_ctx(domain);
 
 	map = isl_map_from_domain(domain);
 	space = isl_map_get_space(map);
@@ -3048,22 +3070,11 @@ static __isl_give isl_set *apply_value_bounds(__isl_take isl_set *domain,
 	for (i = 0; i < n_arg; ++i) {
 		isl_map *map_i;
 		struct pet_expr *arg = args[i];
-		isl_id *id;
-		isl_space *space2;
 
 		map_i = isl_map_universe(isl_space_copy(space));
-		if (arg->type == pet_expr_access) {
-			isl_map *vb;
-			id = isl_map_get_tuple_id(arg->acc.access, isl_dim_out);
-			space2 = isl_space_alloc(ctx, 0, 0, 1);
-			space2 = isl_space_set_tuple_id(space2, isl_dim_in, id);
-			vb = isl_union_map_extract_map(value_bounds, space2);
-			if (!isl_map_plain_is_empty(vb))
-				map_i = isl_map_intersect_range(map_i,
-							    isl_map_range(vb));
-			else
-				isl_map_free(vb);
-		}
+		if (arg->type == pet_expr_access)
+			map_i = access_apply_value_bounds(map_i, arg,
+							value_bounds);
 		map = isl_map_flat_range_product(map, map_i);
 	}
 	isl_space_free(space);
