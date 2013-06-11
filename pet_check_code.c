@@ -222,6 +222,21 @@ static __isl_give isl_pw_aff *access_expr_extract_pw_aff(struct pet_expr *expr,
 	return pa;
 }
 
+/* Extract an affine expression defined over iteration space "space"
+ * from the integer expression "expr".
+ */
+static __isl_give isl_pw_aff *int_expr_extract_pw_aff(struct pet_expr *expr,
+	__isl_keep isl_space *space)
+{
+	isl_local_space *ls;
+	isl_aff *aff;
+
+	ls = isl_local_space_from_space(isl_space_copy(space));
+	aff = isl_aff_zero_on_domain(ls);
+	aff = isl_aff_add_constant_val(aff, isl_val_copy(expr->i));
+	return isl_pw_aff_from_aff(aff);
+}
+
 /* Extract an affine expression from "expr", possibly exploiting "assignments",
  * in the form of an isl_pw_aff.
  *
@@ -236,6 +251,8 @@ static __isl_give isl_pw_aff *expr_extract_pw_aff(struct pet_expr *expr,
 	isl_pw_aff *pa, *pa1, *pa2;
 
 	switch (expr->type) {
+	case pet_expr_int:
+		return int_expr_extract_pw_aff(expr, space);
 	case pet_expr_access:
 		return access_expr_extract_pw_aff(expr, assignments);
 	case pet_expr_unary:

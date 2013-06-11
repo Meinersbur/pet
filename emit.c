@@ -1,5 +1,6 @@
 /*
  * Copyright 2011 Leiden University. All rights reserved.
+ * Copyright 2013 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -130,6 +131,36 @@ static int emit_map(yaml_emitter_t *emitter, __isl_keep isl_map *map)
 	r = emit_string(emitter, str);
 	free(str);
 	return r;
+}
+
+/* Print the isl_val "val" to "emitter".
+ */
+static int emit_val(yaml_emitter_t *emitter, __isl_keep isl_val *val)
+{
+	isl_ctx *ctx = isl_val_get_ctx(val);
+	isl_printer *p;
+	char *str;
+	int r;
+
+	p = isl_printer_to_str(ctx);
+	p = isl_printer_print_val(p, val);
+	str = isl_printer_get_str(p);
+	isl_printer_free(p);
+	r = emit_string(emitter, str);
+	free(str);
+	return r;
+}
+
+/* Print the string "name" and the isl_val "val" to "emitter".
+ */
+static int emit_named_val(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_val *val)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_val(emitter, val) < 0)
+		return -1;
+	return 0;
 }
 
 static int emit_set(yaml_emitter_t *emitter, __isl_keep isl_set *set)
@@ -377,6 +408,10 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 		return -1;
 
 	switch (expr->type) {
+	case pet_expr_int:
+		if (emit_named_val(emitter, "value", expr->i) < 0)
+			return -1;
+		break;
 	case pet_expr_double:
 		if (emit_string(emitter, "value") < 0)
 			return -1;

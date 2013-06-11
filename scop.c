@@ -46,6 +46,7 @@ static char *type_str[] = {
 	[pet_expr_call] = "call",
 	[pet_expr_cast] = "cast",
 	[pet_expr_double] = "double",
+	[pet_expr_int] = "int",
 	[pet_expr_unary] = "unary",
 	[pet_expr_binary] = "binary",
 	[pet_expr_ternary] = "ternary"
@@ -434,6 +435,30 @@ struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double val, const char *s)
 	return expr;
 }
 
+/* Construct a pet_expr that represents the integer value "v".
+ */
+struct pet_expr *pet_expr_new_int(__isl_take isl_val *v)
+{
+	isl_ctx *ctx;
+	struct pet_expr *expr;
+
+	if (!v)
+		return NULL;
+
+	ctx = isl_val_get_ctx(v);
+	expr = isl_calloc_type(ctx, struct pet_expr);
+	if (!expr)
+		goto error;
+
+	expr->type = pet_expr_int;
+	expr->i = v;
+
+	return expr;
+error:
+	isl_val_free(v);
+	return NULL;
+}
+
 struct pet_expr *pet_expr_free(struct pet_expr *expr)
 {
 	int i;
@@ -460,6 +485,9 @@ struct pet_expr *pet_expr_free(struct pet_expr *expr)
 	case pet_expr_double:
 		free(expr->d.s);
 		break;
+	case pet_expr_int:
+		isl_val_free(expr->i);
+		break;
 	case pet_expr_unary:
 	case pet_expr_binary:
 	case pet_expr_ternary:
@@ -482,6 +510,9 @@ static void expr_dump(struct pet_expr *expr, int indent)
 	switch (expr->type) {
 	case pet_expr_double:
 		fprintf(stderr, "%s\n", expr->d.s);
+		break;
+	case pet_expr_int:
+		isl_val_dump(expr->i);
 		break;
 	case pet_expr_access:
 		if (expr->acc.ref_id) {
@@ -631,6 +662,10 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 		if (strcmp(expr1->d.s, expr2->d.s))
 			return 0;
 		if (expr1->d.val != expr2->d.val)
+			return 0;
+		break;
+	case pet_expr_int:
+		if (!isl_val_eq(expr1->i, expr2->i))
 			return 0;
 		break;
 	case pet_expr_access:

@@ -1,5 +1,6 @@
 /*
  * Copyright 2011 Leiden University. All rights reserved.
+ * Copyright 2013 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -115,6 +116,18 @@ static __isl_give isl_map *extract_map(isl_ctx *ctx, yaml_document_t *document,
 			return NULL);
 
 	return isl_map_read_from_str(ctx, (char *) node->data.scalar.value);
+}
+
+/* Extract an isl_val from "node".
+ */
+static __isl_give isl_val *extract_val(isl_ctx *ctx, yaml_document_t *document,
+	yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return NULL);
+
+	return isl_val_read_from_str(ctx, (char *) node->data.scalar.value);
 }
 
 /* Extract an isl_multi_pw_aff from "node".
@@ -454,6 +467,32 @@ static struct pet_expr *extract_expr_cast(isl_ctx *ctx,
 	return expr;
 }
 
+/* Extract pet_expr_int specific fields from "node" and
+ * update "expr" accordingly.
+ */
+static struct pet_expr *extract_expr_int(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+{
+	yaml_node_pair_t * pair;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "value"))
+			expr->i = extract_val(ctx, document, value);
+	}
+
+	return expr;
+}
+
 /* Extract a pet_expr from "node".
  *
  * We first extract the type and arguments of the expression and
@@ -505,6 +544,9 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 		break;
 	case pet_expr_cast:
 		expr = extract_expr_cast(ctx, document, node, expr);
+		break;
+	case pet_expr_int:
+		expr = extract_expr_int(ctx, document, node, expr);
 		break;
 	case pet_expr_unary:
 	case pet_expr_binary:

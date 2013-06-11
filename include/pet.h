@@ -35,6 +35,7 @@ enum pet_expr_type {
 	pet_expr_access,
 	pet_expr_call,
 	pet_expr_cast,
+	pet_expr_int,
 	pet_expr_double,
 	pet_expr_unary,
 	pet_expr_binary,
@@ -103,6 +104,7 @@ enum pet_ter_arg_type {
 };
 
 /* d is valid when type == pet_expr_double
+ * i isl valid when type == pet_expr_int
  * acc is valid when type == pet_expr_access
  * name is valid when type == pet_expr_call
  * type is valid when type == pet_expr_cast
@@ -159,6 +161,7 @@ struct pet_expr {
 			double val;
 			char *s;
 		} d;
+		isl_val *i;
 	};
 };
 

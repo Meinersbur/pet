@@ -303,6 +303,9 @@ static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
 	int i;
 
 	switch (expr->type) {
+	case pet_expr_int:
+		p = isl_printer_print_val(p, expr->i);
+		break;
 	case pet_expr_double:
 		p = isl_printer_print_str(p, expr->d.s);
 		break;
