@@ -2633,8 +2633,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 		accesses = expr_collect_accesses(expr->args[i],
 						 read, write, accesses);
 
-	if (expr->type == pet_expr_access &&
-	    isl_map_has_tuple_id(expr->acc.access, isl_dim_out) &&
+	if (expr->type == pet_expr_access && !pet_expr_is_affine(expr) &&
 	    ((read && expr->acc.read) || (write && expr->acc.write)))
 		accesses = isl_union_map_add_map(accesses,
 						isl_map_copy(expr->acc.access));
