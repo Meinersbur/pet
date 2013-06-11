@@ -30,12 +30,8 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_0[] -> [3] }'
-      index: '{ S_0[] -> [(3)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    - type: int
+      value: 3
 - line: 6
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [2, 0] }'
@@ -46,7 +42,7 @@ statements:
     - type: access
       relation: '{ S_1[] -> c[] }'
       index: '{ S_1[] -> c[] }'
-      reference: __pet_ref_2
+      reference: __pet_ref_1
       read: 0
       write: 0
 - line: 6
@@ -59,15 +55,11 @@ statements:
     - type: access
       relation: '{ S_2[] -> c[] }'
       index: '{ S_2[] -> c[] }'
-      reference: __pet_ref_3
+      reference: __pet_ref_2
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_2[] -> [5] }'
-      index: '{ S_2[] -> [(5)] }'
-      reference: __pet_ref_4
-      read: 1
-      write: 0
+    - type: int
+      value: 5
 - line: 7
   domain: '{ S_3[] }'
   schedule: '{ S_3[] -> [3] }'
@@ -78,12 +70,12 @@ statements:
     - type: access
       relation: '{ S_3[] -> b[] }'
       index: '{ S_3[] -> b[] }'
-      reference: __pet_ref_5
+      reference: __pet_ref_3
       read: 0
       write: 1
     - type: access
       relation: '{ S_3[] -> c[] }'
       index: '{ S_3[] -> c[] }'
-      reference: __pet_ref_6
+      reference: __pet_ref_4
       read: 1
       write: 0

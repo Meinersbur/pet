@@ -1985,6 +1985,13 @@ struct pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
 	return pet_expr_new_cast(ctx, type.getAsString().c_str(), arg);
 }
 
+/* Construct a pet_expr representing an integer.
+ */
+struct pet_expr *PetScan::extract_expr(IntegerLiteral *expr)
+{
+	return pet_expr_new_int(extract_int(expr));
+}
+
 /* Try and construct a pet_expr representing "expr".
  */
 struct pet_expr *PetScan::extract_expr(Expr *expr)
@@ -1999,9 +2006,10 @@ struct pet_expr *PetScan::extract_expr(Expr *expr)
 		return extract_expr(cast<ImplicitCastExpr>(expr));
 	case Stmt::ArraySubscriptExprClass:
 	case Stmt::DeclRefExprClass:
-	case Stmt::IntegerLiteralClass:
 	case Stmt::MemberExprClass:
 		return extract_access_expr(expr);
+	case Stmt::IntegerLiteralClass:
+		return extract_expr(cast<IntegerLiteral>(expr));
 	case Stmt::FloatingLiteralClass:
 		return extract_expr(cast<FloatingLiteral>(expr));
 	case Stmt::ParenExprClass:

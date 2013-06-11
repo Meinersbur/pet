@@ -47,15 +47,7 @@ statements:
         reference: __pet_ref_2
         read: 1
         write: 0
-      - type: access
-        relation: '{ S_1[i] -> [40] }'
-        index: '{ S_1[i] -> [(40)] }'
-        reference: __pet_ref_3
-        read: 1
-        write: 0
-      - type: access
-        relation: '{ S_1[i] -> [90] }'
-        index: '{ S_1[i] -> [(90)] }'
-        reference: __pet_ref_4
-        read: 1
-        write: 0
+      - type: int
+        value: 40
+      - type: int
+        value: 90

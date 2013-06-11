@@ -71,12 +71,8 @@ statements:
       reference: __pet_ref_5
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_2[] -> [5] }'
-      index: '{ S_2[] -> [(5)] }'
-      reference: __pet_ref_6
-      read: 1
-      write: 0
+    - type: int
+      value: 5
   arguments:
   - type: access
     relation: '{ S_2[] -> __pet_test_0[] }'

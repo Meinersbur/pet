@@ -171,6 +171,7 @@ private:
 	struct pet_expr *extract_expr(clang::UnaryOperator *expr);
 	struct pet_expr *extract_expr(clang::BinaryOperator *expr);
 	struct pet_expr *extract_expr(clang::ImplicitCastExpr *expr);
+	struct pet_expr *extract_expr(clang::IntegerLiteral *expr);
 	struct pet_expr *extract_expr(clang::FloatingLiteral *expr);
 	struct pet_expr *extract_expr(clang::ParenExpr *expr);
 	struct pet_expr *extract_expr(clang::ConditionalOperator *expr);

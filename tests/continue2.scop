@@ -57,12 +57,8 @@ statements:
         reference: __pet_ref_1
         read: 1
         write: 0
-      - type: access
-        relation: '{ S_0[i] -> [5] }'
-        index: '{ S_0[i] -> [(5)] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
+      - type: int
+        value: 5
 - line: 11
   domain: '{ [S_1[i] -> [1]] : i >= 0 and i <= 59 }'
   schedule: '{ S_1[i] -> [0, i, 0, 0, 0, 1, 0] }'
@@ -73,7 +69,7 @@ statements:
     - type: access
       relation: '{ S_1[i] -> j[] }'
       index: '{ S_1[i] -> j[] }'
-      reference: __pet_ref_4
+      reference: __pet_ref_3
       read: 0
       write: 1
     - type: call
@@ -82,7 +78,7 @@ statements:
   - type: access
     relation: '{ S_1[i] -> __pet_test_1[i] }'
     index: '{ S_1[i] -> __pet_test_1[(i)] }'
-    reference: __pet_ref_3
+    reference: __pet_ref_2
     read: 1
     write: 0
 - line: 12
@@ -95,7 +91,7 @@ statements:
     - type: access
       relation: '{ S_2[i] -> __pet_test_0[i] }'
       index: '{ S_2[i] -> __pet_test_0[(i)] }'
-      reference: __pet_ref_6
+      reference: __pet_ref_5
       read: 0
       write: 1
     - type: binary
@@ -104,20 +100,16 @@ statements:
       - type: access
         relation: '{ S_2[i] -> j[] }'
         index: '{ S_2[i] -> j[] }'
-        reference: __pet_ref_7
+        reference: __pet_ref_6
         read: 1
         write: 0
-      - type: access
-        relation: '{ S_2[i] -> [0] }'
-        index: '{ S_2[i] -> [(0)] }'
-        reference: __pet_ref_8
-        read: 1
-        write: 0
+      - type: int
+        value: 0
   arguments:
   - type: access
     relation: '{ S_2[i] -> __pet_test_1[i] }'
     index: '{ S_2[i] -> __pet_test_1[(i)] }'
-    reference: __pet_ref_5
+    reference: __pet_ref_4
     read: 1
     write: 0
 - line: 14
@@ -130,26 +122,26 @@ statements:
     - type: access
       relation: '{ S_3[i] -> a[i] }'
       index: '{ S_3[i] -> a[(i)] }'
-      reference: __pet_ref_11
+      reference: __pet_ref_9
       read: 0
       write: 1
     - type: access
       relation: '{ S_3[i] -> [i] }'
       index: '{ S_3[i] -> [(i)] }'
-      reference: __pet_ref_12
+      reference: __pet_ref_10
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '{ S_3[i] -> __pet_test_1[i] }'
     index: '{ S_3[i] -> __pet_test_1[(i)] }'
-    reference: __pet_ref_9
+    reference: __pet_ref_7
     read: 1
     write: 0
   - type: access
     relation: '{ S_3[i] -> __pet_test_0[i] }'
     index: '{ S_3[i] -> __pet_test_0[(i)] }'
-    reference: __pet_ref_10
+    reference: __pet_ref_8
     read: 1
     write: 0
 - line: 16
@@ -162,20 +154,16 @@ statements:
     - type: access
       relation: '{ S_4[i] -> a[i] }'
       index: '{ S_4[i] -> a[(i)] }'
-      reference: __pet_ref_14
+      reference: __pet_ref_12
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_4[i] -> [0] }'
-      index: '{ S_4[i] -> [(0)] }'
-      reference: __pet_ref_15
-      read: 1
-      write: 0
+    - type: int
+      value: 0
   arguments:
   - type: access
     relation: '{ S_4[i] -> __pet_test_1[i] }'
     index: '{ S_4[i] -> __pet_test_1[(i)] }'
-    reference: __pet_ref_13
+    reference: __pet_ref_11
     read: 1
     write: 0
 - line: -1
@@ -188,7 +176,7 @@ statements:
     - type: access
       relation: '{ S_5[i] -> __pet_test_2[i] }'
       index: '{ S_5[i] -> __pet_test_2[(i)] }'
-      reference: __pet_ref_16
+      reference: __pet_ref_13
       read: 0
       write: 1
     - type: ternary
@@ -196,26 +184,26 @@ statements:
       - type: access
         relation: '{ S_5[i] -> __pet_test_1[i] }'
         index: '{ S_5[i] -> __pet_test_1[(i)] }'
-        reference: __pet_ref_17
+        reference: __pet_ref_14
         read: 1
         write: 0
       - type: access
         relation: '{ [S_5[i] -> [1]] -> __pet_test_0[i] }'
         index: '{ [S_5[i] -> [__pet_test_1]] -> __pet_test_0[(i)] }'
-        reference: __pet_ref_19
+        reference: __pet_ref_16
         read: 1
         write: 0
         arguments:
         - type: access
           relation: '{ S_5[i] -> __pet_test_1[i] }'
           index: '{ S_5[i] -> __pet_test_1[(i)] }'
-          reference: __pet_ref_18
+          reference: __pet_ref_15
           read: 1
           write: 0
       - type: access
         relation: '{ S_5[i] -> [0] }'
         index: '{ S_5[i] -> [(0)] }'
-        reference: __pet_ref_20
+        reference: __pet_ref_17
         read: 1
         write: 0
 - line: 17
@@ -228,7 +216,7 @@ statements:
     - type: access
       relation: '{ S_6[i] -> j[] }'
       index: '{ S_6[i] -> j[] }'
-      reference: __pet_ref_22
+      reference: __pet_ref_19
       read: 0
       write: 1
     - type: call
@@ -237,7 +225,7 @@ statements:
   - type: access
     relation: '{ S_6[i] -> __pet_test_2[i] }'
     index: '{ S_6[i] -> __pet_test_2[(i)] }'
-    reference: __pet_ref_21
+    reference: __pet_ref_18
     read: 1
     write: 0
 - line: 19
@@ -250,13 +238,13 @@ statements:
     - type: access
       relation: '{ S_7[i] -> a[i] }'
       index: '{ S_7[i] -> a[(i)] }'
-      reference: __pet_ref_23
+      reference: __pet_ref_20
       read: 0
       write: 1
     - type: access
       relation: '{ S_7[i] -> [i] }'
       index: '{ S_7[i] -> [(i)] }'
-      reference: __pet_ref_24
+      reference: __pet_ref_21
       read: 1
       write: 0
 - line: -1
@@ -269,7 +257,7 @@ statements:
     - type: access
       relation: '{ S_8[i] -> __pet_test_3[i] }'
       index: '{ S_8[i] -> __pet_test_3[(i)] }'
-      reference: __pet_ref_25
+      reference: __pet_ref_22
       read: 0
       write: 1
     - type: ternary
@@ -277,19 +265,19 @@ statements:
       - type: access
         relation: '{ S_8[i] -> [1] : i <= 59; S_8[i] -> [0] : i >= 60 }'
         index: '{ S_8[i] -> [((1) : i <= 59; (0) : i >= 60)] }'
-        reference: __pet_ref_26
+        reference: __pet_ref_23
         read: 1
         write: 0
       - type: access
         relation: '{ S_8[i] -> __pet_test_2[i] : i <= 59 }'
         index: '{ S_8[i] -> __pet_test_2[(i)] }'
-        reference: __pet_ref_27
+        reference: __pet_ref_24
         read: 1
         write: 0
       - type: access
         relation: '{ S_8[i] -> [0] }'
         index: '{ S_8[i] -> [(0)] }'
-        reference: __pet_ref_28
+        reference: __pet_ref_25
         read: 1
         write: 0
 - line: 20
@@ -302,7 +290,7 @@ statements:
     - type: access
       relation: '{ S_9[i] -> j[] }'
       index: '{ S_9[i] -> j[] }'
-      reference: __pet_ref_30
+      reference: __pet_ref_27
       read: 0
       write: 1
     - type: call
@@ -311,7 +299,7 @@ statements:
   - type: access
     relation: '{ S_9[i] -> __pet_test_3[i] }'
     index: '{ S_9[i] -> __pet_test_3[(i)] }'
-    reference: __pet_ref_29
+    reference: __pet_ref_26
     read: 1
     write: 0
 - line: 21
@@ -324,7 +312,7 @@ statements:
     - type: access
       relation: '{ S_10[i] -> a[i] }'
       index: '{ S_10[i] -> a[(i)] }'
-      reference: __pet_ref_32
+      reference: __pet_ref_29
       read: 0
       write: 1
     - type: binary
@@ -333,19 +321,15 @@ statements:
       - type: access
         relation: '{ S_10[i] -> a[i] }'
         index: '{ S_10[i] -> a[(i)] }'
-        reference: __pet_ref_33
+        reference: __pet_ref_30
         read: 1
         write: 0
-      - type: access
-        relation: '{ S_10[i] -> [1] }'
-        index: '{ S_10[i] -> [(1)] }'
-        reference: __pet_ref_34
-        read: 1
-        write: 0
+      - type: int
+        value: 1
   arguments:
   - type: access
     relation: '{ S_10[i] -> __pet_test_3[i] }'
     index: '{ S_10[i] -> __pet_test_3[(i)] }'
-    reference: __pet_ref_31
+    reference: __pet_ref_28
     read: 1
     write: 0

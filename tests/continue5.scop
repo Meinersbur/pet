@@ -94,12 +94,8 @@ statements:
         reference: __pet_ref_5
         read: 1
         write: 0
-      - type: access
-        relation: '{ S_3[i] -> [0] }'
-        index: '{ S_3[i] -> [(0)] }'
-        reference: __pet_ref_6
-        read: 1
-        write: 0
+      - type: int
+        value: 0
 - line: -1
   domain: '{ S_4[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_4[i] -> [0, i, 4, 1] }'
@@ -110,7 +106,7 @@ statements:
     - type: access
       relation: '{ S_4[i] -> __pet_test_1[i] }'
       index: '{ S_4[i] -> __pet_test_1[(i)] }'
-      reference: __pet_ref_7
+      reference: __pet_ref_6
       read: 0
       write: 1
     - type: ternary
@@ -118,19 +114,19 @@ statements:
       - type: access
         relation: '{ S_4[i] -> [0] : i >= 58 or i <= 56; S_4[57] -> [1] }'
         index: '{ S_4[i] -> [((1) : i = 57; (0) : i <= 56 or i >= 58)] }'
-        reference: __pet_ref_8
+        reference: __pet_ref_7
         read: 1
         write: 0
       - type: access
         relation: '{ S_4[i] -> [1] }'
         index: '{ S_4[i] -> [(1)] }'
-        reference: __pet_ref_9
+        reference: __pet_ref_8
         read: 1
         write: 0
       - type: access
         relation: '{ S_4[i] -> __pet_test_0[i] : i >= 58 or i <= 56 }'
         index: '{ S_4[i] -> __pet_test_0[(i)] }'
-        reference: __pet_ref_10
+        reference: __pet_ref_9
         read: 1
         write: 0
 - line: 16
@@ -143,7 +139,7 @@ statements:
     - type: access
       relation: '{ S_5[i] -> a[i] }'
       index: '{ S_5[i] -> a[(i)] }'
-      reference: __pet_ref_12
+      reference: __pet_ref_11
       read: 0
       write: 1
     - type: binary
@@ -152,19 +148,15 @@ statements:
       - type: access
         relation: '{ S_5[i] -> a[i] }'
         index: '{ S_5[i] -> a[(i)] }'
-        reference: __pet_ref_13
+        reference: __pet_ref_12
         read: 1
         write: 0
-      - type: access
-        relation: '{ S_5[i] -> [1] }'
-        index: '{ S_5[i] -> [(1)] }'
-        reference: __pet_ref_14
-        read: 1
-        write: 0
+      - type: int
+        value: 1
   arguments:
   - type: access
     relation: '{ S_5[i] -> __pet_test_1[i] }'
     index: '{ S_5[i] -> __pet_test_1[(i)] }'
-    reference: __pet_ref_11
+    reference: __pet_ref_10
     read: 1
     write: 0

@@ -39,9 +39,5 @@ statements:
         reference: __pet_ref_0
         read: 1
         write: 0
-    - type: access
-      relation: '{ S_0[] -> [5] }'
-      index: '{ S_0[] -> [(5)] }'
-      reference: __pet_ref_2
-      read: 1
-      write: 0
+    - type: int
+      value: 5

@@ -49,12 +49,8 @@ statements:
         reference: __pet_ref_1
         read: 1
         write: 0
-      - type: access
-        relation: '[N, M] -> { S_0[i] -> [1] }'
-        index: '[N, M] -> { S_0[i] -> [(1)] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
+      - type: int
+        value: 1
 - line: 23
   domain: '[N, M] -> { S_1[i, j] : j <= -1 + M and j >= 0 and i <= -1 + N and i >=
     0 }'
@@ -66,7 +62,7 @@ statements:
     - type: access
       relation: '[N, M] -> { S_1[i, j] -> m[] }'
       index: '[N, M] -> { S_1[i, j] -> m[] }'
-      reference: __pet_ref_3
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: call
@@ -78,13 +74,13 @@ statements:
         - type: access
           relation: '[N, M] -> { S_1[i, j] -> m[] }'
           index: '[N, M] -> { S_1[i, j] -> m[] }'
-          reference: __pet_ref_4
+          reference: __pet_ref_3
           read: 1
           write: 0
       - type: access
         relation: '[N, M] -> { S_1[i, j] -> in1[i, j] }'
         index: '[N, M] -> { S_1[i, j] -> in1[(i), (j)] }'
-        reference: __pet_ref_5
+        reference: __pet_ref_4
         read: 1
         write: 0
 - line: 24
@@ -100,13 +96,13 @@ statements:
       - type: access
         relation: '[N, M] -> { S_2[i] -> m[] }'
         index: '[N, M] -> { S_2[i] -> m[] }'
-        reference: __pet_ref_6
+        reference: __pet_ref_5
         read: 1
         write: 0
     - type: access
       relation: '[N, M] -> { S_2[i] -> A[i, o1] }'
       index: '[N, M] -> { S_2[i] -> A[(i)] }'
-      reference: __pet_ref_7
+      reference: __pet_ref_6
       read: 0
       write: 1
 - line: 26
@@ -119,15 +115,11 @@ statements:
     - type: access
       relation: '[N, M] -> { S_3[] -> A[5, 6] }'
       index: '[N, M] -> { S_3[] -> A[(5), (6)] }'
-      reference: __pet_ref_8
+      reference: __pet_ref_7
       read: 0
       write: 1
-    - type: access
-      relation: '[N, M] -> { S_3[] -> [0] }'
-      index: '[N, M] -> { S_3[] -> [(0)] }'
-      reference: __pet_ref_9
-      read: 1
-      write: 0
+    - type: int
+      value: 0
 - line: 28
   domain: '[N, M] -> { S_4[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_4[i] -> [2, i] }'
@@ -138,7 +130,7 @@ statements:
     - type: access
       relation: '[N, M] -> { S_4[i] -> C[i] }'
       index: '[N, M] -> { S_4[i] -> C[(i)] }'
-      reference: __pet_ref_10
+      reference: __pet_ref_8
       read: 0
       write: 1
     - type: ternary
@@ -148,14 +140,14 @@ statements:
           - i; [S_4[-1 + N] -> [1]] -> [0]; [S_4[0] -> [-1]] -> [0] }'
         index: '[N, M] -> { [S_4[i] -> [i1]] -> [((1) : i1 >= -i and i1 <= -1 + N
           - i; (0) : i = -1 + N and i1 = 1; (0) : i = 0 and i1 = -1)] }'
-        reference: __pet_ref_12
+        reference: __pet_ref_10
         read: 1
         write: 0
         arguments:
         - type: access
           relation: '[N, M] -> { S_4[i] -> in2[i] }'
           index: '[N, M] -> { S_4[i] -> in2[(i)] }'
-          reference: __pet_ref_11
+          reference: __pet_ref_9
           read: 1
           write: 0
       - type: call
@@ -165,27 +157,15 @@ statements:
           relation: '[N, M] -> { [S_4[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and
             i1 <= -1 + N - i }'
           index: '[N, M] -> { [S_4[i] -> [i1]] -> A[((i + i1) : i1 >= -i)] }'
-          reference: __pet_ref_14
+          reference: __pet_ref_12
           read: 1
           write: 0
           arguments:
           - type: access
             relation: '[N, M] -> { S_4[i] -> in2[i] }'
             index: '[N, M] -> { S_4[i] -> in2[(i)] }'
-            reference: __pet_ref_13
+            reference: __pet_ref_11
             read: 1
             write: 0
-      - type: access
-        relation: '[N, M] -> { [S_4[-1 + N] -> [1]] -> [0]; [S_4[0] -> [-1]] -> [0]
-          }'
-        index: '[N, M] -> { [S_4[i] -> [i1]] -> [(0)] }'
-        reference: __pet_ref_16
-        read: 1
-        write: 0
-        arguments:
-        - type: access
-          relation: '[N, M] -> { S_4[i] -> in2[i] }'
-          index: '[N, M] -> { S_4[i] -> in2[(i)] }'
-          reference: __pet_ref_15
-          read: 1
-          write: 0
+      - type: int
+        value: 0

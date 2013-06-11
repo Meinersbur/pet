@@ -31,12 +31,8 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: access
-      relation: '[N, K, M] -> { S_0[i, j] -> [0] }'
-      index: '[N, K, M] -> { S_0[i, j] -> [(0)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    - type: int
+      value: 0
 - line: 11
   domain: '[N, K, M] -> { S_1[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
     j >= 0 and i <= -1 + M and i >= 0 }'
@@ -48,7 +44,7 @@ statements:
     - type: access
       relation: '[N, K, M] -> { S_1[i, j, k] -> C[i, j] }'
       index: '[N, K, M] -> { S_1[i, j, k] -> C[(i), (j)] }'
-      reference: __pet_ref_2
+      reference: __pet_ref_1
       read: 1
       write: 1
     - type: binary
@@ -57,12 +53,12 @@ statements:
       - type: access
         relation: '[N, K, M] -> { S_1[i, j, k] -> A[i, k] }'
         index: '[N, K, M] -> { S_1[i, j, k] -> A[(i), (k)] }'
-        reference: __pet_ref_3
+        reference: __pet_ref_2
         read: 1
         write: 0
       - type: access
         relation: '[N, K, M] -> { S_1[i, j, k] -> B[k, j] }'
         index: '[N, K, M] -> { S_1[i, j, k] -> B[(k), (j)] }'
-        reference: __pet_ref_4
+        reference: __pet_ref_3
         read: 1
         write: 0

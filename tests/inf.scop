@@ -24,12 +24,8 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: access
-      relation: '[N] -> { S_0[t, j] -> [0] }'
-      index: '[N] -> { S_0[t, j] -> [(0)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    - type: int
+      value: 0
 - line: 14
   domain: '[N] -> { S_1[t, j] : j >= 0 and t >= 0 and j <= -1 + N }'
   schedule: '[N] -> { S_1[t, j] -> [0, t, 1, j] }'
@@ -40,12 +36,12 @@ statements:
     - type: access
       relation: '[N] -> { S_1[t, j] -> b[j] }'
       index: '[N] -> { S_1[t, j] -> b[(j)] }'
-      reference: __pet_ref_2
+      reference: __pet_ref_1
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_1[t, j] -> a[j] }'
       index: '[N] -> { S_1[t, j] -> a[(j)] }'
-      reference: __pet_ref_3
+      reference: __pet_ref_2
       read: 1
       write: 0

@@ -22,9 +22,5 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: access
-      relation: '[n] -> { S_0[i, j] -> [0] }'
-      index: '[n] -> { S_0[i, j] -> [(0)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    - type: int
+      value: 0

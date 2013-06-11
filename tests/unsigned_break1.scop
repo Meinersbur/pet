@@ -20,12 +20,8 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_0[k] -> [5] }'
-      index: '{ S_0[k] -> [(5)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    - type: int
+      value: 5
 - line: 11
   domain: '{ S_1[k] : (exists (e0 = floor((k)/256): 256e0 = k and k >= 252 and k <=
     257)) or (exists (e0 = floor((257 - k)/256): k >= 252 and k <= 257 and 256e0 >=
@@ -38,12 +34,8 @@ statements:
     - type: access
       relation: '{ S_1[k] -> a[] }'
       index: '{ S_1[k] -> a[] }'
-      reference: __pet_ref_2
+      reference: __pet_ref_1
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_1[k] -> [6] }'
-      index: '{ S_1[k] -> [(6)] }'
-      reference: __pet_ref_3
-      read: 1
-      write: 0
+    - type: int
+      value: 6

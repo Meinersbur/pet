@@ -23,12 +23,8 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: access
-      relation: '{ S_0[i, j] -> [0] }'
-      index: '{ S_0[i, j] -> [(0)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    - type: int
+      value: 0
 - line: 17
   domain: '{ S_1[i, j] : i >= 10 and i <= 99 and j <= 149 - i and j <= 60 and j <=
     -1 + i and j >= 1; S_1[i, 0] : i >= 10 and i <= 99 }'
@@ -40,7 +36,7 @@ statements:
     - type: access
       relation: '{ S_1[i, j] -> a[i] }'
       index: '{ S_1[i, j] -> a[(i)] }'
-      reference: __pet_ref_2
+      reference: __pet_ref_1
       read: 0
       write: 1
     - type: binary
@@ -49,12 +45,12 @@ statements:
       - type: access
         relation: '{ S_1[i, j] -> [i] }'
         index: '{ S_1[i, j] -> [(i)] }'
-        reference: __pet_ref_3
+        reference: __pet_ref_2
         read: 1
         write: 0
       - type: access
         relation: '{ S_1[i, j] -> [j] }'
         index: '{ S_1[i, j] -> [(j)] }'
-        reference: __pet_ref_4
+        reference: __pet_ref_3
         read: 1
         write: 0

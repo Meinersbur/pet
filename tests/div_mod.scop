@@ -23,21 +23,13 @@ statements:
     - type: binary
       operation: /
       arguments:
-      - type: access
-        relation: '{ S_0[i] -> [5] }'
-        index: '{ S_0[i] -> [(5)] }'
-        reference: __pet_ref_1
-        read: 1
-        write: 0
+      - type: int
+        value: 5
       - type: unary
         operation: '-'
         arguments:
-        - type: access
-          relation: '{ S_0[i] -> [2] }'
-          index: '{ S_0[i] -> [(2)] }'
-          reference: __pet_ref_2
-          read: 1
-          write: 0
+        - type: int
+          value: 2
 - line: 11
   domain: '{ S_1[2] }'
   schedule: '{ S_1[i] -> [0, i, 1] }'
@@ -48,7 +40,7 @@ statements:
     - type: access
       relation: '{ S_1[i] -> a[] }'
       index: '{ S_1[i] -> a[] }'
-      reference: __pet_ref_3
+      reference: __pet_ref_1
       read: 0
       write: 1
     - type: binary
@@ -57,21 +49,13 @@ statements:
       - type: unary
         operation: '-'
         arguments:
-        - type: access
-          relation: '{ S_1[i] -> [5] }'
-          index: '{ S_1[i] -> [(5)] }'
-          reference: __pet_ref_4
-          read: 1
-          write: 0
+        - type: int
+          value: 5
       - type: unary
         operation: '-'
         arguments:
-        - type: access
-          relation: '{ S_1[i] -> [2] }'
-          index: '{ S_1[i] -> [(2)] }'
-          reference: __pet_ref_5
-          read: 1
-          write: 0
+        - type: int
+          value: 2
 - line: 13
   domain: '{ S_2[1] }'
   schedule: '{ S_2[i] -> [0, i, 2] }'
@@ -82,27 +66,19 @@ statements:
     - type: access
       relation: '{ S_2[i] -> a[] }'
       index: '{ S_2[i] -> a[] }'
-      reference: __pet_ref_6
+      reference: __pet_ref_2
       read: 0
       write: 1
     - type: binary
       operation: '%'
       arguments:
-      - type: access
-        relation: '{ S_2[i] -> [5] }'
-        index: '{ S_2[i] -> [(5)] }'
-        reference: __pet_ref_7
-        read: 1
-        write: 0
+      - type: int
+        value: 5
       - type: unary
         operation: '-'
         arguments:
-        - type: access
-          relation: '{ S_2[i] -> [2] }'
-          index: '{ S_2[i] -> [(2)] }'
-          reference: __pet_ref_8
-          read: 1
-          write: 0
+        - type: int
+          value: 2
 - line: 15
   domain: '{ S_3[-1] }'
   schedule: '{ S_3[i] -> [0, i, 3] }'
@@ -113,7 +89,7 @@ statements:
     - type: access
       relation: '{ S_3[i] -> a[] }'
       index: '{ S_3[i] -> a[] }'
-      reference: __pet_ref_9
+      reference: __pet_ref_3
       read: 0
       write: 1
     - type: binary
@@ -122,18 +98,10 @@ statements:
       - type: unary
         operation: '-'
         arguments:
-        - type: access
-          relation: '{ S_3[i] -> [5] }'
-          index: '{ S_3[i] -> [(5)] }'
-          reference: __pet_ref_10
-          read: 1
-          write: 0
+        - type: int
+          value: 5
       - type: unary
         operation: '-'
         arguments:
-        - type: access
-          relation: '{ S_3[i] -> [2] }'
-          index: '{ S_3[i] -> [(2)] }'
-          reference: __pet_ref_11
-          read: 1
-          write: 0
+        - type: int
+          value: 2
