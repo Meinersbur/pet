@@ -1392,7 +1392,7 @@ void PetScan::mark_write(struct pet_expr *access)
 	access->acc.write = 1;
 	access->acc.read = 0;
 
-	if (isl_map_dim(access->acc.access, isl_dim_out) != 0)
+	if (!pet_expr_is_scalar_access(access))
 		return;
 
 	id = isl_map_get_tuple_id(access->acc.access, isl_dim_out);
@@ -1416,9 +1416,7 @@ void PetScan::assign(struct pet_expr *lhs, Expr *rhs)
 
 	if (!lhs)
 		return;
-	if (lhs->type != pet_expr_access)
-		return;
-	if (isl_map_dim(lhs->acc.access, isl_dim_out) != 0)
+	if (!pet_expr_is_scalar_access(lhs))
 		return;
 
 	id = isl_map_get_tuple_id(lhs->acc.access, isl_dim_out);

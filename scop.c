@@ -442,6 +442,18 @@ int pet_expr_is_affine(struct pet_expr *expr)
 	return !has_id;
 }
 
+/* Does "expr" represent an access to a scalar, i.e., zero-dimensional array?
+ */
+int pet_expr_is_scalar_access(struct pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_access)
+		return 0;
+
+	return isl_map_dim(expr->acc.access, isl_dim_out) == 0;
+}
+
 /* Return 1 if the two pet_exprs are equivalent.
  */
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
