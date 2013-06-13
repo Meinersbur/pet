@@ -313,10 +313,19 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop);
 __isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop);
 /* Collect all potential read access relations. */
 __isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop);
+/* Collect all tagged potential read access relations. */
+__isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
+	struct pet_scop *scop);
 /* Collect all potential write access relations. */
 __isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop);
 /* Collect all definite write access relations. */
 __isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop);
+/* Collect all tagged potential write access relations. */
+__isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
+	struct pet_scop *scop);
+/* Collect all tagged definite write access relations. */
+__isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
+	struct pet_scop *scop);
 __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop);
 
 #if defined(__cplusplus)
