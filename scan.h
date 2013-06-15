@@ -80,6 +80,8 @@ struct PetScan {
 
 	static __isl_give isl_val *extract_int(isl_ctx *ctx,
 		clang::IntegerLiteral *expr);
+	static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
+		const llvm::APInt &val);
 private:
 	void assign(struct pet_expr *lhs, clang::Expr *rhs);
 

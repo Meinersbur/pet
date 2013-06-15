@@ -295,14 +295,31 @@ __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
 {
 	const Type *type = expr->getType().getTypePtr();
 	int is_signed = type->hasSignedIntegerRepresentation();
+	llvm::APInt val = expr->getValue();
+	int is_negative = is_signed && val.isNegative();
+	isl_val *v;
 
-	if (is_signed) {
-		int64_t i = expr->getValue().getSExtValue();
-		return isl_val_int_from_si(ctx, i);
-	} else {
-		uint64_t i = expr->getValue().getZExtValue();
-		return isl_val_int_from_ui(ctx, i);
-	}
+	if (is_negative)
+		val = -val;
+
+	v = extract_unsigned(ctx, val);
+
+	if (is_negative)
+		v = isl_val_neg(v);
+	return v;
+}
+
+/* Extract an integer from "val", which assumed to be non-negative.
+ */
+__isl_give isl_val *PetScan::extract_unsigned(isl_ctx *ctx,
+	const llvm::APInt &val)
+{
+	unsigned n;
+	const uint64_t *data;
+
+	data = val.getRawData();
+	n = val.getNumWords();
+	return isl_val_int_from_chunks(ctx, n, sizeof(uint64_t), data);
 }
 
 /* Extract an integer from "expr".
@@ -343,7 +360,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 	return isl_pw_aff_alloc(dom, aff);
 }
 
-/* Extract an affine expression from the APInt "val".
+/* Extract an affine expression from the APInt "val", which is assumed
+ * to be non-negative.
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
@@ -353,7 +371,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 	isl_set *dom = isl_set_universe(dim);
 	isl_val *v;
 
-	v = isl_val_int_from_ui(ctx, val.getZExtValue());
+	v = extract_unsigned(ctx, val);
 	aff = isl_aff_add_constant_val(aff, v);
 
 	return isl_pw_aff_alloc(dom, aff);
