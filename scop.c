@@ -2073,6 +2073,22 @@ __isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
 	return isl_set_copy(ext->skip[type]);
 }
 
+/* Assuming scop->skip[type] is an affine expression,
+ * return the constraints on the parameters for which the skip condition
+ * holds.
+ */
+__isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
+	enum pet_skip type)
+{
+	isl_set *skip;
+
+	skip = pet_scop_get_skip(scop, type);
+	skip = isl_set_fix_si(skip, isl_dim_set, 0, 1);
+	skip = isl_set_params(skip);
+
+	return skip;
+}
+
 /* Return a map to the skip condition of the given type.
  */
 __isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,

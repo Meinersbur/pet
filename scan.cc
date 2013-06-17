@@ -2056,9 +2056,7 @@ static __isl_give isl_set *infinite_domain(__isl_take isl_id *id,
 	if (!pet_scop_has_affine_skip(scop, pet_skip_later))
 		return domain;
 
-	skip = pet_scop_get_skip(scop, pet_skip_later);
-	skip = isl_set_fix_si(skip, isl_dim_set, 0, 1);
-	skip = isl_set_params(skip);
+	skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
 	skip = embed(skip, isl_id_copy(id));
 	skip = isl_set_intersect(skip , isl_set_copy(domain));
 	domain = isl_set_subtract(domain, after(skip, 1));
@@ -2823,11 +2821,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	has_affine_break = scop &&
 				pet_scop_has_affine_skip(scop, pet_skip_later);
-	if (has_affine_break) {
-		skip = pet_scop_get_skip(scop, pet_skip_later);
-		skip = isl_set_fix_si(skip, isl_dim_set, 0, 1);
-		skip = isl_set_params(skip);
-	}
+	if (has_affine_break)
+		skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
 	has_var_break = scop && pet_scop_has_var_skip(scop, pet_skip_later);
 	if (has_var_break) {
 		break_access = pet_scop_get_skip_map(scop, pet_skip_later);
