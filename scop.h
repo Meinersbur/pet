@@ -23,10 +23,10 @@ enum pet_op_type pet_str_op(const char *str);
 struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index);
 struct pet_expr *pet_expr_from_index_and_depth(
 	__isl_take isl_multi_pw_aff *index, int depth);
-struct pet_expr *pet_expr_from_access(__isl_take isl_map *access);
+struct pet_expr *pet_expr_from_access_and_index(__isl_take isl_map *access,
+	__isl_take isl_multi_pw_aff *index);
 struct pet_expr *pet_expr_kill_from_access_and_index(__isl_take isl_map *access,
 	__isl_take isl_multi_pw_aff *index);
-struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access);
 struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,
 	struct pet_expr *arg);
 struct pet_expr *pet_expr_new_binary(isl_ctx *ctx, enum pet_op_type op,
@@ -43,6 +43,7 @@ void *pet_expr_free(struct pet_expr *expr);
 
 int pet_expr_is_affine(struct pet_expr *expr);
 __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr);
+struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr);
 int pet_expr_is_scalar_access(struct pet_expr *expr);
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2);
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
@@ -80,7 +81,7 @@ struct pet_scop *pet_scop_restrict_context(struct pet_scop *scop,
 	__isl_take isl_set *context);
 struct pet_scop *pet_scop_reset_context(struct pet_scop *scop);
 struct pet_expr *pet_expr_filter(struct pet_expr *expr,
-	__isl_take isl_map *test, int satisfied);
+	__isl_take isl_multi_pw_aff *test, int satisfied);
 struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 	__isl_take isl_multi_pw_aff *test, int satisfied);
 struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop);
@@ -112,8 +113,6 @@ struct pet_scop *pet_scop_set_skip(struct pet_scop *scop,
 __isl_give isl_multi_pw_aff *pet_scop_get_skip(struct pet_scop *scop,
 	enum pet_skip type);
 __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
-	enum pet_skip type);
-__isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
 	enum pet_skip type);
 __isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
 	enum pet_skip type);

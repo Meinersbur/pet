@@ -20,6 +20,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_0[i, j] -> ind[] }'
+      index: '[N] -> { S_0[i, j] -> ind[] }'
       reference: __pet_ref_0
       read: 0
       write: 1
@@ -27,6 +28,7 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_0[i, j] -> [1] : i >= 1; S_0[0, j] -> [0] }'
+        index: '[N] -> { S_0[i, j] -> [((1) : i >= 1; (0) : i = 0)] }'
         reference: __pet_ref_1
         read: 1
         write: 0
@@ -35,16 +37,19 @@ statements:
         arguments:
         - type: access
           relation: '[N] -> { S_0[i, j] -> [i] }'
+          index: '[N] -> { S_0[i, j] -> [(i)] }'
           reference: __pet_ref_2
           read: 1
           write: 0
         - type: access
           relation: '[N] -> { S_0[i, j] -> [1] }'
+          index: '[N] -> { S_0[i, j] -> [(1)] }'
           reference: __pet_ref_3
           read: 1
           write: 0
       - type: access
         relation: '[N] -> { S_0[i, j] -> [i] }'
+        index: '[N] -> { S_0[i, j] -> [(i)] }'
         reference: __pet_ref_4
         read: 1
         write: 0
@@ -57,12 +62,14 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_1[i, j] -> a[i, j] }'
+      index: '[N] -> { S_1[i, j] -> a[(i), (j)] }'
       reference: __pet_ref_5
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_1[i, j] -> a[-1 + i, 0] : i >= 1; S_1[0, j] -> a[0, 0]
         }'
+      index: '[N] -> { S_1[i, j] -> a[((-1 + i) : i >= 1; (0) : i = 0), (0)] }'
       reference: __pet_ref_6
       read: 1
       write: 0

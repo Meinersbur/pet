@@ -18,11 +18,13 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[i] -> a[] }'
+      index: '{ S_0[i] -> a[] }'
       reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[i] -> [5] }'
+      index: '{ S_0[i] -> [(5)] }'
       reference: __pet_ref_1
       read: 1
       write: 0

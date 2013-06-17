@@ -24,11 +24,13 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_0[] -> A[0] }'
+      index: '[N] -> { S_0[] -> A[(0)] }'
       reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '[N] -> { S_0[] -> in[] }'
+      index: '[N] -> { S_0[] -> in[] }'
       reference: __pet_ref_1
       read: 1
       write: 0
@@ -41,6 +43,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_1[i] -> A[i] }'
+      index: '[N] -> { S_1[i] -> A[(i)] }'
       reference: __pet_ref_2
       read: 0
       write: 1
@@ -52,6 +55,7 @@ statements:
         arguments:
         - type: access
           relation: '[N] -> { S_1[i] -> A[o0] : 2o0 >= -1 + i and 2o0 <= i }'
+          index: '[N] -> { S_1[i] -> A[(floor((i)/2))] }'
           reference: __pet_ref_3
           read: 1
           write: 0
@@ -64,6 +68,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_2[] -> out[] }'
+      index: '[N] -> { S_2[] -> out[] }'
       reference: __pet_ref_4
       read: 0
       write: 1
@@ -72,6 +77,7 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_2[] -> A[N] }'
+        index: '[N] -> { S_2[] -> A[(N)] }'
         reference: __pet_ref_5
         read: 1
         write: 0

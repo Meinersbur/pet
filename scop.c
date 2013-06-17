@@ -135,15 +135,16 @@ enum pet_expr_type pet_str_type(const char *str)
 	return -1;
 }
 
-/* Construct a pet_expr from an access relation.
+/* Construct an access pet_expr from an access relation and an index expression.
  * By default, it is considered to be a read access.
  */
-struct pet_expr *pet_expr_from_access(__isl_take isl_map *access)
+struct pet_expr *pet_expr_from_access_and_index( __isl_take isl_map *access,
+	__isl_take isl_multi_pw_aff *index)
 {
 	isl_ctx *ctx = isl_map_get_ctx(access);
 	struct pet_expr *expr;
 
-	if (!access)
+	if (!index || !access)
 		return NULL;
 	expr = isl_calloc_type(ctx, struct pet_expr);
 	if (!expr)
@@ -151,12 +152,14 @@ struct pet_expr *pet_expr_from_access(__isl_take isl_map *access)
 
 	expr->type = pet_expr_access;
 	expr->acc.access = access;
+	expr->acc.index = index;
 	expr->acc.read = 1;
 	expr->acc.write = 0;
 
 	return expr;
 error:
 	isl_map_free(access);
+	isl_multi_pw_aff_free(index);
 	return NULL;
 }
 
@@ -167,8 +170,8 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 {
 	isl_map *access;
 
-	access = isl_map_from_multi_pw_aff(index);
-	return pet_expr_from_access(access);
+	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
+	return pet_expr_from_access_and_index(access, index);
 }
 
 /* Construct an access pet_expr from an index expression and
@@ -186,51 +189,45 @@ struct pet_expr *pet_expr_from_index_and_depth(
 	isl_map *access;
 	int dim;
 
-	access = isl_map_from_multi_pw_aff(index);
+	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
 	if (!access)
-		return NULL;
+		goto error;
 	dim = isl_map_dim(access, isl_dim_out);
 	if (dim > depth)
 		isl_die(isl_map_get_ctx(access), isl_error_internal,
 			"number of indices greater than depth",
 			access = isl_map_free(access));
 	if (dim == depth)
-		return pet_expr_from_access(access);
+		return pet_expr_from_access_and_index(access, index);
 
 	id = isl_map_get_tuple_id(access, isl_dim_out);
 	access = isl_map_add_dims(access, isl_dim_out, depth - dim);
 	access = isl_map_set_tuple_id(access, isl_dim_out, id);
 
-	return pet_expr_from_access(access);
-}
-
-/* Construct a pet_expr that kills the elements specified by "access".
- */
-struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access)
-{
-	isl_ctx *ctx;
-	struct pet_expr *expr;
-
-	ctx = isl_map_get_ctx(access);
-	expr = pet_expr_from_access(access);
-	if (!expr)
-		return NULL;
-	expr->acc.read = 0;
-	return pet_expr_new_unary(ctx, pet_op_kill, expr);
+	return pet_expr_from_access_and_index(access, index);
+error:
+	isl_multi_pw_aff_free(index);
+	return NULL;
 }
 
 /* Construct a pet_expr that kills the elements specified by
  * the index expression "index" and the access relation "access".
- *
- * We currently ignore "index".
  */
 struct pet_expr *pet_expr_kill_from_access_and_index(__isl_take isl_map *access,
 	__isl_take isl_multi_pw_aff *index)
 {
+	isl_ctx *ctx;
+	struct pet_expr *expr;
+
 	if (!access || !index)
 		goto error;
-	isl_multi_pw_aff_free(index);
-	return pet_expr_kill_from_access(access);
+
+	ctx = isl_multi_pw_aff_get_ctx(index);
+	expr = pet_expr_from_access_and_index(access, index);
+	if (!expr)
+		return NULL;
+	expr->acc.read = 0;
+	return pet_expr_new_unary(ctx, pet_op_kill, expr);
 error:
 	isl_map_free(access);
 	isl_multi_pw_aff_free(index);
@@ -409,6 +406,7 @@ void *pet_expr_free(struct pet_expr *expr)
 	case pet_expr_access:
 		isl_id_free(expr->acc.ref_id);
 		isl_map_free(expr->acc.access);
+		isl_multi_pw_aff_free(expr->acc.index);
 		break;
 	case pet_expr_call:
 		free(expr->name);
@@ -446,6 +444,8 @@ static void expr_dump(struct pet_expr *expr, int indent)
 		isl_id_dump(expr->acc.ref_id);
 		fprintf(stderr, "%*s", indent, "");
 		isl_map_dump(expr->acc.access);
+		fprintf(stderr, "%*s", indent, "");
+		isl_multi_pw_aff_dump(expr->acc.index);
 		fprintf(stderr, "%*sread: %d\n", indent + 2,
 				"", expr->acc.read);
 		fprintf(stderr, "%*swrite: %d\n", indent + 2,
@@ -516,6 +516,25 @@ __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
 	return isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
 }
 
+/* Align the parameters of expr->acc.index and expr->acc.access.
+ */
+struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return pet_expr_free(expr);
+
+	expr->acc.access = isl_map_align_params(expr->acc.access,
+				isl_multi_pw_aff_get_space(expr->acc.index));
+	expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
+				isl_map_get_space(expr->acc.access));
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
 /* Does "expr" represent an access to a scalar, i.e., zero-dimensional array?
  */
 int pet_expr_is_scalar_access(struct pet_expr *expr)
@@ -562,6 +581,11 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 			return 0;
 		if (!isl_map_is_equal(expr1->acc.access, expr2->acc.access))
 			return 0;
+		if (!expr1->acc.index || !expr2->acc.index)
+			return 0;
+		if (!isl_multi_pw_aff_plain_is_equal(expr1->acc.index,
+							expr2->acc.index))
+			return 0;
 		break;
 	case pet_expr_unary:
 	case pet_expr_binary:
@@ -583,6 +607,9 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 }
 
 /* Add extra conditions on the parameters to all access relations in "expr".
+ *
+ * The conditions are not added to the index expression.  Instead, they
+ * are used to try and simplifty the index expression.
  */
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
 	__isl_take isl_set *cond)
@@ -602,7 +629,9 @@ struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = isl_map_intersect_params(expr->acc.access,
 							    isl_set_copy(cond));
-		if (!expr->acc.access)
+		expr->acc.index = isl_multi_pw_aff_gist_params(
+					expr->acc.index, isl_set_copy(cond));
+		if (!expr->acc.access || !expr->acc.index)
 			goto error;
 	}
 
@@ -660,9 +689,11 @@ int pet_expr_foreach_access_expr(struct pet_expr *expr,
 	return 0;
 }
 
-/* Modify the access relation of the given access expression
+/* Modify the access relation and index expression
+ * of the given access expression
  * based on the given iteration space transformation.
- * In particular, precompose the access relation with the update function.
+ * In particular, precompose the access relation and index expression
+ * with the update function.
  *
  * If the access has any arguments then the domain of the access relation
  * is a wrapped mapping from the iteration space to the space of
@@ -691,8 +722,11 @@ static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
 	}
 
 	expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
-					    expr->acc.access, update);
-	if (!expr->acc.access)
+					    expr->acc.access,
+					    isl_multi_pw_aff_copy(update));
+	expr->acc.index = isl_multi_pw_aff_pullback_multi_pw_aff(
+					    expr->acc.index, update);
+	if (!expr->acc.access || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1588,10 +1622,148 @@ struct pet_embed_access {
 	isl_id *var_id;
 };
 
-/* Given an access expression, embed the associated access relation
- * in an extra outer loop.
+/* Given an index expression, return an expression for the outer iterator.
+ */
+static __isl_give isl_aff *index_outer_iterator(
+	__isl_take isl_multi_pw_aff *index)
+{
+	isl_space *space;
+	isl_local_space *ls;
+
+	space = isl_multi_pw_aff_get_domain_space(index);
+	isl_multi_pw_aff_free(index);
+
+	ls = isl_local_space_from_space(space);
+	return isl_aff_var_on_domain(ls, isl_dim_set, 0);
+}
+
+/* Replace an index expression that references the new (outer) iterator variable
+ * by one that references the corresponding (real) iterator.
  *
- * We first update the iteration domain to insert the extra dimension.
+ * The input index expression is of the form
+ *
+ *	{ S[i',...] -> i[] }
+ *
+ * where i' refers to the virtual iterator.
+ *
+ * iv_map is of the form
+ *
+ *	{ [i'] -> [i] }
+ *
+ * Return the index expression
+ *
+ *	{ S[i',...] -> [i] }
+ */
+static __isl_give isl_multi_pw_aff *replace_by_iterator(
+	__isl_take isl_multi_pw_aff *index, __isl_take isl_aff *iv_map)
+{
+	isl_space *space;
+	isl_aff *aff;
+
+	aff = index_outer_iterator(index);
+	space = isl_aff_get_space(aff);
+	iv_map = isl_aff_align_params(iv_map, space);
+	aff = isl_aff_pullback_aff(iv_map, aff);
+
+	return isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
+}
+
+/* Given an index expression "index" that refers to the (real) iterator
+ * through the parameter at position "pos", plug in "iv_map", expressing
+ * the real iterator in terms of the virtual (outer) iterator.
+ *
+ * In particular, the index expression is of the form
+ *
+ *	[..., i, ...] -> { S[i',...] -> ... i ... }
+ *
+ * where i refers to the real iterator and i' refers to the virtual iterator.
+ *
+ * iv_map is of the form
+ *
+ *	{ [i'] -> [i] }
+ *
+ * Return the index expression
+ *
+ *	[..., ...] -> { S[i',...] -> ... iv_map(i') ... }
+ *
+ *
+ * We first move the parameter to the input
+ *
+ *	[..., ...] -> { [i, i',...] -> ... i ... }
+ *
+ * and construct
+ *
+ *	{ S[i',...] -> [i=iv_map(i'), i', ...] }
+ *
+ * and then combine the two to obtain the desired result.
+ */
+static __isl_give isl_multi_pw_aff *index_internalize_iv(
+	__isl_take isl_multi_pw_aff *index, int pos, __isl_take isl_aff *iv_map)
+{
+	isl_space *space = isl_multi_pw_aff_get_domain_space(index);
+	isl_multi_aff *ma;
+
+	space = isl_space_drop_dims(space, isl_dim_param, pos, 1);
+	index = isl_multi_pw_aff_move_dims(index, isl_dim_in, 0,
+					    isl_dim_param, pos, 1);
+
+	space = isl_space_map_from_set(space);
+	ma = isl_multi_aff_identity(isl_space_copy(space));
+	iv_map = isl_aff_align_params(iv_map, space);
+	iv_map = isl_aff_pullback_aff(iv_map, isl_multi_aff_get_aff(ma, 0));
+	ma = isl_multi_aff_flat_range_product(
+				isl_multi_aff_from_aff(iv_map), ma);
+	index = isl_multi_pw_aff_pullback_multi_aff(index, ma);
+
+	return index;
+}
+
+/* Embed the given index expression in an extra outer loop.
+ * The domain of the index expression has already been updated.
+ *
+ * If the access refers to the induction variable, then it is
+ * turned into an access to the set of integers with index (and value)
+ * equal to the induction variable.
+ *
+ * If the accessed array is a virtual array (with user
+ * pointer equal to NULL), as created by create_test_index,
+ * then it is extended along with the domain of the index expression.
+ */
+static __isl_give isl_multi_pw_aff *embed_index_expression(
+	__isl_take isl_multi_pw_aff *index, struct pet_embed_access *data)
+{
+	isl_id *array_id = NULL;
+	int pos;
+
+	if (isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
+		array_id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
+	if (array_id == data->var_id) {
+		index = replace_by_iterator(index, isl_aff_copy(data->iv_map));
+	} else if (array_id && !isl_id_get_user(array_id)) {
+		isl_aff *aff;
+		isl_multi_pw_aff *mpa;
+
+		aff = index_outer_iterator(isl_multi_pw_aff_copy(index));
+		mpa = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
+		index = isl_multi_pw_aff_flat_range_product(mpa, index);
+		index = isl_multi_pw_aff_set_tuple_id(index, isl_dim_out,
+							isl_id_copy(array_id));
+	}
+	isl_id_free(array_id);
+
+	pos = isl_multi_pw_aff_find_dim_by_id(index,
+						isl_dim_param, data->var_id);
+	if (pos >= 0)
+		index = index_internalize_iv(index, pos,
+						isl_aff_copy(data->iv_map));
+	index = isl_multi_pw_aff_set_dim_id(index, isl_dim_in, 0,
+					isl_id_copy(data->var_id));
+
+	return index;
+}
+
+/* Embed the given access relation in an extra outer loop.
+ * The domain of the access relation has already been updated.
  *
  * If the access refers to the induction variable, then it is
  * turned into an access to the set of integers with index (and value)
@@ -1605,18 +1777,11 @@ struct pet_embed_access {
  * pointer equal to NULL), as created by create_test_index,
  * then it is extended along with the domain of the access.
  */
-static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
+static __isl_give isl_map *embed_access_relation(__isl_take isl_map *access,
+	struct pet_embed_access *data)
 {
-	struct pet_embed_access *data = user;
-	isl_map *access;
 	isl_id *array_id = NULL;
 	int pos;
-
-	expr = update_domain(expr, data->extend);
-	if (!expr)
-		return NULL;
-
-	access = expr->acc.access;
 
 	if (isl_map_has_tuple_id(access, isl_dim_out))
 		array_id = isl_map_get_tuple_id(access, isl_dim_out);
@@ -1640,9 +1805,32 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 		set = internalize_iv(set, pos, isl_aff_copy(data->iv_map));
 		access = isl_set_unwrap(set);
 	}
-	expr->acc.access = isl_map_set_dim_id(access, isl_dim_in, 0,
+	access = isl_map_set_dim_id(access, isl_dim_in, 0,
 					isl_id_copy(data->var_id));
-	if (!expr->acc.access)
+
+	return access;
+}
+
+/* Given an access expression, embed the associated access relation and
+ * index expression in an extra outer loop.
+ *
+ * We first update the domains to insert the extra dimension and
+ * then update the access relation and index expression to take
+ * into account the mapping "iv_map" from virtual iterator
+ * to real iterator.
+ */
+static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
+{
+	int dim;
+	struct pet_embed_access *data = user;
+
+	expr = update_domain(expr, data->extend);
+	if (!expr)
+		return NULL;
+
+	expr->acc.access = embed_access_relation(expr->acc.access, data);
+	expr->acc.index = embed_index_expression(expr->acc.index, data);
+	if (!expr->acc.access || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -2122,10 +2310,10 @@ static __isl_give isl_pw_multi_aff *insert_filter_pma(
  * of the list of arguments described by *n_arg and *args.
  */
 static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
-	__isl_keep isl_map *test)
+	__isl_keep isl_multi_pw_aff *test)
 {
 	int i;
-	isl_ctx *ctx = isl_map_get_ctx(test);
+	isl_ctx *ctx = isl_multi_pw_aff_get_ctx(test);
 
 	if (!test)
 		return -1;
@@ -2145,7 +2333,7 @@ static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
 		*args = ext;
 	}
 	(*n_arg)++;
-	(*args)[0] = pet_expr_from_access(isl_map_copy(test));
+	(*args)[0] = pet_expr_from_index(isl_multi_pw_aff_copy(test));
 	if (!(*args)[0])
 		return -1;
 
@@ -2156,13 +2344,14 @@ static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
  * being equal to "satisfied".
  *
  * If "test" is an affine expression, we simply add the conditions
- * on the expression having the value "satisfied" to all access relations.
+ * on the expression having the value "satisfied" to all access relations
+ * and index expressions.
  *
  * Otherwise, we add a filter to "expr" (which is then assumed to be
  * an access expression) corresponding to "test" being equal to "satisfied".
  */
 struct pet_expr *pet_expr_filter(struct pet_expr *expr,
-	__isl_take isl_map *test, int satisfied)
+	__isl_take isl_multi_pw_aff *test, int satisfied)
 {
 	isl_id *id;
 	isl_ctx *ctx;
@@ -2172,32 +2361,43 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 	if (!expr || !test)
 		goto error;
 
-	if (!isl_map_has_tuple_id(test, isl_dim_out)) {
-		test = isl_map_fix_si(test, isl_dim_out, 0, satisfied);
-		return pet_expr_restrict(expr, isl_map_params(test));
+	if (!isl_multi_pw_aff_has_tuple_id(test, isl_dim_out)) {
+		isl_pw_aff *pa;
+		isl_set *cond;
+
+		pa = isl_multi_pw_aff_get_pw_aff(test, 0);
+		isl_multi_pw_aff_free(test);
+		if (satisfied)
+			cond = isl_pw_aff_non_zero_set(pa);
+		else
+			cond = isl_pw_aff_zero_set(pa);
+		return pet_expr_restrict(expr, isl_set_params(cond));
 	}
 
-	ctx = isl_map_get_ctx(test);
+	ctx = isl_multi_pw_aff_get_ctx(test);
 	if (expr->type != pet_expr_access)
 		isl_die(ctx, isl_error_invalid,
 			"can only filter access expressions", goto error);
 
 	space = isl_space_domain(isl_map_get_space(expr->acc.access));
-	id = isl_map_get_tuple_id(test, isl_dim_out);
+	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
 	pma = insert_filter_pma(space, id, satisfied);
 
 	expr->acc.access = isl_map_preimage_domain_pw_multi_aff(
-						expr->acc.access, pma);
-	if (!expr->acc.access)
+						expr->acc.access,
+						isl_pw_multi_aff_copy(pma));
+	expr->acc.index = isl_multi_pw_aff_pullback_pw_multi_aff(
+							expr->acc.index, pma);
+	if (!expr->acc.access || !expr->acc.index)
 		goto error;
 
 	if (args_insert_access(&expr->n_arg, &expr->args, test) < 0)
 		goto error;
 
-	isl_map_free(test);
+	isl_multi_pw_aff_free(test);
 	return expr;
 error:
-	isl_map_free(test);
+	isl_multi_pw_aff_free(test);
 	return pet_expr_free(expr);
 }
 
@@ -2286,12 +2486,13 @@ static int implies_filter(struct pet_scop *scop,
  * account the implications of "scop"?
  */
 static int filter_implied(struct pet_scop *scop,
-	struct pet_stmt *stmt, __isl_keep isl_map *test, int satisfied)
+	struct pet_stmt *stmt, __isl_keep isl_multi_pw_aff *test, int satisfied)
 {
 	int i;
 	int implied;
 	isl_id *test_id;
 	isl_map *domain;
+	isl_map *test_map;
 
 	if (!scop || !stmt || !test)
 		return -1;
@@ -2301,15 +2502,17 @@ static int filter_implied(struct pet_scop *scop,
 		return 0;
 
 	domain = isl_set_unwrap(isl_set_copy(stmt->domain));
+	test_map = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(test));
 
 	implied = 0;
 	for (i = 0; i < stmt->n_arg; ++i) {
 		implied = implies_filter(scop, domain, i, stmt->args[i],
-					 test, satisfied);
+					 test_map, satisfied);
 		if (implied < 0 || implied)
 			break;
 	}
 
+	isl_map_free(test_map);
 	isl_map_free(domain);
 	return implied;
 }
@@ -2331,16 +2534,16 @@ static int filter_implied(struct pet_scop *scop,
  * map contained in stmt->domain, with value set to "satisfied".
  */
 static struct pet_stmt *stmt_filter(struct pet_scop *scop,
-	struct pet_stmt *stmt, __isl_take isl_map *test, int satisfied)
+	struct pet_stmt *stmt, __isl_take isl_multi_pw_aff *test, int satisfied)
 {
 	int i;
 	int implied;
 	isl_id *id;
 	isl_ctx *ctx;
 	isl_pw_multi_aff *pma;
-	isl_map *add_dom;
+	isl_multi_aff *add_dom;
 	isl_space *space;
-	isl_set *dom;
+	isl_local_space *ls;
 	int n_test_dom;
 
 	if (!stmt || !test)
@@ -2349,34 +2552,39 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	space = isl_set_get_space(stmt->domain);
 	if (isl_space_is_wrapping(space))
 		space = isl_space_domain(isl_space_unwrap(space));
-	dom = isl_set_universe(space);
-	n_test_dom = isl_map_dim(test, isl_dim_in);
-	add_dom = isl_map_from_range(dom);
-	add_dom = isl_map_add_dims(add_dom, isl_dim_in, n_test_dom);
-	for (i = 0; i < n_test_dom; ++i)
-		add_dom = isl_map_equate(add_dom, isl_dim_in, i,
-						    isl_dim_out, i);
-	test = isl_map_apply_domain(test, add_dom);
+	n_test_dom = isl_multi_pw_aff_dim(test, isl_dim_in);
+	space = isl_space_from_domain(space);
+	space = isl_space_add_dims(space, isl_dim_out, n_test_dom);
+	add_dom = isl_multi_aff_zero(isl_space_copy(space));
+	ls = isl_local_space_from_space(isl_space_domain(space));
+	for (i = 0; i < n_test_dom; ++i) {
+		isl_aff *aff;
+		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
+					    isl_dim_set, i);
+		add_dom = isl_multi_aff_set_aff(add_dom, i, aff);
+	}
+	isl_local_space_free(ls);
+	test = isl_multi_pw_aff_pullback_multi_aff(test, add_dom);
 
 	implied = filter_implied(scop, stmt, test, satisfied);
 	if (implied < 0)
 		goto error;
 	if (implied) {
-		isl_map_free(test);
+		isl_multi_pw_aff_free(test);
 		return stmt;
 	}
 
-	id = isl_map_get_tuple_id(test, isl_dim_out);
+	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
 	pma = insert_filter_pma(isl_set_get_space(stmt->domain), id, satisfied);
 	stmt->domain = isl_set_preimage_pw_multi_aff(stmt->domain, pma);
 
 	if (args_insert_access(&stmt->n_arg, &stmt->args, test) < 0)
 		goto error;
 
-	isl_map_free(test);
+	isl_multi_pw_aff_free(test);
 	return stmt;
 error:
-	isl_map_free(test);
+	isl_multi_pw_aff_free(test);
 	return pet_stmt_free(stmt);
 }
 
@@ -2494,14 +2702,6 @@ __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
 	return isl_set_params(isl_pw_aff_non_zero_set(pa));
 }
 
-/* Return a map to the skip condition of the given type.
- */
-__isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
-	enum pet_skip type)
-{
-	return isl_map_from_multi_pw_aff(pet_scop_get_skip(scop, type));
-}
-
 /* Return the identifier of the variable that is accessed by
  * the skip condition of the given type.
  *
@@ -2524,7 +2724,7 @@ __isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
 struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	enum pet_skip type)
 {
-	return pet_expr_from_access(pet_scop_get_skip_map(scop, type));
+	return pet_expr_from_index(pet_scop_get_skip(scop, type));
 }
 
 /* Drop the the skip condition scop->skip[type].
@@ -2549,7 +2749,7 @@ void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type)
  * "test" is equal to one.
  */
 static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
-	enum pet_skip type, __isl_keep isl_map *test, int satisfied)
+	enum pet_skip type, __isl_keep isl_multi_pw_aff *test, int satisfied)
 {
 	int is_univ = 0;
 
@@ -2563,14 +2763,14 @@ static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
 	if (is_univ < 0)
 		return pet_scop_free(scop);
 	if (satisfied && is_univ) {
-		isl_space *space = isl_map_get_space(test);
+		isl_space *space = isl_multi_pw_aff_get_space(test);
 		isl_multi_pw_aff *skip;
 		skip = isl_multi_pw_aff_zero(space);
 		scop = pet_scop_set_skip(scop, type, skip);
 		if (!scop)
 			return NULL;
 	} else {
-		isl_die(isl_map_get_ctx(test), isl_error_internal,
+		isl_die(isl_multi_pw_aff_get_ctx(test), isl_error_internal,
 			"skip expression cannot be filtered",
 			return pet_scop_free(scop));
 	}
@@ -2585,25 +2785,24 @@ struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 	__isl_take isl_multi_pw_aff *test, int satisfied)
 {
 	int i;
-	isl_map *map = isl_map_from_multi_pw_aff(test);
 
-	scop = pet_scop_filter_skip(scop, pet_skip_now, map, satisfied);
-	scop = pet_scop_filter_skip(scop, pet_skip_later, map, satisfied);
+	scop = pet_scop_filter_skip(scop, pet_skip_now, test, satisfied);
+	scop = pet_scop_filter_skip(scop, pet_skip_later, test, satisfied);
 
-	if (!scop || !map)
+	if (!scop || !test)
 		goto error;
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_filter(scop, scop->stmts[i],
-						isl_map_copy(map), satisfied);
+					isl_multi_pw_aff_copy(test), satisfied);
 		if (!scop->stmts[i])
 			goto error;
 	}
 
-	isl_map_free(map);
+	isl_multi_pw_aff_free(test);
 	return scop;
 error:
-	isl_map_free(map);
+	isl_multi_pw_aff_free(test);
 	return pet_scop_free(scop);
 }
 
@@ -2687,7 +2886,8 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Add all parameters in "dim" to all access relations in "expr".
+/* Add all parameters in "dim" to all access relations and index expressions
+ * in "expr".
  */
 static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
 	__isl_take isl_space *dim)
@@ -2708,7 +2908,9 @@ static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = isl_map_align_params(expr->acc.access,
 							isl_space_copy(dim));
-		if (!expr->acc.access)
+		expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
+							isl_space_copy(dim));
+		if (!expr->acc.access || !expr->acc.index)
 			goto error;
 	}
 
@@ -2822,6 +3024,48 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 	return scop;
 }
 
+/* Check if the given index expression accesses a (0D) array that corresponds
+ * to one of the parameters in "dim".  If so, replace the array access
+ * by an access to the set of integers with as index (and value)
+ * that parameter.
+ */
+static __isl_give isl_multi_pw_aff *index_detect_parameter(
+	__isl_take isl_multi_pw_aff *index, __isl_take isl_space *space)
+{
+	isl_local_space *ls;
+	isl_id *array_id = NULL;
+	isl_aff *aff;
+	int pos = -1;
+
+	if (isl_multi_pw_aff_has_tuple_id(index, isl_dim_out)) {
+		array_id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
+		pos = isl_space_find_dim_by_id(space, isl_dim_param, array_id);
+	}
+	isl_space_free(space);
+
+	if (pos < 0) {
+		isl_id_free(array_id);
+		return index;
+	}
+
+	space = isl_multi_pw_aff_get_domain_space(index);
+	isl_multi_pw_aff_free(index);
+
+	pos = isl_space_find_dim_by_id(space, isl_dim_param, array_id);
+	if (pos < 0) {
+		space = isl_space_insert_dims(space, isl_dim_param, 0, 1);
+		space = isl_space_set_dim_id(space, isl_dim_param, 0, array_id);
+		pos = 0;
+	} else
+		isl_id_free(array_id);
+
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_var_on_domain(ls, isl_dim_param, pos);
+	index = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
+
+	return index;
+}
+
 /* Check if the given access relation accesses a (0D) array that corresponds
  * to one of the parameters in "dim".  If so, replace the array access
  * by an access to the set of integers with as index (and value)
@@ -2880,7 +3124,9 @@ static struct pet_expr *expr_detect_parameter_accesses(struct pet_expr *expr,
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = access_detect_parameter(expr->acc.access,
 							isl_space_copy(dim));
-		if (!expr->acc.access)
+		expr->acc.index = index_detect_parameter(expr->acc.index,
+							isl_space_copy(dim));
+		if (!expr->acc.access || !expr->acc.index)
 			goto error;
 	}
 
@@ -3269,6 +3515,39 @@ static __isl_give isl_map *map_anonymize(__isl_take isl_map *map)
 	return map;
 }
 
+/* Reset the user pointer on the tuple ids and all parameter ids in "mpa".
+ */
+static __isl_give isl_multi_pw_aff *multi_pw_aff_anonymize(
+	__isl_take isl_multi_pw_aff *mpa)
+{
+	int i, n;
+
+	n = isl_multi_pw_aff_dim(mpa, isl_dim_param);
+	for (i = 0; i < n; ++i) {
+		isl_id *id = isl_multi_pw_aff_get_dim_id(mpa, isl_dim_param, i);
+		const char *name = isl_id_get_name(id);
+		mpa = isl_multi_pw_aff_set_dim_name(mpa,
+						    isl_dim_param, i, name);
+		isl_id_free(id);
+	}
+
+	if (isl_multi_pw_aff_has_tuple_id(mpa, isl_dim_in)) {
+		isl_id *id = isl_multi_pw_aff_get_tuple_id(mpa, isl_dim_in);
+		const char *name = isl_id_get_name(id);
+		mpa = isl_multi_pw_aff_set_tuple_name(mpa, isl_dim_in, name);
+		isl_id_free(id);
+	}
+
+	if (isl_multi_pw_aff_has_tuple_id(mpa, isl_dim_out)) {
+		isl_id *id = isl_multi_pw_aff_get_tuple_id(mpa, isl_dim_out);
+		const char *name = isl_id_get_name(id);
+		mpa = isl_multi_pw_aff_set_tuple_name(mpa, isl_dim_out, name);
+		isl_id_free(id);
+	}
+
+	return mpa;
+}
+
 /* Reset the user pointer on all parameter ids in "array".
  */
 static struct pet_array *array_anonymize(struct pet_array *array)
@@ -3285,12 +3564,14 @@ static struct pet_array *array_anonymize(struct pet_array *array)
 }
 
 /* Reset the user pointer on all parameter and tuple ids in
- * the access relation of the access expression "expr".
+ * the access relation and the index expressions
+ * of the access expression "expr".
  */
 static struct pet_expr *access_anonymize(struct pet_expr *expr, void *user)
 {
 	expr->acc.access = map_anonymize(expr->acc.access);
-	if (!expr->acc.access)
+	expr->acc.index = multi_pw_aff_anonymize(expr->acc.index);
+	if (!expr->acc.access || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -3442,8 +3723,8 @@ struct pet_access_gist_data {
 };
 
 /* Given an expression "expr" of type pet_expr_access, compute
- * the gist of the associated access relation with respect to
- * data->domain and the bounds on the values of the arguments
+ * the gist of the associated access relation and index expression
+ * with respect to data->domain and the bounds on the values of the arguments
  * of the expression.
  */
 static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
@@ -3456,8 +3737,10 @@ static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
 		domain = apply_value_bounds(domain, expr->n_arg, expr->args,
 						data->value_bounds);
 
-	expr->acc.access = isl_map_gist_domain(expr->acc.access, domain);
-	if (!expr->acc.access)
+	expr->acc.access = isl_map_gist_domain(expr->acc.access,
+						isl_set_copy(domain));
+	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, domain);
+	if (!expr->acc.access || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;

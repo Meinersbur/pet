@@ -24,17 +24,20 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[k] -> a[] }'
+      index: '{ S_0[k] -> a[] }'
       reference: __pet_ref_1
       read: 0
       write: 1
     - type: access
       relation: '{ S_0[k] -> [5] }'
+      index: '{ S_0[k] -> [(5)] }'
       reference: __pet_ref_2
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '{ S_0[k] -> __pet_test_0[-1 + k] : k >= 253 }'
+    index: '{ S_0[k] -> __pet_test_0[((-1 + k) : k >= 253)] }'
     reference: __pet_ref_0
     read: 1
     write: 0
@@ -47,6 +50,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[k] -> __pet_test_0[k] }'
+      index: '{ S_1[k] -> __pet_test_0[(k)] }'
       reference: __pet_ref_4
       read: 0
       write: 1
@@ -55,6 +59,7 @@ statements:
   arguments:
   - type: access
     relation: '{ S_1[k] -> __pet_test_0[-1 + k] : k >= 253 }'
+    index: '{ S_1[k] -> __pet_test_0[((-1 + k) : k >= 253)] }'
     reference: __pet_ref_3
     read: 1
     write: 0
@@ -67,18 +72,21 @@ statements:
     arguments:
     - type: access
       relation: '{ S_2[k] -> a[] }'
+      index: '{ S_2[k] -> a[] }'
       reference: __pet_ref_6
       read: 0
       write: 1
     - type: access
       relation: '{ S_2[k] -> [o0] : exists (e0 = floor((-k + o0)/256): 256e0 = -k
         + o0 and o0 >= 0 and o0 <= 255) }'
+      index: '{ S_2[k] -> [(k - 256*floor((k)/256))] }'
       reference: __pet_ref_7
       read: 1
       write: 0
   arguments:
   - type: access
     relation: '{ S_2[k] -> __pet_test_0[k] }'
+    index: '{ S_2[k] -> __pet_test_0[(k)] }'
     reference: __pet_ref_5
     read: 1
     write: 0

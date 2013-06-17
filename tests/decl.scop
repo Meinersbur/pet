@@ -31,11 +31,13 @@ statements:
     arguments:
     - type: access
       relation: '[N, K, M] -> { S_0[i, j] -> C[i, j] }'
+      index: '[N, K, M] -> { S_0[i, j] -> C[(i), (j)] }'
       reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
       relation: '[N, K, M] -> { S_0[i, j] -> [0] }'
+      index: '[N, K, M] -> { S_0[i, j] -> [(0)] }'
       reference: __pet_ref_1
       read: 1
       write: 0
@@ -49,6 +51,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, K, M] -> { S_1[i, j, k] -> t[] }'
+      index: '[N, K, M] -> { S_1[i, j, k] -> t[] }'
       reference: __pet_ref_2
       read: 0
       write: 0
@@ -62,6 +65,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, K, M] -> { S_2[i, j, k] -> t[] }'
+      index: '[N, K, M] -> { S_2[i, j, k] -> t[] }'
       reference: __pet_ref_3
       read: 0
       write: 1
@@ -70,11 +74,13 @@ statements:
       arguments:
       - type: access
         relation: '[N, K, M] -> { S_2[i, j, k] -> A[i, k] }'
+        index: '[N, K, M] -> { S_2[i, j, k] -> A[(i), (k)] }'
         reference: __pet_ref_4
         read: 1
         write: 0
       - type: access
         relation: '[N, K, M] -> { S_2[i, j, k] -> B[k, j] }'
+        index: '[N, K, M] -> { S_2[i, j, k] -> B[(k), (j)] }'
         reference: __pet_ref_5
         read: 1
         write: 0
@@ -88,11 +94,13 @@ statements:
     arguments:
     - type: access
       relation: '[N, K, M] -> { S_4[i, j, k] -> C[i, j] }'
+      index: '[N, K, M] -> { S_4[i, j, k] -> C[(i), (j)] }'
       reference: __pet_ref_6
       read: 1
       write: 1
     - type: access
       relation: '[N, K, M] -> { S_4[i, j, k] -> t[] }'
+      index: '[N, K, M] -> { S_4[i, j, k] -> t[] }'
       reference: __pet_ref_7
       read: 1
       write: 0
@@ -106,6 +114,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, K, M] -> { S_3[i, j, k] -> t[] }'
+      index: '[N, K, M] -> { S_3[i, j, k] -> t[] }'
       reference: __pet_ref_8
       read: 0
       write: 0

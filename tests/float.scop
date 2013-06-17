@@ -16,6 +16,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_0[] -> a[] }'
+      index: '{ S_0[] -> a[] }'
       reference: __pet_ref_0
       read: 0
       write: 1
@@ -31,6 +32,7 @@ statements:
     arguments:
     - type: access
       relation: '{ S_1[] -> a[] }'
+      index: '{ S_1[] -> a[] }'
       reference: __pet_ref_1
       read: 0
       write: 1

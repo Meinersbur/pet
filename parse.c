@@ -117,6 +117,19 @@ static __isl_give isl_map *extract_map(isl_ctx *ctx, yaml_document_t *document,
 	return isl_map_read_from_str(ctx, (char *) node->data.scalar.value);
 }
 
+/* Extract an isl_multi_pw_aff from "node".
+ */
+static __isl_give isl_multi_pw_aff *extract_multi_pw_aff(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return NULL);
+
+	return isl_multi_pw_aff_read_from_str(ctx,
+					    (char *) node->data.scalar.value);
+}
+
 static struct pet_array *extract_array(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
@@ -278,6 +291,9 @@ static struct pet_expr *extract_expr_access(isl_ctx *ctx,
 
 		if (!strcmp((char *) key->data.scalar.value, "relation"))
 			expr->acc.access = extract_map(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "index"))
+			expr->acc.index = extract_multi_pw_aff(ctx, document,
+								value);
 		if (!strcmp((char *) key->data.scalar.value, "reference"))
 			expr->acc.ref_id = extract_id(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "read"))

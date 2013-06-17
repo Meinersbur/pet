@@ -91,7 +91,14 @@ enum pet_ter_arg_type {
  *
  * For each access expression inside the body of a statement, acc.ref_id
  * is a unique reference identifier.
- * acc.access usually maps an iteration space to a data space.
+ * acc.index represents the index expression, while acc.access
+ * represents the corresponding access relation.
+ * The output dimension of the index expression may be smaller
+ * than the number of dimensions of the accessed array.
+ * The target space of the access relation, on the other hand,
+ * is equal to the array space.
+ * Both acc.index and acc.access usually map an iteration space
+ * to a (partial) data space.
  * If the access has arguments, however, then the domain of the
  * mapping is a wrapped mapping from the iteration space
  * to a space of dimensionality equal to the number of arguments.
@@ -115,6 +122,7 @@ struct pet_expr {
 		struct {
 			isl_id *ref_id;
 			isl_map *access;
+			isl_multi_pw_aff *index;
 			int read;
 			int write;
 		} acc;

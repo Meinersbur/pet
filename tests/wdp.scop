@@ -34,6 +34,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_0[i] -> x[i] }'
+      index: '[N] -> { S_0[i] -> x[(i)] }'
       reference: __pet_ref_0
       read: 0
       write: 1
@@ -51,6 +52,7 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_1[i] -> y[i] }'
+        index: '[N] -> { S_1[i] -> y[(i)] }'
         reference: __pet_ref_1
         read: 0
         write: 1
@@ -59,6 +61,7 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_1[i] -> t[i] }'
+        index: '[N] -> { S_1[i] -> t[(i)] }'
         reference: __pet_ref_2
         read: 0
         write: 1
@@ -71,6 +74,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_2[i] -> z[i] }'
+      index: '[N] -> { S_2[i] -> z[(i)] }'
       reference: __pet_ref_3
       read: 0
       write: 1
@@ -85,6 +89,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_4[i] -> x[i] }'
+      index: '[N] -> { S_4[i] -> x[(i)] }'
       reference: __pet_ref_5
       read: 0
       write: 1
@@ -93,12 +98,14 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_4[i] -> x[i] }'
+        index: '[N] -> { S_4[i] -> x[(i)] }'
         reference: __pet_ref_6
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_4[i] -> z[i] }'
+    index: '[N] -> { S_4[i] -> z[(i)] }'
     reference: __pet_ref_4
     read: 1
     write: 0
@@ -111,6 +118,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_5[i] -> __pet_test_0[i] }'
+      index: '[N] -> { S_5[i] -> __pet_test_0[(i)] }'
       reference: __pet_ref_7
       read: 0
       write: 1
@@ -122,16 +130,19 @@ statements:
         arguments:
         - type: access
           relation: '[N] -> { S_5[i] -> x[i] }'
+          index: '[N] -> { S_5[i] -> x[(i)] }'
           reference: __pet_ref_8
           read: 1
           write: 0
         - type: access
           relation: '[N] -> { S_5[i] -> x[i] }'
+          index: '[N] -> { S_5[i] -> x[(i)] }'
           reference: __pet_ref_9
           read: 1
           write: 0
       - type: access
         relation: '[N] -> { S_5[i] -> [100] }'
+        index: '[N] -> { S_5[i] -> [(100)] }'
         reference: __pet_ref_10
         read: 1
         write: 0
@@ -144,6 +155,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_6[i] -> y[1 + i] }'
+      index: '[N] -> { S_6[i] -> y[(1 + i)] }'
       reference: __pet_ref_12
       read: 0
       write: 1
@@ -152,12 +164,14 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_6[i] -> y[i] }'
+        index: '[N] -> { S_6[i] -> y[(i)] }'
         reference: __pet_ref_13
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_6[i] -> __pet_test_0[i] }'
+    index: '[N] -> { S_6[i] -> __pet_test_0[(i)] }'
     reference: __pet_ref_11
     read: 1
     write: 0
@@ -170,6 +184,7 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_7[i] -> t[i] }'
+      index: '[N] -> { S_7[i] -> t[(i)] }'
       reference: __pet_ref_15
       read: 0
       write: 1
@@ -178,12 +193,14 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_7[i] -> t[i] }'
+        index: '[N] -> { S_7[i] -> t[(i)] }'
         reference: __pet_ref_16
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '[N] -> { S_7[i] -> __pet_test_0[i] }'
+    index: '[N] -> { S_7[i] -> __pet_test_0[(i)] }'
     reference: __pet_ref_14
     read: 1
     write: 0
@@ -196,11 +213,13 @@ statements:
     arguments:
     - type: access
       relation: '[N] -> { S_8[i] -> y[1 + i] }'
+      index: '[N] -> { S_8[i] -> y[(1 + i)] }'
       reference: __pet_ref_17
       read: 1
       write: 0
     - type: access
       relation: '[N] -> { S_8[i] -> z[i] }'
+      index: '[N] -> { S_8[i] -> z[(i)] }'
       reference: __pet_ref_18
       read: 1
       write: 0
@@ -209,6 +228,7 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_8[i] -> y[1 + i] }'
+        index: '[N] -> { S_8[i] -> y[(1 + i)] }'
         reference: __pet_ref_19
         read: 0
         write: 1
@@ -217,6 +237,7 @@ statements:
       arguments:
       - type: access
         relation: '[N] -> { S_8[i] -> z[2 + i] }'
+        index: '[N] -> { S_8[i] -> z[(2 + i)] }'
         reference: __pet_ref_20
         read: 0
         write: 1

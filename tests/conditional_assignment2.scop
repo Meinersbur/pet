@@ -36,6 +36,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, M] -> { S_0[] -> in2[] }'
+      index: '[N, M] -> { S_0[] -> in2[] }'
       reference: __pet_ref_0
       read: 0
       write: 1
@@ -50,6 +51,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, M] -> { S_1[i] -> m[] }'
+      index: '[N, M] -> { S_1[i] -> m[] }'
       reference: __pet_ref_1
       read: 0
       write: 1
@@ -58,11 +60,13 @@ statements:
       arguments:
       - type: access
         relation: '[N, M] -> { S_1[i] -> [i] }'
+        index: '[N, M] -> { S_1[i] -> [(i)] }'
         reference: __pet_ref_2
         read: 1
         write: 0
       - type: access
         relation: '[N, M] -> { S_1[i] -> [1] }'
+        index: '[N, M] -> { S_1[i] -> [(1)] }'
         reference: __pet_ref_3
         read: 1
         write: 0
@@ -76,6 +80,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, M] -> { S_2[i, j] -> m[] }'
+      index: '[N, M] -> { S_2[i, j] -> m[] }'
       reference: __pet_ref_4
       read: 0
       write: 1
@@ -87,11 +92,13 @@ statements:
         arguments:
         - type: access
           relation: '[N, M] -> { S_2[i, j] -> m[] }'
+          index: '[N, M] -> { S_2[i, j] -> m[] }'
           reference: __pet_ref_5
           read: 1
           write: 0
       - type: access
         relation: '[N, M] -> { S_2[i, j] -> in1[i, j] }'
+        index: '[N, M] -> { S_2[i, j] -> in1[(i), (j)] }'
         reference: __pet_ref_6
         read: 1
         write: 0
@@ -107,11 +114,13 @@ statements:
       arguments:
       - type: access
         relation: '[N, M] -> { S_3[i] -> m[] }'
+        index: '[N, M] -> { S_3[i] -> m[] }'
         reference: __pet_ref_7
         read: 1
         write: 0
     - type: access
       relation: '[N, M] -> { S_3[i] -> A[i, o1] }'
+      index: '[N, M] -> { S_3[i] -> A[(i)] }'
       reference: __pet_ref_8
       read: 0
       write: 1
@@ -124,11 +133,13 @@ statements:
     arguments:
     - type: access
       relation: '[N, M] -> { S_4[] -> A[5, 6] }'
+      index: '[N, M] -> { S_4[] -> A[(5), (6)] }'
       reference: __pet_ref_9
       read: 0
       write: 1
     - type: access
       relation: '[N, M] -> { S_4[] -> [0] }'
+      index: '[N, M] -> { S_4[] -> [(0)] }'
       reference: __pet_ref_10
       read: 1
       write: 0
@@ -141,6 +152,7 @@ statements:
     arguments:
     - type: access
       relation: '[N, M] -> { S_5[i] -> C[i] }'
+      index: '[N, M] -> { S_5[i] -> C[(i)] }'
       reference: __pet_ref_11
       read: 0
       write: 1
@@ -149,12 +161,15 @@ statements:
       - type: access
         relation: '[N, M] -> { [S_5[i] -> [i1]] -> [1] : i1 >= -i and i1 <= -1 + N
           - i; [S_5[-1 + N] -> [1]] -> [0]; [S_5[0] -> [-1]] -> [0] }'
+        index: '[N, M] -> { [S_5[i] -> [i1]] -> [((1) : i1 >= -i and i1 <= -1 + N
+          - i; (0) : i = -1 + N and i1 = 1; (0) : i = 0 and i1 = -1)] }'
         reference: __pet_ref_13
         read: 1
         write: 0
         arguments:
         - type: access
           relation: '[N, M] -> { S_5[i] -> in2[] }'
+          index: '[N, M] -> { S_5[i] -> in2[] }'
           reference: __pet_ref_12
           read: 1
           write: 0
@@ -164,24 +179,28 @@ statements:
         - type: access
           relation: '[N, M] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and
             i1 <= -1 + N - i }'
+          index: '[N, M] -> { [S_5[i] -> [i1]] -> A[((i + i1) : i1 >= -i)] }'
           reference: __pet_ref_15
           read: 1
           write: 0
           arguments:
           - type: access
             relation: '[N, M] -> { S_5[i] -> in2[] }'
+            index: '[N, M] -> { S_5[i] -> in2[] }'
             reference: __pet_ref_14
             read: 1
             write: 0
       - type: access
         relation: '[N, M] -> { [S_5[-1 + N] -> [1]] -> [0]; [S_5[0] -> [-1]] -> [0]
           }'
+        index: '[N, M] -> { [S_5[i] -> [i1]] -> [(0)] }'
         reference: __pet_ref_17
         read: 1
         write: 0
         arguments:
         - type: access
           relation: '[N, M] -> { S_5[i] -> in2[] }'
+          index: '[N, M] -> { S_5[i] -> in2[] }'
           reference: __pet_ref_16
           read: 1
           write: 0

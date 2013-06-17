@@ -170,6 +170,37 @@ static int emit_named_map(yaml_emitter_t *emitter, const char *name,
 	return 0;
 }
 
+/* Print the isl_multi_pw_aff "mpa" to "emitter".
+ */
+static int emit_multi_pw_aff(yaml_emitter_t *emitter,
+	__isl_keep isl_multi_pw_aff *mpa)
+{
+	isl_ctx *ctx = isl_multi_pw_aff_get_ctx(mpa);
+	isl_printer *p;
+	char *str;
+	int r;
+
+	p = isl_printer_to_str(ctx);
+	p = isl_printer_print_multi_pw_aff(p, mpa);
+	str = isl_printer_get_str(p);
+	isl_printer_free(p);
+	r = emit_string(emitter, str);
+	free(str);
+	return r;
+}
+
+/* Print the string "name" and the isl_multi_pw_aff "mpa" to "emitter".
+ */
+static int emit_named_multi_pw_aff(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_multi_pw_aff *mpa)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_multi_pw_aff(emitter, mpa) < 0)
+		return -1;
+	return 0;
+}
+
 static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 {
 	yaml_event_t event;
@@ -294,6 +325,9 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 		if (emit_string(emitter, "relation") < 0)
 			return -1;
 		if (emit_map(emitter, expr->acc.access) < 0)
+			return -1;
+		if (emit_named_multi_pw_aff(emitter,
+					    "index", expr->acc.index) < 0)
 			return -1;
 		if (expr->acc.ref_id &&
 		    emit_named_id(emitter, "reference", expr->acc.ref_id) < 0)

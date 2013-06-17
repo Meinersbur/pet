@@ -1,6 +1,6 @@
 /*
- * Copyright 2011 Leiden University. All rights reserved.
- * Copyright 2012 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2011      Leiden University. All rights reserved.
+ * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -3162,23 +3162,32 @@ error:
  * refer to nested accesses.  In particular, these are
  * parameters with no name.
  *
- * If there are any such parameters, then the domain of the access
- * relation, which is still [] at this point, is replaced by
- * [[] -> [t_1,...,t_n]], with n the number of these parameters
+ * If there are any such parameters, then the domain of the index
+ * expression and the access relation, which is still [] at this point,
+ * is replaced by [[] -> [t_1,...,t_n]], with n the number of these parameters
  * (after identifying identical nested accesses).
- * The parameters are then equated to the corresponding t dimensions
- * and subsequently projected out.
- * param2pos maps the position of the parameter to the position
- * of the corresponding t dimension.
+ *
+ * This transformation is performed in several steps.
+ * We first extract the arguments in extract_nested.
+ * param2pos maps the original parameter position to the position
+ * of the argument.
+ * Then we move these parameters to input dimension.
+ * t2pos maps the positions of these temporary input dimensions
+ * to the positions of the corresponding arguments.
+ * Finally, we express there temporary dimensions in term of the domain
+ * [[] -> [t_1,...,t_n]] and precompose index expression and access
+ * relations with this function.
  */
 struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 {
 	int n;
 	int nparam;
-	int n_in;
-	isl_space *dim;
-	isl_map *map;
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+	isl_multi_aff *ma;
 	std::map<int,int> param2pos;
+	std::map<int,int> t2pos;
 
 	if (!expr)
 		return expr;
@@ -3202,18 +3211,12 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	if (!expr)
 		return NULL;
 
-	n = expr->n_arg;
+	expr = pet_expr_access_align_params(expr);
+	if (!expr)
+		return NULL;
 	nparam = isl_map_dim(expr->acc.access, isl_dim_param);
-	n_in = isl_map_dim(expr->acc.access, isl_dim_in);
-	dim = isl_map_get_space(expr->acc.access);
-	dim = isl_space_domain(dim);
-	dim = isl_space_from_domain(dim);
-	dim = isl_space_add_dims(dim, isl_dim_out, n);
-	map = isl_map_universe(dim);
-	map = isl_map_domain_map(map);
-	map = isl_map_reverse(map);
-	expr->acc.access = isl_map_apply_domain(expr->acc.access, map);
 
+	n = 0;
 	for (int i = nparam - 1; i >= 0; --i) {
 		isl_id *id = isl_map_get_dim_id(expr->acc.access,
 						isl_dim_param, i);
@@ -3222,14 +3225,36 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 			continue;
 		}
 
-		expr->acc.access = isl_map_equate(expr->acc.access,
-					isl_dim_param, i, isl_dim_in,
-					n_in + param2pos[i]);
-		expr->acc.access = isl_map_project_out(expr->acc.access,
-					isl_dim_param, i, 1);
+		expr->acc.access = isl_map_move_dims(expr->acc.access,
+					isl_dim_in, n, isl_dim_param, i, 1);
+		expr->acc.index = isl_multi_pw_aff_move_dims(expr->acc.index,
+					isl_dim_in, n, isl_dim_param, i, 1);
+		t2pos[n] = param2pos[i];
+		n++;
 
 		isl_id_free(id);
 	}
+
+	space = isl_multi_pw_aff_get_space(expr->acc.index);
+	space = isl_space_set_from_params(isl_space_params(space));
+	space = isl_space_add_dims(space, isl_dim_set, expr->n_arg);
+	space = isl_space_wrap(isl_space_from_range(space));
+	ls = isl_local_space_from_space(isl_space_copy(space));
+	space = isl_space_from_domain(space);
+	space = isl_space_add_dims(space, isl_dim_out, n);
+	ma = isl_multi_aff_zero(space);
+
+	for (int i = 0; i < n; ++i) {
+		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
+					    isl_dim_set, t2pos[i]);
+		ma = isl_multi_aff_set_aff(ma, i, aff);
+	}
+	isl_local_space_free(ls);
+
+	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
+							isl_multi_aff_copy(ma));
+	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
+								ma);
 
 	return expr;
 error:
@@ -3565,10 +3590,11 @@ extern "C" {
 	static struct pet_expr *embed_access(struct pet_expr *expr, void *user);
 }
 
-/* Precompose the access relation associated to "expr" with the function
- * pointed to by "user", thereby embedding the access relation in the domain
- * of this function.
- * The initial domain of the access relation is the zero-dimensional domain.
+/* Precompose the access relation and the index expression associated
+ * to "expr" with the function pointed to by "user",
+ * thereby embedding the access relation in the domain of this function.
+ * The initial domain of the access relation and the index expression
+ * is the zero-dimensional domain.
  */
 static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
@@ -3576,7 +3602,9 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 
 	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
 						isl_multi_aff_copy(ma));
-	if (!expr->acc.access)
+	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
+						isl_multi_aff_copy(ma));
+	if (!expr->acc.access || !expr->acc.index)
 		goto error;
 
 	return expr;
@@ -3625,13 +3653,34 @@ static __isl_give isl_map *remove_nested_parameters(__isl_take isl_map *map)
 	return map;
 }
 
-/* Remove all parameters from the access relation of "expr"
+/* Remove all parameters from "mpa" that refer to nested accesses.
+ */
+static __isl_give isl_multi_pw_aff *remove_nested_parameters(
+	__isl_take isl_multi_pw_aff *mpa)
+{
+	int nparam;
+	isl_space *space;
+
+	space = isl_multi_pw_aff_get_space(mpa);
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (int i = nparam - 1; i >= 0; --i) {
+		if (!is_nested_parameter(space, i))
+			continue;
+		mpa = isl_multi_pw_aff_drop_dims(mpa, isl_dim_param, i, 1);
+	}
+	isl_space_free(space);
+
+	return mpa;
+}
+
+/* Remove all parameters from the index expression and access relation of "expr"
  * that refer to nested accesses.
  */
 static struct pet_expr *remove_nested_parameters(struct pet_expr *expr)
 {
 	expr->acc.access = remove_nested_parameters(expr->acc.access);
-	if (!expr->acc.access)
+	expr->acc.index = remove_nested_parameters(expr->acc.index);
+	if (!expr->acc.access || !expr->acc.index)
 		goto error;
 
 	return expr;
@@ -4033,21 +4082,18 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = scan->ctx;
-	isl_map *test_access;
 
 	if (!scop_then)
 		goto error;
 	if (have_else && !scop_else)
 		goto error;
 
-	test_access = isl_map_from_multi_pw_aff(
-				isl_multi_pw_aff_copy(test_index));
 	if (pet_scop_has_skip(scop_then, type)) {
 		expr_then = pet_scop_get_skip_expr(scop_then, type);
 		pet_scop_reset_skip(scop_then, type);
 		if (!pet_expr_is_affine(expr_then))
 			expr_then = pet_expr_filter(expr_then,
-					    isl_map_copy(test_access), 1);
+					isl_multi_pw_aff_copy(test_index), 1);
 	} else
 		expr_then = universally_false(ctx);
 
@@ -4056,10 +4102,9 @@ static struct pet_scop *extract_skip(PetScan *scan,
 		pet_scop_reset_skip(scop_else, type);
 		if (!pet_expr_is_affine(expr_else))
 			expr_else = pet_expr_filter(expr_else,
-					    isl_map_copy(test_access), 0);
+					isl_multi_pw_aff_copy(test_index), 0);
 	} else
 		expr_else = universally_false(ctx);
-	isl_map_free(test_access);
 
 	expr = pet_expr_from_index(test_index);
 	expr = pet_expr_new_ternary(ctx, expr, expr_then, expr_else);
@@ -4629,7 +4674,8 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	expr2 = pet_scop_get_skip_expr(scop2, type);
 	pet_scop_reset_skip(scop2, type);
 
-	expr2 = pet_expr_filter(expr2, isl_map_copy(expr1->acc.access), 0);
+	expr2 = pet_expr_filter(expr2,
+				isl_multi_pw_aff_copy(expr1->acc.index), 0);
 
 	expr = universally_true(ctx);
 	expr = pet_expr_new_ternary(ctx, expr1, expr, expr2);
@@ -4752,6 +4798,7 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 {
 	struct pet_expr *kill;
 	struct pet_stmt *stmt;
+	isl_multi_pw_aff *index;
 	isl_map *access;
 
 	if (!scop)
@@ -4765,9 +4812,11 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 		isl_die(ctx, isl_error_internal,
 			"expecting kill statement", return NULL);
 
+	index = isl_multi_pw_aff_copy(stmt->body->args[0]->acc.index);
 	access = isl_map_copy(stmt->body->args[0]->acc.access);
+	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
-	kill = pet_expr_kill_from_access(access);
+	kill = pet_expr_kill_from_access_and_index(access, index);
 	return pet_stmt_from_pet_expr(ctx, stmt->line, NULL, n_stmt++, kill);
 }
 

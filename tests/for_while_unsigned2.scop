@@ -27,6 +27,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { S1[x1] -> s[] }'
+      index: '[n] -> { S1[x1] -> s[] }'
       reference: __pet_ref_0
       read: 0
       write: 1
@@ -42,6 +43,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, x2] }'
+      index: '[n] -> { S_1[x1, x2] -> __pet_test_0[(x1), (x2)] }'
       reference: __pet_ref_2
       read: 0
       write: 1
@@ -50,18 +52,21 @@ statements:
       arguments:
       - type: access
         relation: '[n] -> { S_1[x1, x2] -> [x1] }'
+        index: '[n] -> { S_1[x1, x2] -> [(x1)] }'
         reference: __pet_ref_3
         read: 1
         write: 0
       - type: access
         relation: '[n] -> { S_1[x1, x2] -> [o0] : exists (e0 = floor((-x2 + o0)/256):
           256e0 = -x2 + o0 and o0 <= 255 and o0 >= 0) }'
+        index: '[n] -> { S_1[x1, x2] -> [(x2 - 256*floor((x2)/256))] }'
         reference: __pet_ref_4
         read: 1
         write: 0
   arguments:
   - type: access
     relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, 3 + x2] : x2 <= 6 }'
+    index: '[n] -> { S_1[x1, x2] -> __pet_test_0[(x1), ((3 + x2) : x2 <= 6)] }'
     reference: __pet_ref_1
     read: 1
     write: 0
@@ -76,6 +81,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { S2[x1, x2, x3] -> s[] }'
+      index: '[n] -> { S2[x1, x2, x3] -> s[] }'
       reference: __pet_ref_6
       read: 0
       write: 1
@@ -87,6 +93,7 @@ statements:
         arguments:
         - type: access
           relation: '[n] -> { S2[x1, x2, x3] -> s[] }'
+          index: '[n] -> { S2[x1, x2, x3] -> s[] }'
           reference: __pet_ref_7
           read: 1
           write: 0
@@ -94,12 +101,15 @@ statements:
           relation: '[n] -> { S2[x1, x2, x3] -> a[o0, 255 - o0] : exists (e0 = floor((x2)/3),
             e1 = floor((-253x2 - 3o0)/768): 3e0 = x2 and 768e1 = -253x2 - 3o0 and
             o0 <= 255 and o0 >= 0) }'
+          index: '[n] -> { S2[x1, x2, x3] -> a[(x2 - 256*floor((x2)/256)), (255 -
+            x2 + 256*floor((x2)/256))] }'
           reference: __pet_ref_8
           read: 1
           write: 0
   arguments:
   - type: access
     relation: '[n] -> { S2[x1, x2, x3] -> __pet_test_0[x1, x2] }'
+    index: '[n] -> { S2[x1, x2, x3] -> __pet_test_0[(x1), (x2)] }'
     reference: __pet_ref_5
     read: 1
     write: 0
@@ -112,6 +122,7 @@ statements:
     arguments:
     - type: access
       relation: '[n] -> { R[x1] -> s[] }'
+      index: '[n] -> { R[x1] -> s[] }'
       reference: __pet_ref_9
       read: 1
       write: 0
