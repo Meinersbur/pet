@@ -81,11 +81,12 @@ static char *op_str[] = {
  * and of conditions under which we want to skip subsequent
  * loop iterations (skip[pet_skip_later]).
  *
- * The conditions are represented either by a variable, which
- * is assumed to attain values zero and one, or by a boolean affine
- * expression.  The condition holds if the variable has value one
- * or if the affine expression has value one (typically for only
- * part of the parameter space).
+ * The conditions are represented as index expressions defined
+ * over a zero-dimensiona domain.  The index expression is either
+ * a boolean affine expression or an access to a variable, which
+ * is assumed to attain values zero and one.  The condition holds
+ * if the variable has value one or if the affine expression
+ * has value one (typically for only part of the parameter space).
  *
  * A missing condition (skip[type] == NULL) means that we don't want
  * to skip anything.
@@ -93,7 +94,7 @@ static char *op_str[] = {
 struct pet_scop_ext {
 	struct pet_scop scop;
 
-	isl_set *skip[2];
+	isl_multi_pw_aff *skip[2];
 };
 
 const char *pet_op_str(enum pet_op_type op)
@@ -969,18 +970,45 @@ error:
 	return NULL;
 }
 
-/* Does "set" represent an element of an unnamed space, i.e.,
+/* Does "mpa" represent an access to an element of an unnamed space, i.e.,
  * does it represent an affine expression?
  */
-static int set_is_affine(__isl_keep isl_set *set)
+static int multi_pw_aff_is_affine(__isl_keep isl_multi_pw_aff *mpa)
 {
 	int has_id;
 
-	has_id = isl_set_has_tuple_id(set);
+	has_id = isl_multi_pw_aff_has_tuple_id(mpa, isl_dim_out);
 	if (has_id < 0)
 		return -1;
 
 	return !has_id;
+}
+
+/* Return the piecewise affine expression "set ? 1 : 0" defined on "dom".
+ */
+static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
+	__isl_take isl_set *dom)
+{
+	isl_pw_aff *pa;
+	pa = isl_set_indicator_function(set);
+	pa = isl_pw_aff_intersect_domain(pa, dom);
+	return pa;
+}
+
+/* Return "lhs || rhs", defined on the shared definition domain.
+ */
+static __isl_give isl_pw_aff *pw_aff_or(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	isl_set *cond;
+	isl_set *dom;
+
+	dom = isl_set_intersect(isl_pw_aff_domain(isl_pw_aff_copy(lhs)),
+				 isl_pw_aff_domain(isl_pw_aff_copy(rhs)));
+	cond = isl_set_union(isl_pw_aff_non_zero_set(lhs),
+			     isl_pw_aff_non_zero_set(rhs));
+	cond = isl_set_coalesce(cond);
+	return indicator_function(cond, dom);
 }
 
 /* Combine ext1->skip[type] and ext2->skip[type] into ext->skip[type].
@@ -995,7 +1023,7 @@ static struct pet_scop_ext *combine_skips(struct pet_scop_ext *ext,
 	struct pet_scop_ext *ext1, struct pet_scop_ext *ext2,
 	enum pet_skip type)
 {
-	isl_set *set, *skip1, *skip2;
+	isl_pw_aff *skip, *skip1, *skip2;
 
 	if (!ext)
 		return NULL;
@@ -1016,25 +1044,20 @@ static struct pet_scop_ext *combine_skips(struct pet_scop_ext *ext,
 		return ext;
 	}
 
-	if (!set_is_affine(ext1->skip[type]) ||
-	    !set_is_affine(ext2->skip[type]))
-		isl_die(isl_set_get_ctx(ext1->skip[type]), isl_error_internal,
-			"can only combine affine skips",
+	if (!multi_pw_aff_is_affine(ext1->skip[type]) ||
+	    !multi_pw_aff_is_affine(ext2->skip[type]))
+		isl_die(isl_multi_pw_aff_get_ctx(ext1->skip[type]),
+			isl_error_internal, "can only combine affine skips",
 			return pet_scop_free(&ext->scop));
 
-	skip1 = isl_set_copy(ext1->skip[type]);
-	skip2 = isl_set_copy(ext2->skip[type]);
-	set = isl_set_intersect(
-			isl_set_fix_si(isl_set_copy(skip1), isl_dim_set, 0, 0),
-			isl_set_fix_si(isl_set_copy(skip2), isl_dim_set, 0, 0));
-	set = isl_set_union(set, isl_set_fix_si(skip1, isl_dim_set, 0, 1));
-	set = isl_set_union(set, isl_set_fix_si(skip2, isl_dim_set, 0, 1));
-	set = isl_set_coalesce(set);
-	isl_set_free(ext1->skip[type]);
+	skip1 = isl_multi_pw_aff_get_pw_aff(ext1->skip[type], 0);
+	skip2 = isl_multi_pw_aff_get_pw_aff(ext2->skip[type], 0);
+	skip = pw_aff_or(skip1, skip2);
+	isl_multi_pw_aff_free(ext1->skip[type]);
 	ext1->skip[type] = NULL;
-	isl_set_free(ext2->skip[type]);
+	isl_multi_pw_aff_free(ext2->skip[type]);
 	ext2->skip[type] = NULL;
-	ext->skip[type] = set;
+	ext->skip[type] = isl_multi_pw_aff_from_pw_aff(skip);
 	if (!ext->skip[type])
 		return pet_scop_free(&ext->scop);
 
@@ -1252,27 +1275,33 @@ error:
  * Otherwise, we add a filter on the variable attaining the value zero.
  */
 static struct pet_scop *restrict_skip(struct pet_scop *scop,
-	__isl_take isl_set *skip)
+	__isl_take isl_multi_pw_aff *skip)
 {
-	isl_map *skip_map;
+	isl_set *zero;
+	isl_pw_aff *pa;
 	int is_aff;
 
 	if (!scop || !skip)
 		goto error;
 
-	is_aff = set_is_affine(skip);
+	is_aff = multi_pw_aff_is_affine(skip);
 	if (is_aff < 0)
 		goto error;
 
-	if (!is_aff)
-		return pet_scop_filter(scop, isl_map_from_range(skip), 0);
+	if (!is_aff) {
+		isl_map *map;
+		map = isl_map_from_multi_pw_aff(skip);
+		return pet_scop_filter(scop, map, 0);
+	}
 
-	skip = isl_set_fix_si(skip, isl_dim_set, 0, 0);
-	scop = pet_scop_restrict(scop, isl_set_params(skip));
+	pa = isl_multi_pw_aff_get_pw_aff(skip, 0);
+	isl_multi_pw_aff_free(skip);
+	zero = isl_set_params(isl_pw_aff_zero_set(pa));
+	scop = pet_scop_restrict(scop, zero);
 
 	return scop;
 error:
-	isl_set_free(skip);
+	isl_multi_pw_aff_free(skip);
 	return pet_scop_free(scop);
 }
 
@@ -1335,8 +1364,8 @@ void *pet_scop_free(struct pet_scop *scop)
 		for (i = 0; i < scop->n_implication; ++i)
 			pet_implication_free(scop->implications[i]);
 	free(scop->implications);
-	isl_set_free(ext->skip[pet_skip_now]);
-	isl_set_free(ext->skip[pet_skip_later]);
+	isl_multi_pw_aff_free(ext->skip[pet_skip_now]);
+	isl_multi_pw_aff_free(ext->skip[pet_skip_later]);
 	free(scop);
 	return NULL;
 }
@@ -1369,8 +1398,8 @@ void pet_scop_dump(struct pet_scop *scop)
 
 	if (ext->skip[0]) {
 		fprintf(stderr, "skip\n");
-		isl_set_dump(ext->skip[0]);
-		isl_set_dump(ext->skip[1]);
+		isl_multi_pw_aff_dump(ext->skip[0]);
+		isl_multi_pw_aff_dump(ext->skip[1]);
 	}
 }
 
@@ -1967,27 +1996,27 @@ static struct pet_scop *pet_scop_restrict_skip(struct pet_scop *scop,
 	enum pet_skip type, __isl_keep isl_set *cond)
 {
 	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
-	isl_set *skip;
-	isl_set *set;
+	isl_pw_aff *skip;
+	isl_set *dom;
 
 	if (!scop)
 		return NULL;
 	if (!ext->skip[type])
 		return scop;
 
-	if (!set_is_affine(ext->skip[type]))
-		isl_die(isl_set_get_ctx(ext->skip[type]), isl_error_internal,
-			"can only resrict affine skips",
+	if (!multi_pw_aff_is_affine(ext->skip[type]))
+		isl_die(isl_multi_pw_aff_get_ctx(ext->skip[type]),
+			isl_error_internal, "can only resrict affine skips",
 			return pet_scop_free(scop));
 
-	skip = ext->skip[type];
-	skip = isl_set_intersect_params(skip, isl_set_copy(cond));
-	set = isl_set_from_params(isl_set_copy(cond));
-	set = isl_set_complement(set);
-	set = isl_set_add_dims(set, isl_dim_set, 1);
-	set = isl_set_fix_si(set, isl_dim_set, 0, 0);
-	skip = isl_set_union(skip, set);
-	ext->skip[type] = skip;
+	skip = isl_multi_pw_aff_get_pw_aff(ext->skip[type], 0);
+	dom = isl_pw_aff_domain(isl_pw_aff_copy(skip));
+	cond = isl_set_copy(cond);
+	cond = isl_set_from_params(cond);
+	cond = isl_set_intersect(cond, isl_pw_aff_non_zero_set(skip));
+	skip = indicator_function(cond, dom);
+	isl_multi_pw_aff_free(ext->skip[type]);
+	ext->skip[type] = isl_multi_pw_aff_from_pw_aff(skip);
 	if (!ext->skip[type])
 		return pet_scop_free(scop);
 
@@ -2366,7 +2395,7 @@ int pet_scop_has_affine_skip(struct pet_scop *scop, enum pet_skip type)
 		return -1;
 	if (!ext->skip[type])
 		return 0;
-	return set_is_affine(ext->skip[type]);
+	return multi_pw_aff_is_affine(ext->skip[type]);
 }
 
 /* Does "scop" have a skip condition of the given "type" that
@@ -2381,7 +2410,7 @@ int pet_scop_has_var_skip(struct pet_scop *scop, enum pet_skip type)
 		return -1;
 	if (!ext->skip[type])
 		return 0;
-	aff = set_is_affine(ext->skip[type]);
+	aff = multi_pw_aff_is_affine(ext->skip[type]);
 	if (aff < 0)
 		return -1;
 	return !aff;
@@ -2393,6 +2422,7 @@ int pet_scop_has_var_skip(struct pet_scop *scop, enum pet_skip type)
 int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type)
 {
 	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+	isl_pw_aff *pa;
 	isl_set *set;
 	int is_aff;
 	int is_univ;
@@ -2401,9 +2431,8 @@ int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type)
 	if (is_aff < 0 || !is_aff)
 		return is_aff;
 
-	set = isl_set_copy(ext->skip[type]);
-	set = isl_set_fix_si(set, isl_dim_set, 0, 1);
-	set = isl_set_params(set);
+	pa = isl_multi_pw_aff_get_pw_aff(ext->skip[type], 0);
+	set = isl_pw_aff_non_zero_set(pa);
 	is_univ = isl_set_plain_is_universe(set);
 	isl_set_free(set);
 
@@ -2413,25 +2442,25 @@ int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type)
 /* Replace scop->skip[type] by "skip".
  */
 struct pet_scop *pet_scop_set_skip(struct pet_scop *scop,
-	enum pet_skip type, __isl_take isl_set *skip)
+	enum pet_skip type, __isl_take isl_multi_pw_aff *skip)
 {
 	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
 
 	if (!scop || !skip)
 		goto error;
 
-	isl_set_free(ext->skip[type]);
+	isl_multi_pw_aff_free(ext->skip[type]);
 	ext->skip[type] = skip;
 
 	return scop;
 error:
-	isl_set_free(skip);
+	isl_multi_pw_aff_free(skip);
 	return pet_scop_free(scop);
 }
 
 /* Return a copy of scop->skip[type].
  */
-__isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
+__isl_give isl_multi_pw_aff *pet_scop_get_skip(struct pet_scop *scop,
 	enum pet_skip type)
 {
 	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
@@ -2439,7 +2468,7 @@ __isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
 	if (!scop)
 		return NULL;
 
-	return isl_set_copy(ext->skip[type]);
+	return isl_multi_pw_aff_copy(ext->skip[type]);
 }
 
 /* Assuming scop->skip[type] is an affine expression,
@@ -2449,13 +2478,13 @@ __isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
 __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
 	enum pet_skip type)
 {
-	isl_set *skip;
+	isl_multi_pw_aff *skip;
+	isl_pw_aff *pa;
 
 	skip = pet_scop_get_skip(scop, type);
-	skip = isl_set_fix_si(skip, isl_dim_set, 0, 1);
-	skip = isl_set_params(skip);
-
-	return skip;
+	pa = isl_multi_pw_aff_get_pw_aff(skip, 0);
+	isl_multi_pw_aff_free(skip);
+	return isl_set_params(isl_pw_aff_non_zero_set(pa));
 }
 
 /* Return a map to the skip condition of the given type.
@@ -2463,7 +2492,7 @@ __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
 __isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
 	enum pet_skip type)
 {
-	return isl_map_from_range(pet_scop_get_skip(scop, type));
+	return isl_map_from_multi_pw_aff(pet_scop_get_skip(scop, type));
 }
 
 /* Return the identifier of the variable that is accessed by
@@ -2479,7 +2508,7 @@ __isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
 	if (!scop)
 		return NULL;
 
-	return isl_set_get_tuple_id(ext->skip[type]);
+	return isl_multi_pw_aff_get_tuple_id(ext->skip[type], isl_dim_out);
 }
 
 /* Return an access pet_expr corresponding to the skip condition
@@ -2500,7 +2529,7 @@ void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type)
 	if (!scop)
 		return;
 
-	isl_set_free(ext->skip[type]);
+	isl_multi_pw_aff_free(ext->skip[type]);
 	ext->skip[type] = NULL;
 }
 
@@ -2527,8 +2556,10 @@ static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
 	if (is_univ < 0)
 		return pet_scop_free(scop);
 	if (satisfied && is_univ) {
-		scop = pet_scop_set_skip(scop, type,
-					 isl_map_range(isl_map_copy(test)));
+		isl_space *space = isl_map_get_space(test);
+		isl_multi_pw_aff *skip;
+		skip = isl_multi_pw_aff_zero(space);
+		scop = pet_scop_set_skip(scop, type, skip);
 		if (!scop)
 			return NULL;
 	} else {

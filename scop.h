@@ -108,8 +108,8 @@ int pet_scop_has_affine_skip(struct pet_scop *scop, enum pet_skip type);
 int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type);
 int pet_scop_has_var_skip(struct pet_scop *scop, enum pet_skip type);
 struct pet_scop *pet_scop_set_skip(struct pet_scop *scop,
-	enum pet_skip type, __isl_take isl_set *skip);
-__isl_give isl_set *pet_scop_get_skip(struct pet_scop *scop,
+	enum pet_skip type, __isl_take isl_multi_pw_aff *skip);
+__isl_give isl_multi_pw_aff *pet_scop_get_skip(struct pet_scop *scop,
 	enum pet_skip type);
 __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
 	enum pet_skip type);

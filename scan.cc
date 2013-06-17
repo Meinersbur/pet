@@ -4076,7 +4076,7 @@ static bool skip_equals_skip_later(struct pet_scop *scop)
 {
 	int has_skip_now, has_skip_later;
 	int equal;
-	isl_set *skip_now, *skip_later;
+	isl_multi_pw_aff *skip_now, *skip_later;
 
 	if (!scop)
 		return false;
@@ -4089,9 +4089,9 @@ static bool skip_equals_skip_later(struct pet_scop *scop)
 
 	skip_now = pet_scop_get_skip(scop, pet_skip_now);
 	skip_later = pet_scop_get_skip(scop, pet_skip_later);
-	equal = isl_set_is_equal(skip_now, skip_later);
-	isl_set_free(skip_now);
-	isl_set_free(skip_later);
+	equal = isl_multi_pw_aff_is_equal(skip_now, skip_later);
+	isl_multi_pw_aff_free(skip_now);
+	isl_multi_pw_aff_free(skip_later);
 
 	return equal;
 }
@@ -4220,22 +4220,19 @@ void pet_skip_info_if::extract(PetScan *scan, __isl_keep isl_pw_aff *cond)
 struct pet_scop *pet_skip_info_if::add(struct pet_scop *main,
 	enum pet_skip type, int offset)
 {
-	isl_set *skip_set;
-
 	if (!skip[type])
 		return main;
 
-	skip_set = isl_map_range(isl_map_from_multi_pw_aff(index[type]));
-	index[type] = NULL;
 	scop[type] = pet_scop_prefix(scop[type], offset);
 	main = pet_scop_add_par(ctx, main, scop[type]);
 	scop[type] = NULL;
 
 	if (equal)
 		main = pet_scop_set_skip(main, pet_skip_later,
-					    isl_set_copy(skip_set));
+					    isl_multi_pw_aff_copy(index[type]));
 
-	main = pet_scop_set_skip(main, type, skip_set);
+	main = pet_scop_set_skip(main, type, index[type]);
+	index[type] = NULL;
 
 	return main;
 }
@@ -4434,6 +4431,23 @@ struct pet_scop *PetScan::extract(LabelStmt *stmt)
 	return extract(sub, extract_expr(cast<Expr>(sub)), label);
 }
 
+/* Return a one-dimensional multi piecewise affine expression that is equal
+ * to the constant 1 and is defined over a zero-dimensional domain.
+ */
+static __isl_give isl_multi_pw_aff *one_mpa(isl_ctx *ctx)
+{
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+
+	space = isl_space_set_alloc(ctx, 0, 0);
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_zero_on_domain(ls);
+	aff = isl_aff_set_constant_si(aff, 1);
+
+	return isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
+}
+
 /* Construct a pet_scop for a continue statement.
  *
  * We simply create an empty scop with a universal pet_skip_now
@@ -4444,17 +4458,12 @@ struct pet_scop *PetScan::extract(LabelStmt *stmt)
 struct pet_scop *PetScan::extract(ContinueStmt *stmt)
 {
 	pet_scop *scop;
-	isl_space *space;
-	isl_set *set;
 
 	scop = pet_scop_empty(ctx);
 	if (!scop)
 		return NULL;
 
-	space = isl_space_set_alloc(ctx, 0, 1);
-	set = isl_set_universe(space);
-	set = isl_set_fix_si(set, isl_dim_set, 0, 1);
-	scop = pet_scop_set_skip(scop, pet_skip_now, set);
+	scop = pet_scop_set_skip(scop, pet_skip_now, one_mpa(ctx));
 
 	return scop;
 }
@@ -4470,18 +4479,16 @@ struct pet_scop *PetScan::extract(ContinueStmt *stmt)
 struct pet_scop *PetScan::extract(BreakStmt *stmt)
 {
 	pet_scop *scop;
-	isl_space *space;
-	isl_set *set;
+	isl_multi_pw_aff *skip;
 
 	scop = pet_scop_empty(ctx);
 	if (!scop)
 		return NULL;
 
-	space = isl_space_set_alloc(ctx, 0, 1);
-	set = isl_set_universe(space);
-	set = isl_set_fix_si(set, isl_dim_set, 0, 1);
-	scop = pet_scop_set_skip(scop, pet_skip_now, isl_set_copy(set));
-	scop = pet_scop_set_skip(scop, pet_skip_later, set);
+	skip = one_mpa(ctx);
+	scop = pet_scop_set_skip(scop, pet_skip_now,
+				    isl_multi_pw_aff_copy(skip));
+	scop = pet_scop_set_skip(scop, pet_skip_later, skip);
 
 	return scop;
 }
@@ -4699,13 +4706,9 @@ void pet_skip_info_seq::extract(PetScan *scan)
 struct pet_scop *pet_skip_info_seq::add(struct pet_scop *main,
 	enum pet_skip type, int offset)
 {
-	isl_set *skip_set;
-
 	if (!skip[type])
 		return main;
 
-	skip_set = isl_map_range(isl_map_from_multi_pw_aff(index[type]));
-	index[type] = NULL;
 	scop[type] = pet_scop_prefix(scop[type], 1);
 	scop[type] = pet_scop_prefix(scop[type], offset);
 	main = pet_scop_add_par(ctx, main, scop[type]);
@@ -4713,9 +4716,10 @@ struct pet_scop *pet_skip_info_seq::add(struct pet_scop *main,
 
 	if (equal)
 		main = pet_scop_set_skip(main, pet_skip_later,
-					    isl_set_copy(skip_set));
+					    isl_multi_pw_aff_copy(index[type]));
 
-	main = pet_scop_set_skip(main, type, skip_set);
+	main = pet_scop_set_skip(main, type, index[type]);
+	index[type] = NULL;
 
 	return main;
 }
