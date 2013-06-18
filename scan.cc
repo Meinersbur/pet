@@ -4782,7 +4782,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			continue;
 		start_off = getExpansionOffset(SM, child->getLocStart());
 		end_off = getExpansionOffset(SM, child->getLocEnd());
-		if (start_off < loc.start && end_off > loc.end)
+		if (start_off < loc.start && end_off >= loc.end)
 			return scan(child);
 		if (start_off >= loc.start)
 			break;
