@@ -2769,7 +2769,7 @@ static int expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
 		return 0;
 	if (!expr->acc.write)
 		return 0;
-	if (!isl_map_has_tuple_id(expr->acc.access, isl_dim_out))
+	if (pet_expr_is_affine(expr))
 		return 0;
 
 	write_id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
