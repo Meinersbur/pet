@@ -2078,21 +2078,19 @@ static __isl_give isl_map *identity_map(__isl_keep isl_set *domain)
 }
 
 /* Add a filter to "scop" that imposes that it is only executed
- * when "break_access" has a zero value for all previous iterations
- * of "domain".
- *
- * The input "break_access" has a zero-dimensional domain and range.
+ * when the variable identified by "id_test" has a zero value
+ * for all previous iterations of "domain".
  */
 static struct pet_scop *scop_add_break(struct pet_scop *scop,
-	__isl_take isl_map *break_access, __isl_take isl_set *domain, int sign)
+	__isl_take isl_id *id_test, __isl_take isl_set *domain, int sign)
 {
 	isl_ctx *ctx = isl_set_get_ctx(domain);
-	isl_id *id_test;
+	isl_space *space;
+	isl_map *break_access;
 	isl_map *prev;
 
-	id_test = isl_map_get_tuple_id(break_access, isl_dim_out);
-	break_access = isl_map_add_dims(break_access, isl_dim_in, 1);
-	break_access = isl_map_add_dims(break_access, isl_dim_out, 1);
+	space = isl_space_map_from_set(isl_set_get_space(domain));
+	break_access = isl_map_universe(space);
 	break_access = isl_map_intersect_range(break_access, domain);
 	break_access = isl_map_set_tuple_id(break_access, isl_dim_out, id_test);
 	if (sign > 0)
@@ -2123,10 +2121,9 @@ static struct pet_scop *scop_add_break(struct pet_scop *scop,
  */
 struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
-	isl_id *id;
+	isl_id *id, *id_test;
 	isl_set *domain;
 	isl_map *ident;
-	isl_map *access;
 	struct pet_scop *scop;
 	bool has_var_break;
 
@@ -2140,12 +2137,12 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 
 	has_var_break = pet_scop_has_var_skip(scop, pet_skip_later);
 	if (has_var_break)
-		access = pet_scop_get_skip_map(scop, pet_skip_later);
+		id_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
 	scop = pet_scop_embed(scop, isl_set_copy(domain),
 				isl_map_copy(ident), ident, id);
 	if (has_var_break)
-		scop = scop_add_break(scop, access, domain, 1);
+		scop = scop_add_break(scop, id_test, domain, 1);
 	else
 		isl_set_free(domain);
 
@@ -2324,14 +2321,13 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
 struct pet_scop *PetScan::extract(WhileStmt *stmt)
 {
 	Expr *cond;
-	isl_id *id;
+	isl_id *id, *id_break_test;
 	isl_map *test_access;
 	isl_set *domain;
 	isl_map *ident;
 	isl_pw_aff *pa;
 	struct pet_scop *scop, *scop_body;
 	bool has_var_break;
-	isl_map *break_access;
 
 	cond = stmt->getCond();
 	if (!cond) {
@@ -2362,7 +2358,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 
 	has_var_break = pet_scop_has_var_skip(scop_body, pet_skip_later);
 	if (has_var_break)
-		break_access = pet_scop_get_skip_map(scop_body, pet_skip_later);
+		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop = pet_scop_prefix(scop, 0);
 	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_map_copy(ident),
@@ -2373,9 +2369,9 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 				isl_map_copy(ident), ident, id);
 
 	if (has_var_break) {
-		scop = scop_add_break(scop, isl_map_copy(break_access),
+		scop = scop_add_break(scop, isl_id_copy(id_break_test),
 					isl_set_copy(domain), 1);
-		scop_body = scop_add_break(scop_body, break_access,
+		scop_body = scop_add_break(scop_body, id_break_test,
 					isl_set_copy(domain), 1);
 	}
 	scop = scop_add_while(scop, scop_body, test_access, domain, 1);
@@ -2744,7 +2740,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_map *sched;
 	isl_set *cond = NULL;
 	isl_set *skip = NULL;
-	isl_id *id;
+	isl_id *id, *id_break_test;
 	struct pet_scop *scop, *scop_cond = NULL;
 	assigned_value_cache cache(assigned_value);
 	isl_val *inc;
@@ -2762,7 +2758,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_set *valid_cond_init;
 	isl_set *valid_cond_next;
 	isl_set *valid_inc;
-	isl_map *test_access = NULL, *break_access = NULL;
+	isl_map *test_access = NULL;
 	int stmt_id;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
@@ -2825,7 +2821,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
 	has_var_break = scop && pet_scop_has_var_skip(scop, pet_skip_later);
 	if (has_var_break) {
-		break_access = pet_scop_get_skip_map(scop, pet_skip_later);
+		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
 		keep_virtual = true;
 	}
 
@@ -2932,7 +2928,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = resolve_nested(scop);
 	if (has_var_break)
-		scop = scop_add_break(scop, break_access, isl_set_copy(domain),
+		scop = scop_add_break(scop, id_break_test, isl_set_copy(domain),
 					isl_val_sgn(inc));
 	if (test_access) {
 		scop = scop_add_while(scop_cond, scop, test_access, domain,
