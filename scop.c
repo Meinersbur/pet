@@ -1,6 +1,6 @@
 /*
- * Copyright 2011 Leiden University. All rights reserved.
- * Copyright 2012 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2011      Leiden University. All rights reserved.
+ * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1019,6 +1019,85 @@ struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 	return scop;
 }
 
+/* Does "implication" appear in the list of implications of "scop"?
+ */
+static int is_known_implication(struct pet_scop *scop,
+	struct pet_implication *implication)
+{
+	int i;
+
+	for (i = 0; i < scop->n_implication; ++i) {
+		struct pet_implication *pi = scop->implications[i];
+		int equal;
+
+		if (pi->satisfied != implication->satisfied)
+			continue;
+		equal = isl_map_is_equal(pi->extension, implication->extension);
+		if (equal < 0)
+			return -1;
+		if (equal)
+			return 1;
+	}
+
+	return 0;
+}
+
+/* Store the concatenation of the impliciations of "scop1" and "scop2"
+ * in "scop", removing duplicates (i.e., implications in "scop2" that
+ * already appear in "scop1").
+ */
+static struct pet_scop *scop_collect_implications(isl_ctx *ctx,
+	struct pet_scop *scop, struct pet_scop *scop1, struct pet_scop *scop2)
+{
+	int i, j;
+
+	if (!scop)
+		return NULL;
+
+	if (scop2->n_implication == 0) {
+		scop->n_implication = scop1->n_implication;
+		scop->implications = scop1->implications;
+		scop1->n_implication = 0;
+		scop1->implications = NULL;
+		return scop;
+	}
+
+	if (scop1->n_implication == 0) {
+		scop->n_implication = scop2->n_implication;
+		scop->implications = scop2->implications;
+		scop2->n_implication = 0;
+		scop2->implications = NULL;
+		return scop;
+	}
+
+	scop->implications = isl_calloc_array(ctx, struct pet_implication *,
+				scop1->n_implication + scop2->n_implication);
+	if (!scop->implications)
+		return pet_scop_free(scop);
+
+	for (i = 0; i < scop1->n_implication; ++i) {
+		scop->implications[i] = scop1->implications[i];
+		scop1->implications[i] = NULL;
+	}
+
+	scop->n_implication = scop1->n_implication;
+	j = scop1->n_implication;
+	for (i = 0; i < scop2->n_implication; ++i) {
+		int known;
+
+		known = is_known_implication(scop, scop2->implications[i]);
+		if (known < 0)
+			return pet_scop_free(scop);
+		if (known)
+			continue;
+		scop->implications[j++] = scop2->implications[i];
+		scop2->implications[i] = NULL;
+	}
+	scop->n_implication = j;
+
+	return scop;
+}
+
 /* Combine the offset information of "scop1" and "scop2" into "scop".
  */
 static struct pet_scop *scop_combine_start_end(struct pet_scop *scop,
@@ -1087,6 +1166,7 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 		scop2->arrays[i] = NULL;
 	}
 
+	scop = scop_collect_implications(ctx, scop, scop1, scop2);
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop1->context));
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop2->context));
 	scop = scop_combine_skips(scop, scop1, scop2);
@@ -1159,6 +1239,19 @@ struct pet_scop *pet_scop_add_par(isl_ctx *ctx, struct pet_scop *scop1,
 	return pet_scop_add(ctx, scop1, scop2);
 }
 
+void *pet_implication_free(struct pet_implication *implication)
+{
+	int i;
+
+	if (!implication)
+		return NULL;
+
+	isl_map_free(implication->extension);
+
+	free(implication);
+	return NULL;
+}
+
 void *pet_scop_free(struct pet_scop *scop)
 {
 	int i;
@@ -1176,10 +1269,23 @@ void *pet_scop_free(struct pet_scop *scop)
 		for (i = 0; i < scop->n_stmt; ++i)
 			pet_stmt_free(scop->stmts[i]);
 	free(scop->stmts);
+	if (scop->implications)
+		for (i = 0; i < scop->n_implication; ++i)
+			pet_implication_free(scop->implications[i]);
+	free(scop->implications);
 	isl_set_free(ext->skip[pet_skip_now]);
 	isl_set_free(ext->skip[pet_skip_later]);
 	free(scop);
 	return NULL;
+}
+
+void pet_implication_dump(struct pet_implication *implication)
+{
+	if (!implication)
+		return;
+
+	fprintf(stderr, "%d\n", implication->satisfied);
+	isl_map_dump(implication->extension);
 }
 
 void pet_scop_dump(struct pet_scop *scop)
@@ -1196,6 +1302,8 @@ void pet_scop_dump(struct pet_scop *scop)
 		pet_array_dump(scop->arrays[i]);
 	for (i = 0; i < scop->n_stmt; ++i)
 		pet_stmt_dump(scop->stmts[i]);
+	for (i = 0; i < scop->n_implication; ++i)
+		pet_implication_dump(scop->implications[i]);
 
 	if (ext->skip[0]) {
 		fprintf(stderr, "skip\n");
@@ -1263,6 +1371,22 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 	return 1;
 }
 
+/* Return 1 if the two pet_implications are equivalent.
+ */
+int pet_implication_is_equal(struct pet_implication *implication1,
+	struct pet_implication *implication2)
+{
+	if (!implication1 || !implication2)
+		return 0;
+
+	if (implication1->satisfied != implication2->satisfied)
+		return 0;
+	if (!isl_map_is_equal(implication1->extension, implication2->extension))
+		return 0;
+
+	return 1;
+}
+
 /* Return 1 if the two pet_scops are equivalent.
  */
 int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
@@ -1287,6 +1411,13 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 		return 0;
 	for (i = 0; i < scop1->n_stmt; ++i)
 		if (!pet_stmt_is_equal(scop1->stmts[i], scop2->stmts[i]))
+			return 0;
+
+	if (scop1->n_implication != scop2->n_implication)
+		return 0;
+	for (i = 0; i < scop1->n_implication; ++i)
+		if (!pet_implication_is_equal(scop1->implications[i],
+						scop2->implications[i]))
 			return 0;
 
 	return 1;
@@ -1644,6 +1775,40 @@ static __isl_give isl_set *context_embed(__isl_take isl_set *context,
 	return context;
 }
 
+/* Update the implication with respect to an embedding into a loop
+ * with iteration domain "dom".
+ *
+ * Since embed_access extends virtual arrays along with the domain
+ * of the access, we need to do the same with domain and range
+ * of the implication.  Since the original implication is only valid
+ * within a given iteration of the loop, the extended implication
+ * maps the extra array dimension corresponding to the extra loop
+ * to itself.
+ */
+static struct pet_implication *pet_implication_embed(
+	struct pet_implication *implication, __isl_take isl_set *dom)
+{
+	isl_id *id;
+	isl_map *map;
+
+	if (!implication)
+		goto error;
+
+	map = isl_set_identity(dom);
+	id = isl_map_get_tuple_id(implication->extension, isl_dim_in);
+	map = isl_map_flat_product(map, implication->extension);
+	map = isl_map_set_tuple_id(map, isl_dim_in, isl_id_copy(id));
+	map = isl_map_set_tuple_id(map, isl_dim_out, id);
+	implication->extension = map;
+	if (!implication->extension)
+		return pet_implication_free(implication);
+
+	return implication;
+error:
+	isl_set_free(dom);
+	return NULL;
+}
+
 /* Embed all statements and arrays in "scop" in an extra outer loop
  * with iteration domain "dom" and schedule "sched".
  * "id" represents the induction variable of the loop.
@@ -1683,6 +1848,14 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 		scop->arrays[i] = pet_array_embed(scop->arrays[i],
 					isl_set_copy(dom));
 		if (!scop->arrays[i])
+			goto error;
+	}
+
+	for (i = 0; i < scop->n_implication; ++i) {
+		scop->implications[i] =
+			pet_implication_embed(scop->implications[i],
+					isl_set_copy(dom));
+		if (!scop->implications[i])
 			goto error;
 	}
 
@@ -3041,6 +3214,22 @@ static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 	return stmt;
 }
 
+/* Reset the user pointer on the tuple ids and all parameter ids
+ * in "implication".
+ */
+static struct pet_implication *implication_anonymize(
+	struct pet_implication *implication)
+{
+	if (!implication)
+		return NULL;
+
+	implication->extension = map_anonymize(implication->extension);
+	if (!implication->extension)
+		return pet_implication_free(implication);
+
+	return implication;
+}
+
 /* Reset the user pointer on all parameter and tuple ids in "scop".
  */
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
@@ -3064,6 +3253,13 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_anonymize(scop->stmts[i]);
 		if (!scop->stmts[i])
+			return pet_scop_free(scop);
+	}
+
+	for (i = 0; i < scop->n_implication; ++i) {
+		scop->implications[i] =
+				implication_anonymize(scop->implications[i]);
+		if (!scop->implications[i])
 			return pet_scop_free(scop);
 	}
 
@@ -3323,5 +3519,60 @@ struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 	return scop;
 error:
 	pet_array_free(array);
+	return pet_scop_free(scop);
+}
+
+/* Create and return an implication on filter values equal to "satisfied"
+ * with extension "map".
+ */
+static struct pet_implication *new_implication(__isl_take isl_map *map,
+	int satisfied)
+{
+	isl_ctx *ctx;
+	struct pet_implication *implication;
+
+	if (!map)
+		return NULL;
+	ctx = isl_map_get_ctx(map);
+	implication = isl_alloc_type(ctx, struct pet_implication);
+	if (!implication)
+		goto error;
+
+	implication->extension = map;
+	implication->satisfied = satisfied;
+
+	return implication;
+error:
+	isl_map_free(map);
+	return NULL;
+}
+
+/* Add an implication on filter values equal to "satisfied"
+ * with extension "map" to "scop".
+ */
+struct pet_scop *pet_scop_add_implication(struct pet_scop *scop,
+	__isl_take isl_map *map, int satisfied)
+{
+	isl_ctx *ctx;
+	struct pet_implication *implication;
+	struct pet_implication **implications;
+
+	implication = new_implication(map, satisfied);
+	if (!scop || !implication)
+		goto error;
+
+	ctx = isl_set_get_ctx(scop->context);
+	implications = isl_realloc_array(ctx, scop->implications,
+					    struct pet_implication *,
+					    scop->n_implication + 1);
+	if (!implications)
+		goto error;
+	scop->implications = implications;
+	scop->implications[scop->n_implication] = implication;
+	scop->n_implication++;
+
+	return scop;
+error:
+	pet_implication_free(implication);
 	return pet_scop_free(scop);
 }

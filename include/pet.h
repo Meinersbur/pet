@@ -180,6 +180,17 @@ struct pet_array {
 	int exposed;
 };
 
+/* This structure represents an implication on a boolean filter.
+ * In particular, if the filter value of an element in the domain
+ * of "extension" is equal to "satisfied", then the filter values
+ * of the corresponding images in "extension" are also equal
+ * to "satisfied".
+ */
+struct pet_implication {
+	int satisfied;
+	isl_map *extension;
+};
+
 /* The start and end fields contain the offsets in the input file
  * of the scop, where end points to the first character after the scop.
  * If the scop was detected based on scop and endscop pragmas, then
@@ -190,6 +201,8 @@ struct pet_array {
  * the scop can be executed.
  * context_value describes assignments to the parameters (if any)
  * outside of the scop.
+ *
+ * The n_implication implications describe implications on boolean filters.
  */
 struct pet_scop {
 	unsigned start;
@@ -203,6 +216,9 @@ struct pet_scop {
 
 	int n_stmt;
 	struct pet_stmt **stmts;
+
+	int n_implication;
+	struct pet_implication **implications;
 };
 
 /* Return a textual representation of the operator. */

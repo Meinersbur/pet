@@ -531,6 +531,80 @@ static struct pet_scop *extract_statements(isl_ctx *ctx,
 	return scop;
 }
 
+/* Extract a pet_implication from "node".
+ */
+static struct pet_implication *extract_implication(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	struct pet_implication *implication;
+	yaml_node_pair_t * pair;
+
+	if (node->type != YAML_MAPPING_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting mapping",
+			return NULL);
+
+	implication = isl_calloc_type(ctx, struct pet_implication);
+	if (!implication)
+		return NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_implication_free(implication));
+
+		if (!strcmp((char *) key->data.scalar.value, "satisfied"))
+			implication->satisfied =
+					    extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "extension"))
+			implication->extension =
+					    extract_map(ctx, document, value);
+	}
+
+	return implication;
+}
+
+/* Extract a sequence of implications from "node" and
+ * store them in scop->implications.
+ */
+static struct pet_scop *extract_implications(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_scop *scop)
+{
+	int i;
+	yaml_node_item_t *item;
+
+	if (node->type != YAML_SEQUENCE_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting sequence",
+			return NULL);
+
+	scop->n_implication = node->data.sequence.items.top
+				- node->data.sequence.items.start;
+	scop->implications = isl_calloc_array(ctx, struct pet_implication *,
+						scop->n_implication);
+	if (!scop->implications)
+		return pet_scop_free(scop);
+
+	for (item = node->data.sequence.items.start, i = 0;
+	     item < node->data.sequence.items.top; ++item, ++i) {
+		yaml_node_t *n;
+
+		n = yaml_document_get_node(document, *item);
+		scop->implications[i] = extract_implication(ctx, document, n);
+		if (!scop->implications[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
+}
+
+static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
+	yaml_node_t *node);
+
 static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
@@ -566,6 +640,8 @@ static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 			scop = extract_arrays(ctx, document, value, scop);
 		if (!strcmp((char *) key->data.scalar.value, "statements"))
 			scop = extract_statements(ctx, document, value, scop);
+		if (!strcmp((char *) key->data.scalar.value, "implications"))
+			scop = extract_implications(ctx, document, value, scop);
 		if (!scop)
 			return NULL;
 	}

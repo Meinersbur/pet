@@ -50,6 +50,8 @@ void *pet_stmt_free(struct pet_stmt *stmt);
 void pet_array_dump(struct pet_array *array);
 struct pet_array *pet_array_free(struct pet_array *array);
 
+void *pet_implication_free(struct pet_implication *implication);
+
 struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos);
 
 struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt);
@@ -76,6 +78,8 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 	__isl_take isl_map *test, int satisfied);
 struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop);
+struct pet_scop *pet_scop_add_implication(struct pet_scop *scop,
+	__isl_take isl_map *map, int satisfied);
 
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
 

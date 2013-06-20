@@ -158,6 +158,18 @@ static int emit_named_set(yaml_emitter_t *emitter, const char *name,
 	return 0;
 }
 
+/* Print the string "name" and the map "map" to "emitter".
+ */
+static int emit_named_map(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_map *map)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_map(emitter, map) < 0)
+		return -1;
+	return 0;
+}
+
 static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 {
 	yaml_event_t event;
@@ -432,6 +444,61 @@ static int emit_statements(yaml_emitter_t *emitter, int n_stmt,
 	return 0;
 }
 
+/* Print "implication" to "emitter".
+ */
+static int emit_implication(yaml_emitter_t *emitter,
+	struct pet_implication *implication)
+{
+	yaml_event_t event;
+
+	if (!yaml_mapping_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_MAPPING_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	if (emit_named_int(emitter, "satisfied", implication->satisfied) < 0)
+		return -1;
+
+	if (emit_named_map(emitter, "extension", implication->extension) < 0)
+		return -1;
+
+	if (!yaml_mapping_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
+/* Print the list of "n_implication" "implications" to "emitter".
+ */
+static int emit_implications(yaml_emitter_t *emitter, int n_implication,
+	struct pet_implication **implications)
+{
+	int i;
+	yaml_event_t event;
+
+	if (emit_string(emitter, "implications") < 0)
+		return -1;
+	if (!yaml_sequence_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_SEQUENCE_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	for (i = 0; i < n_implication; ++i)
+		if (emit_implication(emitter, implications[i]) < 0)
+			return -1;
+
+	if (!yaml_sequence_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
 static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 {
 	yaml_event_t event;
@@ -458,6 +525,10 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 		return -1;
 
 	if (emit_statements(emitter, scop->n_stmt, scop->stmts) < 0)
+		return -1;
+
+	if (emit_implications(emitter, scop->n_implication,
+				scop->implications) < 0)
 		return -1;
 
 	if (!yaml_mapping_end_event_initialize(&event))
