@@ -1528,6 +1528,8 @@ static struct pet_array *pet_array_embed(struct pet_array *array,
 	if (array_id && !isl_id_get_user(array_id)) {
 		array->extent = isl_set_flat_product(dom, array->extent);
 		array->extent = isl_set_set_tuple_id(array->extent, array_id);
+		if (!array->extent)
+			return pet_array_free(array);
 	} else {
 		isl_set_free(dom);
 		isl_id_free(array_id);
