@@ -32,7 +32,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_0[i, j] -> __pet_test_0[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_0[i, j] -> __pet_test_0[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_0
     read: 1
     write: 0
@@ -52,7 +52,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_1[i, j] -> __pet_test_0[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_1[i, j] -> __pet_test_0[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_3
     read: 1
     write: 0
@@ -83,8 +83,11 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> __pet_test_0[i, o1] : o1 <= -1 + j and o1 >= 0; S_2[i,
-      j] -> __pet_test_0[i, j] }'
+    relation: '{ S_2[i, j] -> __pet_test_0[i, j] }'
     reference: __pet_ref_5
     read: 1
     write: 0
+implications:
+- satisfied: 0
+  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i, j''] : i >= 0 and i <= 99 and
+    j'' <= j and j'' >= 0 and j'' <= 99 }'

@@ -56,8 +56,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, o1] : exists (e0 = [(o1)/3]:
-      3e0 = o1 and o1 >= 3 + x2 and o1 <= 9) }'
+    relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, 3 + x2] : x2 <= 6 }'
     reference: __pet_ref_1
     read: 1
     write: 0
@@ -84,8 +83,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S2[x1, x2] -> __pet_test_0[x1, o1] : exists (e0 = [(o1)/3]:
-      3e0 = o1 and o1 >= x2 and o1 <= 9) }'
+    relation: '[n] -> { S2[x1, x2] -> __pet_test_0[x1, x2] }'
     reference: __pet_ref_5
     read: 1
     write: 0
@@ -101,3 +99,8 @@ statements:
       reference: __pet_ref_8
       read: 1
       write: 0
+implications:
+- satisfied: 1
+  extension: '[n] -> { __pet_test_0[x1, x2] -> __pet_test_0[x1, x2''] : exists (e0
+    = [(x2'')/3]: 3e0 = x2'' and x1 >= 0 and x1 <= -1 + n and x2'' >= x2 and x2''
+    <= 9) }'

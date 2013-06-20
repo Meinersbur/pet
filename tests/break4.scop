@@ -104,7 +104,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_0[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_0[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_0
     read: 1
     write: 0
@@ -124,7 +124,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_1[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_1[i, j] -> __pet_test_12[i, -1 + j] }'
     reference: __pet_ref_3
     read: 1
     write: 0
@@ -159,7 +159,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_2[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_5
     read: 1
     write: 0
@@ -179,7 +179,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_3[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_3[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_10
     read: 1
     write: 0
@@ -205,7 +205,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_4[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_4[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_13
     read: 1
     write: 0
@@ -239,7 +239,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_5[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_5[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_17
     read: 1
     write: 0
@@ -275,7 +275,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_6[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_6[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_23
     read: 1
     write: 0
@@ -314,7 +314,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_7[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_7[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_28
     read: 1
     write: 0
@@ -376,7 +376,7 @@ statements:
           write: 0
   arguments:
   - type: access
-    relation: '{ S_8[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_8[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_35
     read: 1
     write: 0
@@ -410,7 +410,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_9[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_9[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_43
     read: 1
     write: 0
@@ -466,7 +466,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_10[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_10[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_49
     read: 1
     write: 0
@@ -512,7 +512,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_11[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_11[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_56
     read: 1
     write: 0
@@ -558,7 +558,7 @@ statements:
           write: 0
   arguments:
   - type: access
-    relation: '{ S_12[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_12[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_63
     read: 1
     write: 0
@@ -599,7 +599,7 @@ statements:
           write: 0
   arguments:
   - type: access
-    relation: '{ S_13[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_13[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_69
     read: 1
     write: 0
@@ -619,7 +619,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_14[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_14[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_75
     read: 1
     write: 0
@@ -665,7 +665,7 @@ statements:
           write: 0
   arguments:
   - type: access
-    relation: '{ S_15[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_15[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_78
     read: 1
     write: 0
@@ -706,7 +706,7 @@ statements:
           write: 0
   arguments:
   - type: access
-    relation: '{ S_16[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_16[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_84
     read: 1
     write: 0
@@ -737,7 +737,7 @@ statements:
         write: 0
   arguments:
   - type: access
-    relation: '{ S_17[i, j] -> __pet_test_12[i, o1] : o1 <= -1 + j and o1 >= 0 }'
+    relation: '{ S_17[i, j] -> __pet_test_12[i, -1 + j] : j >= 1 }'
     reference: __pet_ref_90
     read: 1
     write: 0
@@ -746,3 +746,7 @@ statements:
     reference: __pet_ref_91
     read: 1
     write: 0
+implications:
+- satisfied: 0
+  extension: '{ __pet_test_12[i, j] -> __pet_test_12[i, j''] : i >= 0 and i <= 99
+    and j'' <= j and j'' >= 0 and j'' <= 99 }'

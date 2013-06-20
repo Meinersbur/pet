@@ -471,13 +471,16 @@ static int emit_implication(yaml_emitter_t *emitter,
 	return 0;
 }
 
-/* Print the list of "n_implication" "implications" to "emitter".
+/* Print the list of "n_implication" "implications", if any, to "emitter".
  */
 static int emit_implications(yaml_emitter_t *emitter, int n_implication,
 	struct pet_implication **implications)
 {
 	int i;
 	yaml_event_t event;
+
+	if (n_implication == 0)
+		return 0;
 
 	if (emit_string(emitter, "implications") < 0)
 		return -1;

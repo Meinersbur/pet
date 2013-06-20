@@ -2099,21 +2099,140 @@ error:
 	return pet_expr_free(expr);
 }
 
+/* Look through the applications in "scop" for any that can be
+ * applied to the filter expressed by "map" and "satisified".
+ * If there is any, then apply it to "map" and return the result.
+ * Otherwise, return "map".
+ * "id" is the identifier of the virtual array.
+ *
+ * We only introduce at most one implication for any given virtual array,
+ * so we can apply the implication and return as soon as we find one.
+ */
+static __isl_give isl_map *apply_implications(struct pet_scop *scop,
+	__isl_take isl_map *map, __isl_keep isl_id *id, int satisfied)
+{
+	int i;
+
+	for (i = 0; i < scop->n_implication; ++i) {
+		struct pet_implication *pi = scop->implications[i];
+		isl_id *pi_id;
+
+		if (pi->satisfied != satisfied)
+			continue;
+		pi_id = isl_map_get_tuple_id(pi->extension, isl_dim_in);
+		isl_id_free(pi_id);
+		if (pi_id != id)
+			continue;
+
+		return isl_map_apply_range(map, isl_map_copy(pi->extension));
+	}
+
+	return map;
+}
+
+/* Is the filter expressed by "test" and "satisfied" implied
+ * by filter "pos" on "domain", with filter "expr", taking into
+ * account the implications of "scop"?
+ *
+ * For filter on domain implying that expressed by "test" and "satisfied",
+ * the filter needs to be an access to the same (virtual) array as "test" and
+ * the filter value needs to be equal to "satisfied".
+ * Moreover, the filter access relation, possibly extended by
+ * the implications in "scop" needs to contain "test".
+ */
+static int implies_filter(struct pet_scop *scop,
+	__isl_keep isl_map *domain, int pos, struct pet_expr *expr,
+	__isl_keep isl_map *test, int satisfied)
+{
+	isl_id *test_id, *arg_id;
+	isl_val *val;
+	int is_int;
+	int s;
+	int is_subset;
+	isl_map *implied;
+
+	if (expr->type != pet_expr_access)
+		return 0;
+	test_id = isl_map_get_tuple_id(test, isl_dim_out);
+	arg_id = pet_expr_access_get_id(expr);
+	isl_id_free(arg_id);
+	isl_id_free(test_id);
+	if (test_id != arg_id)
+		return 0;
+	val = isl_map_plain_get_val_if_fixed(domain, isl_dim_out, pos);
+	is_int = isl_val_is_int(val);
+	if (is_int)
+		s = isl_val_get_num_si(val);
+	isl_val_free(val);
+	if (!val)
+		return -1;
+	if (!is_int)
+		return 0;
+	if (s != satisfied)
+		return 0;
+
+	implied = isl_map_copy(expr->acc.access);
+	implied = apply_implications(scop, implied, test_id, satisfied);
+	is_subset = isl_map_is_subset(test, implied);
+	isl_map_free(implied);
+
+	return is_subset;
+}
+
+/* Is the filter expressed by "test" and "satisfied" implied
+ * by any of the filters on the domain of "stmt", taking into
+ * account the implications of "scop"?
+ */
+static int filter_implied(struct pet_scop *scop,
+	struct pet_stmt *stmt, __isl_keep isl_map *test, int satisfied)
+{
+	int i;
+	int implied;
+	isl_id *test_id;
+	isl_map *domain;
+
+	if (!scop || !stmt || !test)
+		return -1;
+	if (scop->n_implication == 0)
+		return 0;
+	if (stmt->n_arg == 0)
+		return 0;
+
+	domain = isl_set_unwrap(isl_set_copy(stmt->domain));
+
+	implied = 0;
+	for (i = 0; i < stmt->n_arg; ++i) {
+		implied = implies_filter(scop, domain, i, stmt->args[i],
+					 test, satisfied);
+		if (implied < 0 || implied)
+			break;
+	}
+
+	isl_map_free(domain);
+	return implied;
+}
+
 /* Make the statement "stmt" depend on the value of "test"
  * being equal to "satisfied" by adjusting stmt->domain.
  *
  * The domain of "test" corresponds to the (zero or more) outer dimensions
  * of the iteration domain.
  *
- * We insert an argument corresponding to a read to "test"
+ * We first extend "test" to apply to the entire iteration domain and
+ * then check if the filter that we are about to add is implied
+ * by any of the current filters, possibly taking into account
+ * the implications in "scop".  If so, we leave "stmt" untouched and return.
+ *
+ * Otherwise, we insert an argument corresponding to a read to "test"
  * from the iteration domain of "stmt" in front of the list of arguments.
  * We also insert a corresponding output dimension in the wrapped
  * map contained in stmt->domain, with value set to "satisfied".
  */
-static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
-	__isl_take isl_map *test, int satisfied)
+static struct pet_stmt *stmt_filter(struct pet_scop *scop,
+	struct pet_stmt *stmt, __isl_take isl_map *test, int satisfied)
 {
 	int i;
+	int implied;
 	isl_id *id;
 	isl_ctx *ctx;
 	isl_map *map, *add_dom;
@@ -2124,12 +2243,10 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 	if (!stmt || !test)
 		goto error;
 
-	id = isl_map_get_tuple_id(test, isl_dim_out);
-	map = insert_filter_map(isl_set_get_space(stmt->domain), id, satisfied);
-	stmt->domain = isl_set_apply(stmt->domain, map);
-
-	space = isl_space_unwrap(isl_set_get_space(stmt->domain));
-	dom = isl_set_universe(isl_space_domain(space));
+	space = isl_set_get_space(stmt->domain);
+	if (isl_space_is_wrapping(space))
+		space = isl_space_domain(isl_space_unwrap(space));
+	dom = isl_set_universe(space);
 	n_test_dom = isl_map_dim(test, isl_dim_in);
 	add_dom = isl_map_from_range(dom);
 	add_dom = isl_map_add_dims(add_dom, isl_dim_in, n_test_dom);
@@ -2137,6 +2254,18 @@ static struct pet_stmt *stmt_filter(struct pet_stmt *stmt,
 		add_dom = isl_map_equate(add_dom, isl_dim_in, i,
 						    isl_dim_out, i);
 	test = isl_map_apply_domain(test, add_dom);
+
+	implied = filter_implied(scop, stmt, test, satisfied);
+	if (implied < 0)
+		goto error;
+	if (implied) {
+		isl_map_free(test);
+		return stmt;
+	}
+
+	id = isl_map_get_tuple_id(test, isl_dim_out);
+	map = insert_filter_map(isl_set_get_space(stmt->domain), id, satisfied);
+	stmt->domain = isl_set_apply(stmt->domain, map);
 
 	if (args_insert_access(&stmt->n_arg, &stmt->args, test) < 0)
 		goto error;
@@ -2359,7 +2488,7 @@ struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 		goto error;
 
 	for (i = 0; i < scop->n_stmt; ++i) {
-		scop->stmts[i] = stmt_filter(scop->stmts[i],
+		scop->stmts[i] = stmt_filter(scop, scop->stmts[i],
 						isl_map_copy(test), satisfied);
 		if (!scop->stmts[i])
 			goto error;
@@ -2370,128 +2499,6 @@ struct pet_scop *pet_scop_filter(struct pet_scop *scop,
 error:
 	isl_map_free(test);
 	return pet_scop_free(scop);
-}
-
-/* Do the filters "i" and "j" always have the same value?
- */
-static int equal_filter_values(__isl_keep isl_set *domain, int i, int j)
-{
-	isl_map *map, *test;
-	int equal;
-
-	map = isl_set_unwrap(isl_set_copy(domain));
-	test = isl_map_universe(isl_map_get_space(map));
-	test = isl_map_equate(test, isl_dim_out, i, isl_dim_out, j);
-	equal = isl_map_is_subset(map, test);
-	isl_map_free(map);
-	isl_map_free(test);
-
-	return equal;
-}
-
-/* Merge filters "i" and "j" into a single filter ("i") with as filter
- * access relation, the union of the two access relations.
- */
-static struct pet_stmt *merge_filter_pair(struct pet_stmt *stmt, int i, int j)
-{
-	int k;
-	isl_map *map;
-
-	if (!stmt)
-		return NULL;
-
-	stmt->args[i]->acc.access = isl_map_union(stmt->args[i]->acc.access,
-				    isl_map_copy(stmt->args[j]->acc.access));
-	stmt->args[i]->acc.access = isl_map_coalesce(stmt->args[i]->acc.access);
-
-	pet_expr_free(stmt->args[j]);
-	for (k = j; k < stmt->n_arg - 1; ++k)
-		stmt->args[k] = stmt->args[k + 1];
-	stmt->n_arg--;
-
-	map = isl_set_unwrap(stmt->domain);
-	map = isl_map_project_out(map, isl_dim_out, j, 1);
-	stmt->domain = isl_map_wrap(map);
-
-	if (!stmt->domain || !stmt->args[i]->acc.access)
-		return pet_stmt_free(stmt);
-
-	return stmt;
-}
-
-/* Look for any pair of filters that access the same filter variable
- * and that have the same filter value and merge them into a single
- * filter with as filter access relation the union of the filter access
- * relations.
- */
-static struct pet_stmt *stmt_merge_filters(struct pet_stmt *stmt)
-{
-	int i, j;
-	isl_space *space_i, *space_j;
-
-	if (!stmt)
-		return NULL;
-	if (stmt->n_arg <= 1)
-		return stmt;
-
-	for (i = 0; i < stmt->n_arg - 1; ++i) {
-		if (stmt->args[i]->type != pet_expr_access)
-			continue;
-		if (pet_expr_is_affine(stmt->args[i]))
-			continue;
-
-		space_i = isl_map_get_space(stmt->args[i]->acc.access);
-		
-		for (j = stmt->n_arg - 1; j > i; --j) {
-			int eq;
-
-			if (stmt->args[j]->type != pet_expr_access)
-				continue;
-			if (pet_expr_is_affine(stmt->args[j]))
-				continue;
-
-			space_j = isl_map_get_space(stmt->args[j]->acc.access);
-
-			eq = isl_space_is_equal(space_i, space_j);
-			if (eq >= 0 && eq)
-				eq = equal_filter_values(stmt->domain, i, j);
-			if (eq >= 0 && eq)
-				stmt = merge_filter_pair(stmt, i, j);
-
-			isl_space_free(space_j);
-
-			if (eq < 0 || !stmt)
-				break;
-		}
-
-		isl_space_free(space_i);
-
-		if (j > i || !stmt)
-			return pet_stmt_free(stmt);
-	}
-
-	return stmt;
-}
-
-/* Look for any pair of filters that access the same filter variable
- * and that have the same filter value and merge them into a single
- * filter with as filter access relation the union of the filter access
- * relations.
- */
-struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop)
-{
-	int i;
-
-	if (!scop)
-		return NULL;
-
-	for (i = 0; i < scop->n_stmt; ++i) {
-		scop->stmts[i] = stmt_merge_filters(scop->stmts[i]);
-		if (!scop->stmts[i])
-			return pet_scop_free(scop);
-	}
-
-	return scop;
 }
 
 /* Add all parameters in "expr" to "dim" and return the result.

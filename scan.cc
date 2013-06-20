@@ -2077,29 +2077,76 @@ static __isl_give isl_map *identity_map(__isl_keep isl_set *domain)
 	return id;
 }
 
+/* Create a map that maps elements of a single-dimensional array "id_test"
+ * to the previous element (according to "inc"), provided this element
+ * belongs to "domain".  That is, create the map
+ *
+ *	{ id[x] -> id[x - inc] : x - inc in domain }
+ */
+static __isl_give isl_map *map_to_previous(__isl_take isl_id *id_test,
+	__isl_take isl_set *domain, __isl_take isl_val *inc)
+{
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+	isl_map *prev;
+
+	space = isl_set_get_space(domain);
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_var_on_domain(ls, isl_dim_set, 0);
+	aff = isl_aff_add_constant_val(aff, isl_val_neg(inc));
+	prev = isl_map_from_aff(aff);
+	prev = isl_map_intersect_range(prev, domain);
+	prev = isl_map_set_tuple_id(prev, isl_dim_out, id_test);
+
+	return prev;
+}
+
+/* Add an implication to "scop" expressing that if an element of
+ * virtual array "id_test" has value "satisfied" then all previous elements
+ * of this array also have that value.  The set of previous elements
+ * is bounded by "domain".  If "sign" is negative then iterator
+ * is decreasing and we express that all subsequent array elements
+ * (but still defined previously) have the same value.
+ */
+static struct pet_scop *add_implication(struct pet_scop *scop,
+	__isl_take isl_id *id_test, __isl_take isl_set *domain, int sign,
+	int satisfied)
+{
+	isl_space *space;
+	isl_map *map;
+
+	domain = isl_set_set_tuple_id(domain, id_test);
+	space = isl_set_get_space(domain);
+	if (sign > 0)
+		map = isl_map_lex_ge(space);
+	else
+		map = isl_map_lex_le(space);
+	map = isl_map_intersect_range(map, domain);
+	scop = pet_scop_add_implication(scop, map, satisfied);
+
+	return scop;
+}
+
 /* Add a filter to "scop" that imposes that it is only executed
  * when the variable identified by "id_test" has a zero value
  * for all previous iterations of "domain".
+ *
+ * In particular, add a filter that imposes that the array
+ * has a zero value at the previous iteration of domain and
+ * add an implication that implies that it then has that
+ * value for all previous iterations.
  */
 static struct pet_scop *scop_add_break(struct pet_scop *scop,
-	__isl_take isl_id *id_test, __isl_take isl_set *domain, int sign)
+	__isl_take isl_id *id_test, __isl_take isl_set *domain,
+	__isl_take isl_val *inc)
 {
-	isl_ctx *ctx = isl_set_get_ctx(domain);
-	isl_space *space;
-	isl_map *break_access;
 	isl_map *prev;
+	int sign = isl_val_sgn(inc);
 
-	space = isl_space_map_from_set(isl_set_get_space(domain));
-	break_access = isl_map_universe(space);
-	break_access = isl_map_intersect_range(break_access, domain);
-	break_access = isl_map_set_tuple_id(break_access, isl_dim_out, id_test);
-	if (sign > 0)
-		prev = isl_map_lex_gt_first(isl_map_get_space(break_access), 1);
-	else
-		prev = isl_map_lex_lt_first(isl_map_get_space(break_access), 1);
-	break_access = isl_map_intersect(break_access, prev);
-	scop = pet_scop_filter(scop, break_access, 0);
-	scop = pet_scop_merge_filters(scop);
+	prev = map_to_previous(isl_id_copy(id_test), isl_set_copy(domain), inc);
+	scop = add_implication(scop, id_test, domain, sign, 0);
+	scop = pet_scop_filter(scop, prev, 0);
 
 	return scop;
 }
@@ -2142,7 +2189,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 	scop = pet_scop_embed(scop, isl_set_copy(domain),
 				isl_map_copy(ident), ident, id);
 	if (has_var_break)
-		scop = scop_add_break(scop, id_test, domain, 1);
+		scop = scop_add_break(scop, id_test, domain, isl_val_one(ctx));
 	else
 		isl_set_free(domain);
 
@@ -2259,6 +2306,10 @@ struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
  * of the loop, while the scop for the body is filtered to depend
  * on "id_test" evaluating to true for all iterations up to the
  * current iteration.
+ * The actual filter only imposes that this virtual array has
+ * value one on the previous or the current iteration.
+ * The fact that this condition also applies to the previous
+ * iterations is enforced by an implication.
  *
  * These filtered scops are then combined into a single scop.
  *
@@ -2267,31 +2318,28 @@ struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
  */
 static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
 	struct pet_scop *scop_body, __isl_take isl_id *id_test,
-	__isl_take isl_set *domain, int sign)
+	__isl_take isl_set *domain, __isl_take isl_val *inc)
 {
 	isl_ctx *ctx = isl_set_get_ctx(domain);
 	isl_space *space;
 	isl_map *test_access;
 	isl_map *prev;
+	int sign = isl_val_sgn(inc);
+	struct pet_scop *scop;
+
+	prev = map_to_previous(isl_id_copy(id_test), isl_set_copy(domain), inc);
+	scop_cond = pet_scop_filter(scop_cond, prev, 1);
 
 	space = isl_space_map_from_set(isl_set_get_space(domain));
-	test_access = isl_map_universe(space);
-	test_access = isl_map_intersect_range(test_access, domain);
-	test_access = isl_map_set_tuple_id(test_access, isl_dim_out, id_test);
-	if (sign > 0)
-		prev = isl_map_lex_ge_first(isl_map_get_space(test_access), 1);
-	else
-		prev = isl_map_lex_le_first(isl_map_get_space(test_access), 1);
-	test_access = isl_map_intersect(test_access, prev);
-	scop_body = pet_scop_filter(scop_body, isl_map_copy(test_access), 1);
-	if (sign > 0)
-		prev = isl_map_lex_gt_first(isl_map_get_space(test_access), 1);
-	else
-		prev = isl_map_lex_lt_first(isl_map_get_space(test_access), 1);
-	test_access = isl_map_intersect(test_access, prev);
-	scop_cond = pet_scop_filter(scop_cond, test_access, 1);
+	test_access = isl_map_identity(space);
+	test_access = isl_map_set_tuple_id(test_access, isl_dim_out,
+						isl_id_copy(id_test));
+	scop_body = pet_scop_filter(scop_body, test_access, 1);
 
-	return pet_scop_add_seq(ctx, scop_cond, scop_body);
+	scop = pet_scop_add_seq(ctx, scop_cond, scop_body);
+	scop = add_implication(scop, id_test, domain, sign, 1);
+
+	return scop;
 }
 
 /* Check if the while loop is of the form
@@ -2372,11 +2420,12 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 
 	if (has_var_break) {
 		scop = scop_add_break(scop, isl_id_copy(id_break_test),
-					isl_set_copy(domain), 1);
+					isl_set_copy(domain), isl_val_one(ctx));
 		scop_body = scop_add_break(scop_body, id_break_test,
-					isl_set_copy(domain), 1);
+					isl_set_copy(domain), isl_val_one(ctx));
 	}
-	scop = scop_add_while(scop, scop_body, id_test, domain, 1);
+	scop = scop_add_while(scop, scop_body, id_test, domain,
+				isl_val_one(ctx));
 
 	return scop;
 }
@@ -2933,10 +2982,10 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	scop = resolve_nested(scop);
 	if (has_var_break)
 		scop = scop_add_break(scop, id_break_test, isl_set_copy(domain),
-					isl_val_sgn(inc));
+					isl_val_copy(inc));
 	if (id_test) {
 		scop = scop_add_while(scop_cond, scop, id_test, domain,
-					isl_val_sgn(inc));
+					isl_val_copy(inc));
 		isl_set_free(valid_inc);
 	} else {
 		scop = pet_scop_restrict_context(scop, valid_inc);

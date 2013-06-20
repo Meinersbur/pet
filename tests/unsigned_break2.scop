@@ -34,7 +34,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_0[k] -> __pet_test_0[o0] : o0 <= -1 + k and o0 >= 252 }'
+    relation: '{ S_0[k] -> __pet_test_0[-1 + k] : k >= 253 }'
     reference: __pet_ref_0
     read: 1
     write: 0
@@ -54,7 +54,7 @@ statements:
       name: f
   arguments:
   - type: access
-    relation: '{ S_1[k] -> __pet_test_0[o0] : o0 <= -1 + k and o0 >= 252 }'
+    relation: '{ S_1[k] -> __pet_test_0[-1 + k] : k >= 253 }'
     reference: __pet_ref_3
     read: 1
     write: 0
@@ -78,8 +78,11 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '{ S_2[k] -> __pet_test_0[o0] : o0 <= -1 + k and o0 >= 252; S_2[k] ->
-      __pet_test_0[k] }'
+    relation: '{ S_2[k] -> __pet_test_0[k] }'
     reference: __pet_ref_5
     read: 1
     write: 0
+implications:
+- satisfied: 0
+  extension: '{ __pet_test_0[k] -> __pet_test_0[k''] : k'' <= k and k'' >= 252 and
+    k'' <= 261 }'
