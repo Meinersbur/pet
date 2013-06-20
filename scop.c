@@ -1013,7 +1013,7 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
 {
 	int i;
-	struct pet_scop *scop;
+	struct pet_scop *scop = NULL;
 
 	if (!scop1 || !scop2)
 		goto error;
@@ -1071,6 +1071,7 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 error:
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);
+	pet_scop_free(scop);
 	return NULL;
 }
 
