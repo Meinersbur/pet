@@ -1,3 +1,10 @@
+version: 0.04
+date: Wed Jun 26 10:25:53 CEST 2013
+changes:
+	- support recent clangs
+	- keep better track of doubles
+	- support cast expressions
+---
 version: 0.03
 date: Mon Dec  3 08:19:06 CET 2012
 changes:
