@@ -1545,8 +1545,9 @@ struct pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 
 	pa = try_extract_affine(expr->getCond());
 	if (pa) {
-		isl_set *test = isl_set_from_pw_aff(pa);
-		cond = pet_expr_from_access(isl_map_from_range(test));
+		isl_multi_pw_aff *test = isl_multi_pw_aff_from_pw_aff(pa);
+		test = isl_multi_pw_aff_from_range(test);
+		cond = pet_expr_from_index(test);
 	} else
 		cond = extract_expr(expr->getCond());
 	lhs = extract_expr(expr->getTrueExpr());
