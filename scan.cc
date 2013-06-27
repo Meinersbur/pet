@@ -3995,7 +3995,7 @@ static struct pet_expr *universally_false(isl_ctx *ctx)
 	return universally(ctx, 0);
 }
 
-/* Given an access relation "test_access" for the if condition,
+/* Given an index expression "test_index" for the if condition,
  * an access relation "skip_access" for the skip condition and
  * scops for the then and else branches, construct a scop for
  * computing "skip_access".
@@ -4005,14 +4005,15 @@ static struct pet_expr *universally_false(isl_ctx *ctx)
  *	skip_cond = test_cond ? skip_cond_then : skip_cond_else
  *
  * If the skip conditions of the then and/or else branch are not affine,
- * then they need to be filtered by test_access.
+ * then they need to be filtered by test_index.
  * If they are missing, then this means the skip condition is false.
  *
  * Since we are constructing a skip condition for the if statement,
  * the skip conditions on the then and else branches are removed.
  */
 static struct pet_scop *extract_skip(PetScan *scan,
-	__isl_take isl_map *test_access, __isl_take isl_map *skip_access,
+	__isl_take isl_multi_pw_aff *test_index,
+	__isl_take isl_map *skip_access,
 	struct pet_scop *scop_then, struct pet_scop *scop_else, bool have_else,
 	enum pet_skip type)
 {
@@ -4020,12 +4021,15 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = scan->ctx;
+	isl_map *test_access;
 
 	if (!scop_then)
 		goto error;
 	if (have_else && !scop_else)
 		goto error;
 
+	test_access = isl_map_from_multi_pw_aff(
+				isl_multi_pw_aff_copy(test_index));
 	if (pet_scop_has_skip(scop_then, type)) {
 		expr_then = pet_scop_get_skip_expr(scop_then, type);
 		pet_scop_reset_skip(scop_then, type);
@@ -4043,8 +4047,9 @@ static struct pet_scop *extract_skip(PetScan *scan,
 					    isl_map_copy(test_access), 0);
 	} else
 		expr_else = universally_false(ctx);
+	isl_map_free(test_access);
 
-	expr = pet_expr_from_access(test_access);
+	expr = pet_expr_from_index(test_index);
 	expr = pet_expr_new_ternary(ctx, expr, expr_then, expr_else);
 	expr_skip = pet_expr_from_access(isl_map_copy(skip_access));
 	if (expr_skip) {
@@ -4060,7 +4065,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 
 	return scop;
 error:
-	isl_map_free(test_access);
+	isl_multi_pw_aff_free(test_index);
 	isl_map_free(skip_access);
 	return NULL;
 }
@@ -4169,14 +4174,15 @@ pet_skip_info_if::pet_skip_info_if(isl_ctx *ctx, struct pet_scop *scop_then,
 void pet_skip_info_if::extract(PetScan *scan,
 	__isl_keep isl_multi_pw_aff *index, enum pet_skip type)
 {
-	isl_map *map;
+	isl_ctx *ctx;
 
 	if (!skip[type])
 		return;
 
-	map = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
-	access[type] = create_test_access(isl_map_get_ctx(map), scan->n_test++);
-	scop[type] = extract_skip(scan, map, isl_map_copy(access[type]),
+	ctx = isl_multi_pw_aff_get_ctx(index);
+	access[type] = create_test_access(ctx, scan->n_test++);
+	scop[type] = extract_skip(scan, isl_multi_pw_aff_copy(index),
+				isl_map_copy(access[type]),
 				scop_then, scop_else, have_else, type);
 }
 
