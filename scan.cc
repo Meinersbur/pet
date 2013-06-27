@@ -1516,7 +1516,7 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	if (!vd->getInit())
 		return scop_decl;
 
-	lhs = pet_expr_from_access(extract_access(vd));
+	lhs = extract_access_expr(vd);
 	rhs = extract_expr(vd->getInit());
 
 	mark_write(lhs);
@@ -1589,7 +1589,7 @@ struct pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 }
 
 /* Extract an access relation from "expr" and then convert it into
- * a pet_expr.
+ * an access pet_expr.
  */
 struct pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
@@ -1597,6 +1597,21 @@ struct pet_expr *PetScan::extract_access_expr(Expr *expr)
 	struct pet_expr *pe;
 
 	access = extract_access(expr);
+
+	pe = pet_expr_from_access(access);
+
+	return pe;
+}
+
+/* Extract an access relation from "decl" and then convert it into
+ * a pet_expr.
+ */
+struct pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
+{
+	isl_map *access;
+	struct pet_expr *pe;
+
+	access = extract_access(decl);
 
 	pe = pet_expr_from_access(access);
 

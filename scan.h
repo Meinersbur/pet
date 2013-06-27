@@ -165,6 +165,7 @@ private:
 	struct pet_scop *resolve_nested(struct pet_scop *scop);
 	struct pet_stmt *resolve_nested(struct pet_stmt *stmt);
 	struct pet_expr *extract_access_expr(clang::Expr *expr);
+	struct pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
 	__isl_give isl_map *extract_access(clang::ArraySubscriptExpr *expr);
 	__isl_give isl_map *extract_access(clang::Expr *expr);
