@@ -3474,7 +3474,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	BinaryOperator *ass_then, *ass_else;
 	isl_multi_pw_aff *write_then, *write_else;
 	isl_set *cond, *comp;
-	isl_map *map;
+	isl_multi_pw_aff *index;
 	isl_pw_aff *pa;
 	int equal;
 	struct pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
@@ -3507,9 +3507,9 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	nesting_enabled = save_nesting;
 	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(pa));
 	comp = isl_pw_aff_zero_set(isl_pw_aff_copy(pa));
-	map = isl_map_from_range(isl_set_from_pw_aff(pa));
+	index = isl_multi_pw_aff_from_range(isl_multi_pw_aff_from_pw_aff(pa));
 
-	pe_cond = pet_expr_from_access(map);
+	pe_cond = pet_expr_from_index(index);
 
 	pe_then = extract_expr(ass_then->getRHS());
 	pe_then = pet_expr_restrict(pe_then, cond);
