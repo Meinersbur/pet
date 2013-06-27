@@ -3967,14 +3967,16 @@ static bool need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
  */
 static struct pet_expr *universally(isl_ctx *ctx, int val)
 {
-	isl_space *space;
-	isl_map *map;
+	isl_local_space *ls;
+	isl_val *v;
+	isl_aff *aff;
+	isl_multi_pw_aff *mpa;
 
-	space = isl_space_alloc(ctx, 0, 0, 1);
-	map = isl_map_universe(space);
-	map = isl_map_fix_si(map, isl_dim_out, 0, val);
+	ls = isl_local_space_from_space(isl_space_set_alloc(ctx, 0, 0));
+	aff = isl_aff_val_on_domain(ls, isl_val_int_from_si(ctx, val));
+	mpa = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
 
-	return pet_expr_from_access(map);
+	return pet_expr_from_index(mpa);
 }
 
 /* Construct an affine expression pet_expr that evaluates
