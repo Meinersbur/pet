@@ -167,12 +167,15 @@ private:
 	struct pet_expr *extract_access_expr(clang::Expr *expr);
 	struct pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
-	__isl_give isl_map *extract_access(clang::ArraySubscriptExpr *expr);
-	__isl_give isl_map *extract_access(clang::Expr *expr);
-	__isl_give isl_map *extract_access(clang::ImplicitCastExpr *expr);
-	__isl_give isl_map *extract_access(clang::DeclRefExpr *expr);
-	__isl_give isl_map *extract_access(clang::ValueDecl *decl);
-	__isl_give isl_map *extract_access(clang::IntegerLiteral *expr);
+	__isl_give isl_multi_pw_aff *extract_index(
+		clang::ArraySubscriptExpr *expr);
+	__isl_give isl_multi_pw_aff *extract_index(clang::Expr *expr);
+	__isl_give isl_multi_pw_aff *extract_index(
+		clang::ImplicitCastExpr *expr);
+	__isl_give isl_multi_pw_aff *extract_index(clang::DeclRefExpr *expr);
+	__isl_give isl_multi_pw_aff *extract_index(clang::ValueDecl *decl);
+	__isl_give isl_multi_pw_aff *extract_index(
+		clang::IntegerLiteral *expr);
 
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);

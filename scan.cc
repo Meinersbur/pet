@@ -775,7 +775,7 @@ isl_pw_aff *PetScan::nested_access(Expr *expr)
 	isl_space *dim;
 	isl_aff *aff;
 	isl_set *dom;
-	isl_map *access;
+	isl_multi_pw_aff *index;
 
 	if (!nesting_enabled) {
 		unsupported(expr);
@@ -783,13 +783,13 @@ isl_pw_aff *PetScan::nested_access(Expr *expr)
 	}
 
 	allow_nested = false;
-	access = extract_access(expr);
+	index = extract_index(expr);
 	allow_nested = true;
-	if (!access) {
+	if (!index) {
 		unsupported(expr);
 		return NULL;
 	}
-	isl_map_free(access);
+	isl_multi_pw_aff_free(index);
 
 	id = isl_id_alloc(ctx, NULL, expr);
 	dim = isl_space_params_alloc(ctx, 1);
@@ -855,9 +855,9 @@ __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 	return NULL;
 }
 
-__isl_give isl_map *PetScan::extract_access(ImplicitCastExpr *expr)
+__isl_give isl_multi_pw_aff *PetScan::extract_index(ImplicitCastExpr *expr)
 {
-	return extract_access(expr->getSubExpr());
+	return extract_index(expr->getSubExpr());
 }
 
 /* Return the depth of an array of the given type.
@@ -873,6 +873,30 @@ static int array_depth(const Type *type)
 		return 1 + array_depth(atype->getElementType().getTypePtr());
 	}
 	return 0;
+}
+
+/* Return the depth of the array accessed by the index expression "index".
+ * If "index" is an affine expression, i.e., if it does not access
+ * any array, then return 1.
+ */
+static int extract_depth(__isl_keep isl_multi_pw_aff *index)
+{
+	isl_id *id;
+	ValueDecl *decl;
+
+	if (!index)
+		return -1;
+
+	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_set))
+		return 1;
+
+	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_set);
+	if (!id)
+		return -1;
+	decl = (ValueDecl *) isl_id_get_user(id);
+	isl_id_free(id);
+
+	return array_depth(decl->getType().getTypePtr());
 }
 
 /* Return the element type of the given array type.
@@ -892,130 +916,104 @@ static QualType base_type(QualType qt)
 	return qt;
 }
 
-/* Extract an access relation from a reference to a variable.
- * If the variable has name "A" and its type corresponds to an
- * array of depth d, then the returned access relation is of the
- * form
+/* Extract an index expression from a reference to a variable.
+ * If the variable has name "A", then the returned index expression
+ * is of the form
  *
- *	{ [] -> A[i_1,...,i_d] }
+ *	{ [] -> A[] }
  */
-__isl_give isl_map *PetScan::extract_access(DeclRefExpr *expr)
+__isl_give isl_multi_pw_aff *PetScan::extract_index(DeclRefExpr *expr)
 {
-	return extract_access(expr->getDecl());
+	return extract_index(expr->getDecl());
 }
 
-/* Extract an access relation from a variable.
- * If the variable has name "A" and its type corresponds to an
- * array of depth d, then the returned access relation is of the
- * form
+/* Extract an index expression from a variable.
+ * If the variable has name "A", then the returned index expression
+ * is of the form
  *
- *	{ [] -> A[i_1,...,i_d] }
+ *	{ [] -> A[] }
  */
-__isl_give isl_map *PetScan::extract_access(ValueDecl *decl)
+__isl_give isl_multi_pw_aff *PetScan::extract_index(ValueDecl *decl)
 {
-	int depth = array_depth(decl->getType().getTypePtr());
 	isl_id *id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	isl_space *dim = isl_space_alloc(ctx, 0, 0, depth);
-	isl_map *access_rel;
+	isl_space *space = isl_space_alloc(ctx, 0, 0, 0);
 
-	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 
-	access_rel = isl_map_universe(dim);
-
-	return access_rel;
+	return isl_multi_pw_aff_zero(space);
 }
 
-/* Extract an access relation from an integer contant.
+/* Extract an index expression from an integer contant.
  * If the value of the constant is "v", then the returned access relation
  * is
  *
  *	{ [] -> [v] }
  */
-__isl_give isl_map *PetScan::extract_access(IntegerLiteral *expr)
+__isl_give isl_multi_pw_aff *PetScan::extract_index(IntegerLiteral *expr)
 {
-	return isl_map_from_range(isl_set_from_pw_aff(extract_affine(expr)));
+	isl_multi_pw_aff *mpa;
+
+	mpa = isl_multi_pw_aff_from_pw_aff(extract_affine(expr));
+	mpa = isl_multi_pw_aff_from_range(mpa);
+	return mpa;
 }
 
-/* Try and extract an access relation from the given Expr.
+/* Try and extract an index expression from the given Expr.
  * Return NULL if it doesn't work out.
  */
-__isl_give isl_map *PetScan::extract_access(Expr *expr)
+__isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
 {
 	switch (expr->getStmtClass()) {
 	case Stmt::ImplicitCastExprClass:
-		return extract_access(cast<ImplicitCastExpr>(expr));
+		return extract_index(cast<ImplicitCastExpr>(expr));
 	case Stmt::DeclRefExprClass:
-		return extract_access(cast<DeclRefExpr>(expr));
+		return extract_index(cast<DeclRefExpr>(expr));
 	case Stmt::ArraySubscriptExprClass:
-		return extract_access(cast<ArraySubscriptExpr>(expr));
+		return extract_index(cast<ArraySubscriptExpr>(expr));
 	case Stmt::IntegerLiteralClass:
-		return extract_access(cast<IntegerLiteral>(expr));
+		return extract_index(cast<IntegerLiteral>(expr));
 	default:
 		unsupported(expr);
 	}
 	return NULL;
 }
 
-/* Assign the affine expression "index" to the output dimension "pos" of "map",
- * restrict the domain to those values that result in a non-negative index
- * and return the result.
- */
-__isl_give isl_map *set_index(__isl_take isl_map *map, int pos,
-	__isl_take isl_pw_aff *index)
-{
-	isl_map *index_map;
-	int len = isl_map_dim(map, isl_dim_out);
-	isl_id *id;
-	isl_set *domain;
-
-	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
-	index = isl_pw_aff_intersect_domain(index, domain);
-	index_map = isl_map_from_range(isl_set_from_pw_aff(index));
-	index_map = isl_map_insert_dims(index_map, isl_dim_out, 0, pos);
-	index_map = isl_map_add_dims(index_map, isl_dim_out, len - pos - 1);
-	id = isl_map_get_tuple_id(map, isl_dim_out);
-	index_map = isl_map_set_tuple_id(index_map, isl_dim_out, id);
-
-	map = isl_map_intersect(map, index_map);
-
-	return map;
-}
-
-/* Extract an access relation from the given array subscript expression.
+/* Extract an index expression from the given array subscript expression.
  * If nesting is allowed in general, then we turn it on while
  * examining the index expression.
  *
- * We first extract an access relation from the base.
- * This will result in an access relation with a range that corresponds
- * to the array being accessed and with earlier indices filled in already.
- * We then extract the current index and fill that in as well.
- * The position of the current index is based on the type of base.
- * If base is the actual array variable, then the depth of this type
- * will be the same as the depth of the array and we will fill in
- * the first array index.
- * Otherwise, the depth of the base type will be smaller and we will fill
- * in a later index.
+ * We first extract an index expression from the base.
+ * This will result in an index expression with a range that corresponds
+ * to the earlier indices.
+ * We then extract the current index, restrict its domain
+ * to those values that result in a non-negative index and
+ * append the index to the base index expression.
  */
-__isl_give isl_map *PetScan::extract_access(ArraySubscriptExpr *expr)
+__isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
 {
 	Expr *base = expr->getBase();
 	Expr *idx = expr->getIdx();
 	isl_pw_aff *index;
-	isl_map *base_access;
-	isl_map *access;
-	int depth = array_depth(base->getType().getTypePtr());
-	int pos;
+	isl_set *domain;
+	isl_multi_pw_aff *base_access;
+	isl_multi_pw_aff *access;
+	isl_id *id;
 	bool save_nesting = nesting_enabled;
 
 	nesting_enabled = allow_nested;
 
-	base_access = extract_access(base);
+	base_access = extract_index(base);
 	index = extract_affine(idx);
 
 	nesting_enabled = save_nesting;
 
-	pos = isl_map_dim(base_access, isl_dim_out) - depth;
-	access = set_index(base_access, pos, index);
+	id = isl_multi_pw_aff_get_tuple_id(base_access, isl_dim_set);
+	index = isl_pw_aff_from_range(index);
+	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
+	index = isl_pw_aff_intersect_domain(index, domain);
+	access = isl_multi_pw_aff_from_pw_aff(index);
+	access = isl_multi_pw_aff_flat_range_product(base_access, access);
+	access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_set, id);
 
 	return access;
 }
@@ -1588,32 +1586,36 @@ struct pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 	return pet_expr_new_double(ctx, d, s.c_str());
 }
 
-/* Extract an access relation from "expr" and then convert it into
+/* Extract an index expression from "expr" and then convert it into
  * an access pet_expr.
  */
 struct pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
-	isl_map *access;
+	isl_multi_pw_aff *index;
 	struct pet_expr *pe;
+	int depth;
 
-	access = extract_access(expr);
+	index = extract_index(expr);
+	depth = extract_depth(index);
 
-	pe = pet_expr_from_access(access);
+	pe = pet_expr_from_index_and_depth(index, depth);
 
 	return pe;
 }
 
-/* Extract an access relation from "decl" and then convert it into
- * a pet_expr.
+/* Extract an index expression from "decl" and then convert it into
+ * an access pet_expr.
  */
 struct pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
-	isl_map *access;
+	isl_multi_pw_aff *index;
 	struct pet_expr *pe;
+	int depth;
 
-	access = extract_access(decl);
+	index = extract_index(decl);
+	depth = extract_depth(index);
 
-	pe = pet_expr_from_access(access);
+	pe = pet_expr_from_index_and_depth(index, depth);
 
 	return pe;
 }
@@ -3470,7 +3472,7 @@ static BinaryOperator *top_assignment_or_null(Stmt *stmt)
 struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 {
 	BinaryOperator *ass_then, *ass_else;
-	isl_map *write_then, *write_else;
+	isl_multi_pw_aff *write_then, *write_else;
 	isl_set *cond, *comp;
 	isl_map *map;
 	isl_pw_aff *pa;
@@ -3490,13 +3492,13 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	if (is_affine_condition(stmt->getCond()))
 		return NULL;
 
-	write_then = extract_access(ass_then->getLHS());
-	write_else = extract_access(ass_else->getLHS());
+	write_then = extract_index(ass_then->getLHS());
+	write_else = extract_index(ass_else->getLHS());
 
-	equal = isl_map_is_equal(write_then, write_else);
-	isl_map_free(write_else);
+	equal = isl_multi_pw_aff_plain_is_equal(write_then, write_else);
+	isl_multi_pw_aff_free(write_else);
 	if (equal < 0 || !equal) {
-		isl_map_free(write_then);
+		isl_multi_pw_aff_free(write_then);
 		return NULL;
 	}
 
@@ -3515,7 +3517,8 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	pe_else = pet_expr_restrict(pe_else, comp);
 
 	pe = pet_expr_new_ternary(ctx, pe_cond, pe_then, pe_else);
-	pe_write = pet_expr_from_access(write_then);
+	pe_write = pet_expr_from_index_and_depth(write_then,
+						extract_depth(write_then));
 	if (pe_write) {
 		pe_write->acc.write = 1;
 		pe_write->acc.read = 0;
