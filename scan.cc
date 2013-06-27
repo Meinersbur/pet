@@ -1471,13 +1471,20 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
  */
 struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
 {
+	isl_id *id;
+	isl_space *space;
+	isl_multi_pw_aff *index;
 	isl_map *access;
 	struct pet_expr *expr;
 
 	if (!array)
 		return NULL;
 	access = isl_map_from_range(isl_set_copy(array->extent));
-	expr = pet_expr_kill_from_access(access);
+	id = isl_set_get_tuple_id(array->extent);
+	space = isl_space_alloc(ctx, 0, 0, 0);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
+	index = isl_multi_pw_aff_zero(space);
+	expr = pet_expr_kill_from_access_and_index(access, index);
 	return extract(stmt, expr);
 }
 
