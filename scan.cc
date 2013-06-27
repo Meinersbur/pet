@@ -2394,6 +2394,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 {
 	Expr *cond;
 	isl_id *id, *id_test, *id_break_test;
+	isl_multi_pw_aff *test_index;
 	isl_map *test_access;
 	isl_set *domain;
 	isl_aff *ident;
@@ -2419,8 +2420,10 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		return NULL;
 	}
 
-	test_access = create_test_access(ctx, n_test++);
-	scop = extract_non_affine_condition(cond, isl_map_copy(test_access));
+	test_index = create_test_index(ctx, n_test++);
+	scop = extract_non_affine_condition(cond,
+					    isl_multi_pw_aff_copy(test_index));
+	test_access = isl_map_from_multi_pw_aff(test_index);
 	scop = scop_add_array(scop, test_access, ast_context);
 	id_test = isl_map_get_tuple_id(test_access, isl_dim_out);
 	isl_map_free(test_access);
@@ -2909,13 +2912,15 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
 	if (allow_nested && !cond) {
+		isl_multi_pw_aff *test_index;
 		isl_map *test_access;
 		int save_n_stmt = n_stmt;
-		test_access = create_test_access(ctx, n_test++);
+		test_index = create_test_index(ctx, n_test++);
 		n_stmt = stmt_id;
 		scop_cond = extract_non_affine_condition(stmt->getCond(),
-						    isl_map_copy(test_access));
+					    isl_multi_pw_aff_copy(test_index));
 		n_stmt = save_n_stmt;
+		test_access = isl_map_from_multi_pw_aff(test_index);
 		scop_cond = scop_add_array(scop_cond, test_access, ast_context);
 		id_test = isl_map_get_tuple_id(test_access, isl_dim_out);
 		isl_map_free(test_access);
@@ -3529,10 +3534,10 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 
 /* Create a pet_scop with a single statement evaluating "cond"
  * and writing the result to a virtual scalar, as expressed by
- * "access".
+ * "index".
  */
 struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
-	__isl_take isl_map *access)
+	__isl_take isl_multi_pw_aff *index)
 {
 	struct pet_expr *expr, *write;
 	struct pet_stmt *ps;
@@ -3540,7 +3545,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 	SourceLocation loc = cond->getLocStart();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 
-	write = pet_expr_from_access(access);
+	write = pet_expr_from_index(index);
 	if (write) {
 		write->acc.write = 1;
 		write->acc.read = 0;
@@ -4282,7 +4287,8 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	test_access = isl_map_from_multi_pw_aff(
 					isl_multi_pw_aff_copy(test_index));
 	n_stmt = stmt_id;
-	scop = extract_non_affine_condition(cond, isl_map_copy(test_access));
+	scop = extract_non_affine_condition(cond,
+					isl_multi_pw_aff_copy(test_index));
 	n_stmt = save_n_stmt;
 	scop = scop_add_array(scop, test_access, ast_context);
 

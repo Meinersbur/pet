@@ -96,7 +96,7 @@ private:
 		const clang::Type *type, int pos);
 
 	struct pet_scop *extract_non_affine_condition(clang::Expr *cond,
-		__isl_take isl_map *access);
+		__isl_take isl_multi_pw_aff *index);
 
 	struct pet_scop *extract_conditional_assignment(clang::IfStmt *stmt);
 	struct pet_scop *extract_non_affine_if(clang::Expr *cond,
