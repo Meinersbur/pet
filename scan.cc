@@ -2205,15 +2205,15 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 	return extract_infinite_loop(stmt->getBody());
 }
 
-/* Create an access to a virtual array representing the result
- * of a condition.
+/* Create an index expression for an access to a virtual array
+ * representing the result of a condition.
  * Unlike other accessed data, the id of the array is NULL as
  * there is no ValueDecl in the program corresponding to the virtual
  * array.
  * The array starts out as a scalar, but grows along with the
  * statement writing to the array in pet_scop_embed.
  */
-static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
+static __isl_give isl_multi_pw_aff *create_test_index(isl_ctx *ctx, int test_nr)
 {
 	isl_space *dim = isl_space_alloc(ctx, 0, 0, 0);
 	isl_id *id;
@@ -2222,7 +2222,15 @@ static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
 	snprintf(name, sizeof(name), "__pet_test_%d", test_nr);
 	id = isl_id_alloc(ctx, name, NULL);
 	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
-	return isl_map_universe(dim);
+	return isl_multi_pw_aff_zero(dim);
+}
+
+/* Create an access to a virtual array representing the result
+ * of a condition.
+ */
+static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
+{
+	return isl_map_from_multi_pw_aff(create_test_index(ctx, test_nr));
 }
 
 /* Add an array with the given extent ("access") to the list

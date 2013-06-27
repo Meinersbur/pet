@@ -1573,7 +1573,7 @@ struct pet_embed_access {
  * domain dimension and subsequently projected out.
  *
  * Similarly, if the accessed array is a virtual array (with user
- * pointer equal to NULL), as created by create_test_access,
+ * pointer equal to NULL), as created by create_test_index,
  * then it is extended along with the domain of the access.
  */
 static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
