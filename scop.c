@@ -1288,11 +1288,8 @@ static struct pet_scop *restrict_skip(struct pet_scop *scop,
 	if (is_aff < 0)
 		goto error;
 
-	if (!is_aff) {
-		isl_map *map;
-		map = isl_map_from_multi_pw_aff(skip);
-		return pet_scop_filter(scop, map, 0);
-	}
+	if (!is_aff)
+		return pet_scop_filter(scop, skip, 0);
 
 	pa = isl_multi_pw_aff_get_pw_aff(skip, 0);
 	isl_multi_pw_aff_free(skip);
@@ -2575,27 +2572,28 @@ static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
  * being equal to "satisfied" by adjusting their domains.
  */
 struct pet_scop *pet_scop_filter(struct pet_scop *scop,
-	__isl_take isl_map *test, int satisfied)
+	__isl_take isl_multi_pw_aff *test, int satisfied)
 {
 	int i;
+	isl_map *map = isl_map_from_multi_pw_aff(test);
 
-	scop = pet_scop_filter_skip(scop, pet_skip_now, test, satisfied);
-	scop = pet_scop_filter_skip(scop, pet_skip_later, test, satisfied);
+	scop = pet_scop_filter_skip(scop, pet_skip_now, map, satisfied);
+	scop = pet_scop_filter_skip(scop, pet_skip_later, map, satisfied);
 
-	if (!scop || !test)
+	if (!scop || !map)
 		goto error;
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_filter(scop, scop->stmts[i],
-						isl_map_copy(test), satisfied);
+						isl_map_copy(map), satisfied);
 		if (!scop->stmts[i])
 			goto error;
 	}
 
-	isl_map_free(test);
+	isl_map_free(map);
 	return scop;
 error:
-	isl_map_free(test);
+	isl_map_free(map);
 	return pet_scop_free(scop);
 }
 

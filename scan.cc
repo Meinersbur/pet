@@ -2093,27 +2093,30 @@ static __isl_give isl_aff *identity_aff(__isl_keep isl_set *domain)
 	return isl_aff_var_on_domain(ls, isl_dim_set, 0);
 }
 
-/* Create a map that maps elements of a single-dimensional array "id_test"
- * to the previous element (according to "inc"), provided this element
- * belongs to "domain".  That is, create the map
+/* Create an affine expression that maps elements
+ * of a single-dimensional array "id_test" to the previous element
+ * (according to "inc"), provided this element belongs to "domain".
+ * That is, create the affine expression
  *
  *	{ id[x] -> id[x - inc] : x - inc in domain }
  */
-static __isl_give isl_map *map_to_previous(__isl_take isl_id *id_test,
+static __isl_give isl_multi_pw_aff *map_to_previous(__isl_take isl_id *id_test,
 	__isl_take isl_set *domain, __isl_take isl_val *inc)
 {
 	isl_space *space;
 	isl_local_space *ls;
 	isl_aff *aff;
-	isl_map *prev;
+	isl_multi_pw_aff *prev;
 
 	space = isl_set_get_space(domain);
 	ls = isl_local_space_from_space(space);
 	aff = isl_aff_var_on_domain(ls, isl_dim_set, 0);
 	aff = isl_aff_add_constant_val(aff, isl_val_neg(inc));
-	prev = isl_map_from_aff(aff);
-	prev = isl_map_intersect_range(prev, domain);
-	prev = isl_map_set_tuple_id(prev, isl_dim_out, id_test);
+	prev = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
+	domain = isl_set_preimage_multi_pw_aff(domain,
+						isl_multi_pw_aff_copy(prev));
+	prev = isl_multi_pw_aff_intersect_domain(prev, domain);
+	prev = isl_multi_pw_aff_set_tuple_id(prev, isl_dim_out, id_test);
 
 	return prev;
 }
@@ -2157,7 +2160,7 @@ static struct pet_scop *scop_add_break(struct pet_scop *scop,
 	__isl_take isl_id *id_test, __isl_take isl_set *domain,
 	__isl_take isl_val *inc)
 {
-	isl_map *prev;
+	isl_multi_pw_aff *prev;
 	int sign = isl_val_sgn(inc);
 
 	prev = map_to_previous(isl_id_copy(id_test), isl_set_copy(domain), inc);
@@ -2338,8 +2341,8 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
 {
 	isl_ctx *ctx = isl_set_get_ctx(domain);
 	isl_space *space;
-	isl_map *test_access;
-	isl_map *prev;
+	isl_multi_pw_aff *test_index;
+	isl_multi_pw_aff *prev;
 	int sign = isl_val_sgn(inc);
 	struct pet_scop *scop;
 
@@ -2347,10 +2350,10 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
 	scop_cond = pet_scop_filter(scop_cond, prev, 1);
 
 	space = isl_space_map_from_set(isl_set_get_space(domain));
-	test_access = isl_map_identity(space);
-	test_access = isl_map_set_tuple_id(test_access, isl_dim_out,
+	test_index = isl_multi_pw_aff_identity(space);
+	test_index = isl_multi_pw_aff_set_tuple_id(test_index, isl_dim_out,
 						isl_id_copy(id_test));
-	scop_body = pet_scop_filter(scop_body, test_access, 1);
+	scop_body = pet_scop_filter(scop_body, test_index, 1);
 
 	scop = pet_scop_add_seq(ctx, scop_cond, scop_body);
 	scop = add_implication(scop, id_test, domain, sign, 1);
@@ -4282,20 +4285,21 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 					isl_multi_pw_aff_copy(test_index));
 	n_stmt = save_n_stmt;
 	scop = scop_add_array(scop, test_access, ast_context);
+	isl_map_free(test_access);
 
 	pet_skip_info_if skip(ctx, scop_then, scop_else, have_else, false);
 	skip.extract(this, test_index);
-	isl_multi_pw_aff_free(test_index);
 
 	scop = pet_scop_prefix(scop, 0);
 	scop_then = pet_scop_prefix(scop_then, 1);
-	scop_then = pet_scop_filter(scop_then, isl_map_copy(test_access), 1);
+	scop_then = pet_scop_filter(scop_then,
+					isl_multi_pw_aff_copy(test_index), 1);
 	if (have_else) {
 		scop_else = pet_scop_prefix(scop_else, 1);
-		scop_else = pet_scop_filter(scop_else, test_access, 0);
+		scop_else = pet_scop_filter(scop_else, test_index, 0);
 		scop_then = pet_scop_add_par(ctx, scop_then, scop_else);
 	} else
-		isl_map_free(test_access);
+		isl_multi_pw_aff_free(test_index);
 
 	scop = pet_scop_add_seq(ctx, scop, scop_then);
 

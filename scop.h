@@ -82,7 +82,7 @@ struct pet_scop *pet_scop_reset_context(struct pet_scop *scop);
 struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 	__isl_take isl_map *test, int satisfied);
 struct pet_scop *pet_scop_filter(struct pet_scop *scop,
-	__isl_take isl_map *test, int satisfied);
+	__isl_take isl_multi_pw_aff *test, int satisfied);
 struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop);
 struct pet_scop *pet_scop_add_implication(struct pet_scop *scop,
 	__isl_take isl_map *map, int satisfied);
