@@ -105,6 +105,8 @@ __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
 	enum pet_skip type);
 __isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
 	enum pet_skip type);
+__isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
+	enum pet_skip type);
 struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	enum pet_skip type);
 void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);

@@ -2097,6 +2097,22 @@ __isl_give isl_map *pet_scop_get_skip_map(struct pet_scop *scop,
 	return isl_map_from_range(pet_scop_get_skip(scop, type));
 }
 
+/* Return the identifier of the variable that is accessed by
+ * the skip condition of the given type.
+ *
+ * The skip condition is assumed not to be an affine condition.
+ */
+__isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
+	enum pet_skip type)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop)
+		return NULL;
+
+	return isl_set_get_tuple_id(ext->skip[type]);
+}
+
 /* Return an access pet_expr corresponding to the skip condition
  * of the given type.
  */
