@@ -218,6 +218,24 @@ struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access)
 	return pet_expr_new_unary(ctx, pet_op_kill, expr);
 }
 
+/* Construct a pet_expr that kills the elements specified by
+ * the index expression "index" and the access relation "access".
+ *
+ * We currently ignore "index".
+ */
+struct pet_expr *pet_expr_kill_from_access_and_index(__isl_take isl_map *access,
+	__isl_take isl_multi_pw_aff *index)
+{
+	if (!access || !index)
+		goto error;
+	isl_multi_pw_aff_free(index);
+	return pet_expr_kill_from_access(access);
+error:
+	isl_map_free(access);
+	isl_multi_pw_aff_free(index);
+	return NULL;
+}
+
 /* Construct a unary pet_expr that performs "op" on "arg".
  */
 struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,

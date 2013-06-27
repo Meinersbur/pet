@@ -24,6 +24,8 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index);
 struct pet_expr *pet_expr_from_index_and_depth(
 	__isl_take isl_multi_pw_aff *index, int depth);
 struct pet_expr *pet_expr_from_access(__isl_take isl_map *access);
+struct pet_expr *pet_expr_kill_from_access_and_index(__isl_take isl_map *access,
+	__isl_take isl_multi_pw_aff *index);
 struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access);
 struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,
 	struct pet_expr *arg);
