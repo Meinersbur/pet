@@ -2246,17 +2246,18 @@ static __isl_give isl_multi_pw_aff *create_test_index(isl_ctx *ctx, int test_nr)
 	return isl_multi_pw_aff_zero(dim);
 }
 
-/* Add an array with the given extent ("access") to the list
+/* Add an array with the given extent (range of "index") to the list
  * of arrays in "scop" and return the extended pet_scop.
  * The array is marked as attaining values 0 and 1 only and
  * as each element being assigned at most once.
  */
 static struct pet_scop *scop_add_array(struct pet_scop *scop,
-	__isl_keep isl_map *access, clang::ASTContext &ast_ctx)
+	__isl_keep isl_multi_pw_aff *index, clang::ASTContext &ast_ctx)
 {
-	isl_ctx *ctx = isl_map_get_ctx(access);
+	isl_ctx *ctx = isl_multi_pw_aff_get_ctx(index);
 	isl_space *dim;
 	struct pet_array *array;
+	isl_map *access;
 
 	if (!scop)
 		return NULL;
@@ -2267,7 +2268,8 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	if (!array)
 		goto error;
 
-	array->extent = isl_map_range(isl_map_copy(access));
+	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
+	array->extent = isl_map_range(access);
 	dim = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(dim);
 	dim = isl_space_set_alloc(ctx, 0, 1);
@@ -2390,7 +2392,6 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	Expr *cond;
 	isl_id *id, *id_test, *id_break_test;
 	isl_multi_pw_aff *test_index;
-	isl_map *test_access;
 	isl_set *domain;
 	isl_aff *ident;
 	isl_pw_aff *pa;
@@ -2418,10 +2419,9 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	test_index = create_test_index(ctx, n_test++);
 	scop = extract_non_affine_condition(cond,
 					    isl_multi_pw_aff_copy(test_index));
-	test_access = isl_map_from_multi_pw_aff(test_index);
-	scop = scop_add_array(scop, test_access, ast_context);
-	id_test = isl_map_get_tuple_id(test_access, isl_dim_out);
-	isl_map_free(test_access);
+	scop = scop_add_array(scop, test_index, ast_context);
+	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
+	isl_multi_pw_aff_free(test_index);
 	scop_body = extract(stmt->getBody());
 
 	id = isl_id_alloc(ctx, "t", NULL);
@@ -2908,17 +2908,16 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	cond = isl_pw_aff_non_zero_set(pa);
 	if (allow_nested && !cond) {
 		isl_multi_pw_aff *test_index;
-		isl_map *test_access;
 		int save_n_stmt = n_stmt;
 		test_index = create_test_index(ctx, n_test++);
 		n_stmt = stmt_id;
 		scop_cond = extract_non_affine_condition(stmt->getCond(),
 					    isl_multi_pw_aff_copy(test_index));
 		n_stmt = save_n_stmt;
-		test_access = isl_map_from_multi_pw_aff(test_index);
-		scop_cond = scop_add_array(scop_cond, test_access, ast_context);
-		id_test = isl_map_get_tuple_id(test_access, isl_dim_out);
-		isl_map_free(test_access);
+		scop_cond = scop_add_array(scop_cond, test_index, ast_context);
+		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
+							isl_dim_out);
+		isl_multi_pw_aff_free(test_index);
 		scop_cond = pet_scop_prefix(scop_cond, 0);
 		scop = pet_scop_reset_context(scop);
 		scop = pet_scop_prefix(scop, 1);
@@ -4021,7 +4020,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = scan->ctx;
-	isl_map *test_access, *skip_access;
+	isl_map *test_access;
 
 	if (!scop_then)
 		goto error;
@@ -4052,7 +4051,6 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	expr = pet_expr_from_index(test_index);
 	expr = pet_expr_new_ternary(ctx, expr, expr_then, expr_else);
 	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
-	skip_access = isl_map_from_multi_pw_aff(skip_index);
 	if (expr_skip) {
 		expr_skip->acc.write = 1;
 		expr_skip->acc.read = 0;
@@ -4061,8 +4059,8 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, scan->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
-	scop = scop_add_array(scop, skip_access, scan->ast_context);
-	isl_map_free(skip_access);
+	scop = scop_add_array(scop, skip_index, scan->ast_context);
+	isl_multi_pw_aff_free(skip_index);
 
 	return scop;
 error:
@@ -4274,18 +4272,14 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 {
 	struct pet_scop *scop;
 	isl_multi_pw_aff *test_index;
-	isl_map *test_access;
 	int save_n_stmt = n_stmt;
 
 	test_index = create_test_index(ctx, n_test++);
-	test_access = isl_map_from_multi_pw_aff(
-					isl_multi_pw_aff_copy(test_index));
 	n_stmt = stmt_id;
 	scop = extract_non_affine_condition(cond,
 					isl_multi_pw_aff_copy(test_index));
 	n_stmt = save_n_stmt;
-	scop = scop_add_array(scop, test_access, ast_context);
-	isl_map_free(test_access);
+	scop = scop_add_array(scop, test_index, ast_context);
 
 	pet_skip_info_if skip(ctx, scop_then, scop_else, have_else, false);
 	skip.extract(this, test_index);
@@ -4614,7 +4608,6 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = ps->ctx;
-	isl_map *skip_access;
 
 	if (!scop1 || !scop2)
 		goto error;
@@ -4636,9 +4629,8 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, ps->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
-	skip_access = isl_map_from_multi_pw_aff(skip_index);
-	scop = scop_add_array(scop, skip_access, ps->ast_context);
-	isl_map_free(skip_access);
+	scop = scop_add_array(scop, skip_index, ps->ast_context);
+	isl_multi_pw_aff_free(skip_index);
 
 	return scop;
 error:
