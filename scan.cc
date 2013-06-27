@@ -2243,14 +2243,6 @@ static __isl_give isl_multi_pw_aff *create_test_index(isl_ctx *ctx, int test_nr)
 	return isl_multi_pw_aff_zero(dim);
 }
 
-/* Create an access to a virtual array representing the result
- * of a condition.
- */
-static __isl_give isl_map *create_test_access(isl_ctx *ctx, int test_nr)
-{
-	return isl_map_from_multi_pw_aff(create_test_index(ctx, test_nr));
-}
-
 /* Add an array with the given extent ("access") to the list
  * of arrays in "scop" and return the extended pet_scop.
  * The array is marked as attaining values 0 and 1 only and
@@ -4001,13 +3993,13 @@ static struct pet_expr *universally_false(isl_ctx *ctx)
 }
 
 /* Given an index expression "test_index" for the if condition,
- * an access relation "skip_access" for the skip condition and
+ * an index expression "skip_index" for the skip condition and
  * scops for the then and else branches, construct a scop for
- * computing "skip_access".
+ * computing "skip_index".
  *
  * The computed scop contains a single statement that essentially does
  *
- *	skip_cond = test_cond ? skip_cond_then : skip_cond_else
+ *	skip_index = test_cond ? skip_cond_then : skip_cond_else
  *
  * If the skip conditions of the then and/or else branch are not affine,
  * then they need to be filtered by test_index.
@@ -4018,7 +4010,7 @@ static struct pet_expr *universally_false(isl_ctx *ctx)
  */
 static struct pet_scop *extract_skip(PetScan *scan,
 	__isl_take isl_multi_pw_aff *test_index,
-	__isl_take isl_map *skip_access,
+	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop_then, struct pet_scop *scop_else, bool have_else,
 	enum pet_skip type)
 {
@@ -4026,7 +4018,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = scan->ctx;
-	isl_map *test_access;
+	isl_map *test_access, *skip_access;
 
 	if (!scop_then)
 		goto error;
@@ -4056,7 +4048,8 @@ static struct pet_scop *extract_skip(PetScan *scan,
 
 	expr = pet_expr_from_index(test_index);
 	expr = pet_expr_new_ternary(ctx, expr, expr_then, expr_else);
-	expr_skip = pet_expr_from_access(isl_map_copy(skip_access));
+	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
+	skip_access = isl_map_from_multi_pw_aff(skip_index);
 	if (expr_skip) {
 		expr_skip->acc.write = 1;
 		expr_skip->acc.read = 0;
@@ -4071,7 +4064,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	return scop;
 error:
 	isl_multi_pw_aff_free(test_index);
-	isl_map_free(skip_access);
+	isl_multi_pw_aff_free(skip_index);
 	return NULL;
 }
 
@@ -4119,7 +4112,8 @@ static void drop_skip_later(struct pet_scop *scop1, struct pet_scop *scop2)
  * skip[type] is true if we need to construct a skip condition of that type
  * equal is set if the skip conditions of types pet_skip_now and pet_skip_later
  *	are equal to each other
- * access[type] is the virtual array representing the skip condition
+ * index[type] is an index expression from a zero-dimension domain
+ *	to the virtual array representing the skip condition
  * scop[type] is a scop for computing the skip condition
  */
 struct pet_skip_info {
@@ -4127,7 +4121,7 @@ struct pet_skip_info {
 
 	bool skip[2];
 	bool equal;
-	isl_map *access[2];
+	isl_multi_pw_aff *index[2];
 	struct pet_scop *scop[2];
 
 	pet_skip_info(isl_ctx *ctx) : ctx(ctx) {}
@@ -4174,20 +4168,20 @@ pet_skip_info_if::pet_skip_info_if(isl_ctx *ctx, struct pet_scop *scop_then,
 /* If we need to construct a skip condition of the given type,
  * then do so now.
  *
- * "index" represents the if condition.
+ * "mpa" represents the if condition.
  */
 void pet_skip_info_if::extract(PetScan *scan,
-	__isl_keep isl_multi_pw_aff *index, enum pet_skip type)
+	__isl_keep isl_multi_pw_aff *mpa, enum pet_skip type)
 {
 	isl_ctx *ctx;
 
 	if (!skip[type])
 		return;
 
-	ctx = isl_multi_pw_aff_get_ctx(index);
-	access[type] = create_test_access(ctx, scan->n_test++);
-	scop[type] = extract_skip(scan, isl_multi_pw_aff_copy(index),
-				isl_map_copy(access[type]),
+	ctx = isl_multi_pw_aff_get_ctx(mpa);
+	index[type] = create_test_index(ctx, scan->n_test++);
+	scop[type] = extract_skip(scan, isl_multi_pw_aff_copy(mpa),
+				isl_multi_pw_aff_copy(index[type]),
 				scop_then, scop_else, have_else, type);
 }
 
@@ -4231,8 +4225,8 @@ struct pet_scop *pet_skip_info_if::add(struct pet_scop *main,
 	if (!skip[type])
 		return main;
 
-	skip_set = isl_map_range(access[type]);
-	access[type] = NULL;
+	skip_set = isl_map_range(isl_map_from_multi_pw_aff(index[type]));
+	index[type] = NULL;
 	scop[type] = pet_scop_prefix(scop[type], offset);
 	main = pet_scop_add_par(ctx, main, scop[type]);
 	scop[type] = NULL;
@@ -4586,12 +4580,12 @@ static bool need_skip_seq(struct pet_scop *scop1, struct pet_scop *scop2,
 }
 
 /* Construct a scop for computing the skip condition of the given type and
- * with access relation "skip_access" for a sequence of two scops "scop1"
+ * with index expression "skip_index" for a sequence of two scops "scop1"
  * and "scop2".
  *
  * The computed scop contains a single statement that essentially does
  *
- *	skip_cond = skip_cond_1 ? 1 : skip_cond_2
+ *	skip_index = skip_cond_1 ? 1 : skip_cond_2
  *
  * or, in other words, skip_cond1 || skip_cond2.
  * In this expression, skip_cond_2 is filtered to reflect that it is
@@ -4601,7 +4595,7 @@ static bool need_skip_seq(struct pet_scop *scop1, struct pet_scop *scop2,
  * to be applied to scop2 when these two scops are combined.
  */
 static struct pet_scop *extract_skip_seq(PetScan *ps,
-	__isl_take isl_map *skip_access,
+	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop1, struct pet_scop *scop2, enum pet_skip type)
 {
 	isl_map *access;
@@ -4609,6 +4603,7 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = ps->ctx;
+	isl_map *skip_access;
 
 	if (!scop1 || !scop2)
 		goto error;
@@ -4621,7 +4616,7 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 
 	expr = universally_true(ctx);
 	expr = pet_expr_new_ternary(ctx, expr1, expr, expr2);
-	expr_skip = pet_expr_from_access(isl_map_copy(skip_access));
+	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
 	if (expr_skip) {
 		expr_skip->acc.write = 1;
 		expr_skip->acc.read = 0;
@@ -4630,12 +4625,13 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, ps->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
+	skip_access = isl_map_from_multi_pw_aff(skip_index);
 	scop = scop_add_array(scop, skip_access, ps->ast_context);
 	isl_map_free(skip_access);
 
 	return scop;
 error:
-	isl_map_free(skip_access);
+	isl_multi_pw_aff_free(skip_index);
 	return NULL;
 }
 
@@ -4677,8 +4673,8 @@ void pet_skip_info_seq::extract(PetScan *scan, enum pet_skip type)
 	if (!skip[type])
 		return;
 
-	access[type] = create_test_access(ctx, scan->n_test++);
-	scop[type] = extract_skip_seq(scan, isl_map_copy(access[type]),
+	index[type] = create_test_index(ctx, scan->n_test++);
+	scop[type] = extract_skip_seq(scan, isl_multi_pw_aff_copy(index[type]),
 				    scop1, scop2, type);
 }
 
@@ -4708,8 +4704,8 @@ struct pet_scop *pet_skip_info_seq::add(struct pet_scop *main,
 	if (!skip[type])
 		return main;
 
-	skip_set = isl_map_range(access[type]);
-	access[type] = NULL;
+	skip_set = isl_map_range(isl_map_from_multi_pw_aff(index[type]));
+	index[type] = NULL;
 	scop[type] = pet_scop_prefix(scop[type], 1);
 	scop[type] = pet_scop_prefix(scop[type], offset);
 	main = pet_scop_add_par(ctx, main, scop[type]);
