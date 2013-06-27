@@ -159,6 +159,17 @@ error:
 	return NULL;
 }
 
+/* Construct an access pet_expr from an index expression.
+ * By default, the access is considered to be a read access.
+ */
+struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
+{
+	isl_map *access;
+
+	access = isl_map_from_multi_pw_aff(index);
+	return pet_expr_from_access(access);
+}
+
 /* Construct a pet_expr that kills the elements specified by "access".
  */
 struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access)
