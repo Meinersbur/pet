@@ -3565,16 +3565,17 @@ extern "C" {
 	static struct pet_expr *embed_access(struct pet_expr *expr, void *user);
 }
 
-/* Apply the map pointed to by "user" to the domain of the access 
- * relation associated to "expr", thereby embedding it in the range of the map.
- * The domain of both relations is the zero-dimensional domain.
+/* Precompose the access relation associated to "expr" with the function
+ * pointed to by "user", thereby embedding the access relation in the domain
+ * of this function.
+ * The initial domain of the access relation is the zero-dimensional domain.
  */
 static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
-	isl_map *map = (isl_map *) user;
+	isl_multi_aff *ma = (isl_multi_aff *) user;
 
-	expr->acc.access = isl_map_apply_domain(expr->acc.access,
-						isl_map_copy(map));
+	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
+						isl_multi_aff_copy(ma));
 	if (!expr->acc.access)
 		goto error;
 
@@ -3584,11 +3585,13 @@ error:
 	return NULL;
 }
 
-/* Apply "map" to all access relations in "expr".
+/* Precompose all access relations in "expr" with "ma", thereby
+ * embedding them in the domain of "ma".
  */
-static struct pet_expr *embed(struct pet_expr *expr, __isl_keep isl_map *map)
+static struct pet_expr *embed(struct pet_expr *expr,
+	__isl_keep isl_multi_aff *ma)
 {
-	return pet_expr_map_access(expr, &embed_access, map);
+	return pet_expr_map_access(expr, &embed_access, ma);
 }
 
 /* How many parameters of "set" refer to nested accesses, i.e., have no name?
@@ -3786,6 +3789,8 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 	int nparam;
 	unsigned n_arg;
 	isl_map *map;
+	isl_space *space;
+	isl_multi_aff *ma;
 	std::map<int,int> param2pos;
 
 	if (!stmt)
@@ -3823,11 +3828,12 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 
 	stmt->domain = isl_map_wrap(map);
 
-	map = isl_set_unwrap(isl_set_copy(stmt->domain));
-	map = isl_map_from_range(isl_map_domain(map));
+	space = isl_space_unwrap(isl_set_get_space(stmt->domain));
+	space = isl_space_from_domain(isl_space_domain(space));
+	ma = isl_multi_aff_zero(space);
 	for (int pos = 0; pos < n; ++pos)
-		stmt->args[pos] = embed(stmt->args[pos], map);
-	isl_map_free(map);
+		stmt->args[pos] = embed(stmt->args[pos], ma);
+	isl_multi_aff_free(ma);
 
 	stmt = remove_nested_parameters(stmt);
 	stmt = remove_duplicate_arguments(stmt, n);
