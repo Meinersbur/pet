@@ -21,6 +21,8 @@ enum pet_expr_type pet_str_type(const char *str);
 enum pet_op_type pet_str_op(const char *str);
 
 struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index);
+struct pet_expr *pet_expr_from_index_and_depth(
+	__isl_take isl_multi_pw_aff *index, int depth);
 struct pet_expr *pet_expr_from_access(__isl_take isl_map *access);
 struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access);
 struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,

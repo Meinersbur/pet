@@ -170,6 +170,39 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 	return pet_expr_from_access(access);
 }
 
+/* Construct an access pet_expr from an index expression and
+ * the depth of the accessed array.
+ * By default, the access is considered to be a read access.
+ *
+ * If the number of indices is smaller than the depth of the array,
+ * then we assume that all elements of the remaining dimensions
+ * are accessed.
+ */
+struct pet_expr *pet_expr_from_index_and_depth(
+	__isl_take isl_multi_pw_aff *index, int depth)
+{
+	isl_id *id;
+	isl_map *access;
+	int dim;
+
+	access = isl_map_from_multi_pw_aff(index);
+	if (!access)
+		return NULL;
+	dim = isl_map_dim(access, isl_dim_out);
+	if (dim > depth)
+		isl_die(isl_map_get_ctx(access), isl_error_internal,
+			"number of indices greater than depth",
+			access = isl_map_free(access));
+	if (dim == depth)
+		return pet_expr_from_access(access);
+
+	id = isl_map_get_tuple_id(access, isl_dim_out);
+	access = isl_map_add_dims(access, isl_dim_out, depth - dim);
+	access = isl_map_set_tuple_id(access, isl_dim_out, id);
+
+	return pet_expr_from_access(access);
+}
+
 /* Construct a pet_expr that kills the elements specified by "access".
  */
 struct pet_expr *pet_expr_kill_from_access(__isl_take isl_map *access)
