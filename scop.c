@@ -3208,11 +3208,45 @@ struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop)
 	return scop;
 }
 
+/* Return the relation mapping domain iterations to all possibly
+ * accessed data elements.
+ * In particular, take the access relation and project out the values
+ * of the arguments, if any.
+ */
+static __isl_give isl_map *expr_access_get_may_access(struct pet_expr *expr)
+{
+	isl_map *access;
+	isl_space *space;
+	isl_map *map;
+
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return NULL;
+
+	access = isl_map_copy(expr->acc.access);
+	if (expr->n_arg == 0)
+		return access;
+
+	space = isl_space_domain(isl_map_get_space(access));
+	map = isl_map_universe(isl_space_unwrap(space));
+	map = isl_map_domain_map(map);
+	access = isl_map_apply_domain(access, map);
+
+	return access;
+}
+
 /* Add all read access relations (if "read" is set) and/or all write
  * access relations (if "write" is set) to "accesses" and return the result.
+ *
+ * If "must" is set, then we only add the accesses that are definitely
+ * performed.  Otherwise, we add all potential accesses.
+ * In particular, if the access has any arguments, then if "must" is
+ * set we currently skip the access completely.  If "must" is not set,
+ * we project out the values of the access arguments.
  */
 static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
-	int read, int write, __isl_take isl_union_map *accesses)
+	int read, int write, int must, __isl_take isl_union_map *accesses)
 {
 	int i;
 	isl_id *id;
@@ -3223,40 +3257,62 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 
 	for (i = 0; i < expr->n_arg; ++i)
 		accesses = expr_collect_accesses(expr->args[i],
-						 read, write, accesses);
+						 read, write, must, accesses);
 
 	if (expr->type == pet_expr_access && !pet_expr_is_affine(expr) &&
-	    ((read && expr->acc.read) || (write && expr->acc.write)))
-		accesses = isl_union_map_add_map(accesses,
-						isl_map_copy(expr->acc.access));
+	    ((read && expr->acc.read) || (write && expr->acc.write)) &&
+	    (!must || expr->n_arg == 0)) {
+		isl_map *access;
+
+		access = expr_access_get_may_access(expr);
+		accesses = isl_union_map_add_map(accesses, access);
+	}
 
 	return accesses;
 }
 
 /* Collect and return all read access relations (if "read" is set)
  * and/or all write access relations (if "write" is set) in "stmt".
+ *
+ * If "must" is set, then we only add the accesses that are definitely
+ * performed.  Otherwise, we add all potential accesses.
+ * In particular, if the statement has any arguments, then if "must" is
+ * set we currently skip the statement completely.  If "must" is not set,
+ * we project out the values of the statement arguments.
  */
 static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
-	int read, int write, __isl_take isl_space *dim)
+	int read, int write, int must, __isl_take isl_space *dim)
 {
 	isl_union_map *accesses;
+	isl_set *domain;
 
 	if (!stmt)
 		return NULL;
 
 	accesses = isl_union_map_empty(dim);
-	accesses = expr_collect_accesses(stmt->body, read, write, accesses);
+
+	if (must && stmt->n_arg > 0)
+		return accesses;
+
+	domain = isl_set_copy(stmt->domain);
+	if (isl_set_is_wrapping(domain))
+		domain = isl_map_domain(isl_set_unwrap(domain));
+
+	accesses = expr_collect_accesses(stmt->body,
+					 read, write, must, accesses);
 	accesses = isl_union_map_intersect_domain(accesses,
-			isl_union_set_from_set(isl_set_copy(stmt->domain)));
+					isl_union_set_from_set(domain));
 
 	return accesses;
 }
 
 /* Collect and return all read access relations (if "read" is set)
  * and/or all write access relations (if "write" is set) in "scop".
+ * If "must" is set, then we only add the accesses that are definitely
+ * performed.  Otherwise, we add all potential accesses.
  */
 static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
-	int read, int write)
+	int read, int write, int must)
 {
 	int i;
 	isl_union_map *accesses;
@@ -3271,7 +3327,7 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 		isl_union_map *accesses_i;
 		isl_space *dim = isl_set_get_space(scop->context);
 		accesses_i = stmt_collect_accesses(scop->stmts[i],
-						   read, write, dim);
+						   read, write, must, dim);
 		accesses = isl_union_map_union(accesses, accesses_i);
 	}
 
@@ -3285,14 +3341,25 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	return accesses;
 }
 
-__isl_give isl_union_map *pet_scop_collect_reads(struct pet_scop *scop)
+/* Collect all potential read access relations.
+ */
+__isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 1, 0);
+	return scop_collect_accesses(scop, 1, 0, 0);
 }
 
-__isl_give isl_union_map *pet_scop_collect_writes(struct pet_scop *scop)
+/* Collect all potential write access relations.
+ */
+__isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1);
+	return scop_collect_accesses(scop, 0, 1, 0);
+}
+
+/* Collect all definite write access relations.
+ */
+__isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop)
+{
+	return scop_collect_accesses(scop, 0, 1, 1);
 }
 
 /* Collect and return the union of iteration domains in "scop".
