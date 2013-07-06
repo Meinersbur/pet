@@ -4748,8 +4748,13 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 		scop = pet_scop_add_seq(ctx, scop, scop_j);
 	}
 
-	if (scop && partial_range)
+	if (scop && partial_range) {
+		if (scop->n_stmt == 0) {
+			pet_scop_free(scop);
+			return NULL;
+		}
 		partial = true;
+	}
 
 	return scop;
 }
