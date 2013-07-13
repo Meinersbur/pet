@@ -84,28 +84,29 @@ static __isl_give isl_pw_aff *call_expr_extract_pw_aff(struct pet_expr *expr,
 	return expr_extract_floord(expr, assignments);
 }
 
-/* Is the variable accessed by "access" assigned in "assignments"?
+/* Is the variable accessed by "index" assigned in "assignments"?
  *
  * The assignments map variable identifiers to functions of the form
  *
  *	{ domain -> value }
  */
-static int is_assigned(__isl_keep isl_map *access,
+static int is_assigned(__isl_keep isl_multi_pw_aff *index,
 	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_id *var;
 	int assigned;
 
-	var = isl_map_get_tuple_id(access, isl_dim_out);
+	var = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	assigned = isl_id_to_pw_aff_has(assignments, var);
 	isl_id_free(var);
 
 	return assigned;
 }
 
-/* Apply the appropriate assignment in "assignments" to the access "map".
+/* Apply the appropriate assignment in "assignments"
+ * to the index expression "index".
  *
- * "map" is of the form
+ * "index" is of the form
  *
  *	{ access_domain -> variable }
  *
@@ -126,7 +127,8 @@ static int is_assigned(__isl_keep isl_map *access,
  *
  *	{ access_domain -> value }
  */
-static __isl_give isl_map *apply_assignment(__isl_take isl_map *map,
+static __isl_give isl_pw_aff *apply_assignment(
+	__isl_take isl_multi_pw_aff *index,
 	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_id *id;
@@ -137,8 +139,8 @@ static __isl_give isl_map *apply_assignment(__isl_take isl_map *map,
 	isl_local_space *ls;
 	int i, n;
 
-	id = isl_map_get_tuple_id(map, isl_dim_out);
-	dom = isl_map_domain(map);
+	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
+	dom = isl_multi_pw_aff_domain(index);
 	val = isl_id_to_pw_aff_get(assignments, id);
 	space = isl_pw_aff_get_domain_space(val);
 	dom_space = isl_set_get_space(dom);
@@ -158,31 +160,37 @@ static __isl_give isl_map *apply_assignment(__isl_take isl_map *map,
 	val = isl_pw_aff_pullback_multi_aff(val, ma);
 	val = isl_pw_aff_intersect_domain(val, dom);
 
-	return isl_map_from_pw_aff(val);
+	return val;
 }
 
-/* Extract an affine expression from the access to a named space in "access",
+/* Extract an affine expression from the access to a named space in "index",
  * possibly exploiting "assignments".
  *
  * If the variable has been assigned a value, we return the corresponding
  * assignment.  Otherwise, we assume we are accessing a 0D space and
  * we turn that into an expression equal to a parameter of the same name.
  */
-static __isl_give isl_map *resolve_access(__isl_take isl_map *access,
+static __isl_give isl_pw_aff *resolve_access(__isl_take isl_multi_pw_aff *index,
 	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_id *id;
+	isl_set *dom;
+	isl_aff *aff;
+	isl_local_space *ls;
+	isl_pw_aff *pa;
 
-	if (is_assigned(access, assignments))
-		return apply_assignment(access, assignments);
+	if (is_assigned(index, assignments))
+		return apply_assignment(index, assignments);
 
-	id = isl_map_get_tuple_id(access, isl_dim_out);
-	access = isl_map_insert_dims(access, isl_dim_param, 0, 1);
-	access = isl_map_set_dim_id(access, isl_dim_param, 0, id);
-	access = isl_map_insert_dims(access, isl_dim_out, 0, 1);
-	access = isl_map_equate(access, isl_dim_param, 0, isl_dim_out, 0);
+	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
+	dom = isl_multi_pw_aff_domain(index);
+	dom = isl_set_insert_dims(dom, isl_dim_param, 0, 1);
+	dom = isl_set_set_dim_id(dom, isl_dim_param, 0, id);
+	ls = isl_local_space_from_space(isl_set_get_space(dom));
+	aff = isl_aff_var_on_domain(ls, isl_dim_param, 0);
+	pa = isl_pw_aff_alloc(dom, aff);
 
-	return access;
+	return pa;
 }
 
 /* Extract an affine expression from the access expression "expr",
@@ -196,16 +204,14 @@ static __isl_give isl_map *resolve_access(__isl_take isl_map *access,
 static __isl_give isl_pw_aff *access_expr_extract_pw_aff(struct pet_expr *expr,
 	__isl_keep isl_id_to_pw_aff *assignments)
 {
-	isl_map *map;
 	isl_pw_aff *pa;
-	isl_pw_multi_aff *pma;
 
-	map = isl_map_copy(expr->acc.access);
-	if (isl_map_has_tuple_id(map, isl_dim_out))
-		map = resolve_access(map, assignments);
-	pma = isl_pw_multi_aff_from_map(map);
-	pa = isl_pw_multi_aff_get_pw_aff(pma, 0);
-	isl_pw_multi_aff_free(pma);
+	if (isl_multi_pw_aff_has_tuple_id(expr->acc.index, isl_dim_out)) {
+		isl_multi_pw_aff *index;
+		index = isl_multi_pw_aff_copy(expr->acc.index);
+		pa = resolve_access(index, assignments);
+	} else
+		pa = isl_multi_pw_aff_get_pw_aff(expr->acc.index, 0);
 	return pa;
 }
 
