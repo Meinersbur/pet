@@ -38,6 +38,7 @@
 #include <isl/aff.h>
 #include <isl/set.h>
 #include <isl/union_map.h>
+#include <isl/id_to_pw_aff.h>
 #include <pet.h>
 
 struct options {
@@ -55,13 +56,13 @@ ISL_ARGS_END
 ISL_ARG_DEF(options, struct options, options_args)
 
 static __isl_give isl_pw_aff *expr_extract_pw_aff(struct pet_expr *expr,
-	__isl_keep isl_union_map *assignments);
+	__isl_keep isl_id_to_pw_aff *assignments);
 
 /* Extract an affine expression from the call to floord in "expr",
  * possibly exploiting "assignments".
  */
 static __isl_give isl_pw_aff *expr_extract_floord(struct pet_expr *expr,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_pw_aff *lhs, *rhs;
 
@@ -76,7 +77,7 @@ static __isl_give isl_pw_aff *expr_extract_floord(struct pet_expr *expr,
  * We only support calls to the "floord" function for now.
  */
 static __isl_give isl_pw_aff *call_expr_extract_pw_aff(struct pet_expr *expr,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	assert(!strcmp(expr->name, "floord"));
 
@@ -85,24 +86,21 @@ static __isl_give isl_pw_aff *call_expr_extract_pw_aff(struct pet_expr *expr,
 
 /* Is the variable accessed by "access" assigned in "assignments"?
  *
- * The assignments are of the form
+ * The assignments map variable identifiers to functions of the form
  *
- *	{ variable -> [domain -> value] }
+ *	{ domain -> value }
  */
 static int is_assigned(__isl_keep isl_map *access,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
-	isl_union_set *var;
-	isl_union_map *test;
-	int empty;
+	isl_id *var;
+	int assigned;
 
-	var = isl_union_set_from_set(isl_map_range(isl_map_copy(access)));
-	test = isl_union_map_copy(assignments);
-	test = isl_union_map_intersect_domain(test, var);
-	empty = isl_union_map_is_empty(test);
-	isl_union_map_free(test);
+	var = isl_map_get_tuple_id(access, isl_dim_out);
+	assigned = isl_id_to_pw_aff_has(assignments, var);
+	isl_id_free(var);
 
-	return !empty;
+	return assigned;
 }
 
 /* Apply the appropriate assignment in "assignments" to the access "map".
@@ -111,9 +109,9 @@ static int is_assigned(__isl_keep isl_map *access,
  *
  *	{ access_domain -> variable }
  *
- * "assignments" are of the form
+ * "assignments" maps variable identifiers to functions of the form
  *
- *	{ variable -> [assignment_domain -> value] }
+ *	{ assignment_domain -> value }
  *
  * We assume the assignment precedes the access in the code.
  * In particular, we assume that the loops around the assignment
@@ -121,31 +119,46 @@ static int is_assigned(__isl_keep isl_map *access,
  *
  * We compute
  *
- *	{ access_domain -> [assignment_domain -> value] }
+ *	{ access_domain -> assignment_domain }
  *
- * equate the iterators of assignment_domain to the corresponding iterators
- * in access_domain and then project out assignment_domain, obtaining
+ * equating the iterators of assignment_domain to the corresponding iterators
+ * in access_domain and then plug that into the assigned value, obtaining
  *
  *	{ access_domain -> value }
  */
 static __isl_give isl_map *apply_assignment(__isl_take isl_map *map,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
-	isl_union_map *umap;
-	isl_space *space;
+	isl_id *id;
+	isl_set *dom;
+	isl_pw_aff *val;
+	isl_multi_aff *ma;
+	isl_space *space, *dom_space;
+	isl_local_space *ls;
 	int i, n;
 
-	umap = isl_union_map_from_map(map);
-	umap = isl_union_map_apply_range(umap, isl_union_map_copy(assignments));
-	map = isl_map_from_union_map(umap);
-	space = isl_space_unwrap(isl_space_range(isl_map_get_space(map)));
-	n = isl_space_dim(space, isl_dim_in);
-	for (i = 0; i < n; ++i)
-		map = isl_map_equate(map, isl_dim_in, i, isl_dim_out, i);
-	map = isl_map_apply_range(map,
-				isl_map_range_map(isl_map_universe(space)));
+	id = isl_map_get_tuple_id(map, isl_dim_out);
+	dom = isl_map_domain(map);
+	val = isl_id_to_pw_aff_get(assignments, id);
+	space = isl_pw_aff_get_domain_space(val);
+	dom_space = isl_set_get_space(dom);
+	space = isl_space_map_from_domain_and_range(dom_space, space);
+	ma = isl_multi_aff_zero(space);
+	ls = isl_local_space_from_space(isl_set_get_space(dom));
+	n = isl_multi_aff_dim(ma, isl_dim_out);
+	for (i = 0; i < n; ++i) {
+		isl_aff *aff;
 
-	return map;
+		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
+					isl_dim_set, i);
+		ma = isl_multi_aff_set_aff(ma, i, aff);
+	}
+	isl_local_space_free(ls);
+
+	val = isl_pw_aff_pullback_multi_aff(val, ma);
+	val = isl_pw_aff_intersect_domain(val, dom);
+
+	return isl_map_from_pw_aff(val);
 }
 
 /* Extract an affine expression from the access to a named space in "access",
@@ -156,7 +169,7 @@ static __isl_give isl_map *apply_assignment(__isl_take isl_map *map,
  * we turn that into an expression equal to a parameter of the same name.
  */
 static __isl_give isl_map *resolve_access(__isl_take isl_map *access,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_id *id;
 
@@ -181,7 +194,7 @@ static __isl_give isl_map *resolve_access(__isl_take isl_map *access,
  * resolve_access().
  */
 static __isl_give isl_pw_aff *access_expr_extract_pw_aff(struct pet_expr *expr,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_map *map;
 	isl_pw_aff *pa;
@@ -203,7 +216,7 @@ static __isl_give isl_pw_aff *access_expr_extract_pw_aff(struct pet_expr *expr,
  * as arguments to a function call in code generated by isl.
  */
 static __isl_give isl_pw_aff *expr_extract_pw_aff(struct pet_expr *expr,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	isl_pw_aff *pa, *pa1, *pa2;
 
@@ -256,7 +269,7 @@ static __isl_give isl_pw_aff *expr_extract_pw_aff(struct pet_expr *expr,
  * in the form of an isl_map.
  */
 static __isl_give isl_map *expr_extract_map(struct pet_expr *expr,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	return isl_map_from_pw_aff(expr_extract_pw_aff(expr, assignments));
 }
@@ -268,7 +281,7 @@ static __isl_give isl_map *expr_extract_map(struct pet_expr *expr,
  *	{ domain -> function[arguments] }
  */
 static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt,
-	__isl_keep isl_union_map *assignments)
+	__isl_keep isl_id_to_pw_aff *assignments)
 {
 	int i;
 	isl_set *domain;
@@ -293,41 +306,27 @@ static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt,
 
 /* Add the assignment in "stmt" to "assignments".
  *
- * We extract the variable access
- *
- *	{ domain -> variable }
- *
+ * We extract the accessed variable identifier "var"
  * and the assigned value
  *
  *	{ domain -> value }
  *
- * and combined them into
- *
- *	{ variable -> [domain -> value] }
- *
- * We add this to "assignments" after having removed any
- * previously assigned value to the same variable.
+ * and map "var" to this value in "assignments", replacing
+ * any possible previously assigned value to the same variable.
  */
-static __isl_give isl_union_map *add_assignment(
-	__isl_take isl_union_map *assignments, struct pet_stmt *stmt)
+static __isl_give isl_id_to_pw_aff *add_assignment(
+	__isl_take isl_id_to_pw_aff *assignments, struct pet_stmt *stmt)
 {
-	isl_map *var;
-	isl_map *val;
-	isl_set *dom;
+	isl_id *var;
+	isl_pw_aff *val;
 
 	assert(stmt->body->op == pet_op_assign);
 	assert(stmt->body->args[0]->type == pet_expr_access);
-	var = isl_map_copy(stmt->body->args[0]->acc.access);
-	val = expr_extract_map(stmt->body->args[1], assignments);
+	var = isl_map_get_tuple_id(stmt->body->args[0]->acc.access,
+					isl_dim_out);
+	val = expr_extract_pw_aff(stmt->body->args[1], assignments);
 
-	val = isl_map_range_product(val, var);
-	val = isl_map_uncurry(val);
-	val = isl_map_reverse(val);
-
-	dom = isl_set_universe(isl_space_domain(isl_map_get_space(val)));
-	assignments = isl_union_map_subtract_domain(assignments,
-						isl_union_set_from_set(dom));
-	assignments = isl_union_map_add_map(assignments, val);
+	assignments = isl_id_to_pw_aff_set(assignments, var, val);
 
 	return assignments;
 }
@@ -350,9 +349,10 @@ static int is_kill(struct pet_stmt *stmt)
  * variables.  In code generated by isl, such assignments should only
  * appear immediately before they are used.
  *
- * The assignments are kept in the form
+ * The assignments are kept as an associative array between
+ * variable identifiers and assignments of the form
  *
- *	{ variable -> [domain -> value] }
+ *	{ domain -> value }
  *
  * We skip kill statements.
  * Other than assignments and kill statements, all statements are assumed
@@ -361,15 +361,17 @@ static int is_kill(struct pet_stmt *stmt)
 static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
 {
 	int i;
+	isl_ctx *ctx;
 	isl_map *call_i;
-	isl_union_map *assignments;
+	isl_id_to_pw_aff *assignments;
 	isl_union_map *call;
 
 	if (!scop)
 		return NULL;
 
 	call = isl_union_map_empty(isl_set_get_space(scop->context));
-	assignments = isl_union_map_empty(isl_set_get_space(scop->context));
+	ctx = isl_set_get_ctx(scop->context);
+	assignments = isl_id_to_pw_aff_alloc(ctx, 0);
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		struct pet_stmt *stmt;
@@ -385,7 +387,7 @@ static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
 		call = isl_union_map_add_map(call, call_i);
 	}
 
-	isl_union_map_free(assignments);
+	isl_id_to_pw_aff_free(assignments);
 
 	return call;
 }
