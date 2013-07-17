@@ -82,6 +82,8 @@ struct pet_scop *pet_scop_gist(struct pet_scop *scop,
 
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop);
 
+int pet_expr_foreach_access_expr(struct pet_expr *expr,
+	int (*fn)(struct pet_expr *expr, void *user), void *user);
 struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
 	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
 	void *user);

@@ -546,6 +546,29 @@ struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
 	return expr;
 }
 
+/* Call "fn" on each of the subexpressions of "expr" of type pet_expr_access.
+ *
+ * Return -1 on error (where fn return a negative value is treated as an error).
+ * Otherwise return 0.
+ */
+int pet_expr_foreach_access_expr(struct pet_expr *expr,
+	int (*fn)(struct pet_expr *expr, void *user), void *user)
+{
+	int i;
+
+	if (!expr)
+		return -1;
+
+	for (i = 0; i < expr->n_arg; ++i)
+		if (pet_expr_foreach_access_expr(expr->args[i], fn, user) < 0)
+			return -1;
+
+	if (expr->type == pet_expr_access)
+		return fn(expr, user);
+
+	return 0;
+}
+
 /* Modify the access relation of the given access expression
  * based on the given iteration space transformation.
  * If the access has any arguments then the domain of the access relation
