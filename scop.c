@@ -525,7 +525,7 @@ error:
 /* Modify all expressions of type pet_expr_access in "expr"
  * by calling "fn" on them.
  */
-struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
+struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
 	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
 	void *user)
 {
@@ -535,8 +535,7 @@ struct pet_expr *pet_expr_foreach_access(struct pet_expr *expr,
 		return NULL;
 
 	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] = pet_expr_foreach_access(expr->args[i],
-								fn, user);
+		expr->args[i] = pet_expr_map_access(expr->args[i], fn, user);
 		if (!expr->args[i])
 			return pet_expr_free(expr);
 	}
@@ -588,7 +587,7 @@ static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
 static struct pet_expr *expr_update_domain(struct pet_expr *expr,
 	__isl_take isl_map *update)
 {
-	expr = pet_expr_foreach_access(expr, &update_domain, update);
+	expr = pet_expr_map_access(expr, &update_domain, update);
 	isl_map_free(update);
 	return expr;
 }
@@ -1387,7 +1386,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 	struct pet_embed_access data =
 		{ .extend = extend, .iv_map = iv_map, .var_id = var_id };
 
-	expr = pet_expr_foreach_access(expr, &embed_access, &data);
+	expr = pet_expr_map_access(expr, &embed_access, &data);
 	isl_map_free(iv_map);
 	isl_map_free(extend);
 	return expr;
@@ -2879,13 +2878,13 @@ static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 		return pet_stmt_free(stmt);
 
 	for (i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
+		stmt->args[i] = pet_expr_map_access(stmt->args[i],
 						    &access_anonymize, NULL);
 		if (!stmt->args[i])
 			return pet_stmt_free(stmt);
 	}
 
-	stmt->body = pet_expr_foreach_access(stmt->body,
+	stmt->body = pet_expr_map_access(stmt->body,
 						    &access_anonymize, NULL);
 	if (!stmt->body)
 		return pet_stmt_free(stmt);
@@ -3020,13 +3019,13 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 						isl_set_copy(context));
 
 	for (i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_foreach_access(stmt->args[i],
+		stmt->args[i] = pet_expr_map_access(stmt->args[i],
 							&access_gist, &data);
 		if (!stmt->args[i])
 			goto error;
 	}
 
-	stmt->body = pet_expr_foreach_access(stmt->body, &access_gist, &data);
+	stmt->body = pet_expr_map_access(stmt->body, &access_gist, &data);
 	if (!stmt->body)
 		goto error;
 
