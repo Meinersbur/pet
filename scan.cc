@@ -2971,10 +2971,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		domain = isl_set_apply(domain, isl_map_copy(wrap));
 		sched = isl_map_apply_domain(sched, wrap);
 	}
-	if (!(is_virtual && keep_virtual)) {
-		space = isl_set_get_space(domain);
-		wrap = isl_map_identity(isl_space_map_from_set(space));
-	}
+	if (!(is_virtual && keep_virtual))
+		wrap = identity_map(domain);
 
 	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
 		    isl_map_copy(sched), isl_map_copy(wrap), isl_id_copy(id));
