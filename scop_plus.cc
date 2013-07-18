@@ -51,7 +51,7 @@ static void access_collect_arrays(struct pet_expr *expr,
 
 	if (pet_expr_is_affine(expr))
 		return;
-	id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+	id = pet_expr_access_get_id(expr);
 	if (!id)
 		return;
 

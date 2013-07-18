@@ -1395,7 +1395,7 @@ void PetScan::mark_write(struct pet_expr *access)
 	if (!pet_expr_is_scalar_access(access))
 		return;
 
-	id = isl_map_get_tuple_id(access->acc.access, isl_dim_out);
+	id = pet_expr_access_get_id(access);
 	decl = (ValueDecl *) isl_id_get_user(id);
 	clear_assignment(assigned_value, decl);
 	isl_id_free(id);
@@ -1419,7 +1419,7 @@ void PetScan::assign(struct pet_expr *lhs, Expr *rhs)
 	if (!pet_expr_is_scalar_access(lhs))
 		return;
 
-	id = isl_map_get_tuple_id(lhs->acc.access, isl_dim_out);
+	id = pet_expr_access_get_id(lhs);
 	decl = (ValueDecl *) isl_id_get_user(id);
 	isl_id_free(id);
 
@@ -3739,8 +3739,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 		if (!is_nested_parameter(map, i))
 			continue;
 
-		id = isl_map_get_tuple_id(stmt->args[param2pos[i]]->acc.access,
-					    isl_dim_out);
+		id = pet_expr_access_get_id(stmt->args[param2pos[i]]);
 		map = isl_map_set_dim_id(map, isl_dim_out, param2pos[i], id);
 		map = isl_map_equate(map, isl_dim_param, i, isl_dim_out,
 					param2pos[i]);
@@ -3793,7 +3792,7 @@ static bool is_assigned(pet_expr *expr, pet_scop *scop)
 	bool assigned = false;
 	isl_id *id;
 
-	id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+	id = pet_expr_access_get_id(expr);
 	assigned = pet_scop_writes(scop, id);
 	isl_id_free(id);
 

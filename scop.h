@@ -36,6 +36,7 @@ void pet_expr_dump(struct pet_expr *expr);
 void *pet_expr_free(struct pet_expr *expr);
 
 int pet_expr_is_affine(struct pet_expr *expr);
+__isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr);
 int pet_expr_is_scalar_access(struct pet_expr *expr);
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2);
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,

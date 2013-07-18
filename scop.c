@@ -442,6 +442,17 @@ int pet_expr_is_affine(struct pet_expr *expr)
 	return !has_id;
 }
 
+/* Return the identifier of the array accessed by "expr".
+ */
+__isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return NULL;
+	return isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+}
+
 /* Does "expr" represent an access to a scalar, i.e., zero-dimensional array?
  */
 int pet_expr_is_scalar_access(struct pet_expr *expr)
@@ -2784,7 +2795,7 @@ static int expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
 	if (pet_expr_is_affine(expr))
 		return 0;
 
-	write_id = isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+	write_id = pet_expr_access_get_id(expr);
 	isl_id_free(write_id);
 
 	if (!write_id)
@@ -3038,7 +3049,7 @@ static __isl_give isl_map *access_apply_value_bounds(__isl_take isl_map *map,
 	isl_space *space;
 	isl_ctx *ctx = isl_map_get_ctx(map);
 
-	id = isl_map_get_tuple_id(arg->acc.access, isl_dim_out);
+	id = pet_expr_access_get_id(arg);
 	space = isl_space_alloc(ctx, 0, 0, 1);
 	space = isl_space_set_tuple_id(space, isl_dim_in, id);
 	vb = isl_union_map_extract_map(value_bounds, space);
