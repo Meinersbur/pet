@@ -2572,7 +2572,6 @@ static __isl_give isl_map *compute_wrapping(__isl_take isl_space *dim,
 	aff = isl_aff_mod_val(aff, mod);
 
 	return isl_map_from_basic_map(isl_basic_map_from_aff(aff));
-	map = isl_map_reverse(map);
 }
 
 /* Project out the parameter "id" from "set".
