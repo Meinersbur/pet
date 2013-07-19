@@ -4136,9 +4136,9 @@ struct pet_skip_info_if : public pet_skip_info {
 
 	pet_skip_info_if(isl_ctx *ctx, struct pet_scop *scop_then,
 		      struct pet_scop *scop_else, bool have_else, bool affine);
-	void extract(PetScan *scan, __isl_keep isl_map *access,
+	void extract(PetScan *scan, __isl_keep isl_multi_pw_aff *index,
 		     enum pet_skip type);
-	void extract(PetScan *scan, __isl_keep isl_map *access);
+	void extract(PetScan *scan, __isl_keep isl_multi_pw_aff *index);
 	void extract(PetScan *scan, __isl_keep isl_pw_aff *cond);
 	struct pet_scop *add(struct pet_scop *scop, enum pet_skip type,
 				int offset);
@@ -4164,26 +4164,29 @@ pet_skip_info_if::pet_skip_info_if(isl_ctx *ctx, struct pet_scop *scop_then,
 /* If we need to construct a skip condition of the given type,
  * then do so now.
  *
- * "map" represents the if condition.
+ * "index" represents the if condition.
  */
-void pet_skip_info_if::extract(PetScan *scan, __isl_keep isl_map *map,
-	enum pet_skip type)
+void pet_skip_info_if::extract(PetScan *scan,
+	__isl_keep isl_multi_pw_aff *index, enum pet_skip type)
 {
+	isl_map *map;
+
 	if (!skip[type])
 		return;
 
+	map = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
 	access[type] = create_test_access(isl_map_get_ctx(map), scan->n_test++);
-	scop[type] = extract_skip(scan, isl_map_copy(map),
-				isl_map_copy(access[type]),
+	scop[type] = extract_skip(scan, map, isl_map_copy(access[type]),
 				scop_then, scop_else, have_else, type);
 }
 
-/* Construct the required skip conditions, given the if condition "map".
+/* Construct the required skip conditions, given the if condition "index".
  */
-void pet_skip_info_if::extract(PetScan *scan, __isl_keep isl_map *map)
+void pet_skip_info_if::extract(PetScan *scan,
+	__isl_keep isl_multi_pw_aff *index)
 {
-	extract(scan, map, pet_skip_now);
-	extract(scan, map, pet_skip_later);
+	extract(scan, index, pet_skip_now);
+	extract(scan, index, pet_skip_later);
 	if (equal)
 		drop_skip_later(scop_then, scop_else);
 }
@@ -4192,16 +4195,15 @@ void pet_skip_info_if::extract(PetScan *scan, __isl_keep isl_map *map)
  */
 void pet_skip_info_if::extract(PetScan *scan, __isl_keep isl_pw_aff *cond)
 {
-	isl_set *test_set;
-	isl_map *test;
+	isl_multi_pw_aff *test;
 
 	if (!skip[pet_skip_now] && !skip[pet_skip_later])
 		return;
 
-	test_set = isl_set_from_pw_aff(isl_pw_aff_copy(cond));
-	test = isl_map_from_range(test_set);
+	test = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_copy(cond));
+	test = isl_multi_pw_aff_from_range(test);
 	extract(scan, test);
-	isl_map_free(test);
+	isl_multi_pw_aff_free(test);
 }
 
 /* Add the computed skip condition of the give type to "main" and 
@@ -4266,17 +4268,21 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	bool have_else, int stmt_id)
 {
 	struct pet_scop *scop;
+	isl_multi_pw_aff *test_index;
 	isl_map *test_access;
 	int save_n_stmt = n_stmt;
 
-	test_access = create_test_access(ctx, n_test++);
+	test_index = create_test_index(ctx, n_test++);
+	test_access = isl_map_from_multi_pw_aff(
+					isl_multi_pw_aff_copy(test_index));
 	n_stmt = stmt_id;
 	scop = extract_non_affine_condition(cond, isl_map_copy(test_access));
 	n_stmt = save_n_stmt;
 	scop = scop_add_array(scop, test_access, ast_context);
 
 	pet_skip_info_if skip(ctx, scop_then, scop_else, have_else, false);
-	skip.extract(this, test_access);
+	skip.extract(this, test_index);
+	isl_multi_pw_aff_free(test_index);
 
 	scop = pet_scop_prefix(scop, 0);
 	scop_then = pet_scop_prefix(scop_then, 1);
