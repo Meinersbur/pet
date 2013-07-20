@@ -2066,53 +2066,56 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Construct a map that inserts a filter value with name "id" and value
- * "satisfied" in the list of filter values embedded in the set space "space".
+/* Construct a function that (upon precomposition) inserts
+ * a filter value with name "id" and value "satisfied"
+ * in the list of filter values embedded in the set space "space".
  *
  * If "space" does not contain any filter values yet, we first create
- * a map that inserts 0 filter values, i.e.,
+ * a function that inserts 0 filter values, i.e.,
  *
- *	space -> [space -> []]
+ *	[space -> []] -> space
  *
  * We can now assume that space is of the form [dom -> [filters]]
  * We construct an identity mapping on dom and a mapping on filters
- * that inserts the new filter
+ * that (upon precomposition) inserts the new filter
  *
  *	dom -> dom
- *	[filters] -> [satisfied, filters]
+ *	[satisfied, filters] -> [filters]
  *
  * and then compute the cross product
  *
- *	[dom -> [filters]] -> [dom -> [satisfied, filters]]
+ *	[dom -> [satisfied, filters]] -> [dom -> [filters]]
  */
-static __isl_give isl_map *insert_filter_map(__isl_take isl_space *space,
-	__isl_take isl_id *id, int satisfied)
+static __isl_give isl_pw_multi_aff *insert_filter_pma(
+	__isl_take isl_space *space, __isl_take isl_id *id, int satisfied)
 {
 	isl_space *space2;
-	isl_map *map, *map_dom, *map_ran;
+	isl_multi_aff *ma;
+	isl_pw_multi_aff *pma0, *pma, *pma_dom, *pma_ran;
 	isl_set *dom;
 
 	if (isl_space_is_wrapping(space)) {
 		space2 = isl_space_map_from_set(isl_space_copy(space));
-		map = isl_map_identity(space2);
+		ma = isl_multi_aff_identity(space2);
 		space = isl_space_unwrap(space);
 	} else {
 		space = isl_space_from_domain(space);
-		map = isl_map_universe(isl_space_copy(space));
-		map = isl_map_reverse(isl_map_domain_map(map));
+		ma = isl_multi_aff_domain_map(isl_space_copy(space));
 	}
 
 	space2 = isl_space_domain(isl_space_copy(space));
-	map_dom = isl_map_identity(isl_space_map_from_set(space2));
+	pma_dom = isl_pw_multi_aff_identity(isl_space_map_from_set(space2));
 	space = isl_space_range(space);
-	map_ran = isl_map_identity(isl_space_map_from_set(space));
-	map_ran = isl_map_insert_dims(map_ran, isl_dim_out, 0, 1);
-	map_ran = isl_map_set_dim_id(map_ran, isl_dim_out, 0, id);
-	map_ran = isl_map_fix_si(map_ran, isl_dim_out, 0, satisfied);
+	space = isl_space_insert_dims(space, isl_dim_set, 0, 1);
+	pma_ran = isl_pw_multi_aff_project_out_map(space, isl_dim_set, 0, 1);
+	pma_ran = isl_pw_multi_aff_set_dim_id(pma_ran, isl_dim_in, 0, id);
+	pma_ran = isl_pw_multi_aff_fix_si(pma_ran, isl_dim_in, 0, satisfied);
+	pma = isl_pw_multi_aff_product(pma_dom, pma_ran);
 
-	map = isl_map_apply_range(map, isl_map_product(map_dom, map_ran));
+	pma0 = isl_pw_multi_aff_from_multi_aff(ma);
+	pma = isl_pw_multi_aff_pullback_pw_multi_aff(pma0, pma);
 
-	return map;
+	return pma;
 }
 
 /* Insert an argument expression corresponding to "test" in front
@@ -2164,7 +2167,7 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 	isl_id *id;
 	isl_ctx *ctx;
 	isl_space *space;
-	isl_map *map;
+	isl_pw_multi_aff *pma;
 
 	if (!expr || !test)
 		goto error;
@@ -2181,9 +2184,10 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 
 	space = isl_space_domain(isl_map_get_space(expr->acc.access));
 	id = isl_map_get_tuple_id(test, isl_dim_out);
-	map = insert_filter_map(space, id, satisfied);
+	pma = insert_filter_pma(space, id, satisfied);
 
-	expr->acc.access = isl_map_apply_domain(expr->acc.access, map);
+	expr->acc.access = isl_map_preimage_domain_pw_multi_aff(
+						expr->acc.access, pma);
 	if (!expr->acc.access)
 		goto error;
 
@@ -2333,7 +2337,8 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	int implied;
 	isl_id *id;
 	isl_ctx *ctx;
-	isl_map *map, *add_dom;
+	isl_pw_multi_aff *pma;
+	isl_map *add_dom;
 	isl_space *space;
 	isl_set *dom;
 	int n_test_dom;
@@ -2362,8 +2367,8 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	}
 
 	id = isl_map_get_tuple_id(test, isl_dim_out);
-	map = insert_filter_map(isl_set_get_space(stmt->domain), id, satisfied);
-	stmt->domain = isl_set_apply(stmt->domain, map);
+	pma = insert_filter_pma(isl_set_get_space(stmt->domain), id, satisfied);
+	stmt->domain = isl_set_preimage_pw_multi_aff(stmt->domain, pma);
 
 	if (args_insert_access(&stmt->n_arg, &stmt->args, test) < 0)
 		goto error;
