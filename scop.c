@@ -662,6 +662,8 @@ int pet_expr_foreach_access_expr(struct pet_expr *expr,
 
 /* Modify the access relation of the given access expression
  * based on the given iteration space transformation.
+ * In particular, precompose the access relation with the update function.
+ *
  * If the access has any arguments then the domain of the access relation
  * is a wrapped mapping from the iteration space to the space of
  * argument values.  We only need to change the domain of this wrapped
@@ -670,39 +672,40 @@ int pet_expr_foreach_access_expr(struct pet_expr *expr,
  */
 static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
 {
-	isl_map *update = user;
+	isl_multi_pw_aff *update = user;
 	isl_space *space;
 
-	update = isl_map_copy(update);
+	update = isl_multi_pw_aff_copy(update);
 
 	space = isl_map_get_space(expr->acc.access);
 	space = isl_space_domain(space);
 	if (!isl_space_is_wrapping(space))
 		isl_space_free(space);
 	else {
-		isl_map *id;
+		isl_multi_pw_aff *id;
 		space = isl_space_unwrap(space);
 		space = isl_space_range(space);
 		space = isl_space_map_from_set(space);
-		id = isl_map_identity(space);
-		update = isl_map_product(update, id);
+		id = isl_multi_pw_aff_identity(space);
+		update = isl_multi_pw_aff_product(update, id);
 	}
 
-	expr->acc.access = isl_map_apply_domain(expr->acc.access, update);
+	expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
+					    expr->acc.access, update);
 	if (!expr->acc.access)
 		return pet_expr_free(expr);
 
 	return expr;
 }
 
-/* Modify all access relations in "expr" based on the given iteration space
- * transformation.
+/* Modify all access relations in "expr" by precomposing them with
+ * the given iteration space transformation.
  */
 static struct pet_expr *expr_update_domain(struct pet_expr *expr,
-	__isl_take isl_map *update)
+	__isl_take isl_multi_pw_aff *update)
 {
 	expr = pet_expr_map_access(expr, &update_domain, update);
-	isl_map_free(update);
+	isl_multi_pw_aff_free(update);
 	return expr;
 }
 
@@ -721,7 +724,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 	isl_space *dim;
 	isl_set *dom;
 	isl_map *sched;
-	isl_map *add_name;
+	isl_multi_pw_aff *add_name;
 	char name[50];
 
 	if (!expr)
@@ -741,8 +744,8 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 	dom = isl_set_universe(isl_space_copy(dim));
 	sched = isl_map_from_domain(isl_set_copy(dom));
 
-	dim = isl_space_from_range(dim);
-	add_name = isl_map_universe(dim);
+	dim = isl_space_from_domain(dim);
+	add_name = isl_multi_pw_aff_zero(dim);
 	expr = expr_update_domain(expr, add_name);
 
 	stmt->line = line;
@@ -1575,12 +1578,12 @@ static __isl_give isl_set *internalize_iv(__isl_take isl_set *set,
 }
 
 /* Data used in embed_access.
- * extend adds an iterator to the iteration domain
+ * extend adds an iterator to the iteration domain (through precomposition).
  * iv_map expresses the real iterator in terms of the virtual iterator
  * var_id represents the induction variable of the corresponding loop
  */
 struct pet_embed_access {
-	isl_map *extend;
+	isl_multi_pw_aff *extend;
 	isl_aff *iv_map;
 	isl_id *var_id;
 };
@@ -1646,12 +1649,13 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 }
 
 /* Embed all access subexpressions of "expr" in an extra loop.
- * "extend" inserts an outer loop iterator in the iteration domains.
+ * "extend" inserts an outer loop iterator in the iteration domains
+ *	(through precomposition).
  * "iv_map" expresses the real iterator in terms of the virtual iterator
  * "var_id" represents the induction variable.
  */
 static struct pet_expr *expr_embed(struct pet_expr *expr,
-	__isl_take isl_map *extend, __isl_take isl_aff *iv_map,
+	__isl_take isl_multi_pw_aff *extend, __isl_take isl_aff *iv_map,
 	__isl_keep isl_id *var_id)
 {
 	struct pet_embed_access data =
@@ -1659,7 +1663,7 @@ static struct pet_expr *expr_embed(struct pet_expr *expr,
 
 	expr = pet_expr_map_access(expr, &embed_access, &data);
 	isl_aff_free(iv_map);
-	isl_map_free(extend);
+	isl_multi_pw_aff_free(extend);
 	return expr;
 }
 
@@ -1691,7 +1695,7 @@ static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 	int pos;
 	isl_id *stmt_id;
 	isl_space *dim;
-	isl_map *extend;
+	isl_multi_pw_aff *extend;
 
 	if (!stmt)
 		goto error;
@@ -1737,12 +1741,13 @@ static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
 	}
 
 	dim = isl_space_map_from_set(dim);
-	extend = isl_map_identity(dim);
-	extend = isl_map_remove_dims(extend, isl_dim_in, 0, 1);
-	extend = isl_map_set_tuple_id(extend, isl_dim_in,
-				    isl_map_get_tuple_id(extend, isl_dim_out));
+	extend = isl_multi_pw_aff_identity(dim);
+	extend = isl_multi_pw_aff_drop_dims(extend, isl_dim_out, 0, 1);
+	extend = isl_multi_pw_aff_set_tuple_id(extend, isl_dim_out,
+			    isl_multi_pw_aff_get_tuple_id(extend, isl_dim_in));
 	for (i = 0; i < stmt->n_arg; ++i)
-		stmt->args[i] = expr_embed(stmt->args[i], isl_map_copy(extend),
+		stmt->args[i] = expr_embed(stmt->args[i],
+					    isl_multi_pw_aff_copy(extend),
 					    isl_aff_copy(iv_map), var_id);
 	stmt->body = expr_embed(stmt->body, extend, iv_map, var_id);
 
