@@ -9,8 +9,8 @@ arrays:
 statements:
 - line: 8
   domain: '{ S_0[k] : k >= 0 and k <= 255 }'
-  schedule: '{ S_0[k] -> [0, o1] : exists (e0 = [(-k + o1)/256]: 256e0 = -k + o1 and
-    o1 >= 252 and k >= 0 and k <= 255) }'
+  schedule: '{ S_0[k] -> [0, o1] : exists (e0 = floor((-k + o1)/256): 256e0 = -k +
+    o1 and o1 >= 252 and k >= 0 and k <= 255) }'
   body:
     type: binary
     operation: =

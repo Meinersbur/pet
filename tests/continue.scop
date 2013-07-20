@@ -25,8 +25,8 @@ statements:
       read: 1
       write: 0
 - line: 11
-  domain: '{ S_1[i, j] : (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j <= -1 +
-    i) or (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j >= 1 + i) }'
+  domain: '{ S_1[i, j] : (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j >= 1 + i)
+    or (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j <= -1 + i) }'
   schedule: '{ S_1[i, j] -> [0, i, j, 2] }'
   body:
     type: binary

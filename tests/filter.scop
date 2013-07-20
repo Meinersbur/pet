@@ -30,7 +30,7 @@ statements:
       write: 0
   arguments:
   - type: access
-    relation: '[index] -> { S_1[] -> test[index] : index >= 0 or index >= 0 }'
+    relation: '[index] -> { S_1[] -> test[index] : index >= 0 }'
     reference: __pet_ref_0
     read: 1
     write: 0

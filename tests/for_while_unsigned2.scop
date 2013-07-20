@@ -3,8 +3,8 @@ end: 316
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 arrays:
 - context: '{  :  }'
-  extent: '[n] -> { __pet_test_0[x1, x2] : exists (e0 = [(x2)/3]: 3e0 = x2 and x1
-    <= -1 + n and x1 >= 0 and x2 <= 9) }'
+  extent: '[n] -> { __pet_test_0[x1, x2] : exists (e0 = floor((x2)/3): 3e0 = x2 and
+    x1 <= -1 + n and x1 >= 0 and x2 <= 9) }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -33,8 +33,8 @@ statements:
     - type: call
       name: f
 - line: 13
-  domain: '[n] -> { [S_1[x1, x2] -> [1]] : exists (e0 = [(x2)/3]: 3e0 = x2 and x1
-    <= -1 + n and x1 >= 0 and x2 <= 9) }'
+  domain: '[n] -> { [S_1[x1, x2] -> [1]] : exists (e0 = floor((x2)/3): 3e0 = x2 and
+    x1 <= -1 + n and x1 >= 0 and x2 <= 9) }'
   schedule: '[n] -> { S_1[x1, x2] -> [0, x1, 1, -x2, 0] }'
   body:
     type: binary
@@ -54,8 +54,8 @@ statements:
         read: 1
         write: 0
       - type: access
-        relation: '[n] -> { S_1[x1, x2] -> [o0] : exists (e0 = [(-x2 + o0)/256]: 256e0
-          = -x2 + o0 and o0 <= 255 and o0 >= 0) }'
+        relation: '[n] -> { S_1[x1, x2] -> [o0] : exists (e0 = floor((-x2 + o0)/256):
+          256e0 = -x2 + o0 and o0 <= 255 and o0 >= 0) }'
         reference: __pet_ref_4
         read: 1
         write: 0
@@ -66,9 +66,9 @@ statements:
     read: 1
     write: 0
 - line: 15
-  domain: '[n] -> { [S2[x1, x2, x3] -> [1]] : exists (e0 = [(255 - x2)/256], e1 =
-    [(x2)/3]: 3e1 = x2 and x3 >= 0 and x1 >= 0 and x1 <= -1 + n and x2 <= 9 and 256e0
-    >= -x2 + x3 and 256e0 <= 255 - x2 and 256e0 >= -x2) }'
+  domain: '[n] -> { [S2[x1, x2, x3] -> [1]] : exists (e0 = floor((255 - x2)/256),
+    e1 = floor((x2)/3): 3e1 = x2 and x3 >= 0 and x1 >= 0 and x1 <= -1 + n and x2 <=
+    9 and 256e0 >= -x2 + x3 and 256e0 <= 255 - x2 and 256e0 >= -x2) }'
   schedule: '[n] -> { S2[x1, x2, x3] -> [0, x1, 1, -x2, 1, 0, x3] }'
   body:
     type: binary
@@ -91,9 +91,9 @@ statements:
           read: 1
           write: 0
         - type: access
-          relation: '[n] -> { S2[x1, x2, x3] -> a[o0, 255 - o0] : exists (e0 = [(x2)/3],
-            e1 = [(-253x2 - 3o0)/768]: 3e0 = x2 and 768e1 = -253x2 - 3o0 and o0 <=
-            255 and o0 >= 0) }'
+          relation: '[n] -> { S2[x1, x2, x3] -> a[o0, 255 - o0] : exists (e0 = floor((x2)/3),
+            e1 = floor((-253x2 - 3o0)/768): 3e0 = x2 and 768e1 = -253x2 - 3o0 and
+            o0 <= 255 and o0 >= 0) }'
           reference: __pet_ref_8
           read: 1
           write: 0
@@ -118,5 +118,5 @@ statements:
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[x1, x2] -> __pet_test_0[x1, x2''] : exists (e0
-    = [(x2'')/3]: 3e0 = x2'' and x1 >= 0 and x1 <= -1 + n and x2'' >= x2 and x2''
-    <= 9) }'
+    = floor((x2'')/3): 3e0 = x2'' and x1 >= 0 and x1 <= -1 + n and x2'' >= x2 and
+    x2'' <= 9) }'

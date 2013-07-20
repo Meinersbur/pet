@@ -8,10 +8,10 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[i, j] : (i >= 0 and i <= 99 and j >= 0 and j <= 99 and j <= i and
-    j <= 150 - i) or (i >= 0 and i <= 9 and j >= 0 and j <= 99 and j >= 1 + i and
-    j <= 150 - i) or (i >= 0 and i <= 89 and j >= 151 - i and j <= 99 and j <= i)
-    }'
+  domain: '{ S_0[i, j] : (i >= 0 and i <= 99 and j <= 150 - i and j <= 99 and j <=
+    i and j >= 1) or (i >= 0 and i <= 89 and j >= 1 and j <= 99 and j <= i and j >=
+    151 - i) or (i >= 0 and i <= 9 and j >= 0 and j <= 99 and j >= 1 + i); S_0[i,
+    0] : i >= 0 and i <= 99 }'
   schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: binary
@@ -28,8 +28,8 @@ statements:
       read: 1
       write: 0
 - line: 17
-  domain: '{ S_1[i, j] : i >= 10 and i <= 99 and j >= 0 and j <= 60 and j <= -1 +
-    i and j <= 149 - i }'
+  domain: '{ S_1[i, j] : i >= 10 and i <= 99 and j <= 149 - i and j <= 60 and j <=
+    -1 + i and j >= 1; S_1[i, 0] : i >= 10 and i <= 99 }'
   schedule: '{ S_1[i, j] -> [0, i, j, 5] }'
   body:
     type: binary

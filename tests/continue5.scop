@@ -38,7 +38,7 @@ statements:
     - type: call
       name: f
 - line: 12
-  domain: '{ S_1[i] : (i >= 58 and i <= 99) or (i >= 0 and i <= 56) }'
+  domain: '{ S_1[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
   schedule: '{ S_1[i] -> [0, i, 2] }'
   body:
     type: binary
@@ -55,7 +55,7 @@ statements:
       read: 1
       write: 0
 - line: 13
-  domain: '{ S_2[i] : (i >= 58 and i <= 99) or (i >= 0 and i <= 56) }'
+  domain: '{ S_2[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
   schedule: '{ S_2[i] -> [0, i, 3] }'
   body:
     type: binary
@@ -69,7 +69,7 @@ statements:
     - type: call
       name: f
 - line: 14
-  domain: '{ S_3[i] : (i >= 58 and i <= 99) or (i >= 0 and i <= 56) }'
+  domain: '{ S_3[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
   schedule: '{ S_3[i] -> [0, i, 4, 0, 0] }'
   body:
     type: binary

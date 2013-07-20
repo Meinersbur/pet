@@ -14,9 +14,9 @@ arrays:
   element_size: 4
 statements:
 - line: 11
-  domain: '{ [S_0[k] -> [0]] : (exists (e0 = [(k)/256]: 256e0 = k and k >= 252 and
-    k <= 261)) or (exists (e0 = [(257 - k)/256]: k >= 252 and k <= 261 and 256e0 >=
-    2 - k and 256e0 <= 255 - k)) }'
+  domain: '{ [S_0[k] -> [0]] : (exists (e0 = floor((k)/256): 256e0 = k and k >= 252
+    and k <= 261)) or (exists (e0 = floor((257 - k)/256): k >= 252 and k <= 261 and
+    256e0 >= 2 - k and 256e0 <= 255 - k)) }'
   schedule: '{ S_0[k] -> [0, k, 0] }'
   body:
     type: binary
@@ -71,8 +71,8 @@ statements:
       read: 0
       write: 1
     - type: access
-      relation: '{ S_2[k] -> [o0] : exists (e0 = [(-k + o0)/256]: 256e0 = -k + o0
-        and o0 >= 0 and o0 <= 255) }'
+      relation: '{ S_2[k] -> [o0] : exists (e0 = floor((-k + o0)/256): 256e0 = -k
+        + o0 and o0 >= 0 and o0 <= 255) }'
       reference: __pet_ref_7
       read: 1
       write: 0

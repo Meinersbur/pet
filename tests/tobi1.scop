@@ -8,10 +8,10 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[i] : exists (e0, e1 = [(i - 65e0)/256]: 256e1 = i - 65e0 and i >=
-    0 and i <= 255 and e0 >= 0 and e0 <= 15) }'
-  schedule: '{ S_0[i] -> [0, o1] : exists (e0 = [(-12545i + o1)/16640]: 16640e0 =
-    -12545i + o1 and o1 >= 0 and o1 <= 1039 and i >= 0 and i <= 255) }'
+  domain: '{ S_0[i] : exists (e0, e1 = floor((i - 65e0)/256): 256e1 = i - 65e0 and
+    i >= 0 and i <= 255 and e0 >= 0 and e0 <= 15) }'
+  schedule: '{ S_0[i] -> [0, o1] : exists (e0 = floor((-12545i + o1)/16640): 16640e0
+    = -12545i + o1 and o1 >= 0 and o1 <= 1039 and i >= 0 and i <= 255) }'
   body:
     type: binary
     operation: =
