@@ -671,20 +671,20 @@ int pet_expr_foreach_access_expr(struct pet_expr *expr,
 static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
 {
 	isl_map *update = user;
-	isl_space *dim;
+	isl_space *space;
 
 	update = isl_map_copy(update);
 
-	dim = isl_map_get_space(expr->acc.access);
-	dim = isl_space_domain(dim);
-	if (!isl_space_is_wrapping(dim))
-		isl_space_free(dim);
+	space = isl_map_get_space(expr->acc.access);
+	space = isl_space_domain(space);
+	if (!isl_space_is_wrapping(space))
+		isl_space_free(space);
 	else {
 		isl_map *id;
-		dim = isl_space_unwrap(dim);
-		dim = isl_space_range(dim);
-		dim = isl_space_map_from_set(dim);
-		id = isl_map_identity(dim);
+		space = isl_space_unwrap(space);
+		space = isl_space_range(space);
+		space = isl_space_map_from_set(space);
+		id = isl_map_identity(space);
 		update = isl_map_product(update, id);
 	}
 
