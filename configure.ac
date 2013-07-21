@@ -8,6 +8,7 @@ versioninfo=4:0:0
 
 AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_GREP
 AC_PROG_LIBTOOL
 
 AC_SUBST(CLANG_CXXFLAGS)
@@ -28,7 +29,12 @@ fi
 CLANG_CXXFLAGS=`$llvm_config --cxxflags`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
 targets=`$llvm_config --targets-built`
-CLANG_LIBS=`$llvm_config --libs $targets asmparser bitreader support mc`
+components="$targets asmparser bitreader support mc"
+$llvm_config --components | $GREP option > /dev/null 2> /dev/null
+if test $? -eq 0; then
+	components="$components option"
+fi
+CLANG_LIBS=`$llvm_config --libs $components`
 CLANG_PREFIX=`$llvm_config --prefix`
 AC_DEFINE_UNQUOTED(CLANG_PREFIX, ["$CLANG_PREFIX"], [Clang installation prefix])
 
