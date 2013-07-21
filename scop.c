@@ -2156,7 +2156,7 @@ static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
  * being equal to "satisfied".
  *
  * If "test" is an affine expression, we simply add the conditions
- * on the expression have the value "satisfied" to all access relations.
+ * on the expression having the value "satisfied" to all access relations.
  *
  * Otherwise, we add a filter to "expr" (which is then assumed to be
  * an access expression) corresponding to "test" being equal to "satisfied".
