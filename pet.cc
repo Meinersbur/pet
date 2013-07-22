@@ -413,6 +413,48 @@ struct PragmaLiveOutHandler : public PragmaHandler {
 	}
 };
 
+/* For each array in "scop", set its value_bounds property
+ * based on the infofrmation in "value_bounds" and
+ * mark it as live_out if it appears in "live_out".
+ */
+static void update_arrays(struct pet_scop *scop,
+	__isl_take isl_union_map *value_bounds, set<ValueDecl *> &live_out)
+{
+	set<ValueDecl *>::iterator lo_it;
+	isl_ctx *ctx = isl_union_map_get_ctx(value_bounds);
+
+	if (!scop) {
+		isl_union_map_free(value_bounds);
+		return;
+	}
+
+	for (int i = 0; i < scop->n_array; ++i) {
+		isl_id *id;
+		isl_space *space;
+		isl_map *bounds;
+		ValueDecl *decl;
+		pet_array *array = scop->arrays[i];
+
+		id = isl_set_get_tuple_id(array->extent);
+		decl = (ValueDecl *)isl_id_get_user(id);
+
+		space = isl_space_alloc(ctx, 0, 0, 1);
+		space = isl_space_set_tuple_id(space, isl_dim_in, id);
+
+		bounds = isl_union_map_extract_map(value_bounds, space);
+		if (!isl_map_plain_is_empty(bounds))
+			array->value_bounds = isl_map_range(bounds);
+		else
+			isl_map_free(bounds);
+
+		lo_it = live_out.find(decl);
+		if (lo_it != live_out.end())
+			array->live_out = 1;
+	}
+
+	isl_union_map_free(value_bounds);
+}
+
 /* Extract a pet_scop from the appropriate function.
  * If "function" is not NULL, then we only extract a pet_scop if the
  * name of the function matches.
@@ -423,18 +465,34 @@ struct PragmaLiveOutHandler : public PragmaHandler {
 struct PetASTConsumer : public ASTConsumer {
 	Preprocessor &PP;
 	ASTContext &ast_context;
+	DiagnosticsEngine &diags;
 	ScopLoc &loc;
 	const char *function;
 	pet_options *options;
 	isl_ctx *ctx;
+	isl_set *context;
+	isl_set *context_value;
 	struct pet_scop *scop;
+	set<ValueDecl *> live_out;
 	PragmaValueBoundsHandler *vb_handler;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
-		ScopLoc &loc, const char *function, pet_options *options) :
-		ctx(ctx), PP(PP), ast_context(ast_context), loc(loc),
-		scop(NULL), function(function), options(options),
-		vb_handler(NULL) { }
+		DiagnosticsEngine &diags, ScopLoc &loc, const char *function,
+		pet_options *options) :
+		ctx(ctx), PP(PP), ast_context(ast_context), diags(diags),
+		loc(loc), scop(NULL), function(function), options(options),
+		vb_handler(NULL)
+	{
+		isl_space *space;
+		space = isl_space_params_alloc(ctx, 0);
+		context = isl_set_universe(isl_space_copy(space));
+		context_value = isl_set_universe(space);
+	}
+
+	~PetASTConsumer() {
+		isl_set_free(context);
+		isl_set_free(context_value);
+	}
 
 	void handle_value_bounds(Sema *sema) {
 		vb_handler = new PragmaValueBoundsHandler(ctx, *sema);
@@ -445,12 +503,38 @@ struct PetASTConsumer : public ASTConsumer {
 		return isl_union_map_copy(vb_handler->value_bounds);
 	}
 
+	/* Store "scop" in this->scop after performing some postprocessing.
+	 * In particular, add the context and value_bounds constraints
+	 * speficied through pragmas, add reference identifiers and
+	 * reset user pointers on parameters and tuple ids.
+	 */
+	void store_scop(pet_scop *scop) {
+		if (!scop)
+			return;
+		if (diags.hasErrorOccurred()) {
+			pet_scop_free(scop);
+			return;
+		}
+		scop->context = isl_set_intersect(scop->context,
+						isl_set_copy(context));
+		scop->context_value = isl_set_intersect(scop->context_value,
+						isl_set_copy(context_value));
+
+		update_arrays(scop, get_value_bounds(), live_out);
+
+		scop = pet_scop_add_ref_ids(scop);
+		scop = pet_scop_anonymize(scop);
+
+		this->scop = scop;
+	}
+
 	virtual HandleTopLevelDeclReturn HandleTopLevelDecl(DeclGroupRef dg) {
 		DeclGroupRef::iterator it;
 
 		if (scop)
 			return HandleTopLevelDeclContinue;
 		for (it = dg.begin(); it != dg.end(); ++it) {
+			pet_scop *scop;
 			isl_union_map *vb = vb_handler->value_bounds;
 			FunctionDecl *fd = dyn_cast<clang::FunctionDecl>(*it);
 			if (!fd)
@@ -464,9 +548,10 @@ struct PetASTConsumer : public ASTConsumer {
 				PetScan ps(PP, ast_context, loc, options,
 					    isl_union_map_copy(vb));
 				scop = ps.scan(fd);
-				if (scop)
+				if (scop) {
+					store_scop(scop);
 					break;
-				else
+				} else
 					continue;
 			}
 			if (!loc.end)
@@ -479,6 +564,7 @@ struct PetASTConsumer : public ASTConsumer {
 			PetScan ps(PP, ast_context, loc, options,
 				    isl_union_map_copy(vb));
 			scop = ps.scan(fd);
+			store_scop(scop);
 			break;
 		}
 
@@ -531,48 +617,6 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 			TextDiagnosticPrinter::HandleDiagnostic(level, info);
 	}
 };
-
-/* For each array in "scop", set its value_bounds property
- * based on the infofrmation in "value_bounds" and
- * mark it as live_out if it appears in "live_out".
- */
-static void update_arrays(struct pet_scop *scop,
-	__isl_take isl_union_map *value_bounds, set<ValueDecl *> &live_out)
-{
-	set<ValueDecl *>::iterator lo_it;
-	isl_ctx *ctx = isl_union_map_get_ctx(value_bounds);
-
-	if (!scop) {
-		isl_union_map_free(value_bounds);
-		return;
-	}
-
-	for (int i = 0; i < scop->n_array; ++i) {
-		isl_id *id;
-		isl_space *space;
-		isl_map *bounds;
-		ValueDecl *decl;
-		pet_array *array = scop->arrays[i];
-
-		id = isl_set_get_tuple_id(array->extent);
-		decl = (ValueDecl *)isl_id_get_user(id);
-
-		space = isl_space_alloc(ctx, 0, 0, 1);
-		space = isl_space_set_tuple_id(space, isl_dim_in, id);
-
-		bounds = isl_union_map_extract_map(value_bounds, space);
-		if (!isl_map_plain_is_empty(bounds))
-			array->value_bounds = isl_map_range(bounds);
-		else
-			isl_map_free(bounds);
-
-		lo_it = live_out.find(decl);
-		if (lo_it != live_out.end())
-			array->live_out = 1;
-	}
-
-	isl_union_map_free(value_bounds);
-}
 
 #ifdef USE_ARRAYREF
 
@@ -717,19 +761,10 @@ void add_path(HeaderSearchOptions &HSO, string Path)
  *
  * We first set up the clang parser and then try to extract the
  * pet_scop from the appropriate function in PetASTConsumer.
- * If we have found a pet_scop, we add the context and value_bounds
- * constraints specified through pragmas.
  */
 static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	const char *filename, const char *function, pet_options *options)
 {
-	isl_space *dim;
-	isl_set *context;
-	isl_set *context_value;
-	pet_scop *scop;
-	set<ValueDecl *> live_out;
-	isl_union_map *value_bounds;
-
 	CompilerInstance *Clang = new CompilerInstance();
 	create_diagnostics(Clang);
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
@@ -763,51 +798,29 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	Clang->getSourceManager().createMainFileID(file);
 
 	Clang->createASTContext();
-	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(),
+	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(), Diags,
 				loc, function, options);
 	Sema *sema = new Sema(PP, Clang->getASTContext(), consumer);
 
 	if (!options->autodetect) {
 		PP.AddPragmaHandler(new PragmaScopHandler(loc));
 		PP.AddPragmaHandler(new PragmaEndScopHandler(loc));
-		PP.AddPragmaHandler(new PragmaLiveOutHandler(*sema, live_out));
+		PP.AddPragmaHandler(new PragmaLiveOutHandler(*sema,
+							consumer.live_out));
 	}
 
-	dim = isl_space_params_alloc(ctx, 0);
-	context = isl_set_universe(isl_space_copy(dim));
-	context_value = isl_set_universe(dim);
-	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
-							context_value));
+	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, consumer.context,
+						consumer.context_value));
 	consumer.handle_value_bounds(sema);
 
 	Diags.getClient()->BeginSourceFile(Clang->getLangOpts(), &PP);
 	ParseAST(*sema);
 	Diags.getClient()->EndSourceFile();
 
-	scop = consumer.scop;
-	if (Diags.hasErrorOccurred()) {
-		pet_scop_free(scop);
-		scop = NULL;
-	}
-
-	if (scop) {
-		scop->context = isl_set_intersect(context, scop->context);
-		scop->context_value = isl_set_intersect(context_value,
-						scop->context_value);
-	} else {
-		isl_set_free(context);
-		isl_set_free(context_value);
-	}
-
-	update_arrays(scop, consumer.get_value_bounds(), live_out);
-
-	scop = pet_scop_add_ref_ids(scop);
-	scop = pet_scop_anonymize(scop);
-
 	delete sema;
 	delete Clang;
 
-	return scop;
+	return consumer.scop;
 }
 
 struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
