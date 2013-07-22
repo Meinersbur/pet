@@ -455,7 +455,8 @@ static void update_arrays(struct pet_scop *scop,
 	isl_union_map_free(value_bounds);
 }
 
-/* Extract a pet_scop from the appropriate function.
+/* Extract a pet_scop (if any) from each appropriate function.
+ * Each detected scop is passed to "fn".
  * If "function" is not NULL, then we only extract a pet_scop if the
  * name of the function matches.
  * If "autodetect" is false, then we only extract if we have seen
@@ -472,16 +473,19 @@ struct PetASTConsumer : public ASTConsumer {
 	isl_ctx *ctx;
 	isl_set *context;
 	isl_set *context_value;
-	struct pet_scop *scop;
 	set<ValueDecl *> live_out;
 	PragmaValueBoundsHandler *vb_handler;
+	int (*fn)(struct pet_scop *scop, void *user);
+	void *user;
+	bool error;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
 		DiagnosticsEngine &diags, ScopLoc &loc, const char *function,
-		pet_options *options) :
+		pet_options *options,
+		int (*fn)(struct pet_scop *scop, void *user), void *user) :
 		ctx(ctx), PP(PP), ast_context(ast_context), diags(diags),
-		loc(loc), scop(NULL), function(function), options(options),
-		vb_handler(NULL)
+		loc(loc), function(function), options(options),
+		vb_handler(NULL), fn(fn), user(user), error(false)
 	{
 		isl_space *space;
 		space = isl_space_params_alloc(ctx, 0);
@@ -503,12 +507,12 @@ struct PetASTConsumer : public ASTConsumer {
 		return isl_union_map_copy(vb_handler->value_bounds);
 	}
 
-	/* Store "scop" in this->scop after performing some postprocessing.
+	/* Pass "scop" to "fn" after performing some postprocessing.
 	 * In particular, add the context and value_bounds constraints
 	 * speficied through pragmas, add reference identifiers and
 	 * reset user pointers on parameters and tuple ids.
 	 */
-	void store_scop(pet_scop *scop) {
+	void call_fn(pet_scop *scop) {
 		if (!scop)
 			return;
 		if (diags.hasErrorOccurred()) {
@@ -525,14 +529,16 @@ struct PetASTConsumer : public ASTConsumer {
 		scop = pet_scop_add_ref_ids(scop);
 		scop = pet_scop_anonymize(scop);
 
-		this->scop = scop;
+		if (fn(scop, user) < 0)
+			error = true;
 	}
 
 	virtual HandleTopLevelDeclReturn HandleTopLevelDecl(DeclGroupRef dg) {
 		DeclGroupRef::iterator it;
 
-		if (scop)
+		if (error)
 			return HandleTopLevelDeclContinue;
+
 		for (it = dg.begin(); it != dg.end(); ++it) {
 			pet_scop *scop;
 			isl_union_map *vb = vb_handler->value_bounds;
@@ -548,11 +554,8 @@ struct PetASTConsumer : public ASTConsumer {
 				PetScan ps(PP, ast_context, loc, options,
 					    isl_union_map_copy(vb));
 				scop = ps.scan(fd);
-				if (scop) {
-					store_scop(scop);
-					break;
-				} else
-					continue;
+				call_fn(scop);
+				continue;
 			}
 			if (!loc.end)
 				continue;
@@ -564,8 +567,7 @@ struct PetASTConsumer : public ASTConsumer {
 			PetScan ps(PP, ast_context, loc, options,
 				    isl_union_map_copy(vb));
 			scop = ps.scan(fd);
-			store_scop(scop);
-			break;
+			call_fn(scop);
 		}
 
 		return HandleTopLevelDeclContinue;
@@ -752,18 +754,20 @@ void add_path(HeaderSearchOptions &HSO, string Path)
 
 #endif
 
-/* Extract a pet_scop from the C source file called "filename".
- * If "function" is not NULL, extract the pet_scop from the function
+/* Extract a pet_scop from each function in the C source file called "filename".
+ * Each detected scop is passed to "fn".
+ * If "function" is not NULL, only extract a pet_scop from the function
  * with that name.
  * If "autodetect" is set, extract any pet_scop we can find.
  * Otherwise, extract the pet_scop from the region delimited
  * by "scop" and "endscop" pragmas.
  *
  * We first set up the clang parser and then try to extract the
- * pet_scop from the appropriate function in PetASTConsumer.
+ * pet_scop from the appropriate function(s) in PetASTConsumer.
  */
-static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
-	const char *filename, const char *function, pet_options *options)
+static int foreach_scop_in_C_source(isl_ctx *ctx,
+	const char *filename, const char *function, pet_options *options,
+	int (*fn)(struct pet_scop *scop, void *user), void *user)
 {
 	CompilerInstance *Clang = new CompilerInstance();
 	create_diagnostics(Clang);
@@ -794,12 +798,12 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	const FileEntry *file = Clang->getFileManager().getFile(filename);
 	if (!file)
 		isl_die(ctx, isl_error_unknown, "unable to open file",
-			do { delete Clang; return NULL; } while (0));
+			do { delete Clang; return -1; } while (0));
 	Clang->getSourceManager().createMainFileID(file);
 
 	Clang->createASTContext();
 	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(), Diags,
-				loc, function, options);
+				loc, function, options, fn, user);
 	Sema *sema = new Sema(PP, Clang->getASTContext(), consumer);
 
 	if (!options->autodetect) {
@@ -820,13 +824,21 @@ static struct pet_scop *scop_extract_from_C_source(isl_ctx *ctx,
 	delete sema;
 	delete Clang;
 
-	return consumer.scop;
+	return consumer.error ? -1 : 0;
 }
 
-struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
-	const char *filename, const char *function)
+/* Extract a pet_scop from each function in the C source file called "filename".
+ * Each detected scop is passed to "fn".
+ *
+ * This wrapper around foreach_scop_in_C_source is mainly used to ensure
+ * that all objects on the stack (of that function) are destroyed before we
+ * call llvm_shutdown.
+ */
+static int pet_foreach_scop_in_C_source(isl_ctx *ctx,
+	const char *filename, const char *function,
+	int (*fn)(struct pet_scop *scop, void *user), void *user)
 {
-	pet_scop *scop;
+	int r;
 	pet_options *options;
 	bool allocated = false;
 
@@ -836,11 +848,47 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 		allocated = true;
 	}
 
-	scop = scop_extract_from_C_source(ctx, filename, function, options);
+	r = foreach_scop_in_C_source(ctx, filename, function, options,
+					fn, user);
 	llvm::llvm_shutdown();
 
 	if (allocated)
 		pet_options_free(options);
+
+	return r;
+}
+
+/* Store "scop" into the address pointed to by "user".
+ * Return -1 to indicate that we are not interested in any further scops.
+ * This function should therefore not be called a second call
+ * so in principle there is no need to check if we have already set *user.
+ */
+static int set_first_scop(pet_scop *scop, void *user)
+{
+	pet_scop **p = (pet_scop **) user;
+
+	if (!*p)
+		*p = scop;
+	else
+		pet_scop_free(scop);
+
+	return -1;
+}
+
+/* Extract a pet_scop from the C source file called "filename".
+ * If "function" is not NULL, extract the pet_scop from the function
+ * with that name.
+ *
+ * We start extracting scops from every function and then abort
+ * as soon as we have extracted one scop.
+ */
+struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
+	const char *filename, const char *function)
+{
+	pet_scop *scop = NULL;
+
+	pet_foreach_scop_in_C_source(ctx, filename, function,
+					&set_first_scop, &scop);
 
 	return scop;
 }
