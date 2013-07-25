@@ -274,6 +274,11 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 int pet_transform_C_source(isl_ctx *ctx, const char *input, FILE *output,
 	__isl_give isl_printer *(*transform)(__isl_take isl_printer *p,
 		struct pet_scop *scop, void *user), void *user);
+/* Given a scop and a printer passed to a pet_transform_C_source callback,
+ * print the original corresponding code to the printer.
+ */
+__isl_give isl_printer *pet_scop_print_original(struct pet_scop *scop,
+	__isl_take isl_printer *p);
 
 /* Update all isl_sets and isl_maps such that they all have the same
  * parameters in the same order.

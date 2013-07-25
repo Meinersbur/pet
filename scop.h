@@ -125,6 +125,7 @@ struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 
 struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 	unsigned start, unsigned end);
+struct pet_scop *pet_scop_set_input_file(struct pet_scop *scop, FILE *input);
 
 #if defined(__cplusplus)
 }

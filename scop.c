@@ -37,6 +37,7 @@
 #include <isl/union_set.h>
 
 #include "scop.h"
+#include "print.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
 
@@ -74,7 +75,7 @@ static char *op_str[] = {
 	[pet_op_kill] = "kill"
 };
 
-/* pet_scop with extra information that is only used during parsing.
+/* pet_scop with extra information that is used during parsing and printing.
  *
  * In particular, we keep track of conditions under which we want
  * to skip the rest of the current loop iteration (skip[pet_skip_now])
@@ -90,11 +91,15 @@ static char *op_str[] = {
  *
  * A missing condition (skip[type] == NULL) means that we don't want
  * to skip anything.
+ *
+ * Additionally, we keep track of the original input file
+ * inside pet_transform_C_source.
  */
 struct pet_scop_ext {
 	struct pet_scop scop;
 
 	isl_multi_pw_aff *skip[2];
+	FILE *input;
 };
 
 const char *pet_op_str(enum pet_op_type op)
@@ -4026,4 +4031,49 @@ int pet_scop_has_data_dependent_conditions(struct pet_scop *scop)
 			return 1;
 
 	return 0;
+}
+
+/* Keep track of the "input" file inside the (extended) "scop".
+ */
+struct pet_scop *pet_scop_set_input_file(struct pet_scop *scop, FILE *input)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+
+	if (!scop)
+		return NULL;
+
+	ext->input = input;
+
+	return scop;
+}
+
+/* Print the original code corresponding to "scop" to printer "p".
+ *
+ * pet_scop_print_original can only be called from
+ * a pet_transform_C_source callback.  This means that the input
+ * file is stored in the extended scop and that the printer prints
+ * to a file.
+ */
+__isl_give isl_printer *pet_scop_print_original(struct pet_scop *scop,
+	__isl_take isl_printer *p)
+{
+	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
+	FILE *output;
+
+	if (!scop || !p)
+		return isl_printer_free(p);
+
+	if (!ext->input)
+		isl_die(isl_printer_get_ctx(p), isl_error_invalid,
+			"no input file stored in scop",
+			return isl_printer_free(p));
+
+	output = isl_printer_get_file(p);
+	if (!output)
+		return isl_printer_free(p);
+
+	if (copy(ext->input, output, scop->start, scop->end) < 0)
+		return isl_printer_free(p);
+
+	return p;
 }

@@ -923,6 +923,10 @@ struct pet_transform_data {
  * a call to data->transform.
  * Finally, we keep track of the end of "scop" so that we can
  * continue copying when we find the next scop.
+ *
+ * Before calling data->transform, we store a pointer to the original
+ * input file in the extended scop in case the user wants to call
+ * pet_scop_print_original from the callback.
  */
 static int pet_transform(struct pet_scop *scop, void *user)
 {
@@ -931,6 +935,7 @@ static int pet_transform(struct pet_scop *scop, void *user)
 	if (copy(data->in, data->out, data->end, scop->start) < 0)
 		goto error;
 	data->end = scop->end;
+	scop = pet_scop_set_input_file(scop, data->in);
 	data->p = data->transform(data->p, scop, data->user);
 	if (!data->p)
 		return -1;
