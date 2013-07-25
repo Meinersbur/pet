@@ -36,6 +36,7 @@
 
 #include <stdlib.h>
 #include <map>
+#include <vector>
 #include <iostream>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/ManagedStatic.h>
@@ -326,17 +327,49 @@ SourceLocation translateLineCol(SourceManager &SM, FileID FID, unsigned line,
 
 #endif
 
+/* List of pairs of #pragma scop and #pragma endscop locations.
+ */
+struct ScopLocList {
+	std::vector<ScopLoc> list;
+
+	/* Add a new start (#pragma scop) location to the list.
+	 * If the last #pragma scop did not have a matching
+	 * #pragma endscop then overwrite it.
+	 */
+	void add_start(unsigned start) {
+		ScopLoc loc;
+
+		loc.start = start;
+		if (list.size() == 0 || list[list.size() - 1].end != 0)
+			list.push_back(loc);
+		else
+			list[list.size() - 1] = loc;
+	}
+
+	/* Set the end location (#pragma endscop) of the last pair
+	 * in the list.
+	 * If there is no such pair of if the end of that pair
+	 * is already set, then ignore the spurious #pragma endscop.
+	 */
+	void add_end(unsigned end) {
+		if (list.size() == 0 || list[list.size() - 1].end != 0)
+			return;
+		list[list.size() - 1].end = end;
+	}
+};
+
 /* Handle pragmas of the form
  *
  *	#pragma scop
  *
  * In particular, store the location of the line containing
- * the pragma in loc.start.
+ * the pragma in the list "scops".
  */
 struct PragmaScopHandler : public PragmaHandler {
-	ScopLoc &loc;
+	ScopLocList &scops;
 
-	PragmaScopHandler(ScopLoc &loc) : PragmaHandler("scop"), loc(loc) {}
+	PragmaScopHandler(ScopLocList &scops) :
+		PragmaHandler("scop"), scops(scops) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
 				  PragmaIntroducerKind Introducer,
@@ -345,7 +378,7 @@ struct PragmaScopHandler : public PragmaHandler {
 		SourceLocation sloc = ScopTok.getLocation();
 		int line = SM.getExpansionLineNumber(sloc);
 		sloc = translateLineCol(SM, SM.getFileID(sloc), line, 1);
-		loc.start = SM.getFileOffset(sloc);
+		scops.add_start(SM.getFileOffset(sloc));
 	}
 };
 
@@ -354,13 +387,13 @@ struct PragmaScopHandler : public PragmaHandler {
  *	#pragma endscop
  *
  * In particular, store the location of the line following the one containing
- * the pragma in loc.end.
+ * the pragma in the list "scops".
  */
 struct PragmaEndScopHandler : public PragmaHandler {
-	ScopLoc &loc;
+	ScopLocList &scops;
 
-	PragmaEndScopHandler(ScopLoc &loc) :
-		PragmaHandler("endscop"), loc(loc) {}
+	PragmaEndScopHandler(ScopLocList &scops) :
+		PragmaHandler("endscop"), scops(scops) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
 				  PragmaIntroducerKind Introducer,
@@ -369,7 +402,7 @@ struct PragmaEndScopHandler : public PragmaHandler {
 		SourceLocation sloc = EndScopTok.getLocation();
 		int line = SM.getExpansionLineNumber(sloc);
 		sloc = translateLineCol(SM, SM.getFileID(sloc), line + 1, 1);
-		loc.end = SM.getFileOffset(sloc);
+		scops.add_end(SM.getFileOffset(sloc));
 	}
 };
 
@@ -460,6 +493,7 @@ static void update_arrays(struct pet_scop *scop,
 
 /* Extract a pet_scop (if any) from each appropriate function.
  * Each detected scop is passed to "fn".
+ * When autodetecting, at most one scop is extracted from each function.
  * If "function" is not NULL, then we only extract a pet_scop if the
  * name of the function matches.
  * If "autodetect" is false, then we only extract if we have seen
@@ -470,7 +504,7 @@ struct PetASTConsumer : public ASTConsumer {
 	Preprocessor &PP;
 	ASTContext &ast_context;
 	DiagnosticsEngine &diags;
-	ScopLoc &loc;
+	ScopLocList &scops;
 	const char *function;
 	pet_options *options;
 	isl_ctx *ctx;
@@ -483,11 +517,11 @@ struct PetASTConsumer : public ASTConsumer {
 	bool error;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
-		DiagnosticsEngine &diags, ScopLoc &loc, const char *function,
-		pet_options *options,
+		DiagnosticsEngine &diags, ScopLocList &scops,
+		const char *function, pet_options *options,
 		int (*fn)(struct pet_scop *scop, void *user), void *user) :
 		ctx(ctx), PP(PP), ast_context(ast_context), diags(diags),
-		loc(loc), function(function), options(options),
+		scops(scops), function(function), options(options),
 		vb_handler(NULL), fn(fn), user(user), error(false)
 	{
 		isl_space *space;
@@ -536,6 +570,37 @@ struct PetASTConsumer : public ASTConsumer {
 			error = true;
 	}
 
+	/* For each explicitly marked scop (using pragmas),
+	 * extract the scop and call "fn" on it if it is inside "fd".
+	 */
+	void scan_scops(FunctionDecl *fd) {
+		unsigned start, end;
+		vector<ScopLoc>::iterator it;
+		isl_union_map *vb = vb_handler->value_bounds;
+		SourceManager &SM = PP.getSourceManager();
+		pet_scop *scop;
+
+		if (scops.list.size() == 0)
+			return;
+
+		start = SM.getFileOffset(fd->getLocStart());
+		end = SM.getFileOffset(fd->getLocEnd());
+
+		for (it = scops.list.begin(); it != scops.list.end(); ++it) {
+			ScopLoc loc = *it;
+			if (!loc.end)
+				continue;
+			if (start > loc.end)
+				continue;
+			if (end < loc.start)
+				continue;
+			PetScan ps(PP, ast_context, loc, options,
+				    isl_union_map_copy(vb));
+			scop = ps.scan(fd);
+			call_fn(scop);
+		}
+	}
+
 	virtual HandleTopLevelDeclReturn HandleTopLevelDecl(DeclGroupRef dg) {
 		DeclGroupRef::iterator it;
 
@@ -543,7 +608,6 @@ struct PetASTConsumer : public ASTConsumer {
 			return HandleTopLevelDeclContinue;
 
 		for (it = dg.begin(); it != dg.end(); ++it) {
-			pet_scop *scop;
 			isl_union_map *vb = vb_handler->value_bounds;
 			FunctionDecl *fd = dyn_cast<clang::FunctionDecl>(*it);
 			if (!fd)
@@ -554,23 +618,15 @@ struct PetASTConsumer : public ASTConsumer {
 			    fd->getNameInfo().getAsString() != function)
 				continue;
 			if (options->autodetect) {
+				ScopLoc loc;
+				pet_scop *scop;
 				PetScan ps(PP, ast_context, loc, options,
 					    isl_union_map_copy(vb));
 				scop = ps.scan(fd);
 				call_fn(scop);
 				continue;
 			}
-			if (!loc.end)
-				continue;
-			SourceManager &SM = PP.getSourceManager();
-			if (SM.getFileOffset(fd->getLocStart()) > loc.end)
-				continue;
-			if (SM.getFileOffset(fd->getLocEnd()) < loc.start)
-				continue;
-			PetScan ps(PP, ast_context, loc, options,
-				    isl_union_map_copy(vb));
-			scop = ps.scan(fd);
-			call_fn(scop);
+			scan_scops(fd);
 		}
 
 		return HandleTopLevelDeclContinue;
@@ -796,7 +852,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	Clang->createPreprocessor();
 	Preprocessor &PP = Clang->getPreprocessor();
 
-	ScopLoc loc;
+	ScopLocList scops;
 
 	const FileEntry *file = Clang->getFileManager().getFile(filename);
 	if (!file)
@@ -806,12 +862,12 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 
 	Clang->createASTContext();
 	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(), Diags,
-				loc, function, options, fn, user);
+				scops, function, options, fn, user);
 	Sema *sema = new Sema(PP, Clang->getASTContext(), consumer);
 
 	if (!options->autodetect) {
-		PP.AddPragmaHandler(new PragmaScopHandler(loc));
-		PP.AddPragmaHandler(new PragmaEndScopHandler(loc));
+		PP.AddPragmaHandler(new PragmaScopHandler(scops));
+		PP.AddPragmaHandler(new PragmaEndScopHandler(scops));
 		PP.AddPragmaHandler(new PragmaLiveOutHandler(*sema,
 							consumer.live_out));
 	}
@@ -946,7 +1002,8 @@ error:
 }
 
 /* Transform the C source file "input" by rewriting each scop
- * (at most one per function) through a call to "transform".
+ * through a call to "transform".
+ * When autodetecting scops, at most one scop per function is rewritten.
  * The transformed C code is written to "output".
  *
  * For each scop we find, we first copy the input text code

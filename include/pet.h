@@ -268,7 +268,7 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	const char *filename, const char *function);
 
 /* Transform the C source file "input" by rewriting each scop
- * (at most one per function) through a call to "transform".
+ * When autodetecting scops, at most one scop per function is rewritten.
  * The transformed C code is written to "output".
  */
 int pet_transform_C_source(isl_ctx *ctx, const char *input, FILE *output,
