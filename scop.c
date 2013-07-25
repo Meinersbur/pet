@@ -4011,3 +4011,19 @@ int pet_scop_has_data_dependent_accesses(struct pet_scop *scop)
 
 	return found;
 }
+
+/* Does "scop" contain and data dependent conditions?
+ */
+int pet_scop_has_data_dependent_conditions(struct pet_scop *scop)
+{
+	int i;
+
+	if (!scop)
+		return -1;
+
+	for (i = 0; i < scop->n_stmt; ++i)
+		if (scop->stmts[i]->n_arg > 0)
+			return 1;
+
+	return 0;
+}
