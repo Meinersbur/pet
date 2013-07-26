@@ -245,6 +245,9 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
  */
 struct pet_scop *pet_scop_align_params(struct pet_scop *scop);
 
+/* Does "scop" contain any data dependent accesses? */
+int pet_scop_has_data_dependent_accesses(struct pet_scop *scop);
+
 void pet_scop_dump(struct pet_scop *scop);
 void *pet_scop_free(struct pet_scop *scop);
 

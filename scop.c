@@ -3972,3 +3972,42 @@ error:
 	pet_implication_free(implication);
 	return pet_scop_free(scop);
 }
+
+/* Given an access expression, check if it is data dependent.
+ * If so, set *found and abort the search.
+ */
+static int is_data_dependent(struct pet_expr *expr, void *user)
+{
+	int *found = user;
+
+	if (expr->n_arg) {
+		*found = 1;
+		return -1;
+	}
+
+	return 0;
+}
+
+/* Does "scop" contain any data dependent accesses?
+ *
+ * Check the body of each statement for such accesses.
+ */
+int pet_scop_has_data_dependent_accesses(struct pet_scop *scop)
+{
+	int i;
+	int found = 0;
+
+	if (!scop)
+		return -1;
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		int r = pet_expr_foreach_access_expr(scop->stmts[i]->body,
+					&is_data_dependent, &found);
+		if (r < 0 && !found)
+			return -1;
+		if (found)
+			return found;
+	}
+
+	return found;
+}
