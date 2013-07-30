@@ -4875,7 +4875,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 			continue;
 
 		scop_i = extract(child);
-		if (scop && partial) {
+		if (scop->n_stmt != 0 && partial) {
 			pet_scop_free(scop_i);
 			break;
 		}
