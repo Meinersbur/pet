@@ -139,24 +139,6 @@ AC_SUBST(LIB_CLANG_EDIT)
 AC_CHECK_LIB([clangEdit], [main], [LIB_CLANG_EDIT=-lclangEdit], [])
 LDFLAGS="$SAVE_LDFLAGS"
 
-AX_SUBMODULE(gmp,system|build,system)
-
-AC_SUBST(GMP_LDFLAGS)
-AC_SUBST(GMP_LIBS)
-case "$with_gmp" in
-system)
-	if test "x$with_gmp_prefix" != "x"; then
-		GMP_CPPFLAGS="-I$with_gmp_prefix/include"
-		GMP_LDFLAGS="-L$with_gmp_prefix/lib"
-	fi
-	GMP_LIBS=-lgmp
-	;;
-build)
-	GMP_CPPFLAGS="-I$gmp_srcdir -I$with_gmp_builddir"
-	GMP_LIBS="$with_gmp_builddir/libgmp.la"
-	;;
-esac
-
 AX_SUBMODULE(isl,build|bundled|system,bundled)
 AM_CONDITIONAL(BUNDLED_ISL, test $with_isl = bundled)
 
@@ -166,15 +148,15 @@ AC_SUBST(ISL_SRCDIR)
 case "$with_isl" in
 bundled)
 	ISL_CFLAGS="-I\$(top_srcdir)/isl/include -I\$(top_builddir)/isl/include"
-	ISL_CFLAGS="$ISL_CFLAGS $GMP_CPPFLAGS"
+	ISL_CFLAGS="$ISL_CFLAGS"
 	ISL_SRCDIR="$srcdir/isl"
 	;;
 build)
 	ISL_SRCDIR="$isl_srcdir"
 	ISL_BUILDDIR=`echo @abs_builddir@ | $with_isl_builddir/config.status --file=-`
 	ISL_CFLAGS="-I$isl_srcdir/include -I$ISL_BUILDDIR/include"
-	ISL_CFLAGS="$ISL_CFLAGS $GMP_CPPFLAGS"
-	ISL_LIBS="$with_isl_builddir/libisl.la $GMP_LDFLAGS $GMP_LIBS"
+	ISL_CFLAGS="$ISL_CFLAGS"
+	ISL_LIBS="$with_isl_builddir/libisl.la"
 	;;
 system)
 	PKG_CHECK_MODULES([ISL], [isl])

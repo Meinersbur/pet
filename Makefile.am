@@ -1,6 +1,6 @@
 if BUNDLED_ISL
     MAYBE_ISL = isl
-    ISL_LA = $(top_builddir)/isl/libisl.la @GMP_LDFLAGS@ @GMP_LIBS@
+    ISL_LA = $(top_builddir)/isl/libisl.la
 endif
 
 SUBDIRS = $(MAYBE_ISL) .
