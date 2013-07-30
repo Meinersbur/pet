@@ -4854,6 +4854,12 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  *
  * If "block" is not set, then any array declared by one of the statements
  * in the sequence is marked as being exposed.
+ *
+ * If autodetect is set, then we allow the extraction of only a subrange
+ * of the sequence of statements.  However, if there is at least one statement
+ * for which we could not construct a scop and the final range contains
+ * either no statements or at least one kill, then we discard the entire
+ * range.
  */
 struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 	bool skip_declarations)
@@ -4915,7 +4921,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 	}
 
 	if (scop && partial_range) {
-		if (scop->n_stmt == 0) {
+		if (scop->n_stmt == 0 || kills.size() != 0) {
 			pet_scop_free(scop);
 			return NULL;
 		}
