@@ -887,10 +887,10 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	if (!index)
 		return -1;
 
-	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_set))
+	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
 		return 1;
 
-	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_set);
+	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	if (!id)
 		return -1;
 	decl = (ValueDecl *) isl_id_get_user(id);
