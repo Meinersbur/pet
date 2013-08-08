@@ -296,6 +296,11 @@ static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 	if (emit_named_int(emitter, "element_size", array->element_size) < 0)
 		return -1;
 
+	if (array->element_is_record)
+		if (emit_named_int(emitter, "element_is_record",
+					array->element_is_record) < 0)
+			return -1;
+
 	if (array->live_out) {
 		if (emit_string(emitter, "live_out") < 0)
 			return -1;

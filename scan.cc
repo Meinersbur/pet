@@ -813,6 +813,15 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ArraySubscriptExpr *expr)
 	return nested_access(expr);
 }
 
+/* Affine expressions are not supposed to contain member accesses,
+ * but if nesting is allowed, we return a parameter corresponding
+ * to the member access.
+ */
+__isl_give isl_pw_aff *PetScan::extract_affine(MemberExpr *expr)
+{
+	return nested_access(expr);
+}
+
 /* Extract an affine expression from a conditional operation.
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(ConditionalOperator *expr)
@@ -848,6 +857,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 		return extract_affine(cast<CallExpr>(expr));
 	case Stmt::ArraySubscriptExprClass:
 		return extract_affine(cast<ArraySubscriptExpr>(expr));
+	case Stmt::MemberExprClass:
+		return extract_affine(cast<MemberExpr>(expr));
 	case Stmt::ConditionalOperatorClass:
 		return extract_affine(cast<ConditionalOperator>(expr));
 	default:
@@ -879,6 +890,9 @@ static int array_depth(const Type *type)
 /* Return the depth of the array accessed by the index expression "index".
  * If "index" is an affine expression, i.e., if it does not access
  * any array, then return 1.
+ * If "index" represent a member access, i.e., if its range is a wrapped
+ * relation, then return the sum of the depth of the array of structures
+ * and that of the member inside the structure.
  */
 static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 {
@@ -887,6 +901,22 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 
 	if (!index)
 		return -1;
+
+	if (isl_multi_pw_aff_range_is_wrapping(index)) {
+		int domain_depth, range_depth;
+		isl_multi_pw_aff *domain, *range;
+
+		domain = isl_multi_pw_aff_copy(index);
+		domain = isl_multi_pw_aff_range_factor_domain(domain);
+		domain_depth = extract_depth(domain);
+		isl_multi_pw_aff_free(domain);
+		range = isl_multi_pw_aff_copy(index);
+		range = isl_multi_pw_aff_range_factor_range(range);
+		range_depth = extract_depth(range);
+		isl_multi_pw_aff_free(range);
+
+		return domain_depth + range_depth;
+	}
 
 	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
 		return 1;
@@ -956,6 +986,8 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
 		return extract_index(cast<ArraySubscriptExpr>(expr));
 	case Stmt::IntegerLiteralClass:
 		return extract_index(cast<IntegerLiteral>(expr));
+	case Stmt::MemberExprClass:
+		return extract_index(cast<MemberExpr>(expr));
 	default:
 		unsupported(expr);
 	}
@@ -965,6 +997,8 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
 /* Given a partial index expression "base" and an extra index "index",
  * append the extra index to "base" and return the result.
  * Additionally, add the constraints that the extra index is non-negative.
+ * If "index" represent a member access, i.e., if its range is a wrapped
+ * relation, then we recursively extend the range of this nested relation.
  */
 static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
 	__isl_take isl_pw_aff *index)
@@ -972,6 +1006,24 @@ static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
 	isl_id *id;
 	isl_set *domain;
 	isl_multi_pw_aff *access;
+	int member_access;
+
+	member_access = isl_multi_pw_aff_range_is_wrapping(base);
+	if (member_access < 0)
+		goto error;
+	if (member_access) {
+		isl_multi_pw_aff *domain, *range;
+		isl_id *id;
+
+		id = isl_multi_pw_aff_get_tuple_id(base, isl_dim_out);
+		domain = isl_multi_pw_aff_copy(base);
+		domain = isl_multi_pw_aff_range_factor_domain(domain);
+		range = isl_multi_pw_aff_range_factor_range(base);
+		range = subscript(range, index);
+		access = isl_multi_pw_aff_range_product(domain, range);
+		access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_out, id);
+		return access;
+	}
 
 	id = isl_multi_pw_aff_get_tuple_id(base, isl_dim_set);
 	index = isl_pw_aff_from_range(index);
@@ -982,6 +1034,10 @@ static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
 	access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_set, id);
 
 	return access;
+error:
+	isl_multi_pw_aff_free(base);
+	isl_pw_aff_free(index);
+	return NULL;
 }
 
 /* Extract an index expression from the given array subscript expression.
@@ -1014,6 +1070,108 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
 	access = subscript(base_access, index);
 
 	return access;
+}
+
+/* Construct a name for a member access by concatenating the name
+ * of the array of structures and the member, separated by an underscore.
+ *
+ * The caller is responsible for freeing the result.
+ */
+static char *member_access_name(isl_ctx *ctx, const char *base,
+	const char *field)
+{
+	int len;
+	char *name;
+
+	len = strlen(base) + 1 + strlen(field);
+	name = isl_alloc_array(ctx, char, len + 1);
+	if (!name)
+		return NULL;
+	snprintf(name, len + 1, "%s_%s", base, field);
+
+	return name;
+}
+
+/* Given an index expression "base" for an element of an array of structures
+ * and an expression "field" for the field member being accessed, construct
+ * an index expression for an access to that member of the given structure.
+ * In particular, take the range product of "base" and "field" and
+ * attach a name to the result.
+ */
+static __isl_give isl_multi_pw_aff *member(__isl_take isl_multi_pw_aff *base,
+	__isl_take isl_multi_pw_aff *field)
+{
+	isl_ctx *ctx;
+	isl_multi_pw_aff *access;
+	const char *base_name, *field_name;
+	char *name;
+
+	ctx = isl_multi_pw_aff_get_ctx(base);
+
+	base_name = isl_multi_pw_aff_get_tuple_name(base, isl_dim_out);
+	field_name = isl_multi_pw_aff_get_tuple_name(field, isl_dim_out);
+	name = member_access_name(ctx, base_name, field_name);
+
+	access = isl_multi_pw_aff_range_product(base, field);
+
+	access = isl_multi_pw_aff_set_tuple_name(access, isl_dim_out, name);
+	free(name);
+
+	return access;
+}
+
+/* Extract an index expression from a member expression.
+ *
+ * If the base access (to the structure containing the member)
+ * is of the form
+ *
+ *	[] -> A[..]
+ *
+ * and the member is called "f", then the member access is of
+ * the form
+ *
+ *	[] -> A_f[A[..] -> f[]]
+ *
+ * If the member access is to an anonymous struct, then simply return
+ *
+ *	[] -> A[..]
+ *
+ * If the member access in the source code is of the form
+ *
+ *	A->f
+ *
+ * then it is treated as
+ *
+ *	A[0].f
+ */
+__isl_give isl_multi_pw_aff *PetScan::extract_index(MemberExpr *expr)
+{
+	Expr *base = expr->getBase();
+	FieldDecl *field = cast<FieldDecl>(expr->getMemberDecl());
+	isl_multi_pw_aff *base_access, *field_access;
+	isl_id *id;
+	isl_space *space;
+
+	base_access = extract_index(base);
+
+	if (expr->isArrow()) {
+		isl_space *space = isl_space_params_alloc(ctx, 0);
+		isl_local_space *ls = isl_local_space_from_space(space);
+		isl_aff *aff = isl_aff_zero_on_domain(ls);
+		isl_pw_aff *index = isl_pw_aff_from_aff(aff);
+		base_access = subscript(base_access, index);
+	}
+
+	if (field->isAnonymousStructOrUnion())
+		return base_access;
+
+	id = isl_id_alloc(ctx, field->getName().str().c_str(), field);
+	space = isl_multi_pw_aff_get_domain_space(base_access);
+	space = isl_space_from_domain(space);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
+	field_access = isl_multi_pw_aff_zero(space);
+
+	return member(base_access, field_access);
 }
 
 /* Check if "expr" calls function "minmax" with two arguments and if so
@@ -1510,7 +1668,7 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	decl = stmt->getSingleDecl();
 	vd = cast<VarDecl>(decl);
 
-	array = extract_array(ctx, vd);
+	array = extract_array(ctx, vd, NULL);
 	if (array)
 		array->declared = 1;
 	scop_decl = kill(stmt, array);
@@ -1661,6 +1819,7 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 		Expr *arg = expr->getArg(i);
 		int is_addr = 0;
 		pet_expr *main_arg;
+		Stmt::StmtClass sc;
 
 		if (arg->getStmtClass() == Stmt::ImplicitCastExprClass) {
 			ImplicitCastExpr *ice = cast<ImplicitCastExpr>(arg);
@@ -1680,7 +1839,9 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 					pet_op_address_of, res->args[i]);
 		if (!res->args[i])
 			goto error;
-		if (arg->getStmtClass() == Stmt::ArraySubscriptExprClass &&
+		sc = arg->getStmtClass();
+		if ((sc == Stmt::ArraySubscriptExprClass ||
+		     sc == Stmt::MemberExprClass) &&
 		    array_depth(arg->getType().getTypePtr()) > 0)
 			is_addr = 1;
 		if (is_addr && main_arg->type == pet_expr_access) {
@@ -1731,6 +1892,7 @@ struct pet_expr *PetScan::extract_expr(Expr *expr)
 	case Stmt::ArraySubscriptExprClass:
 	case Stmt::DeclRefExprClass:
 	case Stmt::IntegerLiteralClass:
+	case Stmt::MemberExprClass:
 		return extract_access_expr(expr);
 	case Stmt::FloatingLiteralClass:
 		return extract_expr(cast<FloatingLiteral>(expr));
@@ -5084,6 +5246,15 @@ static QualType get_array_type(ValueDecl *decl)
 	return T;
 }
 
+/* Does "decl" have definition that we can keep track of in a pet_type?
+ */
+static bool has_printable_definition(RecordDecl *decl)
+{
+	if (!decl->getDeclName())
+		return false;
+	return decl->getLexicalDeclContext() == decl->getDeclContext();
+}
+
 /* Construct and return a pet_array corresponding to the variable "decl".
  * In particular, initialize array->extent to
  *
@@ -5091,8 +5262,16 @@ static QualType get_array_type(ValueDecl *decl)
  *
  * and then call set_upper_bounds to set the upper bounds on the indices
  * based on the type of the variable.
+ *
+ * If the base type is that of a record with a top-level definition and
+ * if "types" is not null, then the RecordDecl corresponding to the type
+ * is added to "types".
+ *
+ * If the base type is that of a record with no top-level definition,
+ * then we replace it by "<subfield>".
  */
-struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
+struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
+	lex_recorddecl_set *types)
 {
 	struct pet_array *array;
 	QualType qt = get_array_type(decl);
@@ -5121,10 +5300,124 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 		return NULL;
 
 	name = base.getAsString();
+
+	if (types && base->isRecordType()) {
+		RecordDecl *decl = pet_clang_record_decl(base);
+		if (has_printable_definition(decl))
+			types->insert(decl);
+		else
+			name = "<subfield>";
+	}
+
 	array->element_type = strdup(name.c_str());
+	array->element_is_record = base->isRecordType();
 	array->element_size = decl->getASTContext().getTypeInfo(base).first / 8;
 
 	return array;
+}
+
+/* Construct and return a pet_array corresponding to the sequence
+ * of declarations "decls".
+ * If the sequence contains a single declaration, then it corresponds
+ * to a simple array access.  Otherwise, it corresponds to a member access,
+ * with the declaration for the substructure following that of the containing
+ * structure in the sequence of declarations.
+ * We start with the outermost substructure and then combine it with
+ * information from the inner structures.
+ *
+ * Additionally, keep track of all required types in "types".
+ */
+struct pet_array *PetScan::extract_array(isl_ctx *ctx,
+	vector<ValueDecl *> decls, lex_recorddecl_set *types)
+{
+	struct pet_array *array;
+	vector<ValueDecl *>::iterator it;
+
+	it = decls.begin();
+
+	array = extract_array(ctx, *it, types);
+
+	for (++it; it != decls.end(); ++it) {
+		struct pet_array *parent;
+		const char *base_name, *field_name;
+		char *product_name;
+
+		parent = array;
+		array = extract_array(ctx, *it, types);
+		if (!array)
+			return pet_array_free(parent);
+
+		base_name = isl_set_get_tuple_name(parent->extent);
+		field_name = isl_set_get_tuple_name(array->extent);
+		product_name = member_access_name(ctx, base_name, field_name);
+
+		array->extent = isl_set_product(isl_set_copy(parent->extent),
+						array->extent);
+		if (product_name)
+			array->extent = isl_set_set_tuple_name(array->extent,
+								product_name);
+		array->context = isl_set_intersect(array->context,
+						isl_set_copy(parent->context));
+
+		pet_array_free(parent);
+		free(product_name);
+
+		if (!array->extent || !array->context || !product_name)
+			return pet_array_free(array);
+	}
+
+	return array;
+}
+
+/* Add a pet_type corresponding to "decl" to "scop, provided
+ * it is a member of "types" and it has not been added before
+ * (i.e., it is not a member of "types_done".
+ *
+ * Since we want the user to be able to print the types
+ * in the order in which they appear in the scop, we need to
+ * make sure that types of fields in a structure appear before
+ * that structure.  We therefore call ourselves recursively
+ * on the types of all record subfields.
+ */
+static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
+	RecordDecl *decl, Preprocessor &PP, lex_recorddecl_set &types,
+	lex_recorddecl_set &types_done)
+{
+	string s;
+	llvm::raw_string_ostream S(s);
+	RecordDecl::field_iterator it;
+
+	if (types.find(decl) == types.end())
+		return scop;
+	if (types_done.find(decl) != types_done.end())
+		return scop;
+
+	for (it = decl->field_begin(); it != decl->field_end(); ++it) {
+		RecordDecl *record;
+		QualType type = it->getType();
+
+		if (!type->isRecordType())
+			continue;
+		record = pet_clang_record_decl(type);
+		scop = add_type(ctx, scop, record, PP, types, types_done);
+	}
+
+	if (strlen(decl->getName().str().c_str()) == 0)
+		return scop;
+
+	decl->print(S, PrintingPolicy(PP.getLangOpts()));
+	S.str();
+
+	scop->types[scop->n_type] = pet_type_alloc(ctx,
+				    decl->getName().str().c_str(), s.c_str());
+	if (!scop->types[scop->n_type])
+		return pet_scop_free(scop);
+
+	types_done.insert(decl);
+
+	scop->n_type++;
+
+	return scop;
 }
 
 /* Construct a list of pet_arrays, one for each array (or scalar)
@@ -5133,12 +5426,18 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
  * The context of "scop" is updated with the intersection of
  * the contexts of all arrays, i.e., constraints on the parameters
  * that ensure that the arrays have a valid (non-negative) size.
+ *
+ * If the any of the extracted arrays refers to a member access,
+ * then also add the required types to "scop".
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
 {
 	int i;
-	set<ValueDecl *> arrays;
-	set<ValueDecl *>::iterator it;
+	set<vector<ValueDecl *> > arrays;
+	set<vector<ValueDecl *> >::iterator it;
+	lex_recorddecl_set types;
+	lex_recorddecl_set types_done;
+	lex_recorddecl_set::iterator types_it;
 	int n_array;
 	struct pet_array **scop_arrays;
 
@@ -5159,7 +5458,8 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
 
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
-		scop->arrays[n_array + i] = array = extract_array(ctx, *it);
+		array = extract_array(ctx, *it, &types);
+		scop->arrays[n_array + i] = array;
 		if (!scop->arrays[n_array + i])
 			goto error;
 		scop->n_array++;
@@ -5168,6 +5468,16 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
 		if (!scop->context)
 			goto error;
 	}
+
+	if (types.size() == 0)
+		return scop;
+
+	scop->types = isl_alloc_array(ctx, struct pet_type *, types.size());
+	if (!scop->types)
+		goto error;
+
+	for (types_it = types.begin(); types_it != types.end(); ++types_it)
+		scop = add_type(ctx, scop, *types_it, PP, types, types_done);
 
 	return scop;
 error:

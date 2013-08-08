@@ -181,13 +181,28 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 
 /* Extend the range of "access" with "n" dimensions, retaining
  * the tuple identifier on this range.
+ *
+ * If "access" represents a member access, then extend the range
+ * of the member.
  */
 static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 {
 	isl_id *id;
 
 	id = isl_map_get_tuple_id(access, isl_dim_out);
-	access = isl_map_add_dims(access, isl_dim_out, n);
+
+	if (!isl_map_range_is_wrapping(access)) {
+		access = isl_map_add_dims(access, isl_dim_out, n);
+	} else {
+		isl_map *domain;
+
+		domain = isl_map_copy(access);
+		domain = isl_map_range_factor_domain(domain);
+		access = isl_map_range_factor_range(access);
+		access = extend_range(access, n);
+		access = isl_map_range_product(domain, access);
+	}
+
 	access = isl_map_set_tuple_id(access, isl_dim_out, id);
 
 	return access;
@@ -522,6 +537,9 @@ int pet_expr_is_affine(struct pet_expr *expr)
 }
 
 /* Return the identifier of the array accessed by "expr".
+ *
+ * If "expr" represents a member access, then return the identifier
+ * of the outer structure array.
  */
 __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
 {
@@ -529,6 +547,21 @@ __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
 		return NULL;
+
+	if (isl_map_range_is_wrapping(expr->acc.access)) {
+		isl_space *space;
+		isl_id *id;
+
+		space = isl_map_get_space(expr->acc.access);
+		space = isl_space_range(space);
+		while (space && isl_space_is_wrapping(space))
+			space = isl_space_domain(isl_space_unwrap(space));
+		id = isl_space_get_tuple_id(space, isl_dim_set);
+		isl_space_free(space);
+
+		return id;
+	}
+
 	return isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
 }
 
@@ -937,8 +970,9 @@ void pet_array_dump(struct pet_array *array)
 	isl_set_dump(array->context);
 	isl_set_dump(array->extent);
 	isl_set_dump(array->value_bounds);
-	fprintf(stderr, "%s %s\n", array->element_type,
-		array->live_out ? "live-out" : "");
+	fprintf(stderr, "%s%s%s\n", array->element_type,
+		array->element_is_record ? " element-is-record" : "",
+		array->live_out ? " live-out" : "");
 }
 
 /* Alloc a pet_scop structure, with extra room for information that
@@ -1552,6 +1586,8 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 		return 0;
 	if (strcmp(array1->element_type, array2->element_type))
 		return 0;
+	if (array1->element_is_record != array2->element_is_record)
+		return 0;
 	if (array1->live_out != array2->live_out)
 		return 0;
 	if (array1->uniquely_defined != array2->uniquely_defined)
@@ -1837,6 +1873,7 @@ static __isl_give isl_multi_pw_aff *index_internalize_iv(
 
 /* Does the index expression "index" reference a virtual array, i.e.,
  * one with user pointer equal to NULL?
+ * A virtual array does not have any members.
  */
 static int index_is_virtual_array(__isl_keep isl_multi_pw_aff *index)
 {
@@ -1844,6 +1881,8 @@ static int index_is_virtual_array(__isl_keep isl_multi_pw_aff *index)
 	int is_virtual;
 
 	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
+		return 0;
+	if (isl_multi_pw_aff_range_is_wrapping(index))
 		return 0;
 	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	is_virtual = !isl_id_get_user(id);
@@ -1854,6 +1893,7 @@ static int index_is_virtual_array(__isl_keep isl_multi_pw_aff *index)
 
 /* Does the access relation "access" reference a virtual array, i.e.,
  * one with user pointer equal to NULL?
+ * A virtual array does not have any members.
  */
 static int access_is_virtual_array(__isl_keep isl_map *access)
 {
@@ -1861,6 +1901,8 @@ static int access_is_virtual_array(__isl_keep isl_map *access)
 	int is_virtual;
 
 	if (!isl_map_has_tuple_id(access, isl_dim_out))
+		return 0;
+	if (isl_map_range_is_wrapping(access))
 		return 0;
 	id = isl_map_get_tuple_id(access, isl_dim_out);
 	is_virtual = !isl_id_get_user(id);
@@ -3506,6 +3548,59 @@ static int is_kill(struct pet_stmt *stmt)
 	return stmt->body->op == pet_op_kill;
 }
 
+/* Compute a mapping from all arrays (of structs) in scop
+ * to their innermost arrays.
+ *
+ * In particular, for each array of a primitive type, the result
+ * contains the identity mapping on that array.
+ * For each array involving member accesses, the result
+ * contains a mapping from the elements of any intermediate array of structs
+ * to all corresponding elements of the innermost nested arrays.
+ */
+static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop)
+{
+	int i;
+	isl_union_map *to_inner;
+
+	to_inner = isl_union_map_empty(isl_set_get_space(scop->context));
+
+	for (i = 0; i < scop->n_array; ++i) {
+		struct pet_array *array = scop->arrays[i];
+		isl_set *set;
+		isl_map *map, *gist;
+
+		if (array->element_is_record)
+			continue;
+
+		map = isl_set_identity(isl_set_copy(array->extent));
+
+		set = isl_map_domain(isl_map_copy(map));
+		gist = isl_map_copy(map);
+		gist = isl_map_gist_domain(gist, isl_set_copy(set));
+		to_inner = isl_union_map_add_map(to_inner, gist);
+
+		while (set && isl_set_is_wrapping(set)) {
+			isl_id *id;
+			isl_map *wrapped;
+
+			id = isl_set_get_tuple_id(set);
+			wrapped = isl_set_unwrap(set);
+			wrapped = isl_map_domain_map(wrapped);
+			wrapped = isl_map_set_tuple_id(wrapped, isl_dim_in, id);
+			map = isl_map_apply_domain(map, wrapped);
+			set = isl_map_domain(isl_map_copy(map));
+			gist = isl_map_copy(map);
+			gist = isl_map_gist_domain(gist, isl_set_copy(set));
+			to_inner = isl_union_map_add_map(to_inner, gist);
+		}
+
+		isl_set_free(set);
+		isl_map_free(map);
+	}
+
+	return to_inner;
+}
+
 /* Collect and return all read access relations (if "read" is set)
  * and/or all write access relations (if "write" is set) in "scop".
  * If "kill" is set, then we only add the arguments of kill operations.
@@ -3513,6 +3608,8 @@ static int is_kill(struct pet_stmt *stmt)
  * performed.  Otherwise, we add all potential accesses.
  * If "tag" is set, then the access relations are tagged with
  * the corresponding reference identifiers.
+ * For accesses to structures, the returned access relation accesses
+ * all individual fields in the structures.
  */
 static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	int read, int write, int kill, int must, int tag)
@@ -3520,6 +3617,7 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	int i;
 	isl_union_map *accesses;
 	isl_union_set *arrays;
+	isl_union_map *to_inner;
 
 	if (!scop)
 		return NULL;
@@ -3546,6 +3644,9 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 		arrays = isl_union_set_add_set(arrays, extent);
 	}
 	accesses = isl_union_map_intersect_range(accesses, arrays);
+
+	to_inner = compute_to_inner(scop);
+	accesses = isl_union_map_apply_range(accesses, to_inner);
 
 	return accesses;
 }

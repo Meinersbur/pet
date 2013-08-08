@@ -109,6 +109,13 @@ enum pet_ter_arg_type {
  * Each dimension in this space corresponds to the value of the
  * corresponding argument.
  *
+ * The ranges of the index expressions and access relations may
+ * also be wrapped relations, in which case the expression represents
+ * a member access, with the structure represented by the domain
+ * of this wrapped relation and the member represented by the range.
+ * In case of nested member accesses, the domain is itself a wrapped
+ * relation.
+ *
  * If the data space is unnamed (and 1D), then it represents
  * the set of integers.  That is, the access represents a value that
  * is equal to the index.
@@ -208,6 +215,8 @@ struct pet_type {
  * and may be NULL if no such constraints were specified by the user
  *
  * element_size is the size in bytes of each array element
+ * element_type is the type of the array elements.
+ * element_is_record is set if this type is a record type.
  *
  * live_out is set if the array appears in a live-out pragma
  *
@@ -223,6 +232,7 @@ struct pet_array {
 	isl_set *extent;
 	isl_set *value_bounds;
 	char *element_type;
+	int element_is_record;
 	int element_size;
 	int live_out;
 	int uniquely_defined;

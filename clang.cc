@@ -1,5 +1,6 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
+ * Copyright 2013 Ecole Normale Superieure. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,4 +51,14 @@ QualType pet_clang_base_type(QualType qt)
 		return pet_clang_base_type(atype->getElementType());
 	}
 	return qt;
+}
+
+/* Given a record type, return the corresponding RecordDecl.
+ */
+RecordDecl *pet_clang_record_decl(QualType T)
+{
+	const Type *type = T->getCanonicalTypeInternal().getTypePtr();
+	const RecordType *record;
+	record = cast<RecordType>(type);
+	return record->getDecl();
 }

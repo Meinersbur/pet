@@ -21,6 +21,20 @@ struct ScopLoc {
 	unsigned end;
 };
 
+/* Compare two RecordDecl pointers based on their names.
+ */
+struct less_name {
+	bool operator()(const clang::RecordDecl *x,
+			const clang::RecordDecl *y) {
+		return x->getNameAsString().compare(y->getNameAsString()) < 0;
+	}
+};
+
+/* A sorted set of RecordDecl pointers.  The actual order is not important,
+ * only that it is consistent across platforms.
+ */
+typedef std::set<clang::RecordDecl *, less_name> lex_recorddecl_set;
+
 struct PetScan {
 	clang::Preprocessor &PP;
 	clang::ASTContext &ast_context;
@@ -91,7 +105,11 @@ private:
 	struct pet_scop *scan(clang::Stmt *stmt);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop);
-	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl);
+	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
+		lex_recorddecl_set *types);
+	struct pet_array *extract_array(isl_ctx *ctx,
+		std::vector<clang::ValueDecl *> decls,
+		lex_recorddecl_set *types);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
 		const clang::Type *type, int pos);
 
@@ -176,6 +194,7 @@ private:
 	__isl_give isl_multi_pw_aff *extract_index(clang::ValueDecl *decl);
 	__isl_give isl_multi_pw_aff *extract_index(
 		clang::IntegerLiteral *expr);
+	__isl_give isl_multi_pw_aff *extract_index(clang::MemberExpr *expr);
 
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
@@ -204,6 +223,7 @@ private:
 	__isl_give isl_pw_aff *extract_affine(clang::ParenExpr *expr);
 	__isl_give isl_pw_aff *extract_affine(clang::CallExpr *expr);
 	__isl_give isl_pw_aff *extract_affine(clang::ArraySubscriptExpr *expr);
+	__isl_give isl_pw_aff *extract_affine(clang::MemberExpr *expr);
 	__isl_give isl_pw_aff *extract_affine(clang::ConditionalOperator *expr);
 
 	__isl_give isl_pw_aff *extract_implicit_condition(clang::Expr *expr);
