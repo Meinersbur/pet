@@ -150,7 +150,7 @@ struct pet_expr *pet_expr_from_access_and_index( __isl_take isl_map *access,
 	struct pet_expr *expr;
 
 	if (!index || !access)
-		return NULL;
+		goto error;
 	expr = isl_calloc_type(ctx, struct pet_expr);
 	if (!expr)
 		goto error;
