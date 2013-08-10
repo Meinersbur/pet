@@ -3260,6 +3260,7 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 {
 	int i;
 	isl_union_map *accesses;
+	isl_union_set *arrays;
 
 	if (!scop)
 		return NULL;
@@ -3273,6 +3274,13 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 						   read, write, dim);
 		accesses = isl_union_map_union(accesses, accesses_i);
 	}
+
+	arrays = isl_union_set_empty(isl_union_map_get_space(accesses));
+	for (i = 0; i < scop->n_array; ++i) {
+		isl_set *extent = isl_set_copy(scop->arrays[i]->extent);
+		arrays = isl_union_set_add_set(arrays, extent);
+	}
+	accesses = isl_union_map_intersect_range(accesses, arrays);
 
 	return accesses;
 }
