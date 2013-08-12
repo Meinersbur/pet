@@ -3545,94 +3545,6 @@ struct pet_scop *pet_scop_add_ref_ids(struct pet_scop *scop)
 	return scop;
 }
 
-/* Reset the user pointer on the tuple id and all parameter ids in "set".
- */
-static __isl_give isl_set *set_anonymize(__isl_take isl_set *set)
-{
-	int i, n;
-
-	n = isl_set_dim(set, isl_dim_param);
-	for (i = 0; i < n; ++i) {
-		isl_id *id = isl_set_get_dim_id(set, isl_dim_param, i);
-		const char *name = isl_id_get_name(id);
-		set = isl_set_set_dim_name(set, isl_dim_param, i, name);
-		isl_id_free(id);
-	}
-
-	if (!isl_set_is_params(set) && isl_set_has_tuple_id(set)) {
-		isl_id *id = isl_set_get_tuple_id(set);
-		const char *name = isl_id_get_name(id);
-		set = isl_set_set_tuple_name(set, name);
-		isl_id_free(id);
-	}
-
-	return set;
-}
-
-/* Reset the user pointer on the tuple ids and all parameter ids in "map".
- */
-static __isl_give isl_map *map_anonymize(__isl_take isl_map *map)
-{
-	int i, n;
-
-	n = isl_map_dim(map, isl_dim_param);
-	for (i = 0; i < n; ++i) {
-		isl_id *id = isl_map_get_dim_id(map, isl_dim_param, i);
-		const char *name = isl_id_get_name(id);
-		map = isl_map_set_dim_name(map, isl_dim_param, i, name);
-		isl_id_free(id);
-	}
-
-	if (isl_map_has_tuple_id(map, isl_dim_in)) {
-		isl_id *id = isl_map_get_tuple_id(map, isl_dim_in);
-		const char *name = isl_id_get_name(id);
-		map = isl_map_set_tuple_name(map, isl_dim_in, name);
-		isl_id_free(id);
-	}
-
-	if (isl_map_has_tuple_id(map, isl_dim_out)) {
-		isl_id *id = isl_map_get_tuple_id(map, isl_dim_out);
-		const char *name = isl_id_get_name(id);
-		map = isl_map_set_tuple_name(map, isl_dim_out, name);
-		isl_id_free(id);
-	}
-
-	return map;
-}
-
-/* Reset the user pointer on the tuple ids and all parameter ids in "mpa".
- */
-static __isl_give isl_multi_pw_aff *multi_pw_aff_anonymize(
-	__isl_take isl_multi_pw_aff *mpa)
-{
-	int i, n;
-
-	n = isl_multi_pw_aff_dim(mpa, isl_dim_param);
-	for (i = 0; i < n; ++i) {
-		isl_id *id = isl_multi_pw_aff_get_dim_id(mpa, isl_dim_param, i);
-		const char *name = isl_id_get_name(id);
-		mpa = isl_multi_pw_aff_set_dim_name(mpa,
-						    isl_dim_param, i, name);
-		isl_id_free(id);
-	}
-
-	if (isl_multi_pw_aff_has_tuple_id(mpa, isl_dim_in)) {
-		isl_id *id = isl_multi_pw_aff_get_tuple_id(mpa, isl_dim_in);
-		const char *name = isl_id_get_name(id);
-		mpa = isl_multi_pw_aff_set_tuple_name(mpa, isl_dim_in, name);
-		isl_id_free(id);
-	}
-
-	if (isl_multi_pw_aff_has_tuple_id(mpa, isl_dim_out)) {
-		isl_id *id = isl_multi_pw_aff_get_tuple_id(mpa, isl_dim_out);
-		const char *name = isl_id_get_name(id);
-		mpa = isl_multi_pw_aff_set_tuple_name(mpa, isl_dim_out, name);
-		isl_id_free(id);
-	}
-
-	return mpa;
-}
-
 /* Reset the user pointer on all parameter ids in "array".
  */
 static struct pet_array *array_anonymize(struct pet_array *array)
@@ -3640,8 +3552,8 @@ static struct pet_array *array_anonymize(struct pet_array *array)
 	if (!array)
 		return NULL;
 
-	array->context = set_anonymize(array->context);
-	array->extent = set_anonymize(array->extent);
+	array->context = isl_set_reset_user(array->context);
+	array->extent = isl_set_reset_user(array->extent);
 	if (!array->context || !array->extent)
 		return pet_array_free(array);
 
@@ -3654,8 +3566,8 @@ static struct pet_array *array_anonymize(struct pet_array *array)
  */
 static struct pet_expr *access_anonymize(struct pet_expr *expr, void *user)
 {
-	expr->acc.access = map_anonymize(expr->acc.access);
-	expr->acc.index = multi_pw_aff_anonymize(expr->acc.index);
+	expr->acc.access = isl_map_reset_user(expr->acc.access);
+	expr->acc.index = isl_multi_pw_aff_reset_user(expr->acc.index);
 	if (!expr->acc.access || !expr->acc.index)
 		return pet_expr_free(expr);
 
@@ -3673,8 +3585,8 @@ static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 
-	stmt->domain = set_anonymize(stmt->domain);
-	stmt->schedule = map_anonymize(stmt->schedule);
+	stmt->domain = isl_set_reset_user(stmt->domain);
+	stmt->schedule = isl_map_reset_user(stmt->schedule);
 	if (!stmt->domain || !stmt->schedule)
 		return pet_stmt_free(stmt);
 
@@ -3702,7 +3614,7 @@ static struct pet_implication *implication_anonymize(
 	if (!implication)
 		return NULL;
 
-	implication->extension = map_anonymize(implication->extension);
+	implication->extension = isl_map_reset_user(implication->extension);
 	if (!implication->extension)
 		return pet_implication_free(implication);
 
@@ -3718,8 +3630,8 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 
-	scop->context = set_anonymize(scop->context);
-	scop->context_value = set_anonymize(scop->context_value);
+	scop->context = isl_set_reset_user(scop->context);
+	scop->context_value = isl_set_reset_user(scop->context_value);
 	if (!scop->context || !scop->context_value)
 		return pet_scop_free(scop);
 
