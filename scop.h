@@ -54,6 +54,10 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
+struct pet_type *pet_type_alloc(isl_ctx *ctx, const char *name,
+	const char *definition);
+struct pet_type *pet_type_free(struct pet_type *type);
+
 void pet_array_dump(struct pet_array *array);
 struct pet_array *pet_array_free(struct pet_array *array);
 

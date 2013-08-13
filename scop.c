@@ -843,6 +843,40 @@ void pet_stmt_dump(struct pet_stmt *stmt)
 	stmt_dump(stmt, 0);
 }
 
+/* Allocate a new pet_type with the given "name" and "definition".
+ */
+struct pet_type *pet_type_alloc(isl_ctx *ctx, const char *name,
+	const char *definition)
+{
+	struct pet_type *type;
+
+	type = isl_alloc_type(ctx, struct pet_type);
+	if (!type)
+		return NULL;
+
+	type->name = strdup(name);
+	type->definition = strdup(definition);
+
+	if (!type->name || !type->definition)
+		return pet_type_free(type);
+
+	return type;
+}
+
+/* Free "type" and return NULL.
+ */
+struct pet_type *pet_type_free(struct pet_type *type)
+{
+	if (!type)
+		return NULL;
+
+	free(type->name);
+	free(type->definition);
+
+	free(type);
+	return NULL;
+}
+
 struct pet_array *pet_array_free(struct pet_array *array)
 {
 	if (!array)
@@ -1395,6 +1429,10 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop)
 		return NULL;
 	isl_set_free(scop->context);
 	isl_set_free(scop->context_value);
+	if (scop->types)
+		for (i = 0; i < scop->n_type; ++i)
+			pet_type_free(scop->types[i]);
+	free(scop->types);
 	if (scop->arrays)
 		for (i = 0; i < scop->n_array; ++i)
 			pet_array_free(scop->arrays[i]);
@@ -1411,6 +1449,14 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop)
 	isl_multi_pw_aff_free(ext->skip[pet_skip_later]);
 	free(scop);
 	return NULL;
+}
+
+void pet_type_dump(struct pet_type *type)
+{
+	if (!type)
+		return;
+
+	fprintf(stderr, "%s -> %s\n", type->name, type->definition);
 }
 
 void pet_implication_dump(struct pet_implication *implication)
@@ -1432,6 +1478,8 @@ void pet_scop_dump(struct pet_scop *scop)
 	
 	isl_set_dump(scop->context);
 	isl_set_dump(scop->context_value);
+	for (i = 0; i < scop->n_type; ++i)
+		pet_type_dump(scop->types[i]);
 	for (i = 0; i < scop->n_array; ++i)
 		pet_array_dump(scop->arrays[i]);
 	for (i = 0; i < scop->n_stmt; ++i)
@@ -1505,6 +1553,22 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 	return 1;
 }
 
+/* Return 1 if the two pet_types are equivalent.
+ *
+ * We only compare the names of the types since the exact representation
+ * of the definition may depend on the version of clang being used.
+ */
+int pet_type_is_equal(struct pet_type *type1, struct pet_type *type2)
+{
+	if (!type1 || !type2)
+		return 0;
+
+	if (strcmp(type1->name, type2->name))
+		return 0;
+
+	return 1;
+}
+
 /* Return 1 if the two pet_implications are equivalent.
  */
 int pet_implication_is_equal(struct pet_implication *implication1,
@@ -1534,6 +1598,12 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 		return 0;
 	if (!isl_set_is_equal(scop1->context_value, scop2->context_value))
 		return 0;
+
+	if (scop1->n_type != scop2->n_type)
+		return 0;
+	for (i = 0; i < scop1->n_type; ++i)
+		if (!pet_type_is_equal(scop1->types[i], scop2->types[i]))
+			return 0;
 
 	if (scop1->n_array != scop2->n_array)
 		return 0;

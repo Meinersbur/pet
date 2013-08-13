@@ -184,6 +184,15 @@ __isl_give isl_id_to_ast_expr *pet_stmt_build_ast_exprs(struct pet_stmt *stmt,
 __isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
 	__isl_take isl_printer *p, __isl_keep isl_id_to_ast_expr *ref2expr);
 
+/* This structure represents a defined type.
+ * "name" is the name of the type, while "definition" is a string
+ * representation of its definition.
+ */
+struct pet_type {
+	char *name;
+	char *definition;
+};
+
 /* context holds constraints on the parameter that ensure that
  * this array has a valid (i.e., non-negative) size
  *
@@ -237,6 +246,8 @@ struct pet_implication {
  * context_value describes assignments to the parameters (if any)
  * outside of the scop.
  *
+ * The n_type types define types that may be referenced from by the arrays.
+ *
  * The n_implication implications describe implications on boolean filters.
  */
 struct pet_scop {
@@ -245,6 +256,9 @@ struct pet_scop {
 
 	isl_set *context;
 	isl_set *context_value;
+
+	int n_type;
+	struct pet_type **types;
 
 	int n_array;
 	struct pet_array **arrays;

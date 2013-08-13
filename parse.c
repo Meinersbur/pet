@@ -67,8 +67,8 @@ static double extract_double(isl_ctx *ctx, yaml_document_t *document,
 	return strtod((char *) node->data.scalar.value, NULL);
 }
 
-static enum pet_expr_type extract_type(isl_ctx *ctx, yaml_document_t *document,
-	yaml_node_t *node)
+static enum pet_expr_type extract_expr_type(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
 {
 	if (node->type != YAML_SCALAR_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting scalar node",
@@ -128,6 +128,73 @@ static __isl_give isl_multi_pw_aff *extract_multi_pw_aff(isl_ctx *ctx,
 
 	return isl_multi_pw_aff_read_from_str(ctx,
 					    (char *) node->data.scalar.value);
+}
+
+/* Extract a pet_type from "node".
+ */
+static struct pet_type *extract_type(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	struct pet_type *type;
+	yaml_node_pair_t * pair;
+
+	if (node->type != YAML_MAPPING_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting mapping",
+			return NULL);
+
+	type = isl_calloc_type(ctx, struct pet_type);
+	if (!type)
+		return NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_type_free(type));
+
+		if (!strcmp((char *) key->data.scalar.value, "name"))
+			type->name = extract_string(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "definition"))
+			type->definition = extract_string(ctx, document, value);
+	}
+
+	return type;
+}
+
+/* Extract a sequence of types from "node" and store them in scop->types.
+ */
+static struct pet_scop *extract_types(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_scop *scop)
+{
+	int i;
+	yaml_node_item_t *item;
+
+	if (node->type != YAML_SEQUENCE_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting sequence",
+			return NULL);
+
+	scop->n_type = node->data.sequence.items.top
+				- node->data.sequence.items.start;
+	scop->types = isl_calloc_array(ctx, struct pet_type *, scop->n_type);
+	if (!scop->types)
+		return pet_scop_free(scop);
+
+	for (item = node->data.sequence.items.start, i = 0;
+	     item < node->data.sequence.items.top; ++item, ++i) {
+		yaml_node_t *n;
+
+		n = yaml_document_get_node(document, *item);
+		scop->types[i] = extract_type(ctx, document, n);
+		if (!scop->types[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
 }
 
 static struct pet_array *extract_array(isl_ctx *ctx, yaml_document_t *document,
@@ -414,7 +481,7 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "type"))
-			expr->type = extract_type(ctx, document, value);
+			expr->type = extract_expr_type(ctx, document, value);
 
 		if (!strcmp((char *) key->data.scalar.value, "arguments"))
 			expr = extract_arguments(ctx, document, value, expr);
@@ -649,6 +716,8 @@ static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 			scop->context = extract_set(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "context_value"))
 			scop->context_value = extract_set(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "types"))
+			scop = extract_types(ctx, document, value, scop);
 		if (!strcmp((char *) key->data.scalar.value, "arrays"))
 			scop = extract_arrays(ctx, document, value, scop);
 		if (!strcmp((char *) key->data.scalar.value, "statements"))

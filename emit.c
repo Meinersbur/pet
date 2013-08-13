@@ -201,6 +201,67 @@ static int emit_named_multi_pw_aff(yaml_emitter_t *emitter, const char *name,
 	return 0;
 }
 
+/* Print "type" to "emitter".
+ */
+static int emit_type(yaml_emitter_t *emitter, struct pet_type *type)
+{
+	yaml_event_t event;
+
+	if (!yaml_mapping_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_MAPPING_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	if (emit_string(emitter, "name") < 0)
+		return -1;
+	if (emit_string(emitter, type->name) < 0)
+		return -1;
+
+	if (emit_string(emitter, "definition") < 0)
+		return -1;
+	if (emit_string(emitter, type->definition) < 0)
+		return -1;
+
+	if (!yaml_mapping_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
+/* Print the list of "n_type" "types", if any, to "emitter".
+ */
+static int emit_types(yaml_emitter_t *emitter, int n_type,
+	struct pet_type **types)
+{
+	int i;
+	yaml_event_t event;
+
+	if (n_type == 0)
+		return 0;
+
+	if (emit_string(emitter, "types") < 0)
+		return -1;
+	if (!yaml_sequence_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_SEQUENCE_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	for (i = 0; i < n_type; ++i)
+		if (emit_type(emitter, types[i]) < 0)
+			return -1;
+
+	if (!yaml_sequence_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
 static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 {
 	yaml_event_t event;
@@ -288,7 +349,7 @@ static int emit_arrays(yaml_emitter_t *emitter, int n_array,
 	return 0;
 }
 
-static int emit_type(yaml_emitter_t *emitter, enum pet_expr_type type)
+static int emit_expr_type(yaml_emitter_t *emitter, enum pet_expr_type type)
 {
 	if (emit_string(emitter, pet_type_str(type)) < 0)
 		return -1;
@@ -307,7 +368,7 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 
 	if (emit_string(emitter, "type") < 0)
 		return -1;
-	if (emit_type(emitter, expr->type) < 0)
+	if (emit_expr_type(emitter, expr->type) < 0)
 		return -1;
 
 	switch (expr->type) {
@@ -558,6 +619,8 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 	    emit_named_set(emitter, "context_value", scop->context_value) < 0)
 		return -1;
 
+	if (emit_types(emitter, scop->n_type, scop->types) < 0)
+		return -1;
 	if (emit_arrays(emitter, scop->n_array, scop->arrays) < 0)
 		return -1;
 
