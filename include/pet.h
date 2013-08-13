@@ -291,7 +291,7 @@ int pet_scop_has_data_dependent_accesses(struct pet_scop *scop);
 int pet_scop_has_data_dependent_conditions(struct pet_scop *scop);
 
 void pet_scop_dump(struct pet_scop *scop);
-void *pet_scop_free(struct pet_scop *scop);
+struct pet_scop *pet_scop_free(struct pet_scop *scop);
 
 __isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop);
 /* Collect all potential read access relations. */

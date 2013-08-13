@@ -1090,7 +1090,7 @@ static struct pet_scop_ext *combine_skips(struct pet_scop_ext *ext,
 	    !multi_pw_aff_is_affine(ext2->skip[type]))
 		isl_die(isl_multi_pw_aff_get_ctx(ext1->skip[type]),
 			isl_error_internal, "can only combine affine skips",
-			return pet_scop_free(&ext->scop));
+			goto error);
 
 	skip1 = isl_multi_pw_aff_get_pw_aff(ext1->skip[type], 0);
 	skip2 = isl_multi_pw_aff_get_pw_aff(ext2->skip[type], 0);
@@ -1101,9 +1101,12 @@ static struct pet_scop_ext *combine_skips(struct pet_scop_ext *ext,
 	ext2->skip[type] = NULL;
 	ext->skip[type] = isl_multi_pw_aff_from_pw_aff(skip);
 	if (!ext->skip[type])
-		return pet_scop_free(&ext->scop);
+		goto error;
 
 	return ext;
+error:
+	pet_scop_free(&ext->scop);
+	return NULL;
 }
 
 /* Combine scop1->skip[type] and scop2->skip[type] into scop->skip[type],
@@ -1382,7 +1385,7 @@ void *pet_implication_free(struct pet_implication *implication)
 	return NULL;
 }
 
-void *pet_scop_free(struct pet_scop *scop)
+struct pet_scop *pet_scop_free(struct pet_scop *scop)
 {
 	int i;
 	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
@@ -2888,7 +2891,8 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 	return dim;
 error:
 	isl_space_free(dim);
-	return pet_scop_free(scop);
+	pet_scop_free(scop);
+	return NULL;
 }
 
 /* Add all parameters in "dim" to all access relations and index expressions
