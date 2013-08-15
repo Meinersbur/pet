@@ -978,6 +978,28 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
 	return NULL;
 }
 
+/* Given a partial index expression "base" and an extra index "index",
+ * append the extra index to "base" and return the result.
+ * Additionally, add the constraints that the extra index is non-negative.
+ */
+static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
+	__isl_take isl_pw_aff *index)
+{
+	isl_id *id;
+	isl_set *domain;
+	isl_multi_pw_aff *access;
+
+	id = isl_multi_pw_aff_get_tuple_id(base, isl_dim_set);
+	index = isl_pw_aff_from_range(index);
+	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
+	index = isl_pw_aff_intersect_domain(index, domain);
+	access = isl_multi_pw_aff_from_pw_aff(index);
+	access = isl_multi_pw_aff_flat_range_product(base, access);
+	access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_set, id);
+
+	return access;
+}
+
 /* Extract an index expression from the given array subscript expression.
  * If nesting is allowed in general, then we turn it on while
  * examining the index expression.
@@ -994,10 +1016,8 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
 	Expr *base = expr->getBase();
 	Expr *idx = expr->getIdx();
 	isl_pw_aff *index;
-	isl_set *domain;
 	isl_multi_pw_aff *base_access;
 	isl_multi_pw_aff *access;
-	isl_id *id;
 	bool save_nesting = nesting_enabled;
 
 	nesting_enabled = allow_nested;
@@ -1007,13 +1027,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
 
 	nesting_enabled = save_nesting;
 
-	id = isl_multi_pw_aff_get_tuple_id(base_access, isl_dim_set);
-	index = isl_pw_aff_from_range(index);
-	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
-	index = isl_pw_aff_intersect_domain(index, domain);
-	access = isl_multi_pw_aff_from_pw_aff(index);
-	access = isl_multi_pw_aff_flat_range_product(base_access, access);
-	access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_set, id);
+	access = subscript(base_access, index);
 
 	return access;
 }
