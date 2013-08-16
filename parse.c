@@ -618,9 +618,6 @@ static struct pet_scop *extract_implications(isl_ctx *ctx,
 	return scop;
 }
 
-static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
-	yaml_node_t *node);
-
 static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
