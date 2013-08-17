@@ -4909,7 +4909,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 
 		scop = skip.add(scop, j);
 
-		if (partial)
+		if (partial || !scop)
 			break;
 	}
 
