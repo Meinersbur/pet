@@ -179,6 +179,20 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 	return pet_expr_from_access_and_index(access, index);
 }
 
+/* Extend the range of "access" with "n" dimensions, retaining
+ * the tuple identifier on this range.
+ */
+static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
+{
+	isl_id *id;
+
+	id = isl_map_get_tuple_id(access, isl_dim_out);
+	access = isl_map_add_dims(access, isl_dim_out, n);
+	access = isl_map_set_tuple_id(access, isl_dim_out, id);
+
+	return access;
+}
+
 /* Construct an access pet_expr from an index expression and
  * the depth of the accessed array.
  * By default, the access is considered to be a read access.
@@ -190,7 +204,6 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 struct pet_expr *pet_expr_from_index_and_depth(
 	__isl_take isl_multi_pw_aff *index, int depth)
 {
-	isl_id *id;
 	isl_map *access;
 	int dim;
 
@@ -205,9 +218,7 @@ struct pet_expr *pet_expr_from_index_and_depth(
 	if (dim == depth)
 		return pet_expr_from_access_and_index(access, index);
 
-	id = isl_map_get_tuple_id(access, isl_dim_out);
-	access = isl_map_add_dims(access, isl_dim_out, depth - dim);
-	access = isl_map_set_tuple_id(access, isl_dim_out, id);
+	access = extend_range(access, depth - dim);
 
 	return pet_expr_from_access_and_index(access, index);
 error:
