@@ -1808,6 +1808,40 @@ static __isl_give isl_multi_pw_aff *index_internalize_iv(
 	return index;
 }
 
+/* Does the index expression "index" reference a virtual array, i.e.,
+ * one with user pointer equal to NULL?
+ */
+static int index_is_virtual_array(__isl_keep isl_multi_pw_aff *index)
+{
+	isl_id *id;
+	int is_virtual;
+
+	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
+		return 0;
+	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
+	is_virtual = !isl_id_get_user(id);
+	isl_id_free(id);
+
+	return is_virtual;
+}
+
+/* Does the access relation "access" reference a virtual array, i.e.,
+ * one with user pointer equal to NULL?
+ */
+static int access_is_virtual_array(__isl_keep isl_map *access)
+{
+	isl_id *id;
+	int is_virtual;
+
+	if (!isl_map_has_tuple_id(access, isl_dim_out))
+		return 0;
+	id = isl_map_get_tuple_id(access, isl_dim_out);
+	is_virtual = !isl_id_get_user(id);
+	isl_id_free(id);
+
+	return is_virtual;
+}
+
 /* Embed the given index expression in an extra outer loop.
  * The domain of the index expression has already been updated.
  *
@@ -1829,7 +1863,7 @@ static __isl_give isl_multi_pw_aff *embed_index_expression(
 		array_id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	if (array_id == data->var_id) {
 		index = replace_by_iterator(index, isl_aff_copy(data->iv_map));
-	} else if (array_id && !isl_id_get_user(array_id)) {
+	} else if (index_is_virtual_array(index)) {
 		isl_aff *aff;
 		isl_multi_pw_aff *mpa;
 
@@ -1875,8 +1909,7 @@ static __isl_give isl_map *embed_access_relation(__isl_take isl_map *access,
 
 	if (isl_map_has_tuple_id(access, isl_dim_out))
 		array_id = isl_map_get_tuple_id(access, isl_dim_out);
-	if (array_id == data->var_id ||
-	    (array_id && !isl_id_get_user(array_id))) {
+	if (array_id == data->var_id || access_is_virtual_array(access)) {
 		access = isl_map_insert_dims(access, isl_dim_out, 0, 1);
 		access = isl_map_equate(access,
 					isl_dim_in, 0, isl_dim_out, 0);
