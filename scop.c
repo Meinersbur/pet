@@ -3332,7 +3332,7 @@ struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop)
  * In particular, take the access relation and project out the values
  * of the arguments, if any.
  */
-static __isl_give isl_map *expr_access_get_may_access(struct pet_expr *expr)
+__isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
 {
 	isl_map *access;
 	isl_space *space;
@@ -3383,7 +3383,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 	    (!must || expr->n_arg == 0)) {
 		isl_map *access;
 
-		access = expr_access_get_may_access(expr);
+		access = pet_expr_access_get_may_access(expr);
 		accesses = isl_union_map_add_map(accesses, access);
 	}
 
