@@ -3382,6 +3382,24 @@ __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
 	return access;
 }
 
+/* Return the relation mapping domain iterations to all possibly
+ * accessed data elements, with its domain tagged with the reference
+ * identifier.
+ */
+__isl_give isl_map *pet_expr_access_get_tagged_may_access(
+	struct pet_expr *expr)
+{
+	isl_map *access;
+
+	if (!expr)
+		return NULL;
+
+	access = pet_expr_access_get_may_access(expr);
+	access = tag_access(access, isl_id_copy(expr->acc.ref_id));
+
+	return access;
+}
+
 /* Add all read access relations (if "read" is set) and/or all write
  * access relations (if "write" is set) to "accesses" and return the result.
  * The domains of the access relations are intersected with "domain".

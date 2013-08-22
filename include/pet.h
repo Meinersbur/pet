@@ -142,6 +142,9 @@ struct pet_expr {
 
 /* Return the potential read access relation of access expression "expr". */
 __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr);
+/* Return the tagged potential read access relation of access "expr". */
+__isl_give isl_map *pet_expr_access_get_tagged_may_access(
+	struct pet_expr *expr);
 
 /* If the statement has arguments, i.e., n_arg != 0, then
  * "domain" is a wrapped map, mapping the iteration domain
