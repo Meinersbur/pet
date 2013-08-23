@@ -4660,7 +4660,6 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop1, struct pet_scop *scop2, enum pet_skip type)
 {
-	isl_map *access;
 	struct pet_expr *expr1, *expr2, *expr, *expr_skip;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
