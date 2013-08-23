@@ -3500,9 +3500,9 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		isl_union_map *accesses_i;
-		isl_space *dim = isl_set_get_space(scop->context);
+		isl_space *space = isl_set_get_space(scop->context);
 		accesses_i = stmt_collect_accesses(scop->stmts[i],
-						   read, write, must, tag, dim);
+					       read, write, must, tag, space);
 		accesses = isl_union_map_union(accesses, accesses_i);
 	}
 
