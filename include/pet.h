@@ -329,6 +329,8 @@ __isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
 /* Collect all tagged definite write access relations. */
 __isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
 	struct pet_scop *scop);
+/* Collect all definite kill access relations. */
+__isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop);
 __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop);
 
 #if defined(__cplusplus)

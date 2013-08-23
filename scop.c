@@ -3458,6 +3458,8 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
  * and/or all write access relations (if "write" is set) in "stmt".
  * If "tag" is set, then the access relations are tagged with
  * the corresponding reference identifiers.
+ * If "kill" is set, then "stmt" is a kill statement and we simply
+ * add the argument of the kill operation.
  *
  * If "must" is set, then we only add the accesses that are definitely
  * performed.  Otherwise, we add all potential accesses.
@@ -3466,7 +3468,8 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
  * we project out the values of the statement arguments.
  */
 static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
-	int read, int write, int must, int tag, __isl_take isl_space *dim)
+	int read, int write, int kill, int must, int tag,
+	__isl_take isl_space *dim)
 {
 	isl_union_map *accesses;
 	isl_set *domain;
@@ -3483,22 +3486,36 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	if (isl_set_is_wrapping(domain))
 		domain = isl_map_domain(isl_set_unwrap(domain));
 
-	accesses = expr_collect_accesses(stmt->body,
-				    read, write, must, tag, accesses, domain);
+	if (kill)
+		accesses = expr_collect_access(stmt->body->args[0], tag,
+						accesses, domain);
+	else
+		accesses = expr_collect_accesses(stmt->body, read, write,
+						must, tag, accesses, domain);
 	isl_set_free(domain);
 
 	return accesses;
 }
 
+/* Is "stmt" a kill statement?
+ */
+static int is_kill(struct pet_stmt *stmt)
+{
+	if (stmt->body->type != pet_expr_unary)
+		return 0;
+	return stmt->body->op == pet_op_kill;
+}
+
 /* Collect and return all read access relations (if "read" is set)
  * and/or all write access relations (if "write" is set) in "scop".
+ * If "kill" is set, then we only add the arguments of kill operations.
  * If "must" is set, then we only add the accesses that are definitely
  * performed.  Otherwise, we add all potential accesses.
  * If "tag" is set, then the access relations are tagged with
  * the corresponding reference identifiers.
  */
 static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
-	int read, int write, int must, int tag)
+	int read, int write, int kill, int must, int tag)
 {
 	int i;
 	isl_union_map *accesses;
@@ -3510,10 +3527,16 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	accesses = isl_union_map_empty(isl_set_get_space(scop->context));
 
 	for (i = 0; i < scop->n_stmt; ++i) {
+		struct pet_stmt *stmt = scop->stmts[i];
 		isl_union_map *accesses_i;
-		isl_space *space = isl_set_get_space(scop->context);
-		accesses_i = stmt_collect_accesses(scop->stmts[i],
-					       read, write, must, tag, space);
+		isl_space *space;
+
+		if (kill && !is_kill(stmt))
+			continue;
+
+		space = isl_set_get_space(scop->context);
+		accesses_i = stmt_collect_accesses(stmt, read, write, kill,
+							must, tag, space);
 		accesses = isl_union_map_union(accesses, accesses_i);
 	}
 
@@ -3531,21 +3554,28 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
  */
 __isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 1, 0, 0, 0);
+	return scop_collect_accesses(scop, 1, 0, 0, 0, 0);
 }
 
 /* Collect all potential write access relations.
  */
 __isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 0, 0);
+	return scop_collect_accesses(scop, 0, 1, 0, 0, 0);
 }
 
 /* Collect all definite write access relations.
  */
 __isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 1, 0);
+	return scop_collect_accesses(scop, 0, 1, 0, 1, 0);
+}
+
+/* Collect all definite kill access relations.
+ */
+__isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop)
+{
+	return scop_collect_accesses(scop, 0, 0, 1, 1, 0);
 }
 
 /* Collect all tagged potential read access relations.
@@ -3553,7 +3583,7 @@ __isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop)
 __isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 1, 0, 0, 1);
+	return scop_collect_accesses(scop, 1, 0, 0, 0, 1);
 }
 
 /* Collect all tagged potential write access relations.
@@ -3561,7 +3591,7 @@ __isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
 __isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 0, 1);
+	return scop_collect_accesses(scop, 0, 1, 0, 0, 1);
 }
 
 /* Collect all tagged definite write access relations.
@@ -3569,7 +3599,7 @@ __isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
 __isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 1, 1);
+	return scop_collect_accesses(scop, 0, 1, 0, 1, 1);
 }
 
 /* Collect and return the union of iteration domains in "scop".
