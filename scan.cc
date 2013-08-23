@@ -4029,7 +4029,6 @@ static bool need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
 static struct pet_expr *universally(isl_ctx *ctx, int val)
 {
 	isl_local_space *ls;
-	isl_val *v;
 	isl_aff *aff;
 	isl_multi_pw_aff *mpa;
 
