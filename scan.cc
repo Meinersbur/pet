@@ -47,6 +47,7 @@
 #include <isl/aff.h>
 #include <isl/set.h>
 
+#include "clang.h"
 #include "options.h"
 #include "scan.h"
 #include "scop.h"
@@ -897,23 +898,6 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	isl_id_free(id);
 
 	return array_depth(decl->getType().getTypePtr());
-}
-
-/* Return the element type of the given array type.
- */
-static QualType base_type(QualType qt)
-{
-	const Type *type = qt.getTypePtr();
-
-	if (type->isPointerType())
-		return base_type(type->getPointeeType());
-	if (type->isArrayType()) {
-		const ArrayType *atype;
-		type = type->getCanonicalTypeInternal().getTypePtr();
-		atype = cast<ArrayType>(type);
-		return base_type(atype->getElementType());
-	}
-	return qt;
 }
 
 /* Extract an index expression from a reference to a variable.
@@ -5114,7 +5098,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl)
 	QualType qt = get_array_type(decl);
 	const Type *type = qt.getTypePtr();
 	int depth = array_depth(type);
-	QualType base = base_type(qt);
+	QualType base = pet_clang_base_type(qt);
 	string name;
 	isl_id *id;
 	isl_space *dim;

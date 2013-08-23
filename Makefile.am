@@ -34,6 +34,8 @@ AM_CXXFLAGS = $(INCLUDES) $(CLANG_CXXFLAGS) @ISL_CFLAGS@
 AM_LDFLAGS = $(CLANG_LDFLAGS)
 
 libpet_la_SOURCES = \
+	clang.h \
+	clang.cc \
 	options.h \
 	options.c \
 	print.c \
