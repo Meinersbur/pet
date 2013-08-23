@@ -3602,6 +3602,14 @@ __isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
 	return scop_collect_accesses(scop, 0, 1, 0, 1, 1);
 }
 
+/* Collect all tagged definite kill access relations.
+ */
+__isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
+	struct pet_scop *scop)
+{
+	return scop_collect_accesses(scop, 0, 0, 1, 1, 1);
+}
+
 /* Collect and return the union of iteration domains in "scop".
  */
 __isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop)
