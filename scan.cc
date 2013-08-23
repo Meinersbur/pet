@@ -2591,7 +2591,6 @@ static __isl_give isl_aff *compute_wrapping(__isl_take isl_space *dim,
 	isl_ctx *ctx;
 	isl_val *mod;
 	isl_aff *aff;
-	isl_map *map;
 
 	ctx = isl_space_get_ctx(dim);
 	mod = isl_val_int_from_ui(ctx, get_type_size(iv));
