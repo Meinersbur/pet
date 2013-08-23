@@ -816,7 +816,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ArraySubscriptExpr *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(ConditionalOperator *expr)
 {
-	isl_pw_aff *cond, *lhs, *rhs, *res;
+	isl_pw_aff *cond, *lhs, *rhs;
 
 	cond = extract_condition(expr->getCond());
 	lhs = extract_affine(expr->getTrueExpr());
