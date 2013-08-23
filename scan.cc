@@ -3256,9 +3256,6 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 								ma);
 
 	return expr;
-error:
-	pet_expr_free(expr);
-	return NULL;
 }
 
 /* Return the file offset of the expansion location of "Loc".
