@@ -45,7 +45,7 @@ libpet_la_SOURCES = \
 	scop_plus.h \
 	scop_plus.cc \
 	version.h \
-	version.c \
+	version.cc \
 	pet.cc
 libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema \
