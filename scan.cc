@@ -3884,9 +3884,6 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 	stmt = remove_duplicate_arguments(stmt, n);
 
 	return stmt;
-error:
-	pet_stmt_free(stmt);
-	return NULL;
 }
 
 /* For each statement in "scop", move the parameters that correspond
