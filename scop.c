@@ -3400,6 +3400,24 @@ __isl_give isl_map *pet_expr_access_get_tagged_may_access(
 	return access;
 }
 
+/* Add the access relation of the access expression "expr" to "accesses" and
+ * return the result.
+ * The domain of the access relation is intersected with "domain".
+ * If "tag" is set, then the access relation is tagged with
+ * the corresponding reference identifier.
+ */
+static __isl_give isl_union_map *expr_collect_access(struct pet_expr *expr,
+	int tag, __isl_take isl_union_map *accesses, __isl_keep isl_set *domain)
+{
+	isl_map *access;
+
+	access = pet_expr_access_get_may_access(expr);
+	access = isl_map_intersect_domain(access, isl_set_copy(domain));
+	if (tag)
+		access = tag_access(access, isl_id_copy(expr->acc.ref_id));
+	return isl_union_map_add_map(accesses, access);
+}
+
 /* Add all read access relations (if "read" is set) and/or all write
  * access relations (if "write" is set) to "accesses" and return the result.
  * The domains of the access relations are intersected with "domain".
@@ -3430,14 +3448,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 	if (expr->type == pet_expr_access && !pet_expr_is_affine(expr) &&
 	    ((read && expr->acc.read) || (write && expr->acc.write)) &&
 	    (!must || expr->n_arg == 0)) {
-		isl_map *access;
-
-		access = pet_expr_access_get_may_access(expr);
-		access = isl_map_intersect_domain(access, isl_set_copy(domain));
-		if (tag)
-			access = tag_access(access,
-					    isl_id_copy(expr->acc.ref_id));
-		accesses = isl_union_map_add_map(accesses, access);
+		accesses = expr_collect_access(expr, tag, accesses, domain);
 	}
 
 	return accesses;
