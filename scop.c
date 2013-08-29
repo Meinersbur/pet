@@ -3372,7 +3372,7 @@ static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
 	isl_space *dim;
 
 	if (!expr)
-		return NULL;
+		return isl_union_map_free(accesses);
 
 	for (i = 0; i < expr->n_arg; ++i)
 		accesses = expr_collect_accesses(expr->args[i],
