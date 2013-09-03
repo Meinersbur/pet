@@ -59,10 +59,7 @@ pet_SOURCES = \
 	emit.c \
 	scop_yaml.h \
 	main.c
-pet_LDADD = libpet.la \
-	-lclangFrontend -lclangParse -lclangSema -lclangAnalysis \
-	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
-	$(CLANG_LIBS) $(LIB_ISL) -lyaml
+pet_LDADD = libpet.la $(LIB_ISL) -lyaml
 
 pet_scop_cmp_CFLAGS = $(AM_CFLAGS) @LIBYAML_CPPFLAGS@
 pet_scop_cmp_LDFLAGS = @LIBYAML_LDFLAGS@
