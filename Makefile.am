@@ -56,6 +56,7 @@ libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema \
 pet_CFLAGS = $(AM_CFLAGS) @LIBYAML_CPPFLAGS@
 pet_LDFLAGS = $(AM_LDFLAGS) @LIBYAML_LDFLAGS@
 pet_SOURCES = \
+	dummy.cc \
 	emit.c \
 	scop_yaml.h \
 	main.c
@@ -79,6 +80,7 @@ pet_check_code_CFLAGS = $(AM_CFLAGS)
 pet_check_code_LDFLAGS =
 pet_check_code_LDADD = libpet.la $(LIB_ISL)
 pet_check_code_SOURCES = \
+	dummy.cc \
 	pet_check_code.c
 
 dist-hook:
