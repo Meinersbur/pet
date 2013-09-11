@@ -39,7 +39,7 @@ struct pet_expr *pet_expr_new_cast(isl_ctx *ctx, const char *type_name,
 	struct pet_expr *arg);
 struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double d, const char *s);
 void pet_expr_dump(struct pet_expr *expr);
-void *pet_expr_free(struct pet_expr *expr);
+struct pet_expr *pet_expr_free(struct pet_expr *expr);
 
 int pet_expr_is_affine(struct pet_expr *expr);
 __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr);

@@ -396,7 +396,7 @@ struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double val, const char *s)
 	return expr;
 }
 
-void *pet_expr_free(struct pet_expr *expr)
+struct pet_expr *pet_expr_free(struct pet_expr *expr)
 {
 	int i;
 
@@ -798,7 +798,8 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 	return stmt;
 error:
 	isl_id_free(label);
-	return pet_expr_free(expr);
+	pet_expr_free(expr);
+	return NULL;
 }
 
 void *pet_stmt_free(struct pet_stmt *stmt)
@@ -2833,8 +2834,8 @@ static __isl_give isl_space *expr_collect_params(struct pet_expr *expr,
 
 	return dim;
 error:
-	isl_space_free(dim);
-	return pet_expr_free(expr);
+	pet_expr_free(expr);
+	return isl_space_free(dim);
 }
 
 /* Add all parameters in "stmt" to "dim" and return the result.
