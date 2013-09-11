@@ -1788,7 +1788,8 @@ struct pet_expr *PetScan::extract_expr(ParenExpr *expr)
 	return extract_expr(expr->getSubExpr());
 }
 
-/* Construct a pet_expr representing a function call.
+/* Construct a pet_expr corresponding to the function call argument "expr".
+ * The argument appears in position "pos" of a call to function "fd".
  *
  * If we are passing along a pointer to an array element
  * or an entire row or even higher dimensional slice of an array,
@@ -1797,6 +1798,52 @@ struct pet_expr *PetScan::extract_expr(ParenExpr *expr)
  * We assume here that if the function is declared to take a pointer
  * to a const type, then the function will perform a read
  * and that otherwise, it will perform a write.
+ */
+struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
+	Expr *expr)
+{
+	struct pet_expr *res;
+	int is_addr = 0;
+	pet_expr *main_arg;
+	Stmt::StmtClass sc;
+
+	if (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
+		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
+		expr = ice->getSubExpr();
+	}
+	if (expr->getStmtClass() == Stmt::UnaryOperatorClass) {
+		UnaryOperator *op = cast<UnaryOperator>(expr);
+		if (op->getOpcode() == UO_AddrOf) {
+			is_addr = 1;
+			expr = op->getSubExpr();
+		}
+	}
+	res = extract_expr(expr);
+	main_arg = res;
+	if (is_addr)
+		res = pet_expr_new_unary(ctx, pet_op_address_of, res);
+	if (!res)
+		return NULL;
+	sc = expr->getStmtClass();
+	if ((sc == Stmt::ArraySubscriptExprClass ||
+	     sc == Stmt::MemberExprClass) &&
+	    array_depth(expr->getType().getTypePtr()) > 0)
+		is_addr = 1;
+	if (is_addr && main_arg->type == pet_expr_access) {
+		ParmVarDecl *parm;
+		if (!fd->hasPrototype()) {
+			unsupported(expr, "prototype required");
+			return pet_expr_free(res);
+		}
+		parm = fd->getParamDecl(pos);
+		if (!const_base(parm->getType()))
+			mark_write(main_arg);
+	}
+
+	return res;
+}
+
+/* Construct a pet_expr representing a function call.
  */
 struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
@@ -1817,43 +1864,9 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 
 	for (int i = 0; i < expr->getNumArgs(); ++i) {
 		Expr *arg = expr->getArg(i);
-		int is_addr = 0;
-		pet_expr *main_arg;
-		Stmt::StmtClass sc;
-
-		if (arg->getStmtClass() == Stmt::ImplicitCastExprClass) {
-			ImplicitCastExpr *ice = cast<ImplicitCastExpr>(arg);
-			arg = ice->getSubExpr();
-		}
-		if (arg->getStmtClass() == Stmt::UnaryOperatorClass) {
-			UnaryOperator *op = cast<UnaryOperator>(arg);
-			if (op->getOpcode() == UO_AddrOf) {
-				is_addr = 1;
-				arg = op->getSubExpr();
-			}
-		}
-		res->args[i] = PetScan::extract_expr(arg);
-		main_arg = res->args[i];
-		if (is_addr)
-			res->args[i] = pet_expr_new_unary(ctx,
-					pet_op_address_of, res->args[i]);
+		res->args[i] = PetScan::extract_argument(fd, i, arg);
 		if (!res->args[i])
 			goto error;
-		sc = arg->getStmtClass();
-		if ((sc == Stmt::ArraySubscriptExprClass ||
-		     sc == Stmt::MemberExprClass) &&
-		    array_depth(arg->getType().getTypePtr()) > 0)
-			is_addr = 1;
-		if (is_addr && main_arg->type == pet_expr_access) {
-			ParmVarDecl *parm;
-			if (!fd->hasPrototype()) {
-				unsupported(expr, "prototype required");
-				goto error;
-			}
-			parm = fd->getParamDecl(i);
-			if (!const_base(parm->getType()))
-				mark_write(main_arg);
-		}
 	}
 
 	return res;
