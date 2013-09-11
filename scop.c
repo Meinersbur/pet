@@ -1080,11 +1080,28 @@ error:
 }
 
 /* Update "context" with respect to the valid parameter values for "stmt".
+ *
+ * If the statement is an assume statement with an affine expression,
+ * then intersect "context" with that expression.
+ * Otherwise, intersect "context" with the contexts of the expressions
+ * inside "stmt".
  */
 static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	__isl_take isl_set *context)
 {
 	int i;
+
+	if (pet_stmt_is_assume(stmt) &&
+	    pet_expr_is_affine(stmt->body->args[0])) {
+		isl_multi_pw_aff *index;
+		isl_pw_aff *pa;
+		isl_set *cond;
+
+		index = stmt->body->args[0]->acc.index;
+		pa = isl_multi_pw_aff_get_pw_aff(index, 0);
+		cond = isl_set_params(isl_pw_aff_non_zero_set(pa));
+		return isl_set_intersect(context, cond);
+	}
 
 	for (i = 0; i < stmt->n_arg; ++i)
 		context = expr_extract_context(stmt->args[i], context);

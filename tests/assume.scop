@@ -1,9 +1,7 @@
 start: 64
 end: 204
-context: '[S, n, m] -> {  : (m <= 2147483648 - n and n <= 2147483647 and S >= 0 and
-  S <= 2147483647 and n >= -2147483648 and m <= 2147483647 and m >= 0) or (m <= -1
-  and n <= 0 and S >= 0 and S <= 2147483647 and m >= -2147483648 and n >= -2147483648)
-  }'
+context: '[S, n, m] -> {  : m >= 1 + n and m <= 2147483648 - n and S >= 0 and S <=
+  2147483647 and n >= -2147483648 and m <= 2147483647 }'
 arrays:
 - context: '[S] -> {  : S >= 0 }'
   extent: '[S, n, m] -> { D[i0] : i0 <= -1 + S and i0 >= 0 }'
@@ -18,13 +16,13 @@ statements:
     operation: assume
     arguments:
     - type: access
-      relation: '[S, n, m] -> { S_0[] -> [1] : m >= 1 + n; S_0[] -> [0] : m <= n }'
-      index: '[S, n, m] -> { S_0[] -> [((1) : m >= 1 + n; (0) : m <= n)] }'
+      relation: '[S, n, m] -> { S_0[] -> [1] }'
+      index: '[S, n, m] -> { S_0[] -> [(1)] }'
       reference: __pet_ref_0
       read: 1
       write: 0
 - line: 6
-  domain: '[S, n, m] -> { S_1[i] : i >= 0 and i <= -1 + n }'
+  domain: '[S, n, m] -> { S_1[i] : i <= -1 + n and i >= 0 }'
   schedule: '[n] -> { S_1[i] -> [1, i, 0] }'
   body:
     type: binary
