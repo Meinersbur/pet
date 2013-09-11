@@ -813,6 +813,21 @@ void add_path(HeaderSearchOptions &HSO, string Path)
 
 #endif
 
+/* Add pet specific predefines to the preprocessor.
+ *
+ * We mimic the way <command line> is handled inside clang.
+ */
+void add_predefines(Preprocessor &PP)
+{
+	string s;
+
+	s = PP.getPredefines();
+	s += "# 1 \"<pet>\" 1\n"
+	     "void __pencil_assume(int assumption);\n"
+	     "# 1 \"<built-in>\" 2\n";
+	PP.setPredefines(s);
+}
+
 /* Extract a pet_scop from each function in the C source file called "filename".
  * Each detected scop is passed to "fn".
  * If "function" is not NULL, only extract a pet_scop from the function
@@ -851,6 +866,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 		PO.addMacroDef(options->defines[i]);
 	Clang->createPreprocessor();
 	Preprocessor &PP = Clang->getPreprocessor();
+	add_predefines(PP);
 
 	ScopLocList scops;
 

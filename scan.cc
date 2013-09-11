@@ -1788,6 +1788,26 @@ struct pet_expr *PetScan::extract_expr(ParenExpr *expr)
 	return extract_expr(expr->getSubExpr());
 }
 
+/* Extract an assume statement from the argument "expr"
+ * of a __pencil_assume statement.
+ */
+struct pet_expr *PetScan::extract_assume(Expr *expr)
+{
+	isl_pw_aff *cond;
+	struct pet_expr *res;
+
+	cond = try_extract_affine_condition(expr);
+	if (!cond) {
+		res = extract_expr(expr);
+	} else {
+		isl_multi_pw_aff *index;
+		index = isl_multi_pw_aff_from_pw_aff(cond);
+		index = isl_multi_pw_aff_from_range(index);
+		res = pet_expr_from_index(index);
+	}
+	return pet_expr_new_unary(ctx, pet_op_assume, res);
+}
+
 /* Construct a pet_expr corresponding to the function call argument "expr".
  * The argument appears in position "pos" of a call to function "fd".
  *
@@ -1844,12 +1864,16 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 }
 
 /* Construct a pet_expr representing a function call.
+ *
+ * In the special case of a "call" to __pencil_assume,
+ * construct an assume expression instead.
  */
 struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
 	struct pet_expr *res = NULL;
 	FunctionDecl *fd;
 	string name;
+	unsigned n_arg;
 
 	fd = expr->getDirectCallee();
 	if (!fd) {
@@ -1858,11 +1882,16 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 	}
 
 	name = fd->getDeclName().getAsString();
-	res = pet_expr_new_call(ctx, name.c_str(), expr->getNumArgs());
+	n_arg = expr->getNumArgs();
+
+	if (n_arg == 1 && name == "__pencil_assume")
+		return extract_assume(expr->getArg(0));
+
+	res = pet_expr_new_call(ctx, name.c_str(), n_arg);
 	if (!res)
 		return NULL;
 
-	for (int i = 0; i < expr->getNumArgs(); ++i) {
+	for (int i = 0; i < n_arg; ++i) {
 		Expr *arg = expr->getArg(i);
 		res->args[i] = PetScan::extract_argument(fd, i, arg);
 		if (!res->args[i])

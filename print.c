@@ -376,12 +376,16 @@ static __isl_take isl_printer *print_pet_expr(__isl_take isl_printer *p,
  *
  * The access expressions in "stmt" are replaced by the isl_ast_expr
  * associated to its reference identifier in "ref2expr".
+ *
+ * If the statement is an assume statement, then we print nothing.
  */
 __isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
 	__isl_take isl_printer *p, __isl_keep isl_id_to_ast_expr *ref2expr)
 {
 	if (!stmt)
 		return isl_printer_free(p);
+	if (pet_stmt_is_assume(stmt))
+		return p;
 	p = isl_printer_start_line(p);
 	p = print_pet_expr(p, stmt->body, 1, ref2expr);
 	p = isl_printer_print_str(p, ";");

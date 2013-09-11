@@ -72,6 +72,7 @@ static char *op_str[] = {
 	[pet_op_pre_inc] = "++",
 	[pet_op_pre_dec] = "--",
 	[pet_op_address_of] = "&",
+	[pet_op_assume] = "assume",
 	[pet_op_kill] = "kill"
 };
 
@@ -3546,6 +3547,15 @@ static int is_kill(struct pet_stmt *stmt)
 	if (stmt->body->type != pet_expr_unary)
 		return 0;
 	return stmt->body->op == pet_op_kill;
+}
+
+/* Is "stmt" an assume statement?
+ */
+int pet_stmt_is_assume(struct pet_stmt *stmt)
+{
+	if (stmt->body->type != pet_expr_unary)
+		return 0;
+	return stmt->body->op == pet_op_assume;
 }
 
 /* Compute a mapping from all arrays (of structs) in scop

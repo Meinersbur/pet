@@ -162,6 +162,7 @@ private:
 				clang::Stmt *body);
 
 	void mark_write(struct pet_expr *access);
+	struct pet_expr *extract_assume(clang::Expr *expr);
 	struct pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
 		clang::Expr *expr);
 	struct pet_expr *extract_expr(clang::Expr *expr);
