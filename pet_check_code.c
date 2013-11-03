@@ -432,20 +432,25 @@ static int check_domain(__isl_keep isl_union_map *schedule,
 	int equal;
 	isl_set *s1, *s2;;
 	isl_id *id1, *id2;
+	int r = 0;
 
 	dom1 = isl_union_map_domain(isl_union_map_copy(schedule));
 	dom2 = isl_union_map_domain(isl_union_map_copy(code_schedule));
 	equal = isl_union_set_is_equal(dom1, dom2);
+
+	if (equal < 0)
+		r =  -1;
+	else if (!equal) {
+		isl_union_set_dump(dom1);
+		isl_union_set_dump(dom2);
+		isl_die(isl_union_map_get_ctx(schedule), isl_error_unknown,
+			"domains not identical", r = -1);
+	}
+
 	isl_union_set_free(dom1);
 	isl_union_set_free(dom2);
 
-	if (equal < 0)
-		return -1;
-	if (!equal)
-		isl_die(isl_union_map_get_ctx(schedule), isl_error_unknown,
-			"domains not identical", return -1);
-
-	return 0;
+	return r;
 }
 
 /* Check that the relative order specified by the input schedule is respected
