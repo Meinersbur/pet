@@ -636,7 +636,7 @@ struct PetASTConsumer : public ASTConsumer {
 static const char *ResourceDir = CLANG_PREFIX"/lib/clang/"CLANG_VERSION_STRING;
 
 static const char *implicit_functions[] = {
-	"min", "max", "ceild", "floord"
+	"min", "max", "intMod", "intCeil", "intFloor", "ceild", "floord"
 };
 
 static bool is_implicit(const IdentifierInfo *ident)

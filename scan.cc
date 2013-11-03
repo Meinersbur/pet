@@ -721,8 +721,9 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ParenExpr *expr)
 }
 
 /* Extract an affine expression from some special function calls.
- * In particular, we handle "min", "max", "ceild" and "floord".
- * In case of the latter two, the second argument needs to be
+ * In particular, we handle "min", "max", "ceild", "floord",
+ * "intMod", "intFloor" and "intCeil".
+ * In case of the latter five, the second argument needs to be
  * a (positive) integer constant.
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
@@ -740,6 +741,9 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 	name = fd->getDeclName().getAsString();
 	if (!(expr->getNumArgs() == 2 && name == "min") &&
 	    !(expr->getNumArgs() == 2 && name == "max") &&
+	    !(expr->getNumArgs() == 2 && name == "intMod") &&
+	    !(expr->getNumArgs() == 2 && name == "intFloor") &&
+	    !(expr->getNumArgs() == 2 && name == "intCeil") &&
 	    !(expr->getNumArgs() == 2 && name == "floord") &&
 	    !(expr->getNumArgs() == 2 && name == "ceild")) {
 		unsupported(expr);
@@ -754,7 +758,19 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 			aff1 = isl_pw_aff_min(aff1, aff2);
 		else
 			aff1 = isl_pw_aff_max(aff1, aff2);
-	} else if (name == "floord" || name == "ceild") {
+	} else if (name == "intMod") {
+		isl_val *v;
+		Expr *arg2 = expr->getArg(1);
+
+		if (arg2->getStmtClass() != Stmt::IntegerLiteralClass) {
+			unsupported(expr);
+			return NULL;
+		}
+		aff1 = extract_affine(expr->getArg(0));
+		v = extract_int(cast<IntegerLiteral>(arg2));
+		aff1 = isl_pw_aff_mod_val(aff1, v);
+	} else if (name == "floord" || name == "ceild" ||
+		   name == "intFloor" || name == "intCeil") {
 		isl_val *v;
 		Expr *arg2 = expr->getArg(1);
 
@@ -765,7 +781,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 		aff1 = extract_affine(expr->getArg(0));
 		v = extract_int(cast<IntegerLiteral>(arg2));
 		aff1 = isl_pw_aff_scale_down_val(aff1, v);
-		if (name == "floord")
+		if (name == "floord" || name == "intFloor")
 			aff1 = isl_pw_aff_floor(aff1);
 		else
 			aff1 = isl_pw_aff_ceil(aff1);
