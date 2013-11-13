@@ -40,6 +40,7 @@
 #include <isl/set.h>
 #include <isl/union_map.h>
 #include <isl/id_to_pw_aff.h>
+#include <isl/schedule_node.h>
 #include <pet.h>
 
 struct options {
@@ -47,6 +48,7 @@ struct options {
 	struct pet_options	*pet;
 	char *schedule;
 	char *code;
+	unsigned		 tree;
 };
 
 ISL_ARGS_START(struct options, options_args)
@@ -54,6 +56,8 @@ ISL_ARG_CHILD(struct options, isl, "isl", &isl_options_args, "isl options")
 ISL_ARG_CHILD(struct options, pet, NULL, &pet_options_args, "pet options")
 ISL_ARG_ARG(struct options, schedule, "schedule", NULL)
 ISL_ARG_ARG(struct options, code, "code", NULL)
+ISL_ARG_BOOL(struct options, tree, 0, "tree", 0,
+	"input schedule is specified as schedule tree")
 ISL_ARGS_END
 
 ISL_ARG_DEF(options, struct options, options_args)
@@ -326,7 +330,7 @@ int main(int argc, char **argv)
 {
 	isl_ctx *ctx;
 	isl_set *context;
-	isl_union_map *schedule, *code_schedule;
+	isl_union_map *input_schedule, *code_schedule;
 	struct pet_scop *scop;
 	struct options *options;
 	FILE *file;
@@ -341,25 +345,48 @@ int main(int argc, char **argv)
 
 	file = fopen(options->schedule, "r");
 	assert(file);
-	schedule = isl_union_map_read_from_file(ctx, file);
-	context = isl_set_read_from_file(ctx, file);
+	if (options->tree) {
+		isl_schedule *schedule;
+		isl_schedule_node *node;
+		enum isl_schedule_node_type type;
+
+		schedule = isl_schedule_read_from_file(ctx, file);
+		node = isl_schedule_get_root(schedule);
+		isl_options_set_schedule_separate_components(ctx, 0);
+		input_schedule =
+			isl_schedule_node_get_subtree_schedule_union_map(node);
+		node = isl_schedule_node_child(node, 0);
+		type = isl_schedule_node_get_type(node);
+		if (type == isl_schedule_node_context) {
+			context = isl_schedule_node_context_get_context(node);
+		} else {
+			isl_space *space;
+			space = isl_union_map_get_space(input_schedule);
+			context = isl_set_universe(space);
+		}
+		isl_schedule_node_free(node);
+		isl_schedule_free(schedule);
+	} else {
+		input_schedule = isl_union_map_read_from_file(ctx, file);
+		context = isl_set_read_from_file(ctx, file);
+	}
 	fclose(file);
 
 	scop = pet_scop_extract_from_C_source(ctx, options->code, NULL);
 
-	schedule = isl_union_map_intersect_params(schedule,
+	input_schedule = isl_union_map_intersect_params(input_schedule,
 						isl_set_copy(context));
 	code_schedule = extract_code_schedule(scop);
 	code_schedule = isl_union_map_intersect_params(code_schedule, context);
 
-	sv = isl_union_map_is_single_valued(schedule);
+	sv = isl_union_map_is_single_valued(input_schedule);
 	r = sv < 0 ||
-	    check_domain(schedule, code_schedule) ||
+	    check_domain(input_schedule, code_schedule) ||
 	    check_single_valued(code_schedule, sv) ||
-	    check_order(schedule, code_schedule, sv);
+	    check_order(input_schedule, code_schedule, sv);
 
 	pet_scop_free(scop);
-	isl_union_map_free(schedule);
+	isl_union_map_free(input_schedule);
 	isl_union_map_free(code_schedule);
 	isl_ctx_free(ctx);
 
