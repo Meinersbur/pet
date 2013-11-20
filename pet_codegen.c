@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,9 +37,11 @@
 #include <isl/options.h>
 #include <isl/set.h>
 #include <isl/map.h>
+#include <isl/schedule_node.h>
 
 struct options {
 	struct isl_options	*isl;
+	unsigned		 tree;
 	unsigned		 atomic;
 	unsigned		 separate;
 	unsigned		 read_options;
@@ -47,6 +49,8 @@ struct options {
 
 ISL_ARGS_START(struct options, options_args)
 ISL_ARG_CHILD(struct options, isl, "isl", &isl_options_args, "isl options")
+ISL_ARG_BOOL(struct options, tree, 0, "tree", 0,
+	"input schedule is specified as schedule tree")
 ISL_ARG_BOOL(struct options, atomic, 0, "atomic", 0,
 	"globally set the atomic option")
 ISL_ARG_BOOL(struct options, separate, 0, "separate", 0,
@@ -260,30 +264,81 @@ error:
 	isl_ast_node_free(tree);
 }
 
+/* If "node" is a band node, then replace the AST build options
+ * by "options".
+ */
+static __isl_give isl_schedule_node *node_set_options(
+	__isl_take isl_schedule_node *node, void *user)
+{
+	enum isl_ast_loop_type *type = user;
+	int i, n;
+
+	if (isl_schedule_node_get_type(node) != isl_schedule_node_band)
+		return node;
+
+	n = isl_schedule_node_band_n_member(node);
+	for (i = 0; i < n; ++i)
+		node = isl_schedule_node_band_member_set_ast_loop_type(node,
+								i, *type);
+	return node;
+}
+
+/* Replace the AST build options on all band nodes if requested
+ * by the user.
+ */
+static __isl_give isl_schedule *schedule_set_options(
+	__isl_take isl_schedule *schedule, struct options *options)
+{
+	enum isl_ast_loop_type type;
+
+	if (!options->separate && !options->atomic)
+		return schedule;
+
+	type = options->separate ? isl_ast_loop_separate : isl_ast_loop_atomic;
+	schedule = isl_schedule_map_schedule_node(schedule,
+						&node_set_options, &type);
+
+	return schedule;
+}
+
+/* Read a schedule tree, generate an AST and print the result
+ * in a form that is readable by pet.
+ */
+static int print_schedule_tree(isl_ctx *ctx, struct options *options)
+{
+	isl_union_set *domain;
+	isl_schedule *schedule;
+	isl_ast_build *build;
+	isl_ast_node *tree;
+
+	schedule = isl_schedule_read_from_file(ctx, stdin);
+	domain = isl_schedule_get_domain(schedule);
+
+	build = isl_ast_build_alloc(ctx);
+	schedule = schedule_set_options(schedule, options);
+	tree = isl_ast_build_node_from_schedule(build, schedule);
+	isl_ast_build_free(build);
+
+	print_tree(domain, tree);
+
+	return 0;
+}
+
 /* Read a schedule, a context and (optionally) build options,
  * generate an AST and print the result in a form that is readable
  * by pet.
  */
-int main(int argc, char **argv)
+static int print_schedule_map(isl_ctx *ctx, struct options *options)
 {
-	isl_ctx *ctx;
 	isl_set *context;
 	isl_union_set *domain;
 	isl_union_map *schedule;
 	isl_ast_build *build;
 	isl_ast_node *tree;
-	struct options *options;
-
-	options = options_new_with_defaults();
-	assert(options);
-	argc = options_parse(options, argc, argv, ISL_ARG_ALL);
-
-	ctx = isl_ctx_alloc_with_options(&options_args, options);
 
 	schedule = isl_union_map_read_from_file(ctx, stdin);
 	if (isl_union_map_foreach_map(schedule, &check_name, NULL) < 0) {
 		isl_union_map_free(schedule);
-		isl_ctx_free(ctx);
 		return 1;
 	}
 	context = isl_set_read_from_file(ctx, stdin);
@@ -298,6 +353,32 @@ int main(int argc, char **argv)
 
 	print_tree(domain, tree);
 
-	isl_ctx_free(ctx);
 	return 0;
+}
+
+/* Read either
+ * - a schedule tree or
+ * - a schedule, a context and (optionally) build options,
+ * generate an AST and print the result in a form that is readable
+ * by pet.
+ */
+int main(int argc, char **argv)
+{
+	isl_ctx *ctx;
+	struct options *options;
+	int r;
+
+	options = options_new_with_defaults();
+	assert(options);
+	argc = options_parse(options, argc, argv, ISL_ARG_ALL);
+
+	ctx = isl_ctx_alloc_with_options(&options_args, options);
+
+	if (options->tree)
+		r = print_schedule_tree(ctx, options);
+	else
+		r = print_schedule_map(ctx, options);
+
+	isl_ctx_free(ctx);
+	return r;
 }
