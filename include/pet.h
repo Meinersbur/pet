@@ -50,8 +50,12 @@ enum pet_op_type {
 	pet_op_mul,
 	pet_op_div,
 	pet_op_mod,
+	pet_op_shl,
+	pet_op_shr,
 	pet_op_eq,
+	pet_op_ne,
 	pet_op_le,
+	pet_op_ge,
 	pet_op_lt,
 	pet_op_gt,
 	pet_op_minus,
@@ -62,6 +66,10 @@ enum pet_op_type {
 	pet_op_address_of,
 	pet_op_assume,
 	pet_op_kill,
+	pet_op_and,
+	pet_op_xor,
+	pet_op_or,
+	pet_op_not,
 	pet_op_last
 };
 
