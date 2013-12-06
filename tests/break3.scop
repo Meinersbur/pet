@@ -2,6 +2,12 @@ start: 43
 end: 186
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_2[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_1[i, j] : i >= 0 and i <= 99 and
+  j >= 0 and j <= 99 }", child: { schedule: "L_0[{ S_1[i, j] -> [(i)]; S_0[i, j] ->
+  [(i)]; S_2[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_1[i, j] -> [(j)]; S_0[i,
+  j] -> [(j)]; S_2[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j]
+  }" }, { filter: "{ S_1[i, j] }" }, { filter: "{ S_2[i, j] }" } ] } } } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'

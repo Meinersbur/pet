@@ -2,6 +2,15 @@ start: 44
 end: 209
 indent: "\t"
 context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
+schedule: '{ domain: "[n] -> { S_2[i, j] : i >= 0 and i <= -1 + n and j >= 0 and j
+  <= -1 + n; S_0[i, j] : i >= 0 and i <= -1 + n and j >= 0 and j <= -1 + n; S_3[i,
+  j] : i >= 0 and i <= -1 + n and j >= 0 and j <= -1 + n; S_1[i, j] : i >= 0 and i
+  <= -1 + n and j >= 0 and j <= -1 + n }", child: { schedule: "[n] -> L_0[{ S_3[i,
+  j] -> [(i)]; S_1[i, j] -> [(i)]; S_2[i, j] -> [(i)]; S_0[i, j] -> [(i)] }]", child:
+  { schedule: "[n] -> L_1[{ S_3[i, j] -> [(j)]; S_1[i, j] -> [(j)]; S_2[i, j] -> [(j)];
+  S_0[i, j] -> [(j)] }]", child: { sequence: [ { filter: "[n] -> { S_0[i, j] }" },
+  { filter: "[n] -> { S_1[i, j] }" }, { filter: "[n] -> { S_3[i, j] }" }, { filter:
+  "[n] -> { S_2[i, j] }" } ] } } } }'
 arrays:
 - context: '{  :  }'
   extent: '[n] -> { t[] }'

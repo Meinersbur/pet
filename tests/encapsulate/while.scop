@@ -2,6 +2,11 @@ start: 83
 end: 210
 indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
+schedule: '{ domain: "[n] -> { S1[x] : x >= 0 and x <= -1 + n; S_3[x] : x >= 0 and
+  x <= -1 + n; R[x] : x >= 0 and x <= -1 + n }", child: { schedule: "[n] -> L_0[{
+  S1[x] -> [(x)]; R[x] -> [(x)]; S_3[x] -> [(x)] }]", child: { sequence: [ { filter:
+  "[n] -> { S1[x] }" }, { filter: "[n] -> { S_3[x] }" }, { filter: "[n] -> { R[x]
+  }" } ] } } }'
 arrays:
 - context: '{  :  }'
   extent: '[n] -> { s[] }'

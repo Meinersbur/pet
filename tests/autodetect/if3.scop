@@ -2,6 +2,7 @@ start: 61
 end: 70
 indent: "\t\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'

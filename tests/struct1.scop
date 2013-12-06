@@ -2,6 +2,7 @@ start: 50
 end: 89
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 types:
 - name: s
   definition: "struct s {\n    int a;\n}"

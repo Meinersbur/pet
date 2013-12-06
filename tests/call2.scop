@@ -2,6 +2,8 @@ start: 169
 end: 250
 indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= 0 }'
+schedule: '{ domain: "[n] -> { S_0[i] : i >= 0 and i <= -1 + n }", child: { schedule:
+  "[n] -> L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
   extent: '[n] -> { B[i0, i1] : i1 >= 0 and i1 <= -1 + n and i0 >= 0 and i0 <= -1

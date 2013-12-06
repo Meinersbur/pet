@@ -10,6 +10,7 @@
 #include <isl/printer.h>
 #include <isl/id_to_ast_expr.h>
 #include <isl/id_to_pw_aff.h>
+#include <isl/schedule.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -486,6 +487,8 @@ struct pet_independence {
  * context_value describes assignments to the parameters (if any)
  * outside of the scop.
  *
+ * "schedule" is the schedule of the statements in the scop.
+ *
  * The n_type types define types that may be referenced from by the arrays.
  *
  * The n_implication implications describe implications on boolean filters.
@@ -498,6 +501,7 @@ struct pet_scop {
 
 	isl_set *context;
 	isl_set *context_value;
+	isl_schedule *schedule;
 
 	int n_type;
 	struct pet_type **types;

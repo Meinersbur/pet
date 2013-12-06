@@ -2,6 +2,7 @@ start: 132
 end: 179
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 types:
 - name: scomplex
   definition: "struct scomplex {\n    float re;\n    float im;\n}"

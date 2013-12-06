@@ -2,6 +2,9 @@ start: 295
 end: 407
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_2[]; S_1[i] : i >= 1 and i <= 3 }", child: { sequence:
+  [ { filter: "{ S_0[] }" }, { filter: "{ S_1[i] }", child: { schedule: "L_0[{ S_1[i]
+  -> [(i)] }]" } }, { filter: "{ S_2[] }" } ] } }'
 types:
 - name: s
   definition: "struct s {\n    struct s0 c[10];\n}"

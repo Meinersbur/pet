@@ -2,6 +2,8 @@ start: 22
 end: 71
 indent: 
 context: '{  :  }'
+schedule: '{ domain: "{ B[]; A[] }", child: { sequence: [ { filter: "{ A[] }" }, {
+  filter: "{ B[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'

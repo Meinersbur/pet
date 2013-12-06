@@ -2,6 +2,8 @@ start: 18
 end: 69
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[] }"
+  }, { filter: "{ S_1[] }" } ] } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { A[i0] : i0 >= 0 and i0 <= -1 + N }'

@@ -2,6 +2,7 @@ start: 25
 end: 46
 indent: "\t"
 context: '[a] -> {  : a <= 2147483647 and a >= -2147483648 }'
+schedule: '{ domain: "[a] -> { S_0[] : a >= 1 }" }'
 arrays:
 - context: '{  :  }'
   extent: '[a] -> { b[] }'

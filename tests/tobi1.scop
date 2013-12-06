@@ -2,6 +2,8 @@ start: 47
 end: 131
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[i] : exists (e0 = floor((i)/65): 65e0 = i and i <= 1039
+  and i >= 0) }", child: { schedule: "L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'

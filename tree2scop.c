@@ -420,19 +420,30 @@ static __isl_give isl_set *apply_affine_break(__isl_take isl_set *domain,
 
 /* Create a single-dimensional multi-affine expression on the domain space
  * of "pc" that is equal to the final dimension of this domain.
+ * "loop_nr" is the sequence number of the corresponding loop.
  */
-static __isl_give isl_multi_aff *map_to_last(__isl_keep pet_context *pc)
+static __isl_give isl_multi_aff *map_to_last(__isl_keep pet_context *pc,
+	int loop_nr)
 {
 	int pos;
 	isl_space *space;
 	isl_local_space *ls;
 	isl_aff *aff;
+	isl_multi_aff *ma;
+	char name[50];
+	isl_id *label;
 
 	space = pet_context_get_space(pc);
 	pos = isl_space_dim(space, isl_dim_set) - 1;
 	ls = isl_local_space_from_space(space);
 	aff = isl_aff_var_on_domain(ls, isl_dim_set, pos);
-	return isl_multi_aff_from_aff(aff);
+	ma = isl_multi_aff_from_aff(aff);
+
+	snprintf(name, sizeof(name), "L_%d", loop_nr);
+	label = isl_id_alloc(pet_context_get_ctx(pc), name, NULL);
+	ma = isl_multi_aff_set_tuple_id(ma, isl_dim_out, label);
+
+	return ma;
 }
 
 /* Create an affine expression that maps elements
@@ -566,7 +577,7 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 
 	ctx = pet_tree_get_ctx(body);
 	domain = pet_context_get_domain(pc);
-	sched = map_to_last(pc);
+	sched = map_to_last(pc, state->n_loop++);
 
 	scop = scop_from_tree(body, pc, state);
 
@@ -672,7 +683,8 @@ static struct pet_scop *scop_from_affine_while(__isl_keep pet_tree *tree,
  * The fact that this condition also applies to the previous
  * iterations is enforced by an implication.
  *
- * These filtered scops are then combined into a single scop.
+ * These filtered scops are then combined into a single scop,
+ * with the condition scop scheduled before the body scop.
  *
  * "sign" is positive if the iterator increases and negative
  * if it decreases.
@@ -790,8 +802,8 @@ static struct pet_scop *scop_add_inc(struct pet_scop *scop,
  * after replacing any skip conditions resulting from continue statements
  * by the skip conditions resulting from break statements (if any).
  *
- * The schedule is adjusted to reflect that the condition is evaluated
- * before the body is executed and the body is filtered to depend
+ * The schedules are combined as a sequence to reflect that the condition is
+ * evaluated before the body is executed and the body is filtered to depend
  * on the result of the condition evaluating to true on all iterations
  * up to the current iteration, while the evaluation of the condition itself
  * is filtered to depend on the result of the condition evaluating to true
@@ -838,7 +850,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	scop = pet_scop_add_boolean_array(scop, isl_set_copy(domain),
 					test_index, state->int_size);
 
-	sched = map_to_last(pc);
+	sched = map_to_last(pc, state->n_loop++);
 
 	scop_body = scop_from_tree(tree_body, pc, state);
 
@@ -1608,7 +1620,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 				    isl_set_copy(domain), isl_val_copy(inc));
 	cond = isl_set_align_params(cond, isl_set_get_space(domain));
 	domain = isl_set_intersect(domain, cond);
-	sched = map_to_last(pc);
+	sched = map_to_last(pc, state->n_loop++);
 	if (isl_val_is_neg(inc))
 		sched = isl_multi_aff_neg(sched);
 
@@ -1886,8 +1898,8 @@ static struct pet_scop *scop_from_conditional_assignment(
  * is added to the iteration domains of the then branch.
  * Similarly, a constraint requiring the value of this virtual scalar
  * to be zero is added to the iteration domains of the else branch, if any.
- * We adjust the schedules to ensure that the virtual scalar is written
- * before it is read.
+ * We combine the schedules as a sequence to ensure that the virtual scalar
+ * is written before it is read.
  *
  * If there are any breaks or continues in the then and/or else
  * branches, then we may have to compute a new skip condition.

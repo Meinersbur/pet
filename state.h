@@ -14,6 +14,7 @@ extern "C" {
  * by "access".
  * "int_size" is the number of bytes needed to represent an integer.
  *
+ * "n_loop" is the sequence number of the next loop.
  * "n_stmt" is the sequence number of the next statement.
  * "n_test" is the sequence number of the next virtual scalar.
  */
@@ -25,6 +26,7 @@ struct pet_state {
 	void *user;
 	int int_size;
 
+	int n_loop;
 	int n_stmt;
 	int n_test;
 };

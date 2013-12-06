@@ -2,6 +2,7 @@ start: 401
 end: 446
 indent: "\t"
 context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
+schedule: '{ domain: "{ S_0[] }" }'
 types:
 - name: s
   definition: "struct s {\n    int a;\n}"

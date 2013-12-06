@@ -2,6 +2,8 @@ start: 100
 end: 147
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[] }"
+  }, { filter: "{ S_1[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ s[] }'

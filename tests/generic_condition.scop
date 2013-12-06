@@ -2,6 +2,8 @@ start: 35
 end: 101
 indent: "\t"
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
+schedule: '{ domain: "[N] -> { S_0[i] : N <= -1 and i >= 0 }", child: { schedule:
+  "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { a[] }'

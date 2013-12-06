@@ -2,6 +2,11 @@ start: 40
 end: 114
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_3[t] : t >= 0; S_0[]; S_2[t] : t >= 0; S_4[t] : t >= 0;
+  S_1[] }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" },
+  { filter: "{ S_3[t]; S_2[t]; S_4[t] }", child: { schedule: "L_0[{ S_2[t] -> [(t)];
+  S_3[t] -> [(t)]; S_4[t] -> [(t)] }]", child: { sequence: [ { filter: "{ S_2[t] }"
+  }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t] }" } ] } } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[t] : t >= 0 }'

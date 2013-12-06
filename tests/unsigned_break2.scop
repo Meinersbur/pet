@@ -2,6 +2,12 @@ start: 50
 end: 172
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_2[k] : k <= 261 and k >= 252; S_0[k] : (exists (e0 = floor((k)/256):
+  k <= 261 and k >= 252 and 256e0 >= -255 + k and 256e0 <= -2 + k)) or (exists (e0
+  = floor((k)/256): 256e0 = k and k <= 261 and k >= 252)); S_1[k] : k <= 261 and k
+  >= 252 }", child: { schedule: "L_0[{ S_2[k] -> [(k)]; S_1[k] -> [(k)]; S_0[k] ->
+  [(k)] }]", child: { sequence: [ { filter: "{ S_0[k] }" }, { filter: "{ S_1[k] }"
+  }, { filter: "{ S_2[k] }" } ] } } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[k] : k <= 261 and k >= 252 }'

@@ -2,6 +2,9 @@ start: 36
 end: 106
 indent: "\t"
 context: '[N] -> {  : N >= -2147483648 and N <= 2147483647 }'
+schedule: '{ domain: "[N] -> { S_1[] : N = 2; S_0[]; S_2[] }", child: { sequence:
+  [ { filter: "[N] -> { S_0[] }" }, { filter: "[N] -> { S_1[] }" }, { filter: "[N]
+  -> { S_2[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { a[i0] : i0 <= 9 and i0 >= 0 }'

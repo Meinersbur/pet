@@ -2,6 +2,18 @@ start: 37
 end: 145
 indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
+schedule: '{ domain: "[n] -> { S_6[i] : i >= 0 and i <= -1 + n; S_2[i, t] : i >= 0
+  and i <= -1 + n and t >= 0; S_0[]; S_5[i] : i >= 0 and i <= -1 + n; S_3[i, t] :
+  i >= 0 and i <= -1 + n and t >= 0; S_1[i] : i >= 0 and i <= -1 + n; S_4[i, t] :
+  i >= 0 and i <= -1 + n and t >= 0 }", child: { sequence: [ { filter: "[n] -> { S_0[]
+  }" }, { filter: "[n] -> { S_6[i]; S_2[i, t]; S_5[i]; S_3[i, t]; S_1[i]; S_4[i, t]
+  }", child: { schedule: "[n] -> L_0[{ S_3[i, t] -> [(i)]; S_4[i, t] -> [(i)]; S_6[i]
+  -> [(i)]; S_5[i] -> [(i)]; S_2[i, t] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence:
+  [ { filter: "[n] -> { S_5[i] }" }, { filter: "[n] -> { S_1[i] }" }, { filter: "[n]
+  -> { S_2[i, t]; S_3[i, t]; S_4[i, t] }", child: { schedule: "[n] -> L_1[{ S_3[i,
+  t] -> [(t)]; S_4[i, t] -> [(t)]; S_2[i, t] -> [(t)] }]", child: { sequence: [ {
+  filter: "[n] -> { S_2[i, t] }" }, { filter: "[n] -> { S_3[i, t] }" }, { filter:
+  "[n] -> { S_4[i, t] }" } ] } } }, { filter: "[n] -> { S_6[i] }" } ] } } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[n] -> { __pet_test_0[i, t] : i <= -1 + n and t >= 0 and i >= 0 }'

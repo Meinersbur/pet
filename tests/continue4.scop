@@ -2,6 +2,13 @@ start: 47
 end: 216
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 99; S_5[i] : i >= 0 and i <= 99;
+  S_2[i] : i >= 0 and i <= 99; S_4[i] : i >= 0 and i <= 99; S_0[i] : i >= 0 and i
+  <= 99; S_1[i] : i >= 0 and i <= 99 }", child: { schedule: "L_0[{ S_1[i] -> [(i)];
+  S_3[i] -> [(i)]; S_2[i] -> [(i)]; S_0[i] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)]
+  }]", child: { sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" }, {
+  filter: "{ S_2[i] }" }, { filter: "{ S_3[i] }" }, { filter: "{ S_4[i] }" }, { filter:
+  "{ S_5[i] }" } ] } } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[i] : i >= 0 and i <= 99 }'
