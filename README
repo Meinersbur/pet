@@ -68,3 +68,25 @@ will not produce any warnings in this case as any code that does not
 satisfy the requirements is considered to lie outside of the scop.
 
 The layout of pet_scop is documented in include/pet.h.
+
+
+New releases are announced on http://freecode.com/projects/libpet
+
+If you use pet, you can let me know by stacking
+https://www.ohloh.net/p/libpet on ohloh.
+
+For bug reports, feature requests and questions,
+contact isl-development@googlegroups.com
+
+If you use pet for your research, you are invited to cite
+the following paper.
+
+@InProceedings{Verdoolaege2012pet,
+    author = {Sven Verdoolaege and Tobias Grosser},
+    title = {Polyhedral Extraction Tool},
+    booktitle = {Second Int. Workshop on Polyhedral Compilation Techniques
+		(IMPACT'12)},
+    address = {Paris, France},
+    month = jan,
+    year = {2012}
+}
