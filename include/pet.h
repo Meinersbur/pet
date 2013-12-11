@@ -215,6 +215,83 @@ int pet_expr_foreach_call_expr(__isl_keep pet_expr *expr,
 
 void pet_expr_dump(__isl_keep pet_expr *expr);
 
+enum pet_tree_type {
+	pet_tree_error = -1,
+	pet_tree_expr,
+	pet_tree_block,
+	pet_tree_break,
+	pet_tree_continue,
+	pet_tree_decl,		/* A declaration without initialization */
+	pet_tree_decl_init,	/* A declaration with initialization */
+	pet_tree_if,		/* An if without an else branch */
+	pet_tree_if_else,	/* An if with an else branch */
+	pet_tree_for,
+	pet_tree_infinite_loop,
+	pet_tree_while
+};
+
+struct pet_tree;
+typedef struct pet_tree pet_tree;
+
+/* Return the isl_ctx in which "tree" was created. */
+isl_ctx *pet_tree_get_ctx(__isl_keep pet_tree *tree);
+
+/* Return an additional reference to "tree". */
+__isl_give pet_tree *pet_tree_copy(__isl_keep pet_tree *tree);
+/* Free a reference to "tree". */
+__isl_null pet_tree *pet_tree_free(__isl_take pet_tree *tree);
+
+/* Return the location of "tree". */
+__isl_give pet_loc *pet_tree_get_loc(__isl_keep pet_tree *tree);
+
+/* Return the type of "tree". */
+enum pet_tree_type pet_tree_get_type(__isl_keep pet_tree *tree);
+
+/* Return the expression of the expression tree "tree". */
+__isl_give pet_expr *pet_tree_expr_get_expr(__isl_keep pet_tree *tree);
+
+/* Return the number of children of the block tree "tree". */
+int pet_tree_block_n_child(__isl_keep pet_tree *tree);
+/* Return child "pos" of the block tree "tree". */
+__isl_give pet_tree *pet_tree_block_get_child(__isl_keep pet_tree *tree,
+	int pos);
+
+/* Is "tree" a declaration (with or without initialization)? */
+int pet_tree_is_decl(__isl_keep pet_tree *tree);
+/* Return the variable declared by the declaration tree "tree". */
+__isl_give pet_expr *pet_tree_decl_get_var(__isl_keep pet_tree *tree);
+/* Return the initial value of the pet_tree_decl_init tree "tree". */
+__isl_give pet_expr *pet_tree_decl_get_init(__isl_keep pet_tree *tree);
+
+/* Return the condition of the if tree "tree". */
+__isl_give pet_expr *pet_tree_if_get_cond(__isl_keep pet_tree *tree);
+/* Return the then branch of the if tree "tree". */
+__isl_give pet_tree *pet_tree_if_get_then(__isl_keep pet_tree *tree);
+/* Return the else branch of the if tree with else branch "tree". */
+__isl_give pet_tree *pet_tree_if_get_else(__isl_keep pet_tree *tree);
+
+/* Is "tree" a for loop, a while loop or an infinite loop? */
+int pet_tree_is_loop(__isl_keep pet_tree *tree);
+/* Return the induction variable of the for loop "tree" */
+__isl_give pet_expr *pet_tree_loop_get_var(__isl_keep pet_tree *tree);
+/* Return the initial value of the induction variable of the for loop "tree" */
+__isl_give pet_expr *pet_tree_loop_get_init(__isl_keep pet_tree *tree);
+/* Return the condition of the loop tree "tree" */
+__isl_give pet_expr *pet_tree_loop_get_cond(__isl_keep pet_tree *tree);
+/* Return the induction variable of the for loop "tree" */
+__isl_give pet_expr *pet_tree_loop_get_inc(__isl_keep pet_tree *tree);
+/* Return the body of the loop tree "tree" */
+__isl_give pet_tree *pet_tree_loop_get_body(__isl_keep pet_tree *tree);
+
+/* Call "fn" on each top-level expression in the nodes of "tree" */
+int pet_tree_foreach_expr(__isl_keep pet_tree *tree,
+	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user);
+/* Call "fn" on each access subexpression in the nodes of "tree" */
+int pet_tree_foreach_access_expr(__isl_keep pet_tree *tree,
+	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user);
+
+void pet_tree_dump(__isl_keep pet_tree *tree);
+
 /* "loc" represents the region of the source code that is represented
  * by this statement.
  *
