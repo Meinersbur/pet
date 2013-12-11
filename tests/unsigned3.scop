@@ -8,9 +8,8 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[k] : k >= 0 and k <= 255 }'
-  schedule: '{ S_0[k] -> [0, o1] : exists (e0 = floor((-k + o1)/256): 256e0 = -k +
-    o1 and o1 >= 252 and k >= 0 and k <= 255) }'
+  domain: '{ S_0[k] : k >= 252 }'
+  schedule: '{ S_0[k] -> [0, k] }'
   body:
     type: binary
     operation: =
@@ -22,8 +21,9 @@ statements:
       read: 0
       write: 1
     - type: access
-      relation: '{ S_0[k] -> [k] }'
-      index: '{ S_0[k] -> [(k)] }'
+      relation: '{ S_0[k] -> [o0] : exists (e0 = floor((-k + o0)/256): 256e0 = -k
+        + o0 and o0 <= 255 and o0 >= 0) }'
+      index: '{ S_0[k] -> [(k - 256*floor((k)/256))] }'
       reference: __pet_ref_1
       read: 1
       write: 0

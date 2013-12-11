@@ -3013,24 +3013,15 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  *	(exists a: i = init + stride * a and a >= 0)
  *
  * If the loop iterator i is unsigned, then wrapping may occur.
- * During the computation, we work with a virtual iterator that
- * does not wrap.  However, the condition in the code applies
+ * We therefore use a virtual iterator instead that does not wrap.
+ * However, the condition in the code applies
  * to the wrapped value, so we need to change condition(i)
- * into condition([i % 2^width]).
- * After computing the virtual domain and schedule, we apply
- * the function { [v] -> [v % 2^width] } to the domain and the domain
- * of the schedule.  In order not to lose any information, we also
- * need to intersect the domain of the schedule with the virtual domain
- * first, since some iterations in the wrapped domain may be scheduled
- * several times, typically an infinite number of times.
+ * into condition([i % 2^width]).  Similarly, we replace all accesses
+ * to the original iterator by the wrapping of the virtual iterator.
  * Note that there may be no need to perform this final wrapping
  * if the loop condition (after wrapping) satisfies certain conditions.
  * However, the is_simple_bound condition is not enough since it doesn't
  * check if there even is an upper bound.
- *
- * If the loop condition is non-affine, then we keep the virtual
- * iterator in the iteration domain and instead replace all accesses
- * to the original iterator by the wrapping of the virtual iterator.
  *
  * Wrapping on unsigned iterators can be avoided entirely if
  * loop condition is simple, the loop iterator is incremented
@@ -3053,9 +3044,7 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  * (if the skip condition is affine) or it is handled in scop_add_break
  * (if the skip condition is not affine).
  * Note that the affine break condition needs to be considered with
- * respect to previous iterations in the virtual domain (if any)
- * and that the domain needs to be kept virtual if there is a non-affine
- * break condition.
+ * respect to previous iterations in the virtual domain (if any).
  *
  * If we were only able to extract part of the body, then simply
  * return that part.
@@ -3081,7 +3070,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	bool is_unsigned;
 	bool is_simple;
 	bool is_virtual;
-	bool keep_virtual = false;
 	bool has_affine_break;
 	bool has_var_break;
 	isl_aff *wrap = NULL;
@@ -3171,10 +3159,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (has_affine_break)
 		skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
 	has_var_break = scop && pet_scop_has_var_skip(scop, pet_skip_later);
-	if (has_var_break) {
+	if (has_var_break)
 		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
-		keep_virtual = true;
-	}
 
 	if (pa && !is_nested_allowed(pa, scop)) {
 		isl_pw_aff_free(pa);
@@ -3200,7 +3186,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		scop_cond = pet_scop_prefix(scop_cond, 0);
 		scop = pet_scop_reset_context(scop);
 		scop = pet_scop_prefix(scop, 1);
-		keep_virtual = true;
 		cond = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 	}
 
@@ -3266,15 +3251,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 					isl_val_copy(inc));
 	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
 
-	if (is_virtual && !keep_virtual) {
-		isl_map *wrap_map = isl_map_from_aff(wrap);
-		wrap_map = isl_map_set_dim_id(wrap_map,
-					    isl_dim_out, 0, isl_id_copy(id));
-		sched = isl_map_intersect_domain(sched, isl_set_copy(domain));
-		domain = isl_set_apply(domain, isl_map_copy(wrap_map));
-		sched = isl_map_apply_domain(sched, wrap_map);
-	}
-	if (!(is_virtual && keep_virtual))
+	if (!is_virtual)
 		wrap = identity_aff(domain);
 
 	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
