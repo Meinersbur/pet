@@ -2329,10 +2329,13 @@ error:
  * taken into account.
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
-	__isl_take isl_map *sched, __isl_take isl_aff *iv_map,
+	__isl_take isl_aff *sched, __isl_take isl_aff *iv_map,
 	__isl_take isl_id *id)
 {
 	int i;
+	isl_map *sched_map;
+
+	sched_map = isl_map_from_aff(sched);
 
 	if (!scop)
 		goto error;
@@ -2346,8 +2349,8 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = pet_stmt_embed(scop->stmts[i],
-					isl_set_copy(dom), isl_map_copy(sched),
-					isl_aff_copy(iv_map), isl_id_copy(id));
+				    isl_set_copy(dom), isl_map_copy(sched_map),
+				    isl_aff_copy(iv_map), isl_id_copy(id));
 		if (!scop->stmts[i])
 			goto error;
 	}
@@ -2368,13 +2371,13 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	}
 
 	isl_set_free(dom);
-	isl_map_free(sched);
+	isl_map_free(sched_map);
 	isl_aff_free(iv_map);
 	isl_id_free(id);
 	return scop;
 error:
 	isl_set_free(dom);
-	isl_map_free(sched);
+	isl_map_free(sched_map);
 	isl_aff_free(iv_map);
 	isl_id_free(id);
 	return pet_scop_free(scop);

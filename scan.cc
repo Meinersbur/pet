@@ -2486,7 +2486,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 		id_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
 	scop = pet_scop_embed(scop, isl_set_copy(domain),
-			    isl_map_from_aff(isl_aff_copy(ident)), ident, id);
+				isl_aff_copy(ident), ident, id);
 	if (has_var_break)
 		scop = scop_add_break(scop, id_test, domain, isl_val_one(ctx));
 	else
@@ -2725,13 +2725,12 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop = pet_scop_prefix(scop, 0);
-	scop = pet_scop_embed(scop, isl_set_copy(domain),
-				isl_map_from_aff(isl_aff_copy(ident)),
+	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_aff_copy(ident),
 				isl_aff_copy(ident), isl_id_copy(id));
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
-			    isl_map_from_aff(isl_aff_copy(ident)), ident, id);
+				    isl_aff_copy(ident), ident, id);
 
 	if (has_var_break) {
 		scop = scop_add_break(scop, isl_id_copy(id_break_test),
@@ -3091,9 +3090,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	Stmt *init;
 	Expr *lhs, *rhs;
 	ValueDecl *iv;
-	isl_space *space;
+	isl_local_space *ls;
 	isl_set *domain;
-	isl_map *sched;
+	isl_aff *sched;
 	isl_set *cond = NULL;
 	isl_set *skip = NULL;
 	isl_id *id, *id_test = NULL, *id_break_test;
@@ -3274,13 +3273,10 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		domain = isl_set_subtract(domain, skip);
 	}
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
-	space = isl_space_from_domain(isl_set_get_space(domain));
-	space = isl_space_add_dims(space, isl_dim_out, 1);
-	sched = isl_map_universe(space);
-	if (isl_val_is_pos(inc))
-		sched = isl_map_equate(sched, isl_dim_in, 0, isl_dim_out, 0);
-	else
-		sched = isl_map_oppose(sched, isl_dim_in, 0, isl_dim_out, 0);
+	ls = isl_local_space_from_space(isl_set_get_space(domain));
+	sched = isl_aff_var_on_domain(ls, isl_dim_set, 0);
+	if (isl_val_is_neg(inc))
+		sched = isl_aff_neg(sched);
 
 	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain),
 					isl_val_copy(inc));
@@ -3290,7 +3286,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		wrap = identity_aff(domain);
 
 	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
-		    isl_map_copy(sched), isl_aff_copy(wrap), isl_id_copy(id));
+		    isl_aff_copy(sched), isl_aff_copy(wrap), isl_id_copy(id));
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = resolve_nested(scop);
 	if (has_var_break)
