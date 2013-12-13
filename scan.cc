@@ -47,6 +47,7 @@
 #include <isl/aff.h>
 #include <isl/set.h>
 
+#include "aff.h"
 #include "clang.h"
 #include "expr.h"
 #include "nest.h"
@@ -1404,6 +1405,7 @@ __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
 	isl_pw_aff *res;
 	isl_set *cond;
 	isl_set *dom;
+	enum pet_op_type type;
 
 	if (op == BO_GT)
 		return extract_comparison(BO_LT, RHS, LHS, comp);
@@ -1427,34 +1429,8 @@ __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
 	lhs = extract_affine(LHS);
 	rhs = extract_affine(RHS);
 
-	dom = isl_pw_aff_domain(isl_pw_aff_copy(lhs));
-	dom = isl_set_intersect(dom, isl_pw_aff_domain(isl_pw_aff_copy(rhs)));
-
-	switch (op) {
-	case BO_LT:
-		cond = isl_pw_aff_lt_set(lhs, rhs);
-		break;
-	case BO_LE:
-		cond = isl_pw_aff_le_set(lhs, rhs);
-		break;
-	case BO_EQ:
-		cond = isl_pw_aff_eq_set(lhs, rhs);
-		break;
-	case BO_NE:
-		cond = isl_pw_aff_ne_set(lhs, rhs);
-		break;
-	default:
-		isl_pw_aff_free(lhs);
-		isl_pw_aff_free(rhs);
-		isl_set_free(dom);
-		unsupported(comp);
-		return NULL;
-	}
-
-	cond = isl_set_coalesce(cond);
-	res = indicator_function(cond, dom);
-
-	return res;
+	type = BinaryOperatorKind2pet_op_type(op);
+	return pet_comparison(type, lhs, rhs);
 }
 
 __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp)
