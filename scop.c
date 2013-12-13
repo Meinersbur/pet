@@ -80,6 +80,9 @@ static char *op_str[] = {
 	[pet_op_xor] = "^",
 	[pet_op_or] = "|",
 	[pet_op_not] = "~",
+	[pet_op_land] = "&&",
+	[pet_op_lor] = "||",
+	[pet_op_lnot] = "!",
 	[pet_op_assume] = "assume",
 	[pet_op_kill] = "kill"
 };

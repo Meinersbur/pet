@@ -1494,6 +1494,8 @@ static enum pet_op_type UnaryOperatorKind2pet_op_type(UnaryOperatorKind kind)
 		return pet_op_minus;
 	case UO_Not:
 		return pet_op_not;
+	case UO_LNot:
+		return pet_op_lnot;
 	case UO_PostInc:
 		return pet_op_post_inc;
 	case UO_PostDec:
@@ -1552,6 +1554,10 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 		return pet_op_xor;
 	case BO_Or:
 		return pet_op_or;
+	case BO_LAnd:
+		return pet_op_land;
+	case BO_LOr:
+		return pet_op_lor;
 	default:
 		return pet_op_last;
 	}
