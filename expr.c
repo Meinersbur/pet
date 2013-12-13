@@ -34,8 +34,11 @@
 
 #include <string.h>
 
+#include "aff.h"
 #include "expr.h"
 #include "filter.h"
+#include "nest.h"
+#include "options.h"
 #include "value_bounds.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
@@ -1988,6 +1991,679 @@ __isl_give char *pet_expr_double_get_str(__isl_keep pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not a double expression", return NULL);
 	return strdup(expr->d.s);
+}
+
+/* Return a piecewise affine expression defined on the specified domain
+ * that represents NaN.
+ */
+static __isl_give isl_pw_aff *non_affine(__isl_take isl_space *space)
+{
+	return isl_pw_aff_nan_on_domain(isl_local_space_from_space(space));
+}
+
+/* This function is called when we come across an access that is
+ * nested in what is supposed to be an affine expression.
+ * "pc" is the context in which the affine expression is created.
+ * If nesting is allowed in "pc", we return an affine expression that is
+ * equal to a new parameter corresponding to this nested access.
+ * Otherwise, we return NaN.
+ *
+ * Note that we currently don't allow nested accesses themselves
+ * to contain any nested accesses, so we check if "expr" itself
+ * involves any nested accesses and return NaN if it does.
+ *
+ * The new parameter is resolved in resolve_nested.
+ */
+static __isl_give isl_pw_aff *nested_access(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_ctx *ctx;
+	isl_id *id;
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+	int nested;
+
+	if (!expr || !pc)
+		return NULL;
+	if (!pet_context_allow_nesting(pc))
+		return non_affine(pet_context_get_space(pc));
+
+	if (pet_expr_get_type(expr) != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_internal,
+			"not an access expression", return NULL);
+
+	space = pet_expr_access_get_parameter_space(expr);
+	nested = pet_nested_any_in_space(space);
+	isl_space_free(space);
+	if (nested)
+		return non_affine(pet_context_get_space(pc));
+
+	ctx = pet_expr_get_ctx(expr);
+	id = pet_nested_pet_expr(pet_expr_copy(expr));
+	space = pet_context_get_space(pc);
+	space = isl_space_insert_dims(space, isl_dim_param, 0, 1);
+
+	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_var_on_domain(ls, isl_dim_param, 0);
+
+	return isl_pw_aff_from_aff(aff);
+}
+
+/* Extract an affine expression from the access pet_expr "expr".
+ * "pc" is the context in which the affine expression is created.
+ *
+ * If "expr" is actually an affine expression rather than
+ * a real access, then we return that expression.
+ * Otherwise, we require that "expr" is of an integral type.
+ * If not, we return NaN.
+ *
+ * If we are accessing a scalar (i.e., not an array and not a member)
+ * and if that scalar can be treated as a parameter (because it is
+ * not assigned a known or unknown value in the relevant part of the AST),
+ * then we return an affine expression equal to that parameter.
+ *
+ * If the variable has been assigned a known affine expression,
+ * then we return that expression.
+ *
+ * Otherwise, we return an expression that is equal to a parameter
+ * representing "expr" (if "allow_nested" is set).
+ */
+static __isl_give isl_pw_aff *extract_affine_from_access(
+	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
+{
+	int pos;
+	isl_id *id;
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+
+	if (pet_expr_is_affine(expr)) {
+		isl_pw_aff *pa;
+		isl_multi_pw_aff *mpa;
+
+		mpa = pet_expr_access_get_index(expr);
+		pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
+		isl_multi_pw_aff_free(mpa);
+		return pa;
+	}
+
+	if (pet_expr_get_type_size(expr) == 0)
+		return non_affine(pet_context_get_space(pc));
+
+	if (!pet_expr_is_scalar_access(expr))
+		return nested_access(expr, pc);
+
+	id = pet_expr_access_get_id(expr);
+	if (pet_context_is_assigned(pc, id)) {
+		isl_pw_aff *pa;
+
+		pa = pet_context_get_value(pc, id);
+		if (!pa)
+			return NULL;
+		if (!isl_pw_aff_involves_nan(pa))
+			return pa;
+		isl_pw_aff_free(pa);
+		return nested_access(expr, pc);
+	}
+
+	space = pet_context_get_space(pc);
+
+	pos = isl_space_find_dim_by_id(space, isl_dim_param, id);
+	if (pos >= 0) {
+		isl_id_free(id);
+	} else {
+		pos = isl_space_dim(space, isl_dim_param);
+		space = isl_space_add_dims(space, isl_dim_param, 1);
+		space = isl_space_set_dim_id(space, isl_dim_param, pos, id);
+	}
+
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_var_on_domain(ls, isl_dim_param, pos);
+
+	return isl_pw_aff_from_aff(aff);
+}
+
+/* Construct an affine expression from the integer constant "expr".
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_from_int(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_local_space *ls;
+	isl_aff *aff;
+
+	if (!expr)
+		return NULL;
+
+	ls = isl_local_space_from_space(pet_context_get_space(pc));
+	aff = isl_aff_val_on_domain(ls, pet_expr_int_get_val(expr));
+
+	return isl_pw_aff_from_aff(aff);
+}
+
+/* Extract an affine expression from an addition or subtraction operation.
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_add_sub(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *lhs;
+	isl_pw_aff *rhs;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg != 2)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting two arguments", return NULL);
+
+	lhs = pet_expr_extract_affine(expr->args[0], pc);
+	rhs = pet_expr_extract_affine(expr->args[1], pc);
+
+	switch (pet_expr_op_get_type(expr)) {
+	case pet_op_add:
+		return isl_pw_aff_add(lhs, rhs);
+	case pet_op_sub:
+		return isl_pw_aff_sub(lhs, rhs);
+	default:
+		isl_pw_aff_free(lhs);
+		isl_pw_aff_free(rhs);
+		isl_die(pet_expr_get_ctx(expr), isl_error_internal,
+			"not an addition or subtraction operation",
+			return NULL);
+	}
+
+}
+
+/* Extract an affine expression from an integer division or a modulo operation.
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ *
+ * In particular, if "expr" is lhs/rhs, then return
+ *
+ *	lhs >= 0 ? floor(lhs/rhs) : ceil(lhs/rhs)
+ *
+ * If "expr" is lhs%rhs, then return
+ *
+ *	lhs - rhs * (lhs >= 0 ? floor(lhs/rhs) : ceil(lhs/rhs))
+ *
+ * If the second argument (rhs) is not a (positive) integer constant,
+ * then we fail to extract an affine expression.
+ */
+static __isl_give isl_pw_aff *extract_affine_div_mod(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	int is_cst;
+	isl_pw_aff *lhs;
+	isl_pw_aff *rhs;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg != 2)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting two arguments", return NULL);
+
+	rhs = pet_expr_extract_affine(expr->args[1], pc);
+
+	is_cst = isl_pw_aff_is_cst(rhs);
+	if (is_cst < 0 || !is_cst) {
+		isl_pw_aff_free(rhs);
+		return non_affine(pet_context_get_space(pc));
+	}
+
+	lhs = pet_expr_extract_affine(expr->args[0], pc);
+
+	switch (pet_expr_op_get_type(expr)) {
+	case pet_op_div:
+		return isl_pw_aff_tdiv_q(lhs, rhs);
+	case pet_op_mod:
+		return isl_pw_aff_tdiv_r(lhs, rhs);
+	default:
+		isl_pw_aff_free(lhs);
+		isl_pw_aff_free(rhs);
+		isl_die(pet_expr_get_ctx(expr), isl_error_internal,
+			"not a div or mod operator", return NULL);
+	}
+
+}
+
+/* Extract an affine expression from a multiplication operation.
+ * Return NaN if we are unable to extract an affine expression.
+ * In particular, if neither of the arguments is a (piecewise) constant
+ * then we return NaN.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_mul(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	int lhs_cst, rhs_cst;
+	isl_pw_aff *lhs;
+	isl_pw_aff *rhs;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg != 2)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting two arguments", return NULL);
+
+	lhs = pet_expr_extract_affine(expr->args[0], pc);
+	rhs = pet_expr_extract_affine(expr->args[1], pc);
+
+	lhs_cst = isl_pw_aff_is_cst(lhs);
+	rhs_cst = isl_pw_aff_is_cst(rhs);
+	if (lhs_cst < 0 || rhs_cst < 0 || (!lhs_cst && !rhs_cst)) {
+		isl_pw_aff_free(lhs);
+		isl_pw_aff_free(rhs);
+		return non_affine(pet_context_get_space(pc));
+	}
+
+	return isl_pw_aff_mul(lhs, rhs);
+}
+
+/* Extract an affine expression from a negation operation.
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_neg(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *res;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg != 1)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting one argument", return NULL);
+
+	res = pet_expr_extract_affine(expr->args[0], pc);
+	return isl_pw_aff_neg(res);
+}
+
+/* Extract an affine expression from a conditional operation.
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_cond(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *cond, *lhs, *rhs;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg != 3)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting three arguments", return NULL);
+
+	cond = pet_expr_extract_affine_condition(expr->args[0], pc);
+	lhs = pet_expr_extract_affine(expr->args[1], pc);
+	rhs = pet_expr_extract_affine(expr->args[2], pc);
+
+	return isl_pw_aff_cond(cond, lhs, rhs);
+}
+
+/* Compute
+ *
+ *	pwaff mod 2^width
+ */
+static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff, unsigned width)
+{
+	isl_ctx *ctx;
+	isl_val *mod;
+
+	ctx = isl_pw_aff_get_ctx(pwaff);
+	mod = isl_val_int_from_ui(ctx, width);
+	mod = isl_val_2exp(mod);
+
+	pwaff = isl_pw_aff_mod_val(pwaff, mod);
+
+	return pwaff;
+}
+
+/* Limit the domain of "pwaff" to those elements where the function
+ * value satisfies
+ *
+ *	2^{width-1} <= pwaff < 2^{width-1}
+ */
+static __isl_give isl_pw_aff *avoid_overflow(__isl_take isl_pw_aff *pwaff,
+	unsigned width)
+{
+	isl_ctx *ctx;
+	isl_val *v;
+	isl_space *space = isl_pw_aff_get_domain_space(pwaff);
+	isl_local_space *ls = isl_local_space_from_space(space);
+	isl_aff *bound;
+	isl_set *dom;
+	isl_pw_aff *b;
+
+	ctx = isl_pw_aff_get_ctx(pwaff);
+	v = isl_val_int_from_ui(ctx, width - 1);
+	v = isl_val_2exp(v);
+
+	bound = isl_aff_zero_on_domain(ls);
+	bound = isl_aff_add_constant_val(bound, v);
+	b = isl_pw_aff_from_aff(bound);
+
+	dom = isl_pw_aff_lt_set(isl_pw_aff_copy(pwaff), isl_pw_aff_copy(b));
+	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
+
+	b = isl_pw_aff_neg(b);
+	dom = isl_pw_aff_ge_set(isl_pw_aff_copy(pwaff), b);
+	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
+
+	return pwaff;
+}
+
+/* Handle potential overflows on signed computations.
+ *
+ * If options->signed_overflow is set to PET_OVERFLOW_AVOID,
+ * then we adjust the domain of "pa" to avoid overflows.
+ */
+static __isl_give isl_pw_aff *signed_overflow(__isl_take isl_pw_aff *pa,
+	unsigned width)
+{
+	isl_ctx *ctx;
+	struct pet_options *options;
+
+	if (!pa)
+		return NULL;
+
+	ctx = isl_pw_aff_get_ctx(pa);
+	options = isl_ctx_peek_pet_options(ctx);
+	if (!options || options->signed_overflow == PET_OVERFLOW_AVOID)
+		pa = avoid_overflow(pa, width);
+
+	return pa;
+}
+
+/* Extract an affine expression from some an operation.
+ * Return NaN if we are unable to extract an affine expression.
+ * If the result of a binary (non boolean) operation is unsigned,
+ * then we wrap it based on the size of the type.  If the result is signed,
+ * then we ensure that no overflow occurs.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_from_op(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *res;
+	int type_size;
+
+	switch (pet_expr_op_get_type(expr)) {
+	case pet_op_add:
+	case pet_op_sub:
+		res = extract_affine_add_sub(expr, pc);
+		break;
+	case pet_op_div:
+	case pet_op_mod:
+		res = extract_affine_div_mod(expr, pc);
+		break;
+	case pet_op_mul:
+		res = extract_affine_mul(expr, pc);
+		break;
+	case pet_op_minus:
+		return extract_affine_neg(expr, pc);
+	case pet_op_cond:
+		return extract_affine_cond(expr, pc);
+	case pet_op_eq:
+	case pet_op_ne:
+	case pet_op_le:
+	case pet_op_ge:
+	case pet_op_lt:
+	case pet_op_gt:
+	case pet_op_land:
+	case pet_op_lor:
+	case pet_op_lnot:
+		return pet_expr_extract_affine_condition(expr, pc);
+	default:
+		return non_affine(pet_context_get_space(pc));
+	}
+
+	if (!res)
+		return NULL;
+	if (isl_pw_aff_involves_nan(res)) {
+		isl_space *space = isl_pw_aff_get_domain_space(res);
+		isl_pw_aff_free(res);
+		return non_affine(space);
+	}
+
+	type_size = pet_expr_get_type_size(expr);
+	if (type_size > 0)
+		res = wrap(res, type_size);
+	else
+		res = signed_overflow(res, -type_size);
+
+	return res;
+}
+
+/* Extract an affine expression from some special function calls.
+ * Return NaN if we are unable to extract an affine expression.
+ * In particular, we handle "min", "max", "ceild", "floord",
+ * "intMod", "intFloor" and "intCeil".
+ * In case of the latter five, the second argument needs to be
+ * a (positive) integer constant.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_affine_from_call(
+	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
+{
+	isl_pw_aff *aff1, *aff2;
+	int n;
+	const char *name;
+
+	n = pet_expr_get_n_arg(expr);
+	name = pet_expr_call_get_name(expr);
+	if (!(n == 2 && !strcmp(name, "min")) &&
+	    !(n == 2 && !strcmp(name, "max")) &&
+	    !(n == 2 && !strcmp(name, "intMod")) &&
+	    !(n == 2 && !strcmp(name, "intFloor")) &&
+	    !(n == 2 && !strcmp(name, "intCeil")) &&
+	    !(n == 2 && !strcmp(name, "floord")) &&
+	    !(n == 2 && !strcmp(name, "ceild")))
+		return non_affine(pet_context_get_space(pc));
+
+	if (!strcmp(name, "min") || !strcmp(name, "max")) {
+		aff1 = pet_expr_extract_affine(expr->args[0], pc);
+		aff2 = pet_expr_extract_affine(expr->args[1], pc);
+
+		if (!strcmp(name, "min"))
+			aff1 = isl_pw_aff_min(aff1, aff2);
+		else
+			aff1 = isl_pw_aff_max(aff1, aff2);
+	} else if (!strcmp(name, "intMod")) {
+		isl_val *v;
+
+		if (pet_expr_get_type(expr->args[1]) != pet_expr_int)
+			return non_affine(pet_context_get_space(pc));
+		v = pet_expr_int_get_val(expr->args[1]);
+		aff1 = pet_expr_extract_affine(expr->args[0], pc);
+		aff1 = isl_pw_aff_mod_val(aff1, v);
+	} else {
+		isl_val *v;
+
+		if (pet_expr_get_type(expr->args[1]) != pet_expr_int)
+			return non_affine(pet_context_get_space(pc));
+		v = pet_expr_int_get_val(expr->args[1]);
+		aff1 = pet_expr_extract_affine(expr->args[0], pc);
+		aff1 = isl_pw_aff_scale_down_val(aff1, v);
+		if (!strcmp(name, "floord") || !strcmp(name, "intFloor"))
+			aff1 = isl_pw_aff_floor(aff1);
+		else
+			aff1 = isl_pw_aff_ceil(aff1);
+	}
+
+	return aff1;
+}
+
+/* Extract an affine expression from "expr", if possible.
+ * Otherwise return NaN.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+__isl_give isl_pw_aff *pet_expr_extract_affine(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	if (!expr)
+		return NULL;
+
+	switch (pet_expr_get_type(expr)) {
+	case pet_expr_access:
+		return extract_affine_from_access(expr, pc);
+	case pet_expr_int:
+		return extract_affine_from_int(expr, pc);
+	case pet_expr_op:
+		return extract_affine_from_op(expr, pc);
+	case pet_expr_call:
+		return extract_affine_from_call(expr, pc);
+	case pet_expr_cast:
+	case pet_expr_double:
+	case pet_expr_error:
+		return non_affine(pet_context_get_space(pc));
+	}
+}
+
+/* Extract an affine expressions representing the comparison "LHS op RHS"
+ * Return NaN if we are unable to extract such an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ *
+ * If the comparison is of the form
+ *
+ *	a <= min(b,c)
+ *
+ * then the expression is constructed as the conjunction of
+ * the comparisons
+ *
+ *	a <= b		and		a <= c
+ *
+ * A similar optimization is performed for max(a,b) <= c.
+ * We do this because that will lead to simpler representations
+ * of the expression.
+ * If isl is ever enhanced to explicitly deal with min and max expressions,
+ * this optimization can be removed.
+ */
+__isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,
+	__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *lhs_pa, *rhs_pa;
+
+	if (op == pet_op_gt)
+		return pet_expr_extract_comparison(pet_op_lt, rhs, lhs, pc);
+	if (op == pet_op_ge)
+		return pet_expr_extract_comparison(pet_op_le, rhs, lhs, pc);
+
+	if (op == pet_op_lt || op == pet_op_le) {
+		if (pet_expr_is_min(rhs)) {
+			lhs_pa = pet_expr_extract_comparison(op, lhs,
+						rhs->args[0], pc);
+			rhs_pa = pet_expr_extract_comparison(op, lhs,
+						rhs->args[1], pc);
+			return pet_and(lhs_pa, rhs_pa);
+		}
+		if (pet_expr_is_max(lhs)) {
+			lhs_pa = pet_expr_extract_comparison(op, lhs->args[0],
+						rhs, pc);
+			rhs_pa = pet_expr_extract_comparison(op, lhs->args[1],
+						rhs, pc);
+			return pet_and(lhs_pa, rhs_pa);
+		}
+	}
+
+	lhs_pa = pet_expr_extract_affine(lhs, pc);
+	rhs_pa = pet_expr_extract_affine(rhs, pc);
+
+	return pet_comparison(op, lhs_pa, rhs_pa);
+}
+
+/* Extract an affine expressions from the comparison "expr".
+ * Return NaN if we are unable to extract such an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_comparison(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	enum pet_op_type type;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg != 2)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting two arguments", return NULL);
+
+	type = pet_expr_op_get_type(expr);
+	return pet_expr_extract_comparison(type, expr->args[0], expr->args[1],
+						pc);
+}
+
+/* Extract an affine expression representing the boolean operation
+ * expressed by "expr".
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_boolean(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *lhs, *rhs;
+	int n;
+
+	if (!expr)
+		return NULL;
+
+	n = pet_expr_get_n_arg(expr);
+	lhs = pet_expr_extract_affine_condition(expr->args[0], pc);
+	if (n == 1)
+		return pet_not(lhs);
+
+	rhs = pet_expr_extract_affine_condition(expr->args[1], pc);
+	return pet_boolean(pet_expr_op_get_type(expr), lhs, rhs);
+}
+
+/* Extract the affine expression "expr != 0 ? 1 : 0".
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ */
+static __isl_give isl_pw_aff *extract_implicit_condition(
+	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
+{
+	isl_pw_aff *res;
+
+	res = pet_expr_extract_affine(expr, pc);
+	return pet_to_bool(res);
+}
+
+/* Extract a boolean affine expression from "expr".
+ * Return NaN if we are unable to extract an affine expression.
+ *
+ * "pc" is the context in which the affine expression is created.
+ *
+ * If "expr" is neither a comparison nor a boolean operation,
+ * then we assume it is an affine expression and return the
+ * boolean expression "expr != 0 ? 1 : 0".
+ */
+__isl_give isl_pw_aff *pet_expr_extract_affine_condition(
+	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
+{
+	if (!expr)
+		return NULL;
+
+	if (pet_expr_is_comparison(expr))
+		return extract_comparison(expr, pc);
+	if (pet_expr_is_boolean(expr))
+		return extract_boolean(expr, pc);
+
+	return extract_implicit_condition(expr, pc);
 }
 
 /* Return the number of bits needed to represent the type of "expr".

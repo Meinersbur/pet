@@ -1,7 +1,11 @@
 #ifndef PET_EXPR_H
 #define PET_EXPR_H
 
+#include <isl/id_to_pw_aff.h>
+
 #include <pet.h>
+
+#include "context.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -108,6 +112,14 @@ __isl_give pet_expr *pet_expr_new_double(isl_ctx *ctx, double d, const char *s);
 __isl_give pet_expr *pet_expr_new_int(__isl_take isl_val *v);
 
 __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr);
+
+__isl_give isl_pw_aff *pet_expr_extract_affine(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc);
+__isl_give isl_pw_aff *pet_expr_extract_affine_condition(
+	__isl_keep pet_expr *expr, __isl_keep pet_context *pc);
+__isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,
+	__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs,
+	__isl_keep pet_context *pc);
 
 int pet_expr_is_boolean(__isl_keep pet_expr *expr);
 int pet_expr_is_comparison(__isl_keep pet_expr *expr);
