@@ -3156,12 +3156,19 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 	return extract(stmt->children(), !skip_declarations, skip_declarations);
 }
 
-/* Extract a pet_expr from an isl_id created by pet_nested_clang_expr.
- * The user pointer of such an isl_id points to a clang::Expr object.
+/* Extract a pet_expr from an isl_id created by either pet_nested_clang_expr or
+ * pet_nested_pet_expr.
+ * In the first case, the isl_id has no name and
+ * the user pointer points to a clang::Expr object.
+ * In the second case, the isl_id has name "__pet_expr" and
+ * the user pointer points to a pet_expr object.
  */
 __isl_give pet_expr *PetScan::extract_expr(__isl_keep isl_id *id)
 {
-	return extract_expr((Expr *) isl_id_get_user(id));
+	if (!isl_id_get_name(id))
+		return extract_expr((Expr *) isl_id_get_user(id));
+	else
+		return pet_expr_copy((pet_expr *) isl_id_get_user(id));
 }
 
 /* For each nested access parameter in "space",
@@ -3244,7 +3251,7 @@ __isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
 
 /* Look for parameters in any access relation in "expr" that
  * refer to nested accesses.  In particular, these are
- * parameters with no name.
+ * parameters with either no name or with name "__pet_expr".
  *
  * If there are any such parameters, then the domain of the index
  * expression and the access relation, which is still [] at this point,
@@ -3783,7 +3790,7 @@ error:
 
 /* Look for parameters in the iteration domain of "stmt" that
  * refer to nested accesses.  In particular, these are
- * parameters with no name.
+ * parameters with either no name or with name "__pet_expr".
  *
  * If there are any such parameters, then as many extra variables
  * (after identifying identical nested accesses) are inserted in the

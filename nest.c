@@ -32,6 +32,8 @@
  * Leiden University.
  */
 
+#include <string.h>
+
 #include "expr.h"
 #include "nest.h"
 #include "scop.h"
@@ -43,11 +45,39 @@ __isl_give isl_id *pet_nested_clang_expr(isl_ctx *ctx, void *expr)
 	return isl_id_alloc(ctx, NULL, expr);
 }
 
-/* Does "id" refer to a nested access created by pet_nested_clang_expr?
+/* A wrapper around pet_expr_free to be used as an isl_id free user function.
+ */
+static void pet_expr_free_wrap(void *user)
+{
+	pet_expr_free((pet_expr *) user);
+}
+
+/* Create an isl_id that refers to the nested access "expr".
+ */
+__isl_give isl_id *pet_nested_pet_expr(__isl_take pet_expr *expr)
+{
+	isl_id *id;
+
+	id = isl_id_alloc(pet_expr_get_ctx(expr), "__pet_expr", expr);
+	id = isl_id_set_free_user(id, &pet_expr_free_wrap);
+
+	return id;
+}
+
+/* Does "id" refer to a nested access created by pet_nested_clang_expr or
+ * pet_nested_pet_expr?
  */
 int pet_nested_in_id(__isl_keep isl_id *id)
 {
-	return id && isl_id_get_user(id) && !isl_id_get_name(id);
+	const char *name;
+
+	if (!id)
+		return 0;
+	if (!isl_id_get_user(id))
+		return 0;
+
+	name = isl_id_get_name(id);
+	return !name || !strcmp(name, "__pet_expr");
 }
 
 /* Does parameter "pos" of "space" refer to a nested access?
