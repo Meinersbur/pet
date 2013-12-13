@@ -233,15 +233,10 @@ private:
 	__isl_give isl_pw_aff *extract_affine(clang::MemberExpr *expr);
 	__isl_give isl_pw_aff *extract_affine(clang::ConditionalOperator *expr);
 
-	__isl_give isl_pw_aff *extract_implicit_condition(clang::Expr *expr);
-
-	__isl_give isl_pw_aff *extract_condition(clang::UnaryOperator *expr);
 	__isl_give isl_pw_aff *extract_condition(clang::Expr *expr);
 	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperatorKind op,
 		clang::Expr *LHS, clang::Expr *RHS, clang::Stmt *comp);
-	__isl_give isl_pw_aff *extract_boolean(clang::BinaryOperator *expr);
-	__isl_give isl_pw_aff *extract_boolean(clang::UnaryOperator *expr);
 
 	void report(clang::Stmt *stmt, unsigned id);
 	void unsupported(clang::Stmt *stmt);

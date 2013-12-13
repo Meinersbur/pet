@@ -49,6 +49,7 @@
 
 #include "aff.h"
 #include "clang.h"
+#include "context.h"
 #include "expr.h"
 #include "nest.h"
 #include "options.h"
@@ -335,6 +336,34 @@ struct assigned_value_cache {
 		assigned_value = cache;
 	}
 };
+
+/* Convert the mapping from identifiers to values in "assigned_value"
+ * to a pet_context to be used by pet_expr_extract_*.
+ * In particular, the clang identifiers are wrapped in an isl_id and
+ * a NULL value (representing an unknown value) is replaced by a NaN.
+ */
+static __isl_give pet_context *convert_assignments(isl_ctx *ctx,
+	map<ValueDecl *, isl_pw_aff *> &assigned_value)
+{
+	pet_context *pc;
+	map<ValueDecl *, isl_pw_aff *>::iterator it;
+
+	pc = pet_context_alloc(isl_space_set_alloc(ctx, 0, 0));
+
+	for (it = assigned_value.begin(); it != assigned_value.end(); ++it) {
+		ValueDecl *decl = it->first;
+		isl_pw_aff *pa = it->second;
+		isl_id *id;
+
+		id = create_decl_id(ctx, decl);
+		if (pa)
+			pc = pet_context_set_value(pc, id, isl_pw_aff_copy(pa));
+		else
+			pc = pet_context_mark_unknown(pc, id);
+	}
+
+	return pc;
+}
 
 /* Insert an expression into the collection of expressions,
  * provided it is not already in there.
@@ -1448,101 +1477,33 @@ __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp)
 				comp->getRHS(), comp);
 }
 
-/* Extract an affine expression representing the negation (logical not)
- * of a subexpression.
- */
-__isl_give isl_pw_aff *PetScan::extract_boolean(UnaryOperator *op)
-{
-	isl_pw_aff *cond;
-
-	cond = extract_condition(op->getSubExpr());
-	return pet_not(cond);
-}
-
-/* Extract an affine expression representing the disjunction (logical or)
- * or conjunction (logical and) of two subexpressions.
- */
-__isl_give isl_pw_aff *PetScan::extract_boolean(BinaryOperator *comp)
-{
-	isl_pw_aff *lhs, *rhs;
-
-	lhs = extract_condition(comp->getLHS());
-	rhs = extract_condition(comp->getRHS());
-
-	switch (comp->getOpcode()) {
-	case BO_LAnd:
-		return pet_boolean(pet_op_land, lhs, rhs);
-	case BO_LOr:
-		return pet_boolean(pet_op_lor, lhs, rhs);
-	default:
-		isl_pw_aff_free(lhs);
-		isl_pw_aff_free(rhs);
-	}
-
-	unsupported(comp);
-	return NULL;
-}
-
-__isl_give isl_pw_aff *PetScan::extract_condition(UnaryOperator *expr)
-{
-	switch (expr->getOpcode()) {
-	case UO_LNot:
-		return extract_boolean(expr);
-	default:
-		unsupported(expr);
-		return NULL;
-	}
-}
-
-/* Extract the affine expression "expr != 0 ? 1 : 0".
- */
-__isl_give isl_pw_aff *PetScan::extract_implicit_condition(Expr *expr)
-{
-	isl_pw_aff *res;
-
-	res = extract_affine(expr);
-	return pet_to_bool(res);
-}
-
 /* Extract an affine expression from a boolean expression.
  * In particular, return the expression "expr ? 1 : 0".
+ * Return NULL if we are unable to extract an affine expression.
  *
- * If the expression doesn't look like a condition, we assume it
- * is an affine expression and return the condition "expr != 0 ? 1 : 0".
+ * We first convert the clang::Expr to a pet_expr and
+ * then extract an affine expression from that pet_expr.
  */
 __isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 {
-	BinaryOperator *comp;
+	isl_pw_aff *cond;
+	pet_expr *pe;
+	pet_context *pc;
 
 	if (!expr) {
 		isl_set *u = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 		return indicator_function(u, isl_set_copy(u));
 	}
 
-	if (expr->getStmtClass() == Stmt::ParenExprClass)
-		return extract_condition(cast<ParenExpr>(expr)->getSubExpr());
-
-	if (expr->getStmtClass() == Stmt::UnaryOperatorClass)
-		return extract_condition(cast<UnaryOperator>(expr));
-
-	if (expr->getStmtClass() != Stmt::BinaryOperatorClass)
-		return extract_implicit_condition(expr);
-
-	comp = cast<BinaryOperator>(expr);
-	switch (comp->getOpcode()) {
-	case BO_LT:
-	case BO_LE:
-	case BO_GT:
-	case BO_GE:
-	case BO_EQ:
-	case BO_NE:
-		return extract_comparison(comp);
-	case BO_LAnd:
-	case BO_LOr:
-		return extract_boolean(comp);
-	default:
-		return extract_implicit_condition(expr);
-	}
+	pe = extract_expr(expr);
+	pc = convert_assignments(ctx, assigned_value);
+	pc = pet_context_set_allow_nested(pc, nesting_enabled);
+	cond = pet_expr_extract_affine_condition(pe, pc);
+	if (isl_pw_aff_involves_nan(cond))
+		cond = isl_pw_aff_free(cond);
+	pet_context_free(pc);
+	pet_expr_free(pe);
+	return cond;
 }
 
 /* Construct a pet_expr representing a unary operator expression.
