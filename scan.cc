@@ -1243,21 +1243,13 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 }
 
 /* Construct a pet_expr representing a conditional operation.
- *
- * We first try to extract the condition as an affine expression.
- * If that fails, we construct a pet_expr tree representing the condition.
  */
 __isl_give pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 {
 	pet_expr *cond, *lhs, *rhs;
 	isl_pw_aff *pa;
 
-	pa = try_extract_affine(expr->getCond());
-	if (pa) {
-		isl_multi_pw_aff *test = isl_multi_pw_aff_from_pw_aff(pa);
-		cond = pet_expr_from_index(test);
-	} else
-		cond = extract_expr(expr->getCond());
+	cond = extract_expr(expr->getCond());
 	lhs = extract_expr(expr->getTrueExpr());
 	rhs = extract_expr(expr->getFalseExpr());
 

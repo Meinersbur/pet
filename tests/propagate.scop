@@ -27,12 +27,17 @@ statements:
     - type: op
       operation: '?:'
       arguments:
-      - type: access
-        relation: '[N] -> { S_0[i, j] -> [1] : i >= 1; S_0[0, j] -> [0] }'
-        index: '[N] -> { S_0[i, j] -> [((1) : i >= 1; (0) : i = 0)] }'
-        reference: __pet_ref_1
-        read: 1
-        write: 0
+      - type: op
+        operation: '>'
+        arguments:
+        - type: access
+          relation: '[N] -> { S_0[i, j] -> [i] }'
+          index: '[N] -> { S_0[i, j] -> [(i)] }'
+          reference: __pet_ref_1
+          read: 1
+          write: 0
+        - type: int
+          value: 0
       - type: op
         operation: '-'
         arguments:
