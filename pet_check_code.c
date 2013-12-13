@@ -42,6 +42,8 @@
 #include <isl/id_to_pw_aff.h>
 #include <pet.h>
 
+#include "aff.h"
+
 struct options {
 	struct isl_options	*isl;
 	struct pet_options	*pet;
@@ -265,6 +267,7 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
 {
 	isl_pw_aff *pa, *pa1, *pa2;
 	pet_expr *arg;
+	enum pet_op_type type;
 
 	switch (pet_expr_get_n_arg(expr)) {
 	case 1:
@@ -282,7 +285,8 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
 		arg = pet_expr_get_arg(expr, 1);
 		pa2 = expr_extract_pw_aff(arg, space, assignments);
 		pet_expr_free(arg);
-		switch (pet_expr_op_get_type(expr)) {
+		type = pet_expr_op_get_type(expr);
+		switch (type) {
 		case pet_op_mul:
 			pa = isl_pw_aff_mul(pa1, pa2);
 			break;
@@ -297,6 +301,18 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
 			break;
 		case pet_op_mod:
 			pa = isl_pw_aff_tdiv_r(pa1, pa2);
+			break;
+		case pet_op_eq:
+		case pet_op_ne:
+		case pet_op_le:
+		case pet_op_ge:
+		case pet_op_lt:
+		case pet_op_gt:
+			pa = pet_comparison(type, pa1, pa2);
+			break;
+		case pet_op_land:
+		case pet_op_lor:
+			pa = pet_boolean(type, pa1, pa2);
 			break;
 		default:
 			assert(0);
