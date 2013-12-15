@@ -25,7 +25,7 @@ statements:
   domain: '{ S_0[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
   schedule: '{ S_0[i, j] -> [0, i, j] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -34,7 +34,7 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: '*'
       arguments:
       - type: access

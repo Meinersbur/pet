@@ -47,9 +47,7 @@ static char *type_str[] = {
 	[pet_expr_cast] = "cast",
 	[pet_expr_double] = "double",
 	[pet_expr_int] = "int",
-	[pet_expr_unary] = "unary",
-	[pet_expr_binary] = "binary",
-	[pet_expr_ternary] = "ternary"
+	[pet_expr_op] = "op",
 };
 
 static char *op_str[] = {
@@ -84,6 +82,7 @@ static char *op_str[] = {
 	[pet_op_land] = "&&",
 	[pet_op_lor] = "||",
 	[pet_op_lnot] = "!",
+	[pet_op_cond] = "?:",
 	[pet_op_assume] = "assume",
 	[pet_op_kill] = "kill"
 };
@@ -291,7 +290,7 @@ struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_unary;
+	expr->type = pet_expr_op;
 	expr->op = op;
 	expr->n_arg = 1;
 	expr->args = isl_calloc_array(ctx, struct pet_expr *, 1);
@@ -318,7 +317,7 @@ struct pet_expr *pet_expr_new_binary(isl_ctx *ctx, enum pet_op_type op,
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_binary;
+	expr->type = pet_expr_op;
 	expr->op = op;
 	expr->n_arg = 2;
 	expr->args = isl_calloc_array(ctx, struct pet_expr *, 2);
@@ -347,7 +346,8 @@ struct pet_expr *pet_expr_new_ternary(isl_ctx *ctx, struct pet_expr *cond,
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_ternary;
+	expr->type = pet_expr_op;
+	expr->op = pet_op_cond;
 	expr->n_arg = 3;
 	expr->args = isl_calloc_array(ctx, struct pet_expr *, 3);
 	if (!expr->args)
@@ -488,9 +488,7 @@ struct pet_expr *pet_expr_free(struct pet_expr *expr)
 	case pet_expr_int:
 		isl_val_free(expr->i);
 		break;
-	case pet_expr_unary:
-	case pet_expr_binary:
-	case pet_expr_ternary:
+	case pet_expr_op:
 		break;
 	}
 
@@ -529,20 +527,10 @@ static void expr_dump(struct pet_expr *expr, int indent)
 		for (i = 0; i < expr->n_arg; ++i)
 			expr_dump(expr->args[i], indent + 2);
 		break;
-	case pet_expr_unary:
+	case pet_expr_op:
 		fprintf(stderr, "%s\n", op_str[expr->op]);
-		expr_dump(expr->args[pet_un_arg], indent + 2);
-		break;
-	case pet_expr_binary:
-		fprintf(stderr, "%s\n", op_str[expr->op]);
-		expr_dump(expr->args[pet_bin_lhs], indent + 2);
-		expr_dump(expr->args[pet_bin_rhs], indent + 2);
-		break;
-	case pet_expr_ternary:
-		fprintf(stderr, "?:\n");
-		expr_dump(expr->args[pet_ter_cond], indent + 2);
-		expr_dump(expr->args[pet_ter_true], indent + 2);
-		expr_dump(expr->args[pet_ter_false], indent + 2);
+		for (i = 0; i < expr->n_arg; ++i)
+			expr_dump(expr->args[i], indent + 2);
 		break;
 	case pet_expr_call:
 		fprintf(stderr, "%s/%d\n", expr->name, expr->n_arg);
@@ -685,9 +673,7 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 							expr2->acc.index))
 			return 0;
 		break;
-	case pet_expr_unary:
-	case pet_expr_binary:
-	case pet_expr_ternary:
+	case pet_expr_op:
 		if (expr1->op != expr2->op)
 			return 0;
 		break;
@@ -1093,7 +1079,7 @@ static __isl_give isl_set *access_extract_context(__isl_keep isl_map *access,
 
 /* Update "context" with respect to the valid parameter values for "expr".
  *
- * If "expr" represents a ternary operator, then a parameter value
+ * If "expr" represents a conditional operator, then a parameter value
  * needs to be valid for the condition and for at least one of the
  * remaining two arguments.
  * If the condition is an affine expression, then we can be a bit more specific.
@@ -1105,7 +1091,7 @@ static __isl_give isl_set *expr_extract_context(struct pet_expr *expr,
 {
 	int i;
 
-	if (expr->type == pet_expr_ternary) {
+	if (expr->type == pet_expr_op && expr->op == pet_op_cond) {
 		int is_aff;
 		isl_set *context1, *context2;
 
@@ -3640,7 +3626,7 @@ int pet_stmt_is_assign(struct pet_stmt *stmt)
 {
 	if (!stmt)
 		return 0;
-	if (stmt->body->type != pet_expr_binary)
+	if (stmt->body->type != pet_expr_op)
 		return 0;
 	return stmt->body->op == pet_op_assign;
 }
@@ -3651,7 +3637,7 @@ int pet_stmt_is_kill(struct pet_stmt *stmt)
 {
 	if (!stmt)
 		return 0;
-	if (stmt->body->type != pet_expr_unary)
+	if (stmt->body->type != pet_expr_op)
 		return 0;
 	return stmt->body->op == pet_op_kill;
 }
@@ -3660,7 +3646,7 @@ int pet_stmt_is_kill(struct pet_stmt *stmt)
  */
 int pet_stmt_is_assume(struct pet_stmt *stmt)
 {
-	if (stmt->body->type != pet_expr_unary)
+	if (stmt->body->type != pet_expr_op)
 		return 0;
 	return stmt->body->op == pet_op_assume;
 }

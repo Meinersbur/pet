@@ -27,7 +27,7 @@ statements:
   domain: '{ S_0[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -42,7 +42,7 @@ statements:
   domain: '{ S_1[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
   schedule: '{ S_1[i] -> [0, i, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -61,7 +61,7 @@ statements:
   domain: '{ S_2[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
   schedule: '{ S_2[i] -> [0, i, 3] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -76,7 +76,7 @@ statements:
   domain: '{ S_3[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
   schedule: '{ S_3[i] -> [0, i, 4, 0, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -85,7 +85,7 @@ statements:
       reference: __pet_ref_4
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: ==
       arguments:
       - type: access
@@ -100,7 +100,7 @@ statements:
   domain: '{ S_4[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_4[i] -> [0, i, 4, 1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -109,7 +109,8 @@ statements:
       reference: __pet_ref_6
       read: 0
       write: 1
-    - type: ternary
+    - type: op
+      operation: '?:'
       arguments:
       - type: access
         relation: '{ S_4[i] -> [0] : i >= 58 or i <= 56; S_4[57] -> [1] }'
@@ -133,7 +134,7 @@ statements:
   domain: '{ [S_5[i] -> [0]] : i >= 0 and i <= 99 }'
   schedule: '{ S_5[i] -> [0, i, 5] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -142,7 +143,7 @@ statements:
       reference: __pet_ref_11
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: +
       arguments:
       - type: access

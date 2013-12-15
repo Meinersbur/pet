@@ -12,7 +12,7 @@ statements:
     i >= 0) }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -21,7 +21,7 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: '%'
       arguments:
       - type: access

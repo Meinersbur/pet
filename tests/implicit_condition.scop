@@ -11,7 +11,7 @@ statements:
   domain: '[N] -> { S_0[i] : i <= -1 + N and i >= 1 }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

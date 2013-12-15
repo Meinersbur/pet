@@ -43,7 +43,7 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

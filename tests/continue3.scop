@@ -33,7 +33,7 @@ statements:
   domain: '{ S_0[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -48,7 +48,7 @@ statements:
   domain: '{ S_1[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_1[i] -> [0, i, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -57,7 +57,7 @@ statements:
       reference: __pet_ref_1
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: ==
       arguments:
       - type: access
@@ -72,7 +72,7 @@ statements:
   domain: '{ [S_2[i] -> [0]] : i >= 0 and i <= 99 }'
   schedule: '{ S_2[i] -> [0, i, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -98,7 +98,7 @@ statements:
   domain: '{ [S_3[i] -> [0]] : i >= 0 and i <= 99 }'
   schedule: '{ S_3[i] -> [0, i, 3] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -120,7 +120,7 @@ statements:
   domain: '{ [S_4[i] -> [0]] : i >= 0 and i <= 99 }'
   schedule: '{ S_4[i] -> [0, i, 4, 0, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -129,7 +129,7 @@ statements:
       reference: __pet_ref_9
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: ==
       arguments:
       - type: access
@@ -151,7 +151,7 @@ statements:
   domain: '{ S_5[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_5[i] -> [0, i, 4, 1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -160,7 +160,8 @@ statements:
       reference: __pet_ref_11
       read: 0
       write: 1
-    - type: ternary
+    - type: op
+      operation: '?:'
       arguments:
       - type: access
         relation: '{ S_5[i] -> __pet_test_0[i] }'
@@ -191,7 +192,7 @@ statements:
   domain: '{ [S_6[i] -> [0]] : i >= 0 and i <= 99 }'
   schedule: '{ S_6[i] -> [0, i, 5] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -200,7 +201,7 @@ statements:
       reference: __pet_ref_17
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: +
       arguments:
       - type: access

@@ -18,7 +18,7 @@ statements:
   domain: '[n] -> { S1[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -34,7 +34,7 @@ statements:
     -1 + x2 and x1 <= -1 + n and x1 >= 0 and x2 >= 9) }'
   schedule: '[n] -> { S_1[x1, x2] -> [0, x1, 1, x2, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -70,7 +70,7 @@ statements:
     + x2 and x1 <= -1 + n and x1 >= 0 and x2 >= 9) }'
   schedule: '[n] -> { S2[x1, x2] -> [0, x1, 1, x2, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

@@ -21,7 +21,7 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -36,7 +36,7 @@ statements:
   domain: '{ S_1[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_1[i] -> [1, i, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -45,7 +45,7 @@ statements:
       reference: __pet_ref_1
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: <=
       arguments:
       - type: access
@@ -60,7 +60,7 @@ statements:
   domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
   schedule: '{ S_2[i, j] -> [1, i, 1, j, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -69,10 +69,10 @@ statements:
       reference: __pet_ref_4
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: +
       arguments:
-      - type: binary
+      - type: op
         operation: +
         arguments:
         - type: int
@@ -100,7 +100,7 @@ statements:
   domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
   schedule: '{ S_3[i, j] -> [1, i, 1, j, 1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

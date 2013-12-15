@@ -17,7 +17,7 @@ statements:
   domain: '[N] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -32,7 +32,7 @@ statements:
   domain: '[N] -> { [S_1[T] -> [1]] : T >= 0 }'
   schedule: '{ S_1[T] -> [1, T, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -55,7 +55,7 @@ statements:
     i <= -1 + 2N }'
   schedule: '[N] -> { S_2[T, i] -> [1, T, 1, 0, i] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -64,7 +64,7 @@ statements:
       reference: __pet_ref_4
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: +
       arguments:
       - type: access

@@ -442,14 +442,11 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 		if (emit_int(emitter, expr->acc.write) < 0)
 			return -1;
 		break;
-	case pet_expr_unary:
-	case pet_expr_binary:
+	case pet_expr_op:
 		if (emit_string(emitter, "operation") < 0)
 			return -1;
 		if (emit_string(emitter, pet_op_str(expr->op)) < 0)
 			return -1;
-		break;
-	case pet_expr_ternary:
 		break;
 	case pet_expr_call:
 		if (emit_string(emitter, "name") < 0)

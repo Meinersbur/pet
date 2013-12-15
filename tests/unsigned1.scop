@@ -14,7 +14,7 @@ statements:
     - i) }'
   schedule: '{ S_0[i, j, k] -> [0, i, j, k] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

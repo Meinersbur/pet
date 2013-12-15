@@ -18,7 +18,7 @@ statements:
     type: call
     name: f
     arguments:
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -27,7 +27,7 @@ statements:
         reference: __pet_ref_0
         read: 1
         write: 0
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -43,7 +43,7 @@ statements:
     type: call
     name: f
     arguments:
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -52,7 +52,7 @@ statements:
         reference: __pet_ref_2
         read: 1
         write: 0
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access

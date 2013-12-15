@@ -11,7 +11,7 @@ statements:
   domain: '{ A[] }'
   schedule: '{ A[] -> [0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -26,7 +26,7 @@ statements:
   domain: '{ B[] }'
   schedule: '{ B[] -> [1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

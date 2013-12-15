@@ -289,6 +289,50 @@ static int is_postfix(enum pet_op_type op)
 	}
 }
 
+static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
+	struct pet_expr *expr, int outer,
+	__isl_keep isl_id_to_ast_expr *ref2expr);
+
+/* Print operation expression "expr" to "p".
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+static __isl_give isl_printer *print_op(__isl_take isl_printer *p,
+	struct pet_expr *expr, __isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	switch (expr->n_arg) {
+	case 1:
+		if (!is_postfix(expr->op))
+			p = isl_printer_print_str(p, pet_op_str(expr->op));
+		p = print_pet_expr(p, expr->args[pet_un_arg], 0, ref2expr);
+		if (is_postfix(expr->op))
+			p = isl_printer_print_str(p, pet_op_str(expr->op));
+		break;
+	case 2:
+		p = print_pet_expr(p, expr->args[pet_bin_lhs], 0,
+					ref2expr);
+		p = isl_printer_print_str(p, " ");
+		p = isl_printer_print_str(p, pet_op_str(expr->op));
+		p = isl_printer_print_str(p, " ");
+		p = print_pet_expr(p, expr->args[pet_bin_rhs], 0,
+					ref2expr);
+		break;
+	case 3:
+		p = print_pet_expr(p, expr->args[pet_ter_cond], 0,
+					ref2expr);
+		p = isl_printer_print_str(p, " ? ");
+		p = print_pet_expr(p, expr->args[pet_ter_true], 0,
+					ref2expr);
+		p = isl_printer_print_str(p, " : ");
+		p = print_pet_expr(p, expr->args[pet_ter_false], 0,
+					ref2expr);
+		break;
+	}
+
+	return p;
+}
+
 /* Print "expr" to "p".
  *
  * If "outer" is set, then we are printing the outer expression statement.
@@ -312,41 +356,10 @@ static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
 	case pet_expr_access:
 		p = print_access(p, expr, ref2expr);
 		break;
-	case pet_expr_unary:
+	case pet_expr_op:
 		if (!outer)
 			p = isl_printer_print_str(p, "(");
-		if (!is_postfix(expr->op))
-			p = isl_printer_print_str(p, pet_op_str(expr->op));
-		p = print_pet_expr(p, expr->args[pet_un_arg], 0, ref2expr);
-		if (is_postfix(expr->op))
-			p = isl_printer_print_str(p, pet_op_str(expr->op));
-		if (!outer)
-			p = isl_printer_print_str(p, ")");
-		break;
-	case pet_expr_binary:
-		if (!outer)
-			p = isl_printer_print_str(p, "(");
-		p = print_pet_expr(p, expr->args[pet_bin_lhs], 0,
-					ref2expr);
-		p = isl_printer_print_str(p, " ");
-		p = isl_printer_print_str(p, pet_op_str(expr->op));
-		p = isl_printer_print_str(p, " ");
-		p = print_pet_expr(p, expr->args[pet_bin_rhs], 0,
-					ref2expr);
-		if (!outer)
-			p = isl_printer_print_str(p, ")");
-		break;
-	case pet_expr_ternary:
-		if (!outer)
-			p = isl_printer_print_str(p, "(");
-		p = print_pet_expr(p, expr->args[pet_ter_cond], 0,
-					ref2expr);
-		p = isl_printer_print_str(p, " ? ");
-		p = print_pet_expr(p, expr->args[pet_ter_true], 0,
-					ref2expr);
-		p = isl_printer_print_str(p, " : ");
-		p = print_pet_expr(p, expr->args[pet_ter_false], 0,
-					ref2expr);
+		p = print_op(p, expr, ref2expr);
 		if (!outer)
 			p = isl_printer_print_str(p, ")");
 		break;

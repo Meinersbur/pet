@@ -23,7 +23,7 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0, 0] }'
   body:
-    type: unary
+    type: op
     operation: kill
     arguments:
     - type: access
@@ -36,7 +36,7 @@ statements:
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [0, 1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -51,7 +51,7 @@ statements:
   domain: '{ S_2[] }'
   schedule: '{ S_2[] -> [1, 0] }'
   body:
-    type: unary
+    type: op
     operation: kill
     arguments:
     - type: access
@@ -64,7 +64,7 @@ statements:
   domain: '{ S_3[] }'
   schedule: '{ S_3[] -> [1, 1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -83,7 +83,7 @@ statements:
   domain: '{ S_4[] }'
   schedule: '{ S_4[] -> [2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -98,7 +98,7 @@ statements:
   domain: '{ S_5[] }'
   schedule: '{ S_5[] -> [3] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

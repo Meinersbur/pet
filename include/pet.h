@@ -37,9 +37,7 @@ enum pet_expr_type {
 	pet_expr_cast,
 	pet_expr_int,
 	pet_expr_double,
-	pet_expr_unary,
-	pet_expr_binary,
-	pet_expr_ternary
+	pet_expr_op
 };
 
 enum pet_op_type {
@@ -77,6 +75,7 @@ enum pet_op_type {
 	pet_op_land,
 	pet_op_lor,
 	pet_op_lnot,
+	pet_op_cond,
 	pet_op_last
 };
 

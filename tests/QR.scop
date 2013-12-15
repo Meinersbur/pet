@@ -22,7 +22,7 @@ statements:
   domain: '[N, K] -> { S_0[j, i] : i >= j and j >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_0[j, i] -> [0, j, i] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -38,7 +38,7 @@ statements:
     0 }'
   schedule: '[N, K] -> { S_1[k, j] -> [1, k, j] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -69,7 +69,7 @@ statements:
       reference: __pet_ref_3
       read: 1
       write: 0
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -78,7 +78,7 @@ statements:
         reference: __pet_ref_4
         read: 0
         write: 1
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -87,7 +87,7 @@ statements:
         reference: __pet_ref_5
         read: 0
         write: 1
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -122,7 +122,7 @@ statements:
       reference: __pet_ref_9
       read: 1
       write: 0
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -131,7 +131,7 @@ statements:
         reference: __pet_ref_10
         read: 0
         write: 1
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access
@@ -140,7 +140,7 @@ statements:
         reference: __pet_ref_11
         read: 0
         write: 1
-    - type: unary
+    - type: op
       operation: '&'
       arguments:
       - type: access

@@ -19,7 +19,7 @@ statements:
     256e0 >= 2 - k and 256e0 <= 255 - k)) }'
   schedule: '{ S_0[k] -> [0, k, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -41,7 +41,7 @@ statements:
   domain: '{ [S_1[k] -> [0]] : k >= 252 and k <= 261 }'
   schedule: '{ S_1[k] -> [0, k, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -63,7 +63,7 @@ statements:
   domain: '{ [S_2[k] -> [0]] : k >= 252 and k <= 261 }'
   schedule: '{ S_2[k] -> [0, k, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

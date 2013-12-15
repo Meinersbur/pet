@@ -548,9 +548,7 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 	case pet_expr_int:
 		expr = extract_expr_int(ctx, document, node, expr);
 		break;
-	case pet_expr_unary:
-	case pet_expr_binary:
-	case pet_expr_ternary:
+	case pet_expr_op:
 		expr = extract_expr_op(ctx, document, node, expr);
 		break;
 	}

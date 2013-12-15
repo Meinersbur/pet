@@ -21,7 +21,7 @@ statements:
     and k <= 29 and l >= 0 and l <= 39 }'
   schedule: '{ S_0[i, j, k, l] -> [0, i, j, k, l] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -30,13 +30,13 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: +
       arguments:
-      - type: binary
+      - type: op
         operation: +
         arguments:
-        - type: binary
+        - type: op
           operation: +
           arguments:
           - type: access

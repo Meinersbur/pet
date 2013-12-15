@@ -35,7 +35,7 @@ statements:
   domain: '[N] -> { S_0[t] : N = 0 and t >= 1; S_0[0] }'
   schedule: '[N] -> { S_0[t] -> [0, t, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -50,7 +50,7 @@ statements:
   domain: '[N] -> { S_1[t] : N = 0 and t >= 1; S_1[0] : N = 0 }'
   schedule: '[N] -> { S_1[t] -> [0, t, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -65,7 +65,7 @@ statements:
   domain: '[N] -> { [S_2[t] -> [0]] : t >= 0 }'
   schedule: '{ S_2[t] -> [1, t, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -87,7 +87,7 @@ statements:
   domain: '[N] -> { [S_3[t] -> [0]] : t >= 0 }'
   schedule: '{ S_3[t] -> [1, t, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -109,7 +109,7 @@ statements:
   domain: '[N] -> { [S_4[t] -> [0]] : t >= 0 }'
   schedule: '{ S_4[t] -> [1, t, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -131,7 +131,7 @@ statements:
   domain: '[N] -> { [S_5[t] -> [1]] : N = 0 and t >= 1; [S_5[0] -> [1]] }'
   schedule: '[N] -> { S_5[t] -> [2, t, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -155,7 +155,7 @@ statements:
   domain: '[N] -> { [S_6[t] -> [1]] : N = 0 and t >= 1; [S_6[0] -> [1]] }'
   schedule: '[N] -> { S_6[t] -> [2, t, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -177,7 +177,7 @@ statements:
   domain: '[N] -> { [S_7[t] -> [1]] : N = 0 and t >= 1; [S_7[0] -> [1]] : N = 0 }'
   schedule: '[N] -> { S_7[t] -> [2, t, 1, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -199,7 +199,7 @@ statements:
   domain: '[N] -> { [S_8[t] -> [1, 0]] : t >= 0 }'
   schedule: '{ S_8[t] -> [3, t, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -227,7 +227,7 @@ statements:
   domain: '[N] -> { [S_9[t] -> [1, 0]] : t >= 0 }'
   schedule: '{ S_9[t] -> [3, t, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -255,7 +255,7 @@ statements:
   domain: '[N] -> { [S_10[t] -> [1, 0]] : t >= 0 }'
   schedule: '{ S_10[t] -> [3, t, 1, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -283,7 +283,7 @@ statements:
   domain: '[N] -> { [S_11[t] -> [1, 0]] : t >= 0 }'
   schedule: '{ S_11[t] -> [3, t, 1, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

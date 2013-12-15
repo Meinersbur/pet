@@ -30,7 +30,7 @@ statements:
   domain: '[N, M] -> { S_0[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_0[i] -> [0, i, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -39,7 +39,7 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: +
       arguments:
       - type: access
@@ -55,7 +55,7 @@ statements:
     0 }'
   schedule: '[M, N] -> { S_1[i, j] -> [0, i, 1, j] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -108,7 +108,7 @@ statements:
   domain: '[N, M] -> { S_3[] }'
   schedule: '{ S_3[] -> [1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -123,7 +123,7 @@ statements:
   domain: '[N, M] -> { S_4[i] : i <= -3 + N and i >= 0 }'
   schedule: '[N] -> { S_4[i] -> [2, i] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access

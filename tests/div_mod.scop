@@ -11,7 +11,7 @@ statements:
   domain: '{ S_0[-2] }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -20,12 +20,12 @@ statements:
       reference: __pet_ref_0
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: /
       arguments:
       - type: int
         value: 5
-      - type: unary
+      - type: op
         operation: '-'
         arguments:
         - type: int
@@ -34,7 +34,7 @@ statements:
   domain: '{ S_1[2] }'
   schedule: '{ S_1[i] -> [0, i, 1] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -43,15 +43,15 @@ statements:
       reference: __pet_ref_1
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: /
       arguments:
-      - type: unary
+      - type: op
         operation: '-'
         arguments:
         - type: int
           value: 5
-      - type: unary
+      - type: op
         operation: '-'
         arguments:
         - type: int
@@ -60,7 +60,7 @@ statements:
   domain: '{ S_2[1] }'
   schedule: '{ S_2[i] -> [0, i, 2] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -69,12 +69,12 @@ statements:
       reference: __pet_ref_2
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: '%'
       arguments:
       - type: int
         value: 5
-      - type: unary
+      - type: op
         operation: '-'
         arguments:
         - type: int
@@ -83,7 +83,7 @@ statements:
   domain: '{ S_3[-1] }'
   schedule: '{ S_3[i] -> [0, i, 3] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -92,15 +92,15 @@ statements:
       reference: __pet_ref_3
       read: 0
       write: 1
-    - type: binary
+    - type: op
       operation: '%'
       arguments:
-      - type: unary
+      - type: op
         operation: '-'
         arguments:
         - type: int
           value: 5
-      - type: unary
+      - type: op
         operation: '-'
         arguments:
         - type: int

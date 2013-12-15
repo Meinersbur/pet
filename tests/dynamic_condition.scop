@@ -15,7 +15,7 @@ statements:
   domain: '{ S_0[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
@@ -30,7 +30,7 @@ statements:
   domain: '{ [S_3[i] -> [j]] : i >= 0 and i <= 99 and j >= 0 and j <= 1 }'
   schedule: '{ S_3[i] -> [0, i, 1, 0] }'
   body:
-    type: binary
+    type: op
     operation: =
     arguments:
     - type: access
