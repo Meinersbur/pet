@@ -5090,8 +5090,7 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 		isl_die(ctx, isl_error_internal,
 			"expecting at least one statement", return NULL);
 	stmt = scop->stmts[0];
-	if (stmt->body->type != pet_expr_unary ||
-	    stmt->body->op != pet_op_kill)
+	if (!pet_stmt_is_kill(stmt))
 		isl_die(ctx, isl_error_internal,
 			"expecting kill statement", return NULL);
 

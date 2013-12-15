@@ -189,6 +189,9 @@ struct pet_stmt {
 	struct pet_expr **args;
 };
 
+/* Is "stmt" a kill statement? */
+int pet_stmt_is_kill(struct pet_stmt *stmt);
+
 /* Construct an associative array from reference identifiers of
  * access expressions in "stmt" to the corresponding isl_ast_expr.
  * Each index expression is first transformed through "fn_index"

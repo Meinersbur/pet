@@ -3579,8 +3579,10 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 
 /* Is "stmt" a kill statement?
  */
-static int is_kill(struct pet_stmt *stmt)
+int pet_stmt_is_kill(struct pet_stmt *stmt)
 {
+	if (!stmt)
+		return 0;
 	if (stmt->body->type != pet_expr_unary)
 		return 0;
 	return stmt->body->op == pet_op_kill;
@@ -3676,7 +3678,7 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 		isl_union_map *accesses_i;
 		isl_space *space;
 
-		if (kill && !is_kill(stmt))
+		if (kill && !pet_stmt_is_kill(stmt))
 			continue;
 
 		space = isl_set_get_space(scop->context);

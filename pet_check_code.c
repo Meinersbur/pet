@@ -340,15 +340,6 @@ static __isl_give isl_id_to_pw_aff *add_assignment(
 	return assignments;
 }
 
-/* Is "stmt" a kill statement?
- */
-static int is_kill(struct pet_stmt *stmt)
-{
-	if (stmt->body->type != pet_expr_unary)
-		return 0;
-	return stmt->body->op == pet_op_kill;
-}
-
 /* Extract a mapping from the iterations domains of "scop" to
  * the calls in the corresponding statements.
  *
@@ -390,7 +381,7 @@ static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
 			assignments = add_assignment(assignments, stmt);
 			continue;
 		}
-		if (is_kill(stmt))
+		if (pet_stmt_is_kill(stmt))
 			continue;
 		call_i = stmt_extract_call(scop->stmts[i], assignments);
 		call = isl_union_map_add_map(call, call_i);
