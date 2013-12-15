@@ -79,7 +79,7 @@ struct pet_scop_ext {
  * to the statement iteration domain.
  */
 struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
-	__isl_take isl_id *label, int id, struct pet_expr *expr)
+	__isl_take isl_id *label, int id, __isl_take pet_expr *expr)
 {
 	struct pet_stmt *stmt;
 	isl_space *dim;
@@ -302,7 +302,7 @@ static __isl_give isl_set *access_extract_context(__isl_keep isl_map *access,
  * The parameter then has to be valid for the second argument for
  * non-zero accesses and valid for the third argument for zero accesses.
  */
-static __isl_give isl_set *expr_extract_context(struct pet_expr *expr,
+static __isl_give isl_set *expr_extract_context(__isl_keep pet_expr *expr,
 	__isl_take isl_set *context)
 {
 	int i;
@@ -1300,10 +1300,11 @@ static __isl_give isl_map *embed_access_relation(__isl_take isl_map *access,
  * into account the mapping "iv_map" from virtual iterator
  * to real iterator.
  */
-static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *embed_access(__isl_take pet_expr *expr, void *user)
 {
 	struct pet_embed_access *data = user;
 
+	expr = pet_expr_cow(expr);
 	expr = pet_expr_access_update_domain(expr, data->extend);
 	if (!expr)
 		return NULL;
@@ -1322,7 +1323,7 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
  * "iv_map" expresses the real iterator in terms of the virtual iterator
  * "var_id" represents the induction variable.
  */
-static struct pet_expr *expr_embed(struct pet_expr *expr,
+static __isl_give pet_expr *expr_embed(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *extend, __isl_take isl_aff *iv_map,
 	__isl_keep isl_id *var_id)
 {
@@ -1723,7 +1724,7 @@ error:
 /* Insert an argument expression corresponding to "test" in front
  * of the list of arguments described by *n_arg and *args.
  */
-static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
+static int args_insert_access(unsigned *n_arg, pet_expr ***args,
 	__isl_keep isl_multi_pw_aff *test)
 {
 	int i;
@@ -1733,12 +1734,12 @@ static int args_insert_access(unsigned *n_arg, struct pet_expr ***args,
 		return -1;
 
 	if (!*args) {
-		*args = isl_calloc_array(ctx, struct pet_expr *, 1);
+		*args = isl_calloc_array(ctx, pet_expr *, 1);
 		if (!*args)
 			return -1;
 	} else {
-		struct pet_expr **ext;
-		ext = isl_calloc_array(ctx, struct pet_expr *, 1 + *n_arg);
+		pet_expr **ext;
+		ext = isl_calloc_array(ctx, pet_expr *, 1 + *n_arg);
 		if (!ext)
 			return -1;
 		for (i = 0; i < *n_arg; ++i)
@@ -1796,7 +1797,7 @@ static __isl_give isl_map *apply_implications(struct pet_scop *scop,
  * the implications in "scop" needs to contain "test".
  */
 static int implies_filter(struct pet_scop *scop,
-	__isl_keep isl_map *domain, int pos, struct pet_expr *expr,
+	__isl_keep isl_map *domain, int pos, __isl_keep pet_expr *expr,
 	__isl_keep isl_map *test, int satisfied)
 {
 	isl_id *test_id, *arg_id;
@@ -2073,7 +2074,7 @@ __isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
 /* Return an access pet_expr corresponding to the skip condition
  * of the given type.
  */
-struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
+__isl_give pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	enum pet_skip type)
 {
 	return pet_expr_from_index(pet_scop_get_skip(scop, type));
@@ -2159,7 +2160,7 @@ error:
 
 /* Add all parameters in "expr" to "space" and return the result.
  */
-static __isl_give isl_space *expr_collect_params(struct pet_expr *expr,
+static __isl_give isl_space *expr_collect_params(__isl_keep pet_expr *expr,
 	__isl_take isl_space *space)
 {
 	int i;
@@ -2422,7 +2423,7 @@ struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop)
  * If "tag" is set, then the access relation is tagged with
  * the corresponding reference identifier.
  */
-static __isl_give isl_union_map *expr_collect_access(struct pet_expr *expr,
+static __isl_give isl_union_map *expr_collect_access(__isl_keep pet_expr *expr,
 	int tag, __isl_take isl_union_map *accesses, __isl_keep isl_set *domain)
 {
 	isl_map *access;
@@ -2446,8 +2447,8 @@ static __isl_give isl_union_map *expr_collect_access(struct pet_expr *expr,
  * set we currently skip the access completely.  If "must" is not set,
  * we project out the values of the access arguments.
  */
-static __isl_give isl_union_map *expr_collect_accesses(struct pet_expr *expr,
-	int read, int write, int must, int tag,
+static __isl_give isl_union_map *expr_collect_accesses(
+	__isl_keep pet_expr *expr, int read, int write, int must, int tag,
 	__isl_take isl_union_map *accesses, __isl_keep isl_set *domain)
 {
 	int i;
@@ -3152,11 +3153,11 @@ error:
 /* Given an access expression, check if it is data dependent.
  * If so, set *found and abort the search.
  */
-static int is_data_dependent(struct pet_expr *expr, void *user)
+static int is_data_dependent(__isl_keep pet_expr *expr, void *user)
 {
 	int *found = user;
 
-	if (expr->n_arg) {
+	if (pet_expr_get_n_arg(expr) > 0) {
 		*found = 1;
 		return -1;
 	}

@@ -41,7 +41,7 @@
  * then intersect the range of "map" with the valid set of values.
  */
 static __isl_give isl_map *access_apply_value_bounds(__isl_take isl_map *map,
-	struct pet_expr *arg, __isl_keep isl_union_map *value_bounds)
+	__isl_keep pet_expr *arg, __isl_keep isl_union_map *value_bounds)
 {
 	isl_id *id;
 	isl_map *vb;
@@ -66,7 +66,7 @@ static __isl_give isl_map *access_apply_value_bounds(__isl_take isl_map *map,
  * type pet_expr_access, bounded by the bounds specified by "value_bounds".
  */
 __isl_give isl_set *pet_value_bounds_apply(__isl_take isl_set *domain,
-	unsigned n_arg, struct pet_expr **args,
+	unsigned n_arg, __isl_keep pet_expr **args,
 	__isl_keep isl_union_map *value_bounds)
 {
 	int i;
@@ -79,7 +79,7 @@ __isl_give isl_set *pet_value_bounds_apply(__isl_take isl_set *domain,
 
 	for (i = 0; i < n_arg; ++i) {
 		isl_map *map_i;
-		struct pet_expr *arg = args[i];
+		pet_expr *arg = args[i];
 
 		map_i = isl_map_universe(isl_space_copy(space));
 		if (arg->type == pet_expr_access)

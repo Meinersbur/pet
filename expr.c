@@ -124,22 +124,39 @@ enum pet_expr_type pet_str_type(const char *str)
 	return -1;
 }
 
+/* Construct a pet_expr of the given type.
+ */
+__isl_give pet_expr *pet_expr_alloc(isl_ctx *ctx, enum pet_expr_type type)
+{
+	pet_expr *expr;
+
+	expr = isl_calloc_type(ctx, struct pet_expr);
+	if (!expr)
+		return NULL;
+
+	expr->ctx = ctx;
+	isl_ctx_ref(ctx);
+	expr->type = type;
+	expr->ref = 1;
+
+	return expr;
+}
+
 /* Construct an access pet_expr from an access relation and an index expression.
  * By default, it is considered to be a read access.
  */
-struct pet_expr *pet_expr_from_access_and_index( __isl_take isl_map *access,
+__isl_give pet_expr *pet_expr_from_access_and_index( __isl_take isl_map *access,
 	__isl_take isl_multi_pw_aff *index)
 {
 	isl_ctx *ctx = isl_map_get_ctx(access);
-	struct pet_expr *expr;
+	pet_expr *expr;
 
 	if (!index || !access)
 		goto error;
-	expr = isl_calloc_type(ctx, struct pet_expr);
+	expr = pet_expr_alloc(ctx, pet_expr_access);
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_access;
 	expr->acc.access = access;
 	expr->acc.index = index;
 	expr->acc.read = 1;
@@ -155,7 +172,7 @@ error:
 /* Construct an access pet_expr from an index expression.
  * By default, the access is considered to be a read access.
  */
-struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
+__isl_give pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 {
 	isl_map *access;
 
@@ -200,7 +217,7 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
  * then we assume that all elements of the remaining dimensions
  * are accessed.
  */
-struct pet_expr *pet_expr_from_index_and_depth(
+__isl_give pet_expr *pet_expr_from_index_and_depth(
 	__isl_take isl_multi_pw_aff *index, int depth)
 {
 	isl_map *access;
@@ -228,21 +245,17 @@ error:
 /* Construct a pet_expr that kills the elements specified by
  * the index expression "index" and the access relation "access".
  */
-struct pet_expr *pet_expr_kill_from_access_and_index(__isl_take isl_map *access,
-	__isl_take isl_multi_pw_aff *index)
+__isl_give pet_expr *pet_expr_kill_from_access_and_index(
+	__isl_take isl_map *access, __isl_take isl_multi_pw_aff *index)
 {
-	isl_ctx *ctx;
-	struct pet_expr *expr;
+	pet_expr *expr;
 
 	if (!access || !index)
 		goto error;
 
-	ctx = isl_multi_pw_aff_get_ctx(index);
 	expr = pet_expr_from_access_and_index(access, index);
-	if (!expr)
-		return NULL;
-	expr->acc.read = 0;
-	return pet_expr_new_unary(ctx, pet_op_kill, expr);
+	expr = pet_expr_access_set_read(expr, 0);
+	return pet_expr_new_unary(pet_op_kill, expr);
 error:
 	isl_map_free(access);
 	isl_multi_pw_aff_free(index);
@@ -251,23 +264,21 @@ error:
 
 /* Construct a unary pet_expr that performs "op" on "arg".
  */
-struct pet_expr *pet_expr_new_unary(isl_ctx *ctx, enum pet_op_type op,
-	struct pet_expr *arg)
+__isl_give pet_expr *pet_expr_new_unary(enum pet_op_type op,
+	__isl_take pet_expr *arg)
 {
-	struct pet_expr *expr;
+	isl_ctx *ctx;
+	pet_expr *expr;
 
 	if (!arg)
-		goto error;
-	expr = isl_alloc_type(ctx, struct pet_expr);
+		return NULL;
+	ctx = pet_expr_get_ctx(arg);
+	expr = pet_expr_alloc(ctx, pet_expr_op);
+	expr = pet_expr_set_n_arg(expr, 1);
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_op;
 	expr->op = op;
-	expr->n_arg = 1;
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, 1);
-	if (!expr->args)
-		goto error;
 	expr->args[pet_un_arg] = arg;
 
 	return expr;
@@ -278,23 +289,21 @@ error:
 
 /* Construct a binary pet_expr that performs "op" on "lhs" and "rhs".
  */
-struct pet_expr *pet_expr_new_binary(isl_ctx *ctx, enum pet_op_type op,
-	struct pet_expr *lhs, struct pet_expr *rhs)
+__isl_give pet_expr *pet_expr_new_binary(enum pet_op_type op,
+	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs)
 {
-	struct pet_expr *expr;
+	isl_ctx *ctx;
+	pet_expr *expr;
 
 	if (!lhs || !rhs)
 		goto error;
-	expr = isl_alloc_type(ctx, struct pet_expr);
+	ctx = pet_expr_get_ctx(lhs);
+	expr = pet_expr_alloc(ctx, pet_expr_op);
+	expr = pet_expr_set_n_arg(expr, 2);
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_op;
 	expr->op = op;
-	expr->n_arg = 2;
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, 2);
-	if (!expr->args)
-		goto error;
 	expr->args[pet_bin_lhs] = lhs;
 	expr->args[pet_bin_rhs] = rhs;
 
@@ -307,23 +316,21 @@ error:
 
 /* Construct a ternary pet_expr that performs "cond" ? "lhs" : "rhs".
  */
-struct pet_expr *pet_expr_new_ternary(isl_ctx *ctx, struct pet_expr *cond,
-	struct pet_expr *lhs, struct pet_expr *rhs)
+__isl_give pet_expr *pet_expr_new_ternary(__isl_take pet_expr *cond,
+	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs)
 {
-	struct pet_expr *expr;
+	isl_ctx *ctx;
+	pet_expr *expr;
 
 	if (!cond || !lhs || !rhs)
 		goto error;
-	expr = isl_alloc_type(ctx, struct pet_expr);
+	ctx = pet_expr_get_ctx(cond);
+	expr = pet_expr_alloc(ctx, pet_expr_op);
+	expr = pet_expr_set_n_arg(expr, 3);
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_op;
 	expr->op = pet_op_cond;
-	expr->n_arg = 3;
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, 3);
-	if (!expr->args)
-		goto error;
 	expr->args[pet_ter_cond] = cond;
 	expr->args[pet_ter_true] = lhs;
 	expr->args[pet_ter_false] = rhs;
@@ -339,20 +346,18 @@ error:
 /* Construct a call pet_expr that calls function "name" with "n_arg"
  * arguments.  The caller is responsible for filling in the arguments.
  */
-struct pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
+__isl_give pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 	unsigned n_arg)
 {
-	struct pet_expr *expr;
+	pet_expr *expr;
 
-	expr = isl_alloc_type(ctx, struct pet_expr);
+	expr = pet_expr_alloc(ctx, pet_expr_call);
+	expr = pet_expr_set_n_arg(expr, n_arg);
 	if (!expr)
 		return NULL;
 
-	expr->type = pet_expr_call;
-	expr->n_arg = n_arg;
 	expr->name = strdup(name);
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, n_arg);
-	if (!expr->name || !expr->args)
+	if (!expr->name)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -360,23 +365,23 @@ struct pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 
 /* Construct a pet_expr that represents the cast of "arg" to "type_name".
  */
-struct pet_expr *pet_expr_new_cast(isl_ctx *ctx, const char *type_name,
-	struct pet_expr *arg)
+__isl_give pet_expr *pet_expr_new_cast(const char *type_name,
+	__isl_take pet_expr *arg)
 {
-	struct pet_expr *expr;
+	isl_ctx *ctx;
+	pet_expr *expr;
 
 	if (!arg)
 		return NULL;
 
-	expr = isl_alloc_type(ctx, struct pet_expr);
+	ctx = pet_expr_get_ctx(arg);
+	expr = pet_expr_alloc(ctx, pet_expr_cast);
+	expr = pet_expr_set_n_arg(expr, 1);
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_cast;
-	expr->n_arg = 1;
 	expr->type_name = strdup(type_name);
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, 1);
-	if (!expr->type_name || !expr->args)
+	if (!expr->type_name)
 		goto error;
 
 	expr->args[0] = arg;
@@ -390,15 +395,15 @@ error:
 
 /* Construct a pet_expr that represents the double "d".
  */
-struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double val, const char *s)
+__isl_give pet_expr *pet_expr_new_double(isl_ctx *ctx,
+	double val, const char *s)
 {
-	struct pet_expr *expr;
+	pet_expr *expr;
 
-	expr = isl_calloc_type(ctx, struct pet_expr);
+	expr = pet_expr_alloc(ctx, pet_expr_double);
 	if (!expr)
 		return NULL;
 
-	expr->type = pet_expr_double;
 	expr->d.val = val;
 	expr->d.s = strdup(s);
 	if (!expr->d.s)
@@ -409,20 +414,19 @@ struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double val, const char *s)
 
 /* Construct a pet_expr that represents the integer value "v".
  */
-struct pet_expr *pet_expr_new_int(__isl_take isl_val *v)
+__isl_give pet_expr *pet_expr_new_int(__isl_take isl_val *v)
 {
 	isl_ctx *ctx;
-	struct pet_expr *expr;
+	pet_expr *expr;
 
 	if (!v)
 		return NULL;
 
 	ctx = isl_val_get_ctx(v);
-	expr = isl_calloc_type(ctx, struct pet_expr);
+	expr = pet_expr_alloc(ctx, pet_expr_int);
 	if (!expr)
 		goto error;
 
-	expr->type = pet_expr_int;
 	expr->i = v;
 
 	return expr;
@@ -431,11 +435,72 @@ error:
 	return NULL;
 }
 
-struct pet_expr *pet_expr_free(struct pet_expr *expr)
+static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
+{
+	int i;
+	pet_expr *dup;
+
+	if (!expr)
+		return NULL;
+
+	dup = pet_expr_alloc(expr->ctx, expr->type);
+	dup = pet_expr_set_n_arg(dup, expr->n_arg);
+	for (i = 0; i < expr->n_arg; ++i)
+		dup = pet_expr_set_arg(dup, i, pet_expr_copy(expr->args[i]));
+
+	switch (expr->type) {
+	case pet_expr_access:
+		if (expr->acc.ref_id)
+			dup = pet_expr_access_set_ref_id(dup,
+						isl_id_copy(expr->acc.ref_id));
+		dup = pet_expr_access_set_access(dup,
+						isl_map_copy(expr->acc.access));
+		dup = pet_expr_access_set_index(dup,
+					isl_multi_pw_aff_copy(expr->acc.index));
+		dup = pet_expr_access_set_read(dup, expr->acc.read);
+		dup = pet_expr_access_set_write(dup, expr->acc.write);
+		break;
+	case pet_expr_call:
+		dup = pet_expr_call_set_name(dup, expr->name);
+		break;
+	case pet_expr_cast:
+		dup = pet_expr_cast_set_type_name(dup, expr->type_name);
+		break;
+	case pet_expr_double:
+		dup = pet_expr_double_set(dup, expr->d.val, expr->d.s);
+		break;
+	case pet_expr_int:
+		dup = pet_expr_int_set_val(dup, isl_val_copy(expr->i));
+		break;
+	case pet_expr_op:
+		dup = pet_expr_op_set_type(dup, expr->op);
+		break;
+	case pet_expr_error:
+		dup = pet_expr_free(dup);
+		break;
+	}
+
+	return dup;
+}
+
+__isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+
+	if (expr->ref == 1)
+		return expr;
+	expr->ref--;
+	return pet_expr_dup(expr);
+}
+
+__isl_null pet_expr *pet_expr_free(__isl_take pet_expr *expr)
 {
 	int i;
 
 	if (!expr)
+		return NULL;
+	if (--expr->ref > 0)
 		return NULL;
 
 	for (i = 0; i < expr->n_arg; ++i)
@@ -461,17 +526,135 @@ struct pet_expr *pet_expr_free(struct pet_expr *expr)
 		isl_val_free(expr->i);
 		break;
 	case pet_expr_op:
+	case pet_expr_error:
 		break;
 	}
 
+	isl_ctx_deref(expr->ctx);
 	free(expr);
+	return NULL;
+}
+
+/* Return an additional reference to "expr".
+ */
+__isl_give pet_expr *pet_expr_copy(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+
+	expr->ref++;
+	return expr;
+}
+
+/* Return the isl_ctx in which "expr" was created.
+ */
+isl_ctx *pet_expr_get_ctx(__isl_keep pet_expr *expr)
+{
+	return expr ? expr->ctx : NULL;
+}
+
+/* Return the type of "expr".
+ */
+enum pet_expr_type pet_expr_get_type(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return pet_expr_error;
+	return expr->type;
+}
+
+/* Return the number of arguments of "expr".
+ */
+int pet_expr_get_n_arg(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+
+	return expr->n_arg;
+}
+
+/* Set the number of arguments of "expr" to "n".
+ *
+ * If "expr" originally had more arguments, then remove the extra arguments.
+ * If "expr" originally had fewer arguments, then create space for
+ * the extra arguments ans initialize them to NULL.
+ */
+__isl_give pet_expr *pet_expr_set_n_arg(__isl_take pet_expr *expr, int n)
+{
+	int i;
+	pet_expr **args;
+
+	if (!expr)
+		return NULL;
+	if (expr->n_arg == n)
+		return expr;
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+
+	if (n < expr->n_arg) {
+		for (i = n; i < expr->n_arg; ++i)
+			pet_expr_free(expr->args[i]);
+		expr->n_arg = n;
+		return expr;
+	}
+
+	args = isl_realloc_array(expr->ctx, expr->args, pet_expr *, n);
+	if (!args)
+		return pet_expr_free(expr);
+	expr->args = args;
+	for (i = expr->n_arg; i < n; ++i)
+		expr->args[i] = NULL;
+	expr->n_arg = n;
+
+	return expr;
+}
+
+/* Return the argument of "expr" at position "pos".
+ */
+__isl_give pet_expr *pet_expr_get_arg(__isl_keep pet_expr *expr, int pos)
+{
+	if (!expr)
+		return NULL;
+	if (pos < 0 || pos >= expr->n_arg)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"position out of bounds", return NULL);
+
+	return pet_expr_copy(expr->args[pos]);
+}
+
+/* Replace the argument of "expr" at position "pos" by "arg".
+ */
+__isl_give pet_expr *pet_expr_set_arg(__isl_take pet_expr *expr, int pos,
+	__isl_take pet_expr *arg)
+{
+	if (!expr || !arg)
+		goto error;
+	if (pos < 0 || pos >= expr->n_arg)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"position out of bounds", goto error);
+	if (expr->args[pos] == arg) {
+		pet_expr_free(arg);
+		return expr;
+	}
+
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		goto error;
+
+	pet_expr_free(expr->args[pos]);
+	expr->args[pos] = arg;
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	pet_expr_free(arg);
 	return NULL;
 }
 
 /* Does "expr" represent an access to an unnamed space, i.e.,
  * does it represent an affine expression?
  */
-int pet_expr_is_affine(struct pet_expr *expr)
+int pet_expr_is_affine(__isl_keep pet_expr *expr)
 {
 	int has_id;
 
@@ -489,7 +672,7 @@ int pet_expr_is_affine(struct pet_expr *expr)
 
 /* Does "expr" represent an access to a scalar, i.e., zero-dimensional array?
  */
-int pet_expr_is_scalar_access(struct pet_expr *expr)
+int pet_expr_is_scalar_access(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return -1;
@@ -501,7 +684,7 @@ int pet_expr_is_scalar_access(struct pet_expr *expr)
 
 /* Return 1 if the two pet_exprs are equivalent.
  */
-int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
+int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 {
 	int i;
 
@@ -516,6 +699,8 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 		if (!pet_expr_is_equal(expr1->args[i], expr2->args[i]))
 			return 0;
 	switch (expr1->type) {
+	case pet_expr_error:
+		return -1;
 	case pet_expr_double:
 		if (strcmp(expr1->d.s, expr2->d.s))
 			return 0;
@@ -562,24 +747,26 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 
 /* Does the access expression "expr" read the accessed elements?
  */
-int pet_expr_access_is_read(struct pet_expr *expr)
+int pet_expr_access_is_read(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return -1;
 	if (expr->type != pet_expr_access)
-		return -1;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return -1);
 
 	return expr->acc.read;
 }
 
 /* Does the access expression "expr" write to the accessed elements?
  */
-int pet_expr_access_is_write(struct pet_expr *expr)
+int pet_expr_access_is_write(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return -1;
 	if (expr->type != pet_expr_access)
-		return -1;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return -1);
 
 	return expr->acc.write;
 }
@@ -589,12 +776,13 @@ int pet_expr_access_is_write(struct pet_expr *expr)
  * If "expr" represents a member access, then return the identifier
  * of the outer structure array.
  */
-__isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
+__isl_give isl_id *pet_expr_access_get_id(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	if (isl_map_range_is_wrapping(expr->acc.access)) {
 		isl_space *space;
@@ -615,14 +803,16 @@ __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
 
 /* Return the parameter space of "expr".
  */
-__isl_give isl_space *pet_expr_access_get_parameter_space(struct pet_expr *expr)
+__isl_give isl_space *pet_expr_access_get_parameter_space(
+	__isl_keep pet_expr *expr)
 {
 	isl_space *space;
 
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);
 	space = isl_space_params(space);
@@ -632,14 +822,15 @@ __isl_give isl_space *pet_expr_access_get_parameter_space(struct pet_expr *expr)
 
 /* Return the space of the data accessed by "expr".
  */
-__isl_give isl_space *pet_expr_access_get_data_space(struct pet_expr *expr)
+__isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr)
 {
 	isl_space *space;
 
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);
 	space = isl_space_range(space);
@@ -650,20 +841,21 @@ __isl_give isl_space *pet_expr_access_get_data_space(struct pet_expr *expr)
 /* Modify all expressions of type pet_expr_access in "expr"
  * by calling "fn" on them.
  */
-struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
-	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
+__isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user)
 {
-	int i;
+	int i, n;
+
+	n = pet_expr_get_n_arg(expr);
+	for (i = 0; i < n; ++i) {
+		pet_expr *arg = pet_expr_get_arg(expr, i);
+		arg = pet_expr_map_access(arg, fn, user);
+		expr = pet_expr_set_arg(expr, i, arg);
+	}
 
 	if (!expr)
 		return NULL;
-
-	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] = pet_expr_map_access(expr->args[i], fn, user);
-		if (!expr->args[i])
-			return pet_expr_free(expr);
-	}
 
 	if (expr->type == pet_expr_access)
 		expr = fn(expr, user);
@@ -677,9 +869,9 @@ struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
  * an error).
  * Otherwise return 0.
  */
-int pet_expr_foreach_expr_of_type(struct pet_expr *expr,
-	enum pet_expr_type type, int (*fn)(struct pet_expr *expr, void *user),
-	void *user)
+int pet_expr_foreach_expr_of_type(__isl_keep pet_expr *expr,
+	enum pet_expr_type type,
+	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user)
 {
 	int i;
 
@@ -703,8 +895,8 @@ int pet_expr_foreach_expr_of_type(struct pet_expr *expr,
  * an error).
  * Otherwise return 0.
  */
-int pet_expr_foreach_access_expr(struct pet_expr *expr,
-	int (*fn)(struct pet_expr *expr, void *user), void *user)
+int pet_expr_foreach_access_expr(__isl_keep pet_expr *expr,
+	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user)
 {
 	return pet_expr_foreach_expr_of_type(expr, pet_expr_access, fn, user);
 }
@@ -715,8 +907,8 @@ int pet_expr_foreach_access_expr(struct pet_expr *expr,
  * an error).
  * Otherwise return 0.
  */
-int pet_expr_foreach_call_expr(struct pet_expr *expr,
-	int (*fn)(struct pet_expr *expr, void *user), void *user)
+int pet_expr_foreach_call_expr(__isl_keep pet_expr *expr,
+	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user)
 {
 	return pet_expr_foreach_expr_of_type(expr, pet_expr_call, fn, user);
 }
@@ -733,7 +925,7 @@ struct pet_expr_writes_data {
 /* Given an access expression, check if it writes to data->id.
  * If so, set data->found and abort the search.
  */
-static int writes(struct pet_expr *expr, void *user)
+static int writes(__isl_keep pet_expr *expr, void *user)
 {
 	struct pet_expr_writes_data *data = user;
 	isl_id *write_id;
@@ -758,7 +950,7 @@ static int writes(struct pet_expr *expr, void *user)
 
 /* Does expression "expr" write to "id"?
  */
-int pet_expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
+int pet_expr_writes(__isl_keep pet_expr *expr, __isl_keep isl_id *id)
 {
 	struct pet_expr_writes_data data;
 
@@ -775,14 +967,16 @@ int pet_expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
  * index expression and access relation of "expr"
  * to dimensions of "dst_type" at "dst_pos".
  */
-struct pet_expr *pet_expr_access_move_dims(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,
 	enum isl_dim_type dst_type, unsigned dst_pos,
 	enum isl_dim_type src_type, unsigned src_pos, unsigned n)
 {
+	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return pet_expr_free(expr);
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", return pet_expr_free(expr));
 
 	expr->acc.access = isl_map_move_dims(expr->acc.access,
 				dst_type, dst_pos, src_type, src_pos, n);
@@ -797,13 +991,15 @@ struct pet_expr *pet_expr_access_move_dims(struct pet_expr *expr,
 /* Replace the index expression and access relation of "expr"
  * by their preimages under the function represented by "ma".
  */
-struct pet_expr *pet_expr_access_pullback_multi_aff(
-	struct pet_expr *expr, __isl_take isl_multi_aff *ma)
+__isl_give pet_expr *pet_expr_access_pullback_multi_aff(
+	__isl_take pet_expr *expr, __isl_take isl_multi_aff *ma)
 {
+	expr = pet_expr_cow(expr);
 	if (!expr || !ma)
 		goto error;
 	if (expr->type != pet_expr_access)
-		goto error;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", goto error);
 
 	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
 						isl_multi_aff_copy(ma));
@@ -819,14 +1015,43 @@ error:
 	return NULL;
 }
 
-/* Align the parameters of expr->acc.index and expr->acc.access.
+/* Return the access relation of access expression "expr".
  */
-struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr)
+__isl_give isl_map *pet_expr_access_get_access(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return pet_expr_free(expr);
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
+
+	return isl_map_copy(expr->acc.access);
+}
+
+/* Return the index expression of access expression "expr".
+ */
+__isl_give isl_multi_pw_aff *pet_expr_access_get_index(
+	__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
+
+	return isl_multi_pw_aff_copy(expr->acc.index);
+}
+
+/* Align the parameters of expr->acc.index and expr->acc.access.
+ */
+__isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
 
 	expr->acc.access = isl_map_align_params(expr->acc.access,
 				isl_multi_pw_aff_get_space(expr->acc.index));
@@ -843,11 +1068,12 @@ struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr)
  * The conditions are not added to the index expression.  Instead, they
  * are used to try and simplify the index expression.
  */
-struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_restrict(__isl_take pet_expr *expr,
 	__isl_take isl_set *cond)
 {
 	int i;
 
+	expr = pet_expr_cow(expr);
 	if (!expr)
 		goto error;
 
@@ -886,10 +1112,17 @@ error:
  * mapping, so we extend the input transformation with an identity mapping
  * on the space of argument values.
  */
-struct pet_expr *pet_expr_access_update_domain(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 	__isl_keep isl_multi_pw_aff *update)
 {
 	isl_space *space;
+
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
 
 	update = isl_multi_pw_aff_copy(update);
 
@@ -917,7 +1150,7 @@ struct pet_expr *pet_expr_access_update_domain(struct pet_expr *expr,
 	return expr;
 }
 
-static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *update_domain(__isl_take pet_expr *expr, void *user)
 {
 	isl_multi_pw_aff *update = user;
 
@@ -927,7 +1160,7 @@ static struct pet_expr *update_domain(struct pet_expr *expr, void *user)
 /* Modify all access relations in "expr" by precomposing them with
  * the given iteration space transformation.
  */
-struct pet_expr *pet_expr_update_domain(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_update_domain(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *update)
 {
 	expr = pet_expr_map_access(expr, &update_domain, update);
@@ -938,9 +1171,16 @@ struct pet_expr *pet_expr_update_domain(struct pet_expr *expr,
 /* Add all parameters in "space" to the access relation and index expression
  * of "expr".
  */
-static struct pet_expr *align_params(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *align_params(__isl_take pet_expr *expr, void *user)
 {
 	isl_space *space = user;
+
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
 
 	expr->acc.access = isl_map_align_params(expr->acc.access,
 						isl_space_copy(space));
@@ -955,7 +1195,7 @@ static struct pet_expr *align_params(struct pet_expr *expr, void *user)
 /* Add all parameters in "space" to all access relations and index expressions
  * in "expr".
  */
-struct pet_expr *pet_expr_align_params(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_align_params(__isl_take pet_expr *expr,
 	__isl_take isl_space *space)
 {
 	expr = pet_expr_map_access(expr, &align_params, space);
@@ -966,7 +1206,7 @@ struct pet_expr *pet_expr_align_params(struct pet_expr *expr,
 /* Insert an argument expression corresponding to "test" in front
  * of the list of arguments described by *n_arg and *args.
  */
-static struct pet_expr *insert_access_arg(struct pet_expr *expr,
+static __isl_give pet_expr *insert_access_arg(__isl_take pet_expr *expr,
 	__isl_keep isl_multi_pw_aff *test)
 {
 	int i;
@@ -974,14 +1214,17 @@ static struct pet_expr *insert_access_arg(struct pet_expr *expr,
 
 	if (!test)
 		return pet_expr_free(expr);
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
 
 	if (!expr->args) {
-		expr->args = isl_calloc_array(ctx, struct pet_expr *, 1);
+		expr->args = isl_calloc_array(ctx, pet_expr *, 1);
 		if (!expr->args)
 			return pet_expr_free(expr);
 	} else {
-		struct pet_expr **ext;
-		ext = isl_calloc_array(ctx, struct pet_expr *, 1 + expr->n_arg);
+		pet_expr **ext;
+		ext = isl_calloc_array(ctx, pet_expr *, 1 + expr->n_arg);
 		if (!ext)
 			return pet_expr_free(expr);
 		for (i = 0; i < expr->n_arg; ++i)
@@ -1007,7 +1250,7 @@ static struct pet_expr *insert_access_arg(struct pet_expr *expr,
  * Otherwise, we add a filter to "expr" (which is then assumed to be
  * an access expression) corresponding to "test" being equal to "satisfied".
  */
-struct pet_expr *pet_expr_filter(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *test, int satisfied)
 {
 	isl_id *id;
@@ -1015,6 +1258,7 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 	isl_space *space;
 	isl_pw_multi_aff *pma;
 
+	expr = pet_expr_cow(expr);
 	if (!expr || !test)
 		goto error;
 
@@ -1138,10 +1382,17 @@ static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
 /* If "expr" accesses a (0D) array that corresponds to one of the parameters
  * in "space" then replace it by a value equal to the corresponding parameter.
  */
-static struct pet_expr *detect_parameter_accesses(struct pet_expr *expr,
+static __isl_give pet_expr *detect_parameter_accesses(__isl_take pet_expr *expr,
 	void *user)
 {
 	isl_space *space = user;
+
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
 
 	expr->acc.access = access_detect_parameter(expr->acc.access,
 						isl_space_copy(space));
@@ -1156,8 +1407,8 @@ static struct pet_expr *detect_parameter_accesses(struct pet_expr *expr,
 /* Replace all accesses to (0D) arrays that correspond to one of the parameters
  * in "space" by a value equal to the corresponding parameter.
  */
-struct pet_expr *pet_expr_detect_parameter_accesses(struct pet_expr *expr,
-	__isl_take isl_space *space)
+__isl_give pet_expr *pet_expr_detect_parameter_accesses(
+	__isl_take pet_expr *expr, __isl_take isl_space *space)
 {
 	expr = pet_expr_map_access(expr, &detect_parameter_accesses, space);
 	isl_space_free(space);
@@ -1168,14 +1419,19 @@ struct pet_expr *pet_expr_detect_parameter_accesses(struct pet_expr *expr,
  * "user" points to an integer that contains the sequence number
  * of the next reference.
  */
-static struct pet_expr *access_add_ref_id(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *access_add_ref_id(__isl_take pet_expr *expr,
+	void *user)
 {
 	isl_ctx *ctx;
 	char name[50];
 	int *n_ref = user;
 
+	expr = pet_expr_cow(expr);
 	if (!expr)
 		return expr;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
 
 	ctx = isl_map_get_ctx(expr->acc.access);
 	snprintf(name, sizeof(name), "__pet_ref_%d", (*n_ref)++);
@@ -1186,7 +1442,7 @@ static struct pet_expr *access_add_ref_id(struct pet_expr *expr, void *user)
 	return expr;
 }
 
-struct pet_expr *pet_expr_add_ref_ids(struct pet_expr *expr, int *n_ref)
+__isl_give pet_expr *pet_expr_add_ref_ids(__isl_take pet_expr *expr, int *n_ref)
 {
 	return pet_expr_map_access(expr, &access_add_ref_id, n_ref);
 }
@@ -1195,8 +1451,16 @@ struct pet_expr *pet_expr_add_ref_ids(struct pet_expr *expr, int *n_ref)
  * the access relation and the index expressions
  * of the access expression "expr".
  */
-static struct pet_expr *access_anonymize(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *access_anonymize(__isl_take pet_expr *expr,
+	void *user)
 {
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return expr;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
+
 	expr->acc.access = isl_map_reset_user(expr->acc.access);
 	expr->acc.index = isl_multi_pw_aff_reset_user(expr->acc.index);
 	if (!expr->acc.access || !expr->acc.index)
@@ -1205,7 +1469,7 @@ static struct pet_expr *access_anonymize(struct pet_expr *expr, void *user)
 	return expr;
 }
 
-struct pet_expr *pet_expr_anonymize(struct pet_expr *expr)
+__isl_give pet_expr *pet_expr_anonymize(__isl_take pet_expr *expr)
 {
 	return pet_expr_map_access(expr, &access_anonymize, NULL);
 }
@@ -1222,10 +1486,17 @@ struct pet_access_gist_data {
  * with respect to data->domain and the bounds on the values of the arguments
  * of the expression.
  */
-static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *access_gist(__isl_take pet_expr *expr, void *user)
 {
 	struct pet_access_gist_data *data = user;
 	isl_set *domain;
+
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return expr;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
 
 	domain = isl_set_copy(data->domain);
 	if (expr->n_arg > 0)
@@ -1241,7 +1512,7 @@ static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
 	return expr;
 }
 
-struct pet_expr *pet_expr_gist(struct pet_expr *expr,
+__isl_give pet_expr *pet_expr_gist(__isl_take pet_expr *expr,
 	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds)
 {
 	struct pet_access_gist_data data = { context, value_bounds };
@@ -1249,16 +1520,120 @@ struct pet_expr *pet_expr_gist(struct pet_expr *expr,
 	return pet_expr_map_access(expr, &access_gist, &data);
 }
 
+/* Mark "expr" as a read dependening on "read".
+ */
+__isl_give pet_expr *pet_expr_access_set_read(__isl_take pet_expr *expr,
+	int read)
+{
+	if (!expr)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
+	if (expr->acc.read == read)
+		return expr;
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	expr->acc.read = read;
+
+	return expr;
+}
+
+/* Mark "expr" as a write dependening on "write".
+ */
+__isl_give pet_expr *pet_expr_access_set_write(__isl_take pet_expr *expr,
+	int write)
+{
+	if (!expr)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
+	if (expr->acc.write == write)
+		return expr;
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	expr->acc.write = write;
+
+	return expr;
+}
+
+/* Replace the access relation of "expr" by "access".
+ */
+__isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
+	__isl_take isl_map *access)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !access)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", goto error);
+	isl_map_free(expr->acc.access);
+	expr->acc.access = access;
+
+	return expr;
+error:
+	isl_map_free(access);
+	pet_expr_free(expr);
+	return NULL;
+}
+
+/* Replace the index expression of "expr" by "index".
+ */
+__isl_give pet_expr *pet_expr_access_set_index(__isl_take pet_expr *expr,
+	__isl_take isl_multi_pw_aff *index)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !index)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", goto error);
+	isl_multi_pw_aff_free(expr->acc.index);
+	expr->acc.index = index;
+
+	return expr;
+error:
+	isl_multi_pw_aff_free(index);
+	pet_expr_free(expr);
+	return NULL;
+}
+
 /* Return the reference identifier of access expression "expr".
  */
-__isl_give isl_id *pet_expr_access_get_ref_id(struct pet_expr *expr)
+__isl_give isl_id *pet_expr_access_get_ref_id(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	return isl_id_copy(expr->acc.ref_id);
+}
+
+/* Replace the reference identifier of access expression "expr" by "ref_id".
+ */
+__isl_give pet_expr *pet_expr_access_set_ref_id(__isl_take pet_expr *expr,
+	__isl_take isl_id *ref_id)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !ref_id)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", goto error);
+	isl_id_free(expr->acc.ref_id);
+	expr->acc.ref_id = ref_id;
+
+	return expr;
+error:
+	isl_id_free(ref_id);
+	pet_expr_free(expr);
+	return NULL;
 }
 
 /* Tag the access relation "access" with "id".
@@ -1273,12 +1648,17 @@ __isl_give isl_id *pet_expr_access_get_ref_id(struct pet_expr *expr)
  *
  *	[D[i] -> id[]] -> A[a]
  */
-__isl_give isl_map *pet_expr_tag_access(struct pet_expr *expr,
+__isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 	__isl_take isl_map *access)
 {
 	isl_space *space;
 	isl_map *add_tag;
 	isl_id *id;
+
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression",
+			return isl_map_free(access));
 
 	id = isl_id_copy(expr->acc.ref_id);
 	space = isl_space_range(isl_map_get_space(access));
@@ -1293,12 +1673,14 @@ __isl_give isl_map *pet_expr_tag_access(struct pet_expr *expr,
 /* Return the relation mapping pairs of domain iterations and argument
  * values to the corresponding accessed data elements.
  */
-__isl_give isl_map *pet_expr_access_get_dependent_access(struct pet_expr *expr)
+__isl_give isl_map *pet_expr_access_get_dependent_access(
+	__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	return isl_map_copy(expr->acc.access);
 }
@@ -1308,7 +1690,7 @@ __isl_give isl_map *pet_expr_access_get_dependent_access(struct pet_expr *expr)
  * In particular, take the access relation and project out the values
  * of the arguments, if any.
  */
-__isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
+__isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr)
 {
 	isl_map *access;
 	isl_space *space;
@@ -1317,7 +1699,8 @@ __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	access = pet_expr_access_get_dependent_access(expr);
 	if (expr->n_arg == 0)
@@ -1338,14 +1721,15 @@ __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
  * If there are no arguments, then all elements are accessed.
  * Otherwise, we conservatively return an empty relation.
  */
-__isl_give isl_map *pet_expr_access_get_must_access(struct pet_expr *expr)
+__isl_give isl_map *pet_expr_access_get_must_access(__isl_keep pet_expr *expr)
 {
 	isl_space *space;
 
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
 
 	if (expr->n_arg == 0)
 		return pet_expr_access_get_dependent_access(expr);
@@ -1361,7 +1745,7 @@ __isl_give isl_map *pet_expr_access_get_must_access(struct pet_expr *expr)
  * identifier.
  */
 __isl_give isl_map *pet_expr_access_get_tagged_may_access(
-	struct pet_expr *expr)
+	__isl_keep pet_expr *expr)
 {
 	isl_map *access;
 
@@ -1374,18 +1758,155 @@ __isl_give isl_map *pet_expr_access_get_tagged_may_access(
 	return access;
 }
 
+/* Return the operation type of operation expression "expr".
+ */
+enum pet_op_type pet_expr_op_get_type(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return pet_op_last;
+	if (expr->type != pet_expr_op)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an operation expression", return pet_op_last);
+
+	return expr->op;
+}
+
+/* Replace the operation type of operation expression "expr" by "type".
+ */
+__isl_give pet_expr *pet_expr_op_set_type(__isl_take pet_expr *expr,
+	enum pet_op_type type)
+{
+	if (!expr)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_op)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an operation expression",
+			return pet_expr_free(expr));
+	if (expr->op == type)
+		return expr;
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	expr->op = type;
+
+	return expr;
+}
+
+/* Return the name of the function called by "expr".
+ */
+__isl_keep const char *pet_expr_call_get_name(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_call)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a call expression", return NULL);
+	return expr->name;
+}
+
+/* Replace the name of the function called by "expr" by "name".
+ */
+__isl_give pet_expr *pet_expr_call_set_name(__isl_take pet_expr *expr,
+	__isl_keep const char *name)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !name)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_call)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a call expression", return pet_expr_free(expr));
+	free(expr->name);
+	expr->name = strdup(name);
+	if (!expr->name)
+		return pet_expr_free(expr);
+	return expr;
+}
+
+/* Replace the type of the cast performed by "expr" by "name".
+ */
+__isl_give pet_expr *pet_expr_cast_set_type_name(__isl_take pet_expr *expr,
+	__isl_keep const char *name)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !name)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_cast)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a cast expression", return pet_expr_free(expr));
+	free(expr->type_name);
+	expr->type_name = strdup(name);
+	if (!expr->type_name)
+		return pet_expr_free(expr);
+	return expr;
+}
+
+/* Return the value of the integer represented by "expr".
+ */
+__isl_give isl_val *pet_expr_int_get_val(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_int)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an int expression", return NULL);
+
+	return isl_val_copy(expr->i);
+}
+
+/* Replace the value of the integer represented by "expr" by "v".
+ */
+__isl_give pet_expr *pet_expr_int_set_val(__isl_take pet_expr *expr,
+	__isl_take isl_val *v)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !v)
+		goto error;
+	if (expr->type != pet_expr_int)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an int expression", goto error);
+	isl_val_free(expr->i);
+	expr->i = v;
+
+	return expr;
+error:
+	isl_val_free(v);
+	pet_expr_free(expr);
+	return NULL;
+}
+
+/* Replace the value and string representation of the double
+ * represented by "expr" by "d" and "s".
+ */
+__isl_give pet_expr *pet_expr_double_set(__isl_take pet_expr *expr,
+	double d, __isl_keep const char *s)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !s)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_double)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a double expression", return pet_expr_free(expr));
+	expr->d.val = d;
+	free(expr->d.s);
+	expr->d.s = strdup(s);
+	if (!expr->d.s)
+		return pet_expr_free(expr);
+	return expr;
+}
+
 /* Return a string representation of the double expression "expr".
  */
-__isl_give char *pet_expr_double_get_str(struct pet_expr *expr)
+__isl_give char *pet_expr_double_get_str(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_double)
-		return NULL;
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a double expression", return NULL);
 	return strdup(expr->d.s);
 }
 
-void pet_expr_dump_with_indent(struct pet_expr *expr, int indent)
+void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 {
 	int i;
 
@@ -1431,10 +1952,13 @@ void pet_expr_dump_with_indent(struct pet_expr *expr, int indent)
 		for (i = 0; i < expr->n_arg; ++i)
 			pet_expr_dump_with_indent(expr->args[i], indent + 2);
 		break;
+	case pet_expr_error:
+		fprintf(stderr, "ERROR\n");
+		break;
 	}
 }
 
-void pet_expr_dump(struct pet_expr *expr)
+void pet_expr_dump(__isl_keep pet_expr *expr)
 {
 	pet_expr_dump_with_indent(expr, 0);
 }

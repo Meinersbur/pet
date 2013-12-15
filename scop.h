@@ -16,7 +16,7 @@ extern "C" {
 enum pet_skip { pet_skip_now = 0, pet_skip_later = 1 };
 
 struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
-	__isl_take isl_id *label, int id, struct pet_expr *expr);
+	__isl_take isl_id *label, int id, __isl_take pet_expr *expr);
 void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
@@ -80,7 +80,7 @@ __isl_give isl_set *pet_scop_get_affine_skip_domain(struct pet_scop *scop,
 	enum pet_skip type);
 __isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
 	enum pet_skip type);
-struct pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
+__isl_give pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	enum pet_skip type);
 void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);
 

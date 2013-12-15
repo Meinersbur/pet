@@ -1577,9 +1577,9 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 
 /* Construct a pet_expr representing a unary operator expression.
  */
-struct pet_expr *PetScan::extract_expr(UnaryOperator *expr)
+__isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 {
-	struct pet_expr *arg;
+	pet_expr *arg;
 	enum pet_op_type op;
 
 	op = UnaryOperatorKind2pet_op_type(expr->getOpcode());
@@ -1591,36 +1591,35 @@ struct pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 	arg = extract_expr(expr->getSubExpr());
 
 	if (expr->isIncrementDecrementOp() &&
-	    arg && arg->type == pet_expr_access) {
-		mark_write(arg);
-		arg->acc.read = 1;
+	    pet_expr_get_type(arg) == pet_expr_access) {
+		arg = mark_write(arg);
+		arg = pet_expr_access_set_read(arg, 1);
 	}
 
-	return pet_expr_new_unary(ctx, op, arg);
+	return pet_expr_new_unary(op, arg);
 }
 
 /* Mark the given access pet_expr as a write.
  * If a scalar is being accessed, then mark its value
  * as unknown in assigned_value.
  */
-void PetScan::mark_write(struct pet_expr *access)
+__isl_give pet_expr *PetScan::mark_write(__isl_take pet_expr *access)
 {
 	isl_id *id;
 	ValueDecl *decl;
 
-	if (!access)
-		return;
+	access = pet_expr_access_set_write(access, 1);
+	access = pet_expr_access_set_read(access, 0);
 
-	access->acc.write = 1;
-	access->acc.read = 0;
-
-	if (!pet_expr_is_scalar_access(access))
-		return;
+	if (!access || !pet_expr_is_scalar_access(access))
+		return access;
 
 	id = pet_expr_access_get_id(access);
 	decl = (ValueDecl *) isl_id_get_user(id);
 	clear_assignment(assigned_value, decl);
 	isl_id_free(id);
+
+	return access;
 }
 
 /* Assign "rhs" to "lhs".
@@ -1630,7 +1629,7 @@ void PetScan::mark_write(struct pet_expr *access)
  * is an affine expression, then keep track of this value in assigned_value
  * so that we can plug it in when we later come across the same variable.
  */
-void PetScan::assign(struct pet_expr *lhs, Expr *rhs)
+void PetScan::assign(__isl_keep pet_expr *lhs, Expr *rhs)
 {
 	isl_id *id;
 	ValueDecl *decl;
@@ -1664,9 +1663,9 @@ void PetScan::assign(struct pet_expr *lhs, Expr *rhs)
  * is affine, then keep track of this value in assigned_value
  * so that we can plug it in when we later come across the same variable.
  */
-struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
+__isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 {
-	struct pet_expr *lhs, *rhs;
+	pet_expr *lhs, *rhs;
 	enum pet_op_type op;
 
 	op = BinaryOperatorKind2pet_op_type(expr->getOpcode());
@@ -1678,16 +1677,17 @@ struct pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	lhs = extract_expr(expr->getLHS());
 	rhs = extract_expr(expr->getRHS());
 
-	if (expr->isAssignmentOp() && lhs && lhs->type == pet_expr_access) {
-		mark_write(lhs);
+	if (expr->isAssignmentOp() &&
+	    pet_expr_get_type(lhs) == pet_expr_access) {
+		lhs = mark_write(lhs);
 		if (expr->isCompoundAssignmentOp())
-			lhs->acc.read = 1;
+			lhs = pet_expr_access_set_read(lhs, 1);
 	}
 
 	if (expr->getOpcode() == BO_Assign)
 		assign(lhs, expr->getRHS());
 
-	return pet_expr_new_binary(ctx, op, lhs, rhs);
+	return pet_expr_new_binary(op, lhs, rhs);
 }
 
 /* Construct a pet_scop with a single statement killing the entire
@@ -1699,7 +1699,7 @@ struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
 	isl_space *space;
 	isl_multi_pw_aff *index;
 	isl_map *access;
-	struct pet_expr *expr;
+	pet_expr *expr;
 
 	if (!array)
 		return NULL;
@@ -1724,7 +1724,7 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 {
 	Decl *decl;
 	VarDecl *vd;
-	struct pet_expr *lhs, *rhs, *pe;
+	pet_expr *lhs, *rhs, *pe;
 	struct pet_scop *scop_decl, *scop;
 	struct pet_array *array;
 
@@ -1748,10 +1748,10 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	lhs = extract_access_expr(vd);
 	rhs = extract_expr(vd->getInit());
 
-	mark_write(lhs);
+	lhs = mark_write(lhs);
 	assign(lhs, vd->getInit());
 
-	pe = pet_expr_new_binary(ctx, pet_op_assign, lhs, rhs);
+	pe = pet_expr_new_binary(pet_op_assign, lhs, rhs);
 	scop = extract(stmt, pe);
 
 	scop_decl = pet_scop_prefix(scop_decl, 0);
@@ -1767,9 +1767,9 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
  * We first try to extract the condition as an affine expression.
  * If that fails, we construct a pet_expr tree representing the condition.
  */
-struct pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
+__isl_give pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 {
-	struct pet_expr *cond, *lhs, *rhs;
+	pet_expr *cond, *lhs, *rhs;
 	isl_pw_aff *pa;
 
 	pa = try_extract_affine(expr->getCond());
@@ -1782,10 +1782,10 @@ struct pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 	lhs = extract_expr(expr->getTrueExpr());
 	rhs = extract_expr(expr->getFalseExpr());
 
-	return pet_expr_new_ternary(ctx, cond, lhs, rhs);
+	return pet_expr_new_ternary(cond, lhs, rhs);
 }
 
-struct pet_expr *PetScan::extract_expr(ImplicitCastExpr *expr)
+__isl_give pet_expr *PetScan::extract_expr(ImplicitCastExpr *expr)
 {
 	return extract_expr(expr->getSubExpr());
 }
@@ -1797,7 +1797,7 @@ struct pet_expr *PetScan::extract_expr(ImplicitCastExpr *expr)
  * as the string representation.  Otherwise, we use the pretty
  * printer to produce a string representation.
  */
-struct pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
+__isl_give pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 {
 	double d;
 	string s;
@@ -1820,10 +1820,10 @@ struct pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 /* Extract an index expression from "expr" and then convert it into
  * an access pet_expr.
  */
-struct pet_expr *PetScan::extract_access_expr(Expr *expr)
+__isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
 	isl_multi_pw_aff *index;
-	struct pet_expr *pe;
+	pet_expr *pe;
 	int depth;
 
 	index = extract_index(expr);
@@ -1837,10 +1837,10 @@ struct pet_expr *PetScan::extract_access_expr(Expr *expr)
 /* Extract an index expression from "decl" and then convert it into
  * an access pet_expr.
  */
-struct pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
+__isl_give pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
 	isl_multi_pw_aff *index;
-	struct pet_expr *pe;
+	pet_expr *pe;
 	int depth;
 
 	index = extract_index(decl);
@@ -1851,7 +1851,7 @@ struct pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 	return pe;
 }
 
-struct pet_expr *PetScan::extract_expr(ParenExpr *expr)
+__isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
 {
 	return extract_expr(expr->getSubExpr());
 }
@@ -1859,10 +1859,10 @@ struct pet_expr *PetScan::extract_expr(ParenExpr *expr)
 /* Extract an assume statement from the argument "expr"
  * of a __pencil_assume statement.
  */
-struct pet_expr *PetScan::extract_assume(Expr *expr)
+__isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 {
 	isl_pw_aff *cond;
-	struct pet_expr *res;
+	pet_expr *res;
 
 	cond = try_extract_affine_condition(expr);
 	if (!cond) {
@@ -1873,7 +1873,7 @@ struct pet_expr *PetScan::extract_assume(Expr *expr)
 		index = isl_multi_pw_aff_from_range(index);
 		res = pet_expr_from_index(index);
 	}
-	return pet_expr_new_unary(ctx, pet_op_assume, res);
+	return pet_expr_new_unary(pet_op_assume, res);
 }
 
 /* Construct a pet_expr corresponding to the function call argument "expr".
@@ -1887,10 +1887,10 @@ struct pet_expr *PetScan::extract_assume(Expr *expr)
  * to a const type, then the function will perform a read
  * and that otherwise, it will perform a write.
  */
-struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
+__isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	Expr *expr)
 {
-	struct pet_expr *res;
+	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
 	Stmt::StmtClass sc;
 
@@ -1913,7 +1913,8 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	     sc == Stmt::MemberExprClass) &&
 	    array_depth(expr->getType().getTypePtr()) > 0)
 		is_partial = 1;
-	if ((is_addr || is_partial) && res->type == pet_expr_access) {
+	if ((is_addr || is_partial) &&
+	    pet_expr_get_type(res) == pet_expr_access) {
 		ParmVarDecl *parm;
 		if (!fd->hasPrototype()) {
 			report_prototype_required(expr);
@@ -1921,11 +1922,11 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		}
 		parm = fd->getParamDecl(pos);
 		if (!const_base(parm->getType()))
-			mark_write(res);
+			res = mark_write(res);
 	}
 
 	if (is_addr)
-		res = pet_expr_new_unary(ctx, pet_op_address_of, res);
+		res = pet_expr_new_unary(pet_op_address_of, res);
 	return res;
 }
 
@@ -1934,9 +1935,9 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
  * In the special case of a "call" to __pencil_assume,
  * construct an assume expression instead.
  */
-struct pet_expr *PetScan::extract_expr(CallExpr *expr)
+__isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
-	struct pet_expr *res = NULL;
+	pet_expr *res = NULL;
 	FunctionDecl *fd;
 	string name;
 	unsigned n_arg;
@@ -1959,22 +1960,18 @@ struct pet_expr *PetScan::extract_expr(CallExpr *expr)
 
 	for (int i = 0; i < n_arg; ++i) {
 		Expr *arg = expr->getArg(i);
-		res->args[i] = PetScan::extract_argument(fd, i, arg);
-		if (!res->args[i])
-			goto error;
+		res = pet_expr_set_arg(res, i,
+					PetScan::extract_argument(fd, i, arg));
 	}
 
 	return res;
-error:
-	pet_expr_free(res);
-	return NULL;
 }
 
 /* Construct a pet_expr representing a (C style) cast.
  */
-struct pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
+__isl_give pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
 {
-	struct pet_expr *arg;
+	pet_expr *arg;
 	QualType type;
 
 	arg = extract_expr(expr->getSubExpr());
@@ -1982,19 +1979,19 @@ struct pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
 		return NULL;
 
 	type = expr->getTypeAsWritten();
-	return pet_expr_new_cast(ctx, type.getAsString().c_str(), arg);
+	return pet_expr_new_cast(type.getAsString().c_str(), arg);
 }
 
 /* Construct a pet_expr representing an integer.
  */
-struct pet_expr *PetScan::extract_expr(IntegerLiteral *expr)
+__isl_give pet_expr *PetScan::extract_expr(IntegerLiteral *expr)
 {
 	return pet_expr_new_int(extract_int(expr));
 }
 
 /* Try and construct a pet_expr representing "expr".
  */
-struct pet_expr *PetScan::extract_expr(Expr *expr)
+__isl_give pet_expr *PetScan::extract_expr(Expr *expr)
 {
 	switch (expr->getStmtClass()) {
 	case Stmt::UnaryOperatorClass:
@@ -3292,7 +3289,7 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
  * Return the final number of elements in args or -1 if an error has occurred.
  */
 int PetScan::extract_nested(__isl_keep isl_space *space,
-	int n_arg, struct pet_expr **args, std::map<int,int> &param2pos)
+	int n_arg, pet_expr **args, std::map<int,int> &param2pos)
 {
 	int nparam;
 
@@ -3329,32 +3326,35 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 }
 
 /* For each nested access parameter in the access relations in "expr",
- * construct a corresponding pet_expr, place it in expr->args and
- * record its position in "param2pos".
+ * construct a corresponding pet_expr, place it in the arguments of "expr"
+ * and record its position in "param2pos".
  * n is the number of nested access parameters.
  */
-struct pet_expr *PetScan::extract_nested(struct pet_expr *expr, int n,
+__isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
 	std::map<int,int> &param2pos)
 {
 	isl_space *space;
+	int i;
+	pet_expr **args;
 
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, n);
-	expr->n_arg = n;
-	if (!expr->args)
-		goto error;
+	args = isl_calloc_array(ctx, pet_expr *, n);
+	if (!args)
+		return pet_expr_free(expr);
 
 	space = pet_expr_access_get_parameter_space(expr);
-	n = extract_nested(space, 0, expr->args, param2pos);
+	n = extract_nested(space, 0, args, param2pos);
 	isl_space_free(space);
 
 	if (n < 0)
-		goto error;
+		expr = pet_expr_free(expr);
+	else
+		expr = pet_expr_set_n_arg(expr, n);
 
-	expr->n_arg = n;
+	for (i = 0; i < n; ++i)
+		expr = pet_expr_set_arg(expr, i, args[i]);
+	free(args);
+
 	return expr;
-error:
-	pet_expr_free(expr);
-	return NULL;
 }
 
 /* Look for parameters in any access relation in "expr" that
@@ -3377,7 +3377,7 @@ error:
  * [[] -> [t_1,...,t_n]] and precompose index expression and access
  * relations with this function.
  */
-struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
+__isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 {
 	int n;
 	int nparam;
@@ -3391,15 +3391,15 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	if (!expr)
 		return expr;
 
-	for (int i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] = resolve_nested(expr->args[i]);
-		if (!expr->args[i]) {
-			pet_expr_free(expr);
-			return NULL;
-		}
+	n = pet_expr_get_n_arg(expr);
+	for (int i = 0; i < n; ++i) {
+		pet_expr *arg;
+		arg = pet_expr_get_arg(expr, i);
+		arg = resolve_nested(arg);
+		expr = pet_expr_set_arg(expr, i, arg);
 	}
 
-	if (expr->type != pet_expr_access)
+	if (pet_expr_get_type(expr) != pet_expr_access)
 		return expr;
 
 	space = pet_expr_access_get_parameter_space(expr);
@@ -3437,7 +3437,8 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 
 	space = pet_expr_access_get_parameter_space(expr);
 	space = isl_space_set_from_params(space);
-	space = isl_space_add_dims(space, isl_dim_set, expr->n_arg);
+	space = isl_space_add_dims(space, isl_dim_set,
+					pet_expr_get_n_arg(expr));
 	space = isl_space_wrap(isl_space_from_range(space));
 	ls = isl_local_space_from_space(isl_space_copy(space));
 	space = isl_space_from_domain(space);
@@ -3567,7 +3568,7 @@ struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
  * If "stmt" is an expression statement, then its range does not
  * include the semicolon, while it should be included in the pet_scop.
  */
-struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
+struct pet_scop *PetScan::extract(Stmt *stmt, __isl_take pet_expr *expr,
 	__isl_take isl_id *label)
 {
 	struct pet_stmt *ps;
@@ -3710,7 +3711,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	isl_multi_pw_aff *index;
 	isl_pw_aff *pa;
 	int equal;
-	struct pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
+	pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
 	bool save_nesting = nesting_enabled;
 
 	if (!options->detect_conditional_assignment)
@@ -3749,14 +3750,12 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	pe_else = extract_expr(ass_else->getRHS());
 	pe_else = pet_expr_restrict(pe_else, comp);
 
-	pe = pet_expr_new_ternary(ctx, pe_cond, pe_then, pe_else);
+	pe = pet_expr_new_ternary(pe_cond, pe_then, pe_else);
 	pe_write = pet_expr_from_index_and_depth(write_then,
 						extract_depth(write_then));
-	if (pe_write) {
-		pe_write->acc.write = 1;
-		pe_write->acc.read = 0;
-	}
-	pe = pet_expr_new_binary(ctx, pet_op_assign, pe_write, pe);
+	pe_write = pet_expr_access_set_write(pe_write, 1);
+	pe_write = pet_expr_access_set_read(pe_write, 0);
+	pe = pet_expr_new_binary(pet_op_assign, pe_write, pe);
 	return extract(stmt, pe);
 }
 
@@ -3767,25 +3766,24 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	__isl_take isl_multi_pw_aff *index)
 {
-	struct pet_expr *expr, *write;
+	pet_expr *expr, *write;
 	struct pet_stmt *ps;
 	SourceLocation loc = cond->getLocStart();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 
 	write = pet_expr_from_index(index);
-	if (write) {
-		write->acc.write = 1;
-		write->acc.read = 0;
-	}
+	write = pet_expr_access_set_write(write, 1);
+	write = pet_expr_access_set_read(write, 0);
 	expr = extract_expr(cond);
 	expr = resolve_nested(expr);
-	expr = pet_expr_new_binary(ctx, pet_op_assign, write, expr);
+	expr = pet_expr_new_binary(pet_op_assign, write, expr);
 	ps = pet_stmt_from_pet_expr(ctx, line, NULL, stmt_nr, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
 extern "C" {
-	static struct pet_expr *embed_access(struct pet_expr *expr, void *user);
+	static __isl_give pet_expr *embed_access(__isl_take pet_expr *expr,
+		void *user);
 }
 
 /* Precompose the access relation and the index expression associated
@@ -3794,7 +3792,7 @@ extern "C" {
  * The initial domain of the access relation and the index expression
  * is the zero-dimensional domain.
  */
-static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
+static __isl_give pet_expr *embed_access(__isl_take pet_expr *expr, void *user)
 {
 	isl_multi_aff *ma = (isl_multi_aff *) user;
 
@@ -3804,7 +3802,7 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 /* Precompose all access relations in "expr" with "ma", thereby
  * embedding them in the domain of "ma".
  */
-static struct pet_expr *embed(struct pet_expr *expr,
+static __isl_give pet_expr *embed(__isl_take pet_expr *expr,
 	__isl_keep isl_multi_aff *ma)
 {
 	return pet_expr_map_access(expr, &embed_access, ma);
@@ -3821,10 +3819,10 @@ struct pet_stmt *PetScan::extract_nested(struct pet_stmt *stmt, int n,
 	int i;
 	isl_space *space;
 	int n_arg;
-	struct pet_expr **args;
+	pet_expr **args;
 
 	n_arg = stmt->n_arg;
-	args = isl_calloc_array(ctx, struct pet_expr *, n + n_arg);
+	args = isl_calloc_array(ctx, pet_expr *, n + n_arg);
 	if (!args)
 		goto error;
 
@@ -3997,7 +3995,7 @@ error:
 /* Given an access expression "expr", is the variable accessed by
  * "expr" assigned anywhere inside "scop"?
  */
-static bool is_assigned(pet_expr *expr, pet_scop *scop)
+static bool is_assigned(__isl_keep pet_expr *expr, pet_scop *scop)
 {
 	bool assigned = false;
 	isl_id *id;
@@ -4045,7 +4043,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 
 		nested = (Expr *) isl_id_get_user(id);
 		expr = extract_expr(nested);
-		allowed = expr && expr->type == pet_expr_access &&
+		allowed = pet_expr_get_type(expr) == pet_expr_access &&
 			    !is_assigned(expr, scop);
 
 		pet_expr_free(expr);
@@ -4107,7 +4105,7 @@ static bool need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
 /* Construct an affine expression pet_expr that evaluates
  * to the constant "val".
  */
-static struct pet_expr *universally(isl_ctx *ctx, int val)
+static __isl_give pet_expr *universally(isl_ctx *ctx, int val)
 {
 	isl_local_space *ls;
 	isl_aff *aff;
@@ -4123,7 +4121,7 @@ static struct pet_expr *universally(isl_ctx *ctx, int val)
 /* Construct an affine expression pet_expr that evaluates
  * to the constant 1.
  */
-static struct pet_expr *universally_true(isl_ctx *ctx)
+static __isl_give pet_expr *universally_true(isl_ctx *ctx)
 {
 	return universally(ctx, 1);
 }
@@ -4131,7 +4129,7 @@ static struct pet_expr *universally_true(isl_ctx *ctx)
 /* Construct an affine expression pet_expr that evaluates
  * to the constant 0.
  */
-static struct pet_expr *universally_false(isl_ctx *ctx)
+static __isl_give pet_expr *universally_false(isl_ctx *ctx)
 {
 	return universally(ctx, 0);
 }
@@ -4158,7 +4156,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	struct pet_scop *scop_then, struct pet_scop *scop_else, bool have_else,
 	enum pet_skip type)
 {
-	struct pet_expr *expr_then, *expr_else, *expr, *expr_skip;
+	pet_expr *expr_then, *expr_else, *expr, *expr_skip;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = scan->ctx;
@@ -4187,13 +4185,11 @@ static struct pet_scop *extract_skip(PetScan *scan,
 		expr_else = universally_false(ctx);
 
 	expr = pet_expr_from_index(test_index);
-	expr = pet_expr_new_ternary(ctx, expr, expr_then, expr_else);
+	expr = pet_expr_new_ternary(expr, expr_then, expr_else);
 	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
-	if (expr_skip) {
-		expr_skip->acc.write = 1;
-		expr_skip->acc.read = 0;
-	}
-	expr = pet_expr_new_binary(ctx, pet_op_assign, expr_skip, expr);
+	expr_skip = pet_expr_access_set_write(expr_skip, 1);
+	expr_skip = pet_expr_access_set_read(expr_skip, 0);
+	expr = pet_expr_new_binary(pet_op_assign, expr_skip, expr);
 	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, scan->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
@@ -4738,7 +4734,7 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop1, struct pet_scop *scop2, enum pet_skip type)
 {
-	struct pet_expr *expr1, *expr2, *expr, *expr_skip;
+	pet_expr *expr1, *expr2, *expr, *expr_skip;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx = ps->ctx;
@@ -4750,17 +4746,14 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	expr2 = pet_scop_get_skip_expr(scop2, type);
 	pet_scop_reset_skip(scop2, type);
 
-	expr2 = pet_expr_filter(expr2,
-				isl_multi_pw_aff_copy(expr1->acc.index), 0);
+	expr2 = pet_expr_filter(expr2, pet_expr_access_get_index(expr1), 0);
 
 	expr = universally_true(ctx);
-	expr = pet_expr_new_ternary(ctx, expr1, expr, expr2);
+	expr = pet_expr_new_ternary(expr1, expr, expr2);
 	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
-	if (expr_skip) {
-		expr_skip->acc.write = 1;
-		expr_skip->acc.read = 0;
-	}
-	expr = pet_expr_new_binary(ctx, pet_op_assign, expr_skip, expr);
+	expr_skip = pet_expr_access_set_write(expr_skip, 1);
+	expr_skip = pet_expr_access_set_read(expr_skip, 0);
+	expr = pet_expr_new_binary(pet_op_assign, expr_skip, expr);
 	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, ps->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
@@ -4872,10 +4865,11 @@ struct pet_scop *pet_skip_info_seq::add(struct pet_scop *scop, int offset)
  */
 struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 {
-	struct pet_expr *kill;
+	pet_expr *kill;
 	struct pet_stmt *stmt;
 	isl_multi_pw_aff *index;
 	isl_map *access;
+	pet_expr *arg;
 
 	if (!scop)
 		return NULL;
@@ -4887,8 +4881,10 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 		isl_die(ctx, isl_error_internal,
 			"expecting kill statement", return NULL);
 
-	index = isl_multi_pw_aff_copy(stmt->body->args[0]->acc.index);
-	access = isl_map_copy(stmt->body->args[0]->acc.access);
+	arg = pet_expr_get_arg(stmt->body, 0);
+	index = pet_expr_access_get_index(arg);
+	access = pet_expr_access_get_access(arg);
+	pet_expr_free(arg);
 	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
 	kill = pet_expr_kill_from_access_and_index(access, index);

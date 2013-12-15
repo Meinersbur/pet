@@ -76,7 +76,7 @@ struct pet_build_ast_expr_data {
  *
  */
 static __isl_give isl_multi_pw_aff *parametrize_nested_exprs(
-	__isl_take isl_multi_pw_aff *index, struct pet_expr *expr)
+	__isl_take isl_multi_pw_aff *index, __isl_keep pet_expr *expr)
 {
 	int i;
 	isl_ctx *ctx;
@@ -114,8 +114,8 @@ static __isl_give isl_multi_pw_aff *parametrize_nested_exprs(
 	return isl_multi_pw_aff_pullback_multi_aff(index, ma);
 }
 
-static __isl_give isl_ast_expr *pet_expr_build_ast_expr(struct pet_expr *expr,
-	struct pet_build_ast_expr_data *data);
+static __isl_give isl_ast_expr *pet_expr_build_ast_expr(
+	__isl_keep pet_expr *expr, struct pet_build_ast_expr_data *data);
 
 /* Construct an associative array from identifiers for the nested
  * expressions of "expr" to the corresponding isl_ast_expr.
@@ -123,7 +123,7 @@ static __isl_give isl_ast_expr *pet_expr_build_ast_expr(struct pet_expr *expr,
  * The same identifiers are used in parametrize_nested_exprs.
  */
 static __isl_give isl_id_to_ast_expr *pet_expr_build_nested_ast_exprs(
-	struct pet_expr *expr, struct pet_build_ast_expr_data *data)
+	__isl_keep pet_expr *expr, struct pet_build_ast_expr_data *data)
 {
 	int i;
 	isl_ctx *ctx = isl_ast_build_get_ctx(data->build);
@@ -158,8 +158,8 @@ static __isl_give isl_id_to_ast_expr *pet_expr_build_nested_ast_exprs(
  * Finally, we apply an AST transformation on the result, if any was provided
  * by the user.
  */
-static __isl_give isl_ast_expr *pet_expr_build_ast_expr(struct pet_expr *expr,
-	struct pet_build_ast_expr_data *data)
+static __isl_give isl_ast_expr *pet_expr_build_ast_expr(
+	__isl_keep pet_expr *expr, struct pet_build_ast_expr_data *data)
 {
 	isl_pw_aff *pa;
 	isl_multi_pw_aff *mpa;
@@ -204,7 +204,7 @@ static __isl_give isl_ast_expr *pet_expr_build_ast_expr(struct pet_expr *expr,
  * add the mapping from reference identifier to AST expression to
  * data->ref2expr.
  */
-static int add_access(struct pet_expr *expr, void *user)
+static int add_access(__isl_keep pet_expr *expr, void *user)
 {
 	struct pet_build_ast_expr_data *data = user;
 	isl_id *id;
@@ -254,7 +254,7 @@ __isl_give isl_id_to_ast_expr *pet_stmt_build_ast_exprs(struct pet_stmt *stmt,
  * and print that to "p".
  */
 static __isl_give isl_printer *print_access(__isl_take isl_printer *p,
-	struct pet_expr *expr, __isl_keep isl_id_to_ast_expr *ref2expr)
+	__isl_keep pet_expr *expr, __isl_keep isl_id_to_ast_expr *ref2expr)
 {
 	isl_ast_expr *ast_expr;
 	int is_access;
@@ -291,7 +291,7 @@ static int is_postfix(enum pet_op_type op)
 }
 
 static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
-	struct pet_expr *expr, int outer,
+	__isl_keep pet_expr *expr, int outer,
 	__isl_keep isl_id_to_ast_expr *ref2expr);
 
 /* Print operation expression "expr" to "p".
@@ -300,7 +300,7 @@ static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
  * associated to its reference identifier in "ref2expr".
  */
 static __isl_give isl_printer *print_op(__isl_take isl_printer *p,
-	struct pet_expr *expr, __isl_keep isl_id_to_ast_expr *ref2expr)
+	__isl_keep pet_expr *expr, __isl_keep isl_id_to_ast_expr *ref2expr)
 {
 	switch (expr->n_arg) {
 	case 1:
@@ -342,12 +342,15 @@ static __isl_give isl_printer *print_op(__isl_take isl_printer *p,
  * associated to its reference identifier in "ref2expr".
  */
 static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
-	struct pet_expr *expr, int outer,
+	__isl_keep pet_expr *expr, int outer,
 	__isl_keep isl_id_to_ast_expr *ref2expr)
 {
 	int i;
 
 	switch (expr->type) {
+	case pet_expr_error:
+		p = isl_printer_free(p);
+		break;
 	case pet_expr_int:
 		p = isl_printer_print_val(p, expr->i);
 		break;

@@ -11,7 +11,7 @@ extern "C" {
 #endif
 
 __isl_give isl_set *pet_value_bounds_apply(__isl_take isl_set *domain,
-	unsigned n_arg, struct pet_expr **args,
+	unsigned n_arg, __isl_keep pet_expr **args,
 	__isl_keep isl_union_map *value_bounds);
 
 #if defined(__cplusplus)

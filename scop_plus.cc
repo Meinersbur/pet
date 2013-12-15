@@ -93,7 +93,7 @@ static void collect_sub_arrays(ValueDecl *decl, vector<ValueDecl *> ancestors,
  * because they are added to the scop of the statement writing
  * to the scalar.
  */
-static void access_collect_arrays(struct pet_expr *expr,
+static void access_collect_arrays(__isl_keep pet_expr *expr,
 	set<vector<ValueDecl *> > &arrays)
 {
 	isl_id *id;
@@ -124,16 +124,24 @@ static void access_collect_arrays(struct pet_expr *expr,
 	collect_sub_arrays(decl, ancestors, arrays);
 }
 
-static void expr_collect_arrays(struct pet_expr *expr,
+static void expr_collect_arrays(__isl_keep pet_expr *expr,
 	set<vector<ValueDecl *> > &arrays)
 {
+	int n;
+
 	if (!expr)
 		return;
 
-	for (int i = 0; i < expr->n_arg; ++i)
-		expr_collect_arrays(expr->args[i], arrays);
+	n = pet_expr_get_n_arg(expr);
+	for (int i = 0; i < n; ++i) {
+		pet_expr *arg;
 
-	if (expr->type == pet_expr_access)
+		arg = pet_expr_get_arg(expr, i);
+		expr_collect_arrays(arg, arrays);
+		pet_expr_free(arg);
+	}
+
+	if (pet_expr_get_type(expr) == pet_expr_access)
 		access_collect_arrays(expr, arrays);
 }
 

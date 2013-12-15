@@ -393,7 +393,7 @@ static int emit_expr_type(yaml_emitter_t *emitter, enum pet_expr_type type)
 	return 0;
 }
 
-static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
+static int emit_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 {
 	yaml_event_t event;
 
@@ -409,6 +409,8 @@ static int emit_expr(yaml_emitter_t *emitter, struct pet_expr *expr)
 		return -1;
 
 	switch (expr->type) {
+	case pet_expr_error:
+		return -1;
 	case pet_expr_int:
 		if (emit_named_val(emitter, "value", expr->i) < 0)
 			return -1;

@@ -295,33 +295,30 @@ static struct pet_scop *extract_arrays(isl_ctx *ctx, yaml_document_t *document,
 	return scop;
 }
 
-static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
-	yaml_node_t *node);
+static __isl_give pet_expr *extract_expr(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node);
 
-static struct pet_expr *extract_arguments(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_arguments(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
-	int i;
+	int i, n;
 	yaml_node_item_t *item;
 
 	if (node->type != YAML_SEQUENCE_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting sequence",
 			return pet_expr_free(expr));
 
-	expr->n_arg = node->data.sequence.items.top
-				- node->data.sequence.items.start;
-	expr->args = isl_calloc_array(ctx, struct pet_expr *, expr->n_arg);
-	if (!expr->args)
-		return pet_expr_free(expr);
+	n = node->data.sequence.items.top - node->data.sequence.items.start;
+	expr = pet_expr_set_n_arg(expr, n);
 
 	for (item = node->data.sequence.items.start, i = 0;
 	     item < node->data.sequence.items.top; ++item, ++i) {
 		yaml_node_t *n;
+		pet_expr *arg;
 
 		n = yaml_document_get_node(document, *item);
-		expr->args[i] = extract_expr(ctx, document, n);
-		if (!expr->args[i])
-			return pet_expr_free(expr);
+		arg = extract_expr(ctx, document, n);
+		expr = pet_expr_set_arg(expr, i, arg);
 	}
 
 	return expr;
@@ -330,10 +327,12 @@ static struct pet_expr *extract_arguments(isl_ctx *ctx,
 /* Extract pet_expr_double specific fields from "node" and
  * update "expr" accordingly.
  */
-static struct pet_expr *extract_expr_double(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_expr_double(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t *pair;
+	double d = 0;
+	char *s = NULL;
 
 	for (pair = node->data.mapping.pairs.start;
 	     pair < node->data.mapping.pairs.top; ++pair) {
@@ -347,10 +346,13 @@ static struct pet_expr *extract_expr_double(isl_ctx *ctx,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "value"))
-			expr->d.val = extract_double(ctx, document, value);
+			d = extract_double(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "string"))
-			expr->d.s = extract_string(ctx, document, value);
+			s = extract_string(ctx, document, value);
 	}
+
+	expr = pet_expr_double_set(expr, d, s);
+	free(s);
 
 	return expr;
 }
@@ -358,8 +360,8 @@ static struct pet_expr *extract_expr_double(isl_ctx *ctx,
 /* Extract pet_expr_access specific fields from "node" and
  * update "expr" accordingly.
  */
-static struct pet_expr *extract_expr_access(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_expr_access(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t *pair;
 
@@ -375,16 +377,20 @@ static struct pet_expr *extract_expr_access(isl_ctx *ctx,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "relation"))
-			expr->acc.access = extract_map(ctx, document, value);
+			expr = pet_expr_access_set_access(expr,
+				    extract_map(ctx, document, value));
 		if (!strcmp((char *) key->data.scalar.value, "index"))
-			expr->acc.index = extract_multi_pw_aff(ctx, document,
-								value);
+			expr = pet_expr_access_set_index(expr,
+				    extract_multi_pw_aff(ctx, document, value));
 		if (!strcmp((char *) key->data.scalar.value, "reference"))
-			expr->acc.ref_id = extract_id(ctx, document, value);
+			expr = pet_expr_access_set_ref_id(expr,
+				    extract_id(ctx, document, value));
 		if (!strcmp((char *) key->data.scalar.value, "read"))
-			expr->acc.read = extract_int(ctx, document, value);
+			expr = pet_expr_access_set_read(expr,
+				    extract_int(ctx, document, value));
 		if (!strcmp((char *) key->data.scalar.value, "write"))
-			expr->acc.write = extract_int(ctx, document, value);
+			expr = pet_expr_access_set_write(expr,
+				    extract_int(ctx, document, value));
 	}
 
 	return expr;
@@ -393,8 +399,8 @@ static struct pet_expr *extract_expr_access(isl_ctx *ctx,
 /* Extract operation expression specific fields from "node" and
  * update "expr" accordingly.
  */
-static struct pet_expr *extract_expr_op(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_expr_op(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t *pair;
 
@@ -410,7 +416,8 @@ static struct pet_expr *extract_expr_op(isl_ctx *ctx,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "operation"))
-			expr->op = extract_op(ctx, document, value);
+			expr = pet_expr_op_set_type(expr,
+					    extract_op(ctx, document, value));
 	}
 
 	return expr;
@@ -419,8 +426,8 @@ static struct pet_expr *extract_expr_op(isl_ctx *ctx,
 /* Extract pet_expr_call specific fields from "node" and
  * update "expr" accordingly.
  */
-static struct pet_expr *extract_expr_call(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_expr_call(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t *pair;
 
@@ -436,7 +443,8 @@ static struct pet_expr *extract_expr_call(isl_ctx *ctx,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "name"))
-			expr->name = extract_string(ctx, document, value);
+			expr = pet_expr_call_set_name(expr,
+					extract_string(ctx, document, value));
 	}
 
 	return expr;
@@ -445,8 +453,8 @@ static struct pet_expr *extract_expr_call(isl_ctx *ctx,
 /* Extract pet_expr_cast specific fields from "node" and
  * update "expr" accordingly.
  */
-static struct pet_expr *extract_expr_cast(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_expr_cast(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t *pair;
 
@@ -462,7 +470,8 @@ static struct pet_expr *extract_expr_cast(isl_ctx *ctx,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "type_name"))
-			expr->type_name = extract_string(ctx, document, value);
+			expr = pet_expr_cast_set_type_name(expr,
+					extract_string(ctx, document, value));
 	}
 
 	return expr;
@@ -471,8 +480,8 @@ static struct pet_expr *extract_expr_cast(isl_ctx *ctx,
 /* Extract pet_expr_int specific fields from "node" and
  * update "expr" accordingly.
  */
-static struct pet_expr *extract_expr_int(isl_ctx *ctx,
-	yaml_document_t *document, yaml_node_t *node, struct pet_expr *expr)
+static __isl_give pet_expr *extract_expr_int(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t * pair;
 
@@ -488,7 +497,8 @@ static struct pet_expr *extract_expr_int(isl_ctx *ctx,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "value"))
-			expr->i = extract_val(ctx, document, value);
+			expr = pet_expr_int_set_val(expr,
+					    extract_val(ctx, document, value));
 	}
 
 	return expr;
@@ -499,19 +509,16 @@ static struct pet_expr *extract_expr_int(isl_ctx *ctx,
  * We first extract the type and arguments of the expression and
  * then extract additional fields depending on the type.
  */
-static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
-	yaml_node_t *node)
+static __isl_give pet_expr *extract_expr(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
 {
-	struct pet_expr *expr;
+	enum pet_expr_type type = pet_expr_error;
+	pet_expr *expr;
 	yaml_node_pair_t *pair;
 
 	if (node->type != YAML_MAPPING_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting mapping",
 			return NULL);
-
-	expr = isl_calloc_type(ctx, struct pet_expr);
-	if (!expr)
-		return NULL;
 
 	for (pair = node->data.mapping.pairs.start;
 	     pair < node->data.mapping.pairs.top; ++pair) {
@@ -525,7 +532,23 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 				return pet_expr_free(expr));
 
 		if (!strcmp((char *) key->data.scalar.value, "type"))
-			expr->type = extract_expr_type(ctx, document, value);
+			type = extract_expr_type(ctx, document, value);
+	}
+
+	if (type == pet_expr_error)
+		isl_die(ctx, isl_error_invalid, "cannot determine type",
+			return NULL);
+
+	expr = pet_expr_alloc(ctx, type);
+	if (!expr)
+		return NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
 
 		if (!strcmp((char *) key->data.scalar.value, "arguments"))
 			expr = extract_arguments(ctx, document, value, expr);
@@ -533,7 +556,10 @@ static struct pet_expr *extract_expr(isl_ctx *ctx, yaml_document_t *document,
 			return NULL;
 	}
 
-	switch (expr->type) {
+	switch (type) {
+	case pet_expr_error:
+		isl_die(ctx, isl_error_internal, "unreachable code",
+			return NULL);
 	case pet_expr_access:
 		expr = extract_expr_access(ctx, document, node, expr);
 		break;
@@ -569,7 +595,7 @@ static struct pet_stmt *extract_stmt_arguments(isl_ctx *ctx,
 
 	stmt->n_arg = node->data.sequence.items.top
 				- node->data.sequence.items.start;
-	stmt->args = isl_calloc_array(ctx, struct pet_expr *, stmt->n_arg);
+	stmt->args = isl_calloc_array(ctx, pet_expr *, stmt->n_arg);
 	if (!stmt->args)
 		return pet_stmt_free(stmt);
 

@@ -218,9 +218,13 @@ static __isl_give isl_multi_pw_aff *pet_nested_remove_from_multi_pw_aff(
 /* Remove all parameters from the index expression and access relation of "expr"
  * that refer to nested accesses.
  */
-static struct pet_expr *expr_remove_nested_parameters(struct pet_expr *expr,
-	void *user)
+static __isl_give pet_expr *expr_remove_nested_parameters(
+	__isl_take pet_expr *expr, void *user)
 {
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+
 	expr->acc.access = pet_nested_remove_from_map(expr->acc.access);
 	expr->acc.index = pet_nested_remove_from_multi_pw_aff(expr->acc.index);
 	if (!expr->acc.access || !expr->acc.index)

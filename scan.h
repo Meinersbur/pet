@@ -97,7 +97,7 @@ struct PetScan {
 	static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 		const llvm::APInt &val);
 private:
-	void assign(struct pet_expr *lhs, clang::Expr *rhs);
+	void assign(__isl_keep pet_expr *lhs, clang::Expr *rhs);
 
 	__isl_give isl_pw_aff *signed_overflow(__isl_take isl_pw_aff *pa,
 		unsigned width);
@@ -138,7 +138,7 @@ private:
 
 	struct pet_scop *update_scop_start_end(struct pet_scop *scop,
 		clang::SourceRange range, bool skip_semi);
-	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr,
+	struct pet_scop *extract(clang::Stmt *stmt, __isl_take pet_expr *expr,
 				__isl_take isl_id *label = NULL);
 	struct pet_stmt *extract_kill(struct pet_scop *scop);
 
@@ -163,33 +163,32 @@ private:
 	struct pet_scop *extract_affine_while(__isl_take isl_pw_aff *pa,
 				clang::Stmt *body);
 
-	void mark_write(struct pet_expr *access);
-	struct pet_expr *extract_assume(clang::Expr *expr);
-	struct pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
+	__isl_give pet_expr *mark_write(__isl_take pet_expr *access);
+	__isl_give pet_expr *extract_assume(clang::Expr *expr);
+	__isl_give pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
 		clang::Expr *expr);
-	struct pet_expr *extract_expr(clang::Expr *expr);
-	struct pet_expr *extract_expr(clang::UnaryOperator *expr);
-	struct pet_expr *extract_expr(clang::BinaryOperator *expr);
-	struct pet_expr *extract_expr(clang::ImplicitCastExpr *expr);
-	struct pet_expr *extract_expr(clang::IntegerLiteral *expr);
-	struct pet_expr *extract_expr(clang::FloatingLiteral *expr);
-	struct pet_expr *extract_expr(clang::ParenExpr *expr);
-	struct pet_expr *extract_expr(clang::ConditionalOperator *expr);
-	struct pet_expr *extract_expr(clang::CallExpr *expr);
-	struct pet_expr *extract_expr(clang::CStyleCastExpr *expr);
+	__isl_give pet_expr *extract_expr(clang::Expr *expr);
+	__isl_give pet_expr *extract_expr(clang::UnaryOperator *expr);
+	__isl_give pet_expr *extract_expr(clang::BinaryOperator *expr);
+	__isl_give pet_expr *extract_expr(clang::ImplicitCastExpr *expr);
+	__isl_give pet_expr *extract_expr(clang::IntegerLiteral *expr);
+	__isl_give pet_expr *extract_expr(clang::FloatingLiteral *expr);
+	__isl_give pet_expr *extract_expr(clang::ParenExpr *expr);
+	__isl_give pet_expr *extract_expr(clang::ConditionalOperator *expr);
+	__isl_give pet_expr *extract_expr(clang::CallExpr *expr);
+	__isl_give pet_expr *extract_expr(clang::CStyleCastExpr *expr);
 
 	int extract_nested(__isl_keep isl_space *space,
-		int n_arg, struct pet_expr **args,
-		std::map<int,int> &param2pos);
-	struct pet_expr *extract_nested(struct pet_expr *expr, int n,
+		int n_arg, pet_expr **args, std::map<int,int> &param2pos);
+	__isl_give pet_expr *extract_nested(__isl_take pet_expr *expr, int n,
 		std::map<int,int> &param2pos);
 	struct pet_stmt *extract_nested(struct pet_stmt *stmt, int n,
 		std::map<int,int> &param2pos);
-	struct pet_expr *resolve_nested(struct pet_expr *expr);
+	__isl_give pet_expr *resolve_nested(__isl_take pet_expr *expr);
 	struct pet_scop *resolve_nested(struct pet_scop *scop);
 	struct pet_stmt *resolve_nested(struct pet_stmt *stmt);
-	struct pet_expr *extract_access_expr(clang::Expr *expr);
-	struct pet_expr *extract_access_expr(clang::ValueDecl *decl);
+	__isl_give pet_expr *extract_access_expr(clang::Expr *expr);
+	__isl_give pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
 	__isl_give isl_multi_pw_aff *extract_index(
 		clang::ArraySubscriptExpr *expr);
