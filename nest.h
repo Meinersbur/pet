@@ -13,7 +13,6 @@
 extern "C" {
 #endif
 
-__isl_give isl_id *pet_nested_clang_expr(isl_ctx *ctx, void *expr);
 __isl_give isl_id *pet_nested_pet_expr(__isl_take pet_expr *expr);
 
 int pet_nested_in_id(__isl_keep isl_id *id);

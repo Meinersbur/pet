@@ -38,13 +38,6 @@
 #include "nest.h"
 #include "scop.h"
 
-/* Create an isl_id that refers to the nested access "expr".
- */
-__isl_give isl_id *pet_nested_clang_expr(isl_ctx *ctx, void *expr)
-{
-	return isl_id_alloc(ctx, NULL, expr);
-}
-
 /* A wrapper around pet_expr_free to be used as an isl_id free user function.
  */
 static void pet_expr_free_wrap(void *user)
@@ -64,8 +57,7 @@ __isl_give isl_id *pet_nested_pet_expr(__isl_take pet_expr *expr)
 	return id;
 }
 
-/* Does "id" refer to a nested access created by pet_nested_clang_expr or
- * pet_nested_pet_expr?
+/* Does "id" refer to a nested access created by pet_nested_pet_expr?
  */
 int pet_nested_in_id(__isl_keep isl_id *id)
 {
@@ -77,7 +69,7 @@ int pet_nested_in_id(__isl_keep isl_id *id)
 		return 0;
 
 	name = isl_id_get_name(id);
-	return !name || !strcmp(name, "__pet_expr");
+	return !strcmp(name, "__pet_expr");
 }
 
 /* Does parameter "pos" of "space" refer to a nested access?

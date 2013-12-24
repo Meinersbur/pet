@@ -99,8 +99,6 @@ struct PetScan {
 private:
 	void assign(__isl_keep pet_expr *lhs, clang::Expr *rhs);
 
-	__isl_give isl_pw_aff *signed_overflow(__isl_take isl_pw_aff *pa,
-		unsigned width);
 	void insert_expression(__isl_take isl_pw_aff *expr);
 	struct pet_scop *scan(clang::Stmt *stmt);
 
@@ -214,13 +212,6 @@ private:
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
 
-	__isl_give isl_pw_aff *extract_affine_add(clang::BinaryOperator *expr);
-	__isl_give isl_pw_aff *extract_affine_div(clang::BinaryOperator *expr);
-	__isl_give isl_pw_aff *extract_affine_mod(clang::BinaryOperator *expr);
-	__isl_give isl_pw_aff *extract_affine_mul(clang::BinaryOperator *expr);
-
-	isl_pw_aff *nested_access(clang::Expr *expr);
-
 	__isl_give isl_pw_aff *try_extract_affine(clang::Expr *expr);
 	__isl_give isl_pw_aff *try_extract_affine_condition(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
@@ -229,16 +220,6 @@ private:
 
 	__isl_give isl_pw_aff *extract_affine(const llvm::APInt &val);
 	__isl_give isl_pw_aff *extract_affine(clang::Expr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::IntegerLiteral *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::ImplicitCastExpr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::DeclRefExpr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::BinaryOperator *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::UnaryOperator *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::ParenExpr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::CallExpr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::ArraySubscriptExpr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::MemberExpr *expr);
-	__isl_give isl_pw_aff *extract_affine(clang::ConditionalOperator *expr);
 
 	__isl_give isl_pw_aff *extract_condition(clang::Expr *expr);
 	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperator *expr);

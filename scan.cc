@@ -489,26 +489,6 @@ __isl_give isl_val *PetScan::extract_int(clang::Expr *expr)
 	return NULL;
 }
 
-/* Extract an affine expression from the IntegerLiteral "expr".
- * If the value of "expr" is "v", then the returned expression
- * is
- *
- *	{ [] -> [v] }
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
-{
-	isl_space *space = isl_space_set_alloc(ctx, 0, 0);
-	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(space));
-	isl_aff *aff = isl_aff_zero_on_domain(ls);
-	isl_set *dom = isl_set_universe(space);
-	isl_val *v;
-
-	v = extract_int(expr);
-	aff = isl_aff_add_constant_val(aff, v);
-
-	return isl_pw_aff_alloc(dom, aff);
-}
-
 /* Extract an affine expression from the APInt "val", which is assumed
  * to be non-negative.
  * If the value of "val" is "v", then the returned expression
@@ -528,11 +508,6 @@ __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 	aff = isl_aff_add_constant_val(aff, v);
 
 	return isl_pw_aff_alloc(dom, aff);
-}
-
-__isl_give isl_pw_aff *PetScan::extract_affine(ImplicitCastExpr *expr)
-{
-	return extract_affine(expr->getSubExpr());
 }
 
 /* Return the number of bits needed to represent the type "qt",
@@ -596,213 +571,6 @@ static __isl_give isl_set *set_parameter_bounds(__isl_take isl_set *set,
 	return set;
 }
 
-/* Extract an affine expression from the DeclRefExpr "expr".
- *
- * If the variable has been assigned a value, then we check whether
- * we know what (affine) value was assigned.
- * If so, we return this value.  Otherwise we convert "expr"
- * to an extra parameter (provided nesting_enabled is set).
- *
- * Otherwise, we simply return an expression that is equal
- * to a parameter corresponding to the referenced variable.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
-{
-	ValueDecl *decl = expr->getDecl();
-	const Type *type = decl->getType().getTypePtr();
-	isl_id *id;
-	isl_space *space;
-	isl_aff *aff;
-	isl_set *dom;
-
-	if (!type->isIntegerType()) {
-		unsupported(expr);
-		return NULL;
-	}
-
-	if (assigned_value.find(decl) != assigned_value.end()) {
-		if (assigned_value[decl])
-			return isl_pw_aff_copy(assigned_value[decl]);
-		else
-			return nested_access(expr);
-	}
-
-	id = create_decl_id(ctx, decl);
-	space = isl_space_set_alloc(ctx, 1, 0);
-
-	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
-
-	dom = isl_set_universe(isl_space_copy(space));
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
-
-	return isl_pw_aff_alloc(dom, aff);
-}
-
-/* Extract an affine expression from an integer division operation.
- * In particular, if "expr" is lhs/rhs, then return
- *
- *	lhs >= 0 ? floor(lhs/rhs) : ceil(lhs/rhs)
- *
- * The second argument (rhs) is required to be a (positive) integer constant.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine_div(BinaryOperator *expr)
-{
-	int is_cst;
-	isl_pw_aff *rhs, *lhs;
-
-	rhs = extract_affine(expr->getRHS());
-	is_cst = isl_pw_aff_is_cst(rhs);
-	if (is_cst < 0 || !is_cst) {
-		isl_pw_aff_free(rhs);
-		if (!is_cst)
-			unsupported(expr);
-		return NULL;
-	}
-
-	lhs = extract_affine(expr->getLHS());
-
-	return isl_pw_aff_tdiv_q(lhs, rhs);
-}
-
-/* Extract an affine expression from a modulo operation.
- * In particular, if "expr" is lhs/rhs, then return
- *
- *	lhs - rhs * (lhs >= 0 ? floor(lhs/rhs) : ceil(lhs/rhs))
- *
- * The second argument (rhs) is required to be a (positive) integer constant.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine_mod(BinaryOperator *expr)
-{
-	int is_cst;
-	isl_pw_aff *rhs, *lhs;
-
-	rhs = extract_affine(expr->getRHS());
-	is_cst = isl_pw_aff_is_cst(rhs);
-	if (is_cst < 0 || !is_cst) {
-		isl_pw_aff_free(rhs);
-		if (!is_cst)
-			unsupported(expr);
-		return NULL;
-	}
-
-	lhs = extract_affine(expr->getLHS());
-
-	return isl_pw_aff_tdiv_r(lhs, rhs);
-}
-
-/* Extract an affine expression from a multiplication operation.
- * This is only allowed if at least one of the two arguments
- * is a (piecewise) constant.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine_mul(BinaryOperator *expr)
-{
-	isl_pw_aff *lhs;
-	isl_pw_aff *rhs;
-
-	lhs = extract_affine(expr->getLHS());
-	rhs = extract_affine(expr->getRHS());
-
-	if (!isl_pw_aff_is_cst(lhs) && !isl_pw_aff_is_cst(rhs)) {
-		isl_pw_aff_free(lhs);
-		isl_pw_aff_free(rhs);
-		unsupported(expr);
-		return NULL;
-	}
-
-	return isl_pw_aff_mul(lhs, rhs);
-}
-
-/* Extract an affine expression from an addition or subtraction operation.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine_add(BinaryOperator *expr)
-{
-	isl_pw_aff *lhs;
-	isl_pw_aff *rhs;
-
-	lhs = extract_affine(expr->getLHS());
-	rhs = extract_affine(expr->getRHS());
-
-	switch (expr->getOpcode()) {
-	case BO_Add:
-		return isl_pw_aff_add(lhs, rhs);
-	case BO_Sub:
-		return isl_pw_aff_sub(lhs, rhs);
-	default:
-		isl_pw_aff_free(lhs);
-		isl_pw_aff_free(rhs);
-		return NULL;
-	}
-
-}
-
-/* Compute
- *
- *	pwaff mod 2^width
- */
-static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff,
-	unsigned width)
-{
-	isl_ctx *ctx;
-	isl_val *mod;
-
-	ctx = isl_pw_aff_get_ctx(pwaff);
-	mod = isl_val_int_from_ui(ctx, width);
-	mod = isl_val_2exp(mod);
-
-	pwaff = isl_pw_aff_mod_val(pwaff, mod);
-
-	return pwaff;
-}
-
-/* Limit the domain of "pwaff" to those elements where the function
- * value satisfies
- *
- *	2^{width-1} <= pwaff < 2^{width-1}
- */
-static __isl_give isl_pw_aff *avoid_overflow(__isl_take isl_pw_aff *pwaff,
-	unsigned width)
-{
-	isl_ctx *ctx;
-	isl_val *v;
-	isl_space *space = isl_pw_aff_get_domain_space(pwaff);
-	isl_local_space *ls = isl_local_space_from_space(space);
-	isl_aff *bound;
-	isl_set *dom;
-	isl_pw_aff *b;
-
-	ctx = isl_pw_aff_get_ctx(pwaff);
-	v = isl_val_int_from_ui(ctx, width - 1);
-	v = isl_val_2exp(v);
-
-	bound = isl_aff_zero_on_domain(ls);
-	bound = isl_aff_add_constant_val(bound, v);
-	b = isl_pw_aff_from_aff(bound);
-
-	dom = isl_pw_aff_lt_set(isl_pw_aff_copy(pwaff), isl_pw_aff_copy(b));
-	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
-
-	b = isl_pw_aff_neg(b);
-	dom = isl_pw_aff_ge_set(isl_pw_aff_copy(pwaff), b);
-	pwaff = isl_pw_aff_intersect_domain(pwaff, dom);
-
-	return pwaff;
-}
-
-/* Handle potential overflows on signed computations.
- *
- * If options->signed_overflow is set to PET_OVERFLOW_AVOID,
- * the we adjust the domain of "pa" to avoid overflows.
- */
-__isl_give isl_pw_aff *PetScan::signed_overflow(__isl_take isl_pw_aff *pa,
-	unsigned width)
-{
-	if (options->signed_overflow == PET_OVERFLOW_AVOID)
-		pa = avoid_overflow(pa, width);
-
-	return pa;
-}
-
 /* Return the piecewise affine expression "set ? 1 : 0" defined on "dom".
  */
 static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
@@ -814,252 +582,29 @@ static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
 	return pa;
 }
 
-/* Extract an affine expression from some binary operations.
- * If the result of the expression is unsigned, then we wrap it
- * based on the size of the type.  Otherwise, we ensure that
- * no overflow occurs.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(BinaryOperator *expr)
-{
-	isl_pw_aff *res;
-	unsigned width;
-
-	switch (expr->getOpcode()) {
-	case BO_Add:
-	case BO_Sub:
-		res = extract_affine_add(expr);
-		break;
-	case BO_Div:
-		res = extract_affine_div(expr);
-		break;
-	case BO_Rem:
-		res = extract_affine_mod(expr);
-		break;
-	case BO_Mul:
-		res = extract_affine_mul(expr);
-		break;
-	case BO_LT:
-	case BO_LE:
-	case BO_GT:
-	case BO_GE:
-	case BO_EQ:
-	case BO_NE:
-	case BO_LAnd:
-	case BO_LOr:
-		return extract_condition(expr);
-	default:
-		unsupported(expr);
-		return NULL;
-	}
-
-	width = ast_context.getIntWidth(expr->getType());
-	if (expr->getType()->isUnsignedIntegerType())
-		res = wrap(res, width);
-	else
-		res = signed_overflow(res, width);
-
-	return res;
-}
-
-/* Extract an affine expression from a negation operation.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(UnaryOperator *expr)
-{
-	if (expr->getOpcode() == UO_Minus)
-		return isl_pw_aff_neg(extract_affine(expr->getSubExpr()));
-	if (expr->getOpcode() == UO_LNot)
-		return extract_condition(expr);
-
-	unsupported(expr);
-	return NULL;
-}
-
-__isl_give isl_pw_aff *PetScan::extract_affine(ParenExpr *expr)
-{
-	return extract_affine(expr->getSubExpr());
-}
-
-/* Extract an affine expression from some special function calls.
- * In particular, we handle "min", "max", "ceild", "floord",
- * "intMod", "intFloor" and "intCeil".
- * In case of the latter five, the second argument needs to be
- * a (positive) integer constant.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
-{
-	FunctionDecl *fd;
-	string name;
-	isl_pw_aff *aff1, *aff2;
-
-	fd = expr->getDirectCallee();
-	if (!fd) {
-		unsupported(expr);
-		return NULL;
-	}
-
-	name = fd->getDeclName().getAsString();
-	if (!(expr->getNumArgs() == 2 && name == "min") &&
-	    !(expr->getNumArgs() == 2 && name == "max") &&
-	    !(expr->getNumArgs() == 2 && name == "intMod") &&
-	    !(expr->getNumArgs() == 2 && name == "intFloor") &&
-	    !(expr->getNumArgs() == 2 && name == "intCeil") &&
-	    !(expr->getNumArgs() == 2 && name == "floord") &&
-	    !(expr->getNumArgs() == 2 && name == "ceild")) {
-		unsupported(expr);
-		return NULL;
-	}
-
-	if (name == "min" || name == "max") {
-		aff1 = extract_affine(expr->getArg(0));
-		aff2 = extract_affine(expr->getArg(1));
-
-		if (name == "min")
-			aff1 = isl_pw_aff_min(aff1, aff2);
-		else
-			aff1 = isl_pw_aff_max(aff1, aff2);
-	} else if (name == "intMod") {
-		isl_val *v;
-		Expr *arg2 = expr->getArg(1);
-
-		if (arg2->getStmtClass() != Stmt::IntegerLiteralClass) {
-			unsupported(expr);
-			return NULL;
-		}
-		aff1 = extract_affine(expr->getArg(0));
-		v = extract_int(cast<IntegerLiteral>(arg2));
-		aff1 = isl_pw_aff_mod_val(aff1, v);
-	} else if (name == "floord" || name == "ceild" ||
-		   name == "intFloor" || name == "intCeil") {
-		isl_val *v;
-		Expr *arg2 = expr->getArg(1);
-
-		if (arg2->getStmtClass() != Stmt::IntegerLiteralClass) {
-			unsupported(expr);
-			return NULL;
-		}
-		aff1 = extract_affine(expr->getArg(0));
-		v = extract_int(cast<IntegerLiteral>(arg2));
-		aff1 = isl_pw_aff_scale_down_val(aff1, v);
-		if (name == "floord" || name == "intFloor")
-			aff1 = isl_pw_aff_floor(aff1);
-		else
-			aff1 = isl_pw_aff_ceil(aff1);
-	} else {
-		unsupported(expr);
-		return NULL;
-	}
-
-	return aff1;
-}
-
-/* This method is called when we come across an access that is
- * nested in what is supposed to be an affine expression.
- * If nesting is allowed, we return a new parameter that corresponds
- * to this nested access.  Otherwise, we simply complain.
- *
- * Note that we currently don't allow nested accesses themselves
- * to contain any nested accesses, so we check if we can extract
- * the access without any nesting and complain if we can't.
- *
- * The new parameter is resolved in resolve_nested.
- */
-isl_pw_aff *PetScan::nested_access(Expr *expr)
-{
-	isl_id *id;
-	isl_space *space;
-	isl_aff *aff;
-	isl_set *dom;
-	isl_multi_pw_aff *index;
-
-	if (!nesting_enabled) {
-		unsupported(expr);
-		return NULL;
-	}
-
-	allow_nested = false;
-	index = extract_index(expr);
-	allow_nested = true;
-	if (!index) {
-		unsupported(expr);
-		return NULL;
-	}
-	isl_multi_pw_aff_free(index);
-
-	id = pet_nested_clang_expr(ctx, expr);
-	space = isl_space_set_alloc(ctx, 1, 0);
-
-	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
-
-	dom = isl_set_universe(isl_space_copy(space));
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
-
-	return isl_pw_aff_alloc(dom, aff);
-}
-
-/* Affine expressions are not supposed to contain array accesses,
- * but if nesting is allowed, we return a parameter corresponding
- * to the array access.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(ArraySubscriptExpr *expr)
-{
-	return nested_access(expr);
-}
-
-/* Affine expressions are not supposed to contain member accesses,
- * but if nesting is allowed, we return a parameter corresponding
- * to the member access.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(MemberExpr *expr)
-{
-	return nested_access(expr);
-}
-
-/* Extract an affine expression from a conditional operation.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(ConditionalOperator *expr)
-{
-	isl_pw_aff *cond, *lhs, *rhs;
-
-	cond = extract_condition(expr->getCond());
-	lhs = extract_affine(expr->getTrueExpr());
-	rhs = extract_affine(expr->getFalseExpr());
-
-	return isl_pw_aff_cond(cond, lhs, rhs);
-}
-
 /* Extract an affine expression, if possible, from "expr".
  * Otherwise return NULL.
- *
- * The result has an anonymous zero-dimensional domain.
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 {
-	switch (expr->getStmtClass()) {
-	case Stmt::ImplicitCastExprClass:
-		return extract_affine(cast<ImplicitCastExpr>(expr));
-	case Stmt::IntegerLiteralClass:
-		return extract_affine(cast<IntegerLiteral>(expr));
-	case Stmt::DeclRefExprClass:
-		return extract_affine(cast<DeclRefExpr>(expr));
-	case Stmt::BinaryOperatorClass:
-		return extract_affine(cast<BinaryOperator>(expr));
-	case Stmt::UnaryOperatorClass:
-		return extract_affine(cast<UnaryOperator>(expr));
-	case Stmt::ParenExprClass:
-		return extract_affine(cast<ParenExpr>(expr));
-	case Stmt::CallExprClass:
-		return extract_affine(cast<CallExpr>(expr));
-	case Stmt::ArraySubscriptExprClass:
-		return extract_affine(cast<ArraySubscriptExpr>(expr));
-	case Stmt::MemberExprClass:
-		return extract_affine(cast<MemberExpr>(expr));
-	case Stmt::ConditionalOperatorClass:
-		return extract_affine(cast<ConditionalOperator>(expr));
-	default:
+	pet_expr *pe;
+	pet_context *pc;
+	isl_pw_aff *pa;
+
+	pe = extract_expr(expr);
+	if (!pe)
+		return NULL;
+	pc = convert_assignments(ctx, assigned_value);
+	pc = pet_context_set_allow_nested(pc, nesting_enabled);
+	pa = pet_expr_extract_affine(pe, pc);
+	if (isl_pw_aff_involves_nan(pa)) {
 		unsupported(expr);
+		pa = isl_pw_aff_free(pa);
 	}
-	return NULL;
+	pet_context_free(pc);
+	pet_expr_free(pe);
+
+	return pa;
 }
 
 __isl_give isl_multi_pw_aff *PetScan::extract_index(ImplicitCastExpr *expr)
@@ -3248,19 +2793,13 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 	return extract(stmt->children(), !skip_declarations, skip_declarations);
 }
 
-/* Extract a pet_expr from an isl_id created by either pet_nested_clang_expr or
- * pet_nested_pet_expr.
- * In the first case, the isl_id has no name and
- * the user pointer points to a clang::Expr object.
- * In the second case, the isl_id has name "__pet_expr" and
+/* Extract a pet_expr from an isl_id created by pet_nested_pet_expr.
+ * Such an isl_id has name "__pet_expr" and
  * the user pointer points to a pet_expr object.
  */
 __isl_give pet_expr *PetScan::extract_expr(__isl_keep isl_id *id)
 {
-	if (!isl_id_get_name(id))
-		return extract_expr((Expr *) isl_id_get_user(id));
-	else
-		return pet_expr_copy((pet_expr *) isl_id_get_user(id));
+	return pet_expr_copy((pet_expr *) isl_id_get_user(id));
 }
 
 /* For each nested access parameter in "space",
@@ -3343,7 +2882,7 @@ __isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
 
 /* Look for parameters in any access relation in "expr" that
  * refer to nested accesses.  In particular, these are
- * parameters with either no name or with name "__pet_expr".
+ * parameters with name "__pet_expr".
  *
  * If there are any such parameters, then the domain of the index
  * expression and the access relation, which is still [] at this point,
@@ -3880,7 +3419,7 @@ error:
 
 /* Look for parameters in the iteration domain of "stmt" that
  * refer to nested accesses.  In particular, these are
- * parameters with either no name or with name "__pet_expr".
+ * parameters with name "__pet_expr".
  *
  * If there are any such parameters, then as many extra variables
  * (after identifying identical nested accesses) are inserted in the
