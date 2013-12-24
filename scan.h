@@ -97,7 +97,7 @@ struct PetScan {
 	static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 		const llvm::APInt &val);
 private:
-	void assign(__isl_keep pet_expr *lhs, clang::Expr *rhs);
+	void assign(__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs);
 
 	void insert_expression(__isl_take isl_pw_aff *expr);
 	struct pet_scop *scan(clang::Stmt *stmt);
@@ -211,7 +211,6 @@ private:
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
 
-	__isl_give isl_pw_aff *try_extract_affine(clang::Expr *expr);
 	__isl_give isl_pw_aff *try_extract_affine_condition(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
 	__isl_give isl_pw_aff *try_extract_nested_condition(clang::Expr *expr);

@@ -1105,10 +1105,11 @@ __isl_give pet_expr *PetScan::mark_write(__isl_take pet_expr *access)
  * is an affine expression, then keep track of this value in assigned_value
  * so that we can plug it in when we later come across the same variable.
  */
-void PetScan::assign(__isl_keep pet_expr *lhs, Expr *rhs)
+void PetScan::assign(__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs)
 {
 	isl_id *id;
 	ValueDecl *decl;
+	pet_context *pc;
 	isl_pw_aff *pa;
 
 	if (!lhs)
@@ -1120,8 +1121,12 @@ void PetScan::assign(__isl_keep pet_expr *lhs, Expr *rhs)
 	decl = (ValueDecl *) isl_id_get_user(id);
 	isl_id_free(id);
 
-	pa = try_extract_affine(rhs);
+	pc = convert_assignments(ctx, assigned_value);
+	pa = pet_expr_extract_affine(rhs, pc);
+	pet_context_free(pc);
 	clear_assignment(assigned_value, decl);
+	if (isl_pw_aff_involves_nan(pa))
+		pa = isl_pw_aff_free(pa);
 	if (!pa)
 		return;
 	assigned_value[decl] = pa;
@@ -1162,7 +1167,7 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	}
 
 	if (expr->getOpcode() == BO_Assign)
-		assign(lhs, expr->getRHS());
+		assign(lhs, rhs);
 
 	type_size = get_type_size(expr->getType(), ast_context);
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
@@ -1228,7 +1233,7 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	rhs = extract_expr(vd->getInit());
 
 	lhs = mark_write(lhs);
-	assign(lhs, vd->getInit());
+	assign(lhs, rhs);
 
 	type_size = get_type_size(vd->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
@@ -3088,28 +3093,6 @@ struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
 
 	scop = update_scop_start_end(scop, range, skip_semi);
 	return scop;
-}
-
-/* Check if we can extract an affine expression from "expr".
- * Return the expressions as an isl_pw_aff if we can and NULL otherwise.
- * We turn on autodetection so that we won't generate any warnings
- * and turn off nesting, so that we won't accept any non-affine constructs.
- */
-__isl_give isl_pw_aff *PetScan::try_extract_affine(Expr *expr)
-{
-	isl_pw_aff *pwaff;
-	int save_autodetect = options->autodetect;
-	bool save_nesting = nesting_enabled;
-
-	options->autodetect = 1;
-	nesting_enabled = false;
-
-	pwaff = extract_affine(expr);
-
-	options->autodetect = save_autodetect;
-	nesting_enabled = save_nesting;
-
-	return pwaff;
 }
 
 /* Check if we can extract an affine constraint from "expr".
