@@ -189,58 +189,23 @@ static __isl_give isl_id *create_decl_id(isl_ctx *ctx, NamedDecl *decl)
 	return isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
 }
 
-/* Mark "decl" as having an unknown value in "assigned_value".
- *
- * If no (known or unknown) value was assigned to "decl" before,
- * then it may have been treated as a parameter before and may
- * therefore appear in a value assigned to another variable.
- * If so, this assignment needs to be turned into an unknown value too.
- */
-static void clear_assignment(map<ValueDecl *, isl_pw_aff *> &assigned_value,
-	ValueDecl *decl)
-{
-	map<ValueDecl *, isl_pw_aff *>::iterator it;
-
-	it = assigned_value.find(decl);
-
-	assigned_value[decl] = NULL;
-
-	if (it != assigned_value.end())
-		return;
-
-	for (it = assigned_value.begin(); it != assigned_value.end(); ++it) {
-		isl_pw_aff *pa = it->second;
-		int nparam = isl_pw_aff_dim(pa, isl_dim_param);
-
-		for (int i = 0; i < nparam; ++i) {
-			isl_id *id;
-
-			if (!isl_pw_aff_has_dim_id(pa, isl_dim_param, i))
-				continue;
-			id = isl_pw_aff_get_dim_id(pa, isl_dim_param, i);
-			if (isl_id_get_user(id) == decl)
-				it->second = NULL;
-			isl_id_free(id);
-		}
-	}
-}
-
 /* Look for any assignments to scalar variables in part of the parse
- * tree and set assigned_value to NULL for each of them.
- * Also reset assigned_value if the address of a scalar variable
- * is being taken.  As an exception, if the address is passed to a function
- * that is declared to receive a const pointer, then assigned_value is
- * not reset.
+ * tree and mark them as having an unknown value in "pc".
+ * If the address of a scalar variable is being taken, then mark
+ * it as having an unknown value as well.  As an exception,
+ * if the address is passed to a function
+ * that is declared to receive a const pointer, then "pc" is not updated.
  *
  * This ensures that we won't use any previously stored value
  * in the current subtree and its parents.
  */
 struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
-	map<ValueDecl *, isl_pw_aff *> &assigned_value;
+	isl_ctx *ctx;
+	pet_context *&pc;
 	set<UnaryOperator *> skip;
 
-	clear_assignments(map<ValueDecl *, isl_pw_aff *> &assigned_value) :
-		assigned_value(assigned_value) {}
+	clear_assignments(pet_context *&pc) : pc(pc),
+		ctx(pet_context_get_ctx(pc)) {}
 
 	/* Check for "address of" operators whose value is passed
 	 * to a const pointer argument and add them to "skip", so that
@@ -293,7 +258,7 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 			return true;
 		ref = cast<DeclRefExpr>(arg);
 		decl = ref->getDecl();
-		clear_assignment(assigned_value, decl);
+		pc = pet_context_mark_assigned(pc, create_decl_id(ctx, decl));
 		return true;
 	}
 
@@ -309,85 +274,13 @@ struct clear_assignments : RecursiveASTVisitor<clear_assignments> {
 			return true;
 		ref = cast<DeclRefExpr>(lhs);
 		decl = ref->getDecl();
-		clear_assignment(assigned_value, decl);
+		pc = pet_context_mark_assigned(pc, create_decl_id(ctx, decl));
 		return true;
 	}
 };
 
-/* Keep a copy of the currently assigned values.
- *
- * Any variable that is assigned a value inside the current scope
- * is removed again when we leave the scope (either because it wasn't
- * stored in the cache or because it has a different value in the cache).
- */
-struct assigned_value_cache {
-	map<ValueDecl *, isl_pw_aff *> &assigned_value;
-	map<ValueDecl *, isl_pw_aff *> cache;
-
-	assigned_value_cache(map<ValueDecl *, isl_pw_aff *> &assigned_value) :
-		assigned_value(assigned_value), cache(assigned_value) {}
-	~assigned_value_cache() {
-		map<ValueDecl *, isl_pw_aff *>::iterator it = cache.begin();
-		for (it = assigned_value.begin(); it != assigned_value.end();
-		     ++it) {
-			if (!it->second ||
-			    (cache.find(it->first) != cache.end() &&
-			     cache[it->first] != it->second))
-				cache[it->first] = NULL;
-		}
-		assigned_value = cache;
-	}
-};
-
-/* Convert the mapping from identifiers to values in "assigned_value"
- * to a pet_context to be used by pet_expr_extract_*.
- * In particular, the clang identifiers are wrapped in an isl_id and
- * a NULL value (representing an unknown value) is replaced by a NaN.
- */
-static __isl_give pet_context *convert_assignments(isl_ctx *ctx,
-	map<ValueDecl *, isl_pw_aff *> &assigned_value)
-{
-	pet_context *pc;
-	map<ValueDecl *, isl_pw_aff *>::iterator it;
-
-	pc = pet_context_alloc(isl_space_set_alloc(ctx, 0, 0));
-
-	for (it = assigned_value.begin(); it != assigned_value.end(); ++it) {
-		ValueDecl *decl = it->first;
-		isl_pw_aff *pa = it->second;
-		isl_id *id;
-
-		id = create_decl_id(ctx, decl);
-		if (pa)
-			pc = pet_context_set_value(pc, id, isl_pw_aff_copy(pa));
-		else
-			pc = pet_context_mark_unknown(pc, id);
-	}
-
-	return pc;
-}
-
-/* Insert an expression into the collection of expressions,
- * provided it is not already in there.
- * The isl_pw_affs are freed in the destructor.
- */
-void PetScan::insert_expression(__isl_take isl_pw_aff *expr)
-{
-	std::set<isl_pw_aff *>::iterator it;
-
-	if (expressions.find(expr) == expressions.end())
-		expressions.insert(expr);
-	else
-		isl_pw_aff_free(expr);
-}
-
 PetScan::~PetScan()
 {
-	std::set<isl_pw_aff *>::iterator it;
-
-	for (it = expressions.begin(); it != expressions.end(); ++it)
-		isl_pw_aff_free(*it);
-
 	isl_union_map_free(value_bounds);
 }
 
@@ -571,26 +464,25 @@ static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
 	return pa;
 }
 
-/* Extract an affine expression, if possible, from "expr".
+/* Extract an affine expression, if possible, from "expr"
+ * within the context "pc", except that nesting is enabled.
  * Otherwise return NULL.
  */
-__isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
+__isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr,
+	__isl_keep pet_context *pc)
 {
 	pet_expr *pe;
-	pet_context *pc;
 	isl_pw_aff *pa;
 
 	pe = extract_expr(expr);
 	if (!pe)
 		return NULL;
-	pc = convert_assignments(ctx, assigned_value);
 	pe = pet_expr_plug_in_args(pe, pc);
 	pa = pet_expr_extract_affine(pe, pc);
 	if (isl_pw_aff_involves_nan(pa)) {
 		unsupported(expr);
 		pa = isl_pw_aff_free(pa);
 	}
-	pet_context_free(pc);
 	pet_expr_free(pe);
 
 	return pa;
@@ -832,6 +724,7 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
 }
 
 /* Extract an affine expressions representing the comparison "LHS op RHS"
+ * within the context "pc".
  * "comp" is the original statement that "LHS op RHS" is derived from
  * and is used for diagnostics.
  *
@@ -851,7 +744,7 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
  * this optimization can be removed.
  */
 __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
-	Expr *LHS, Expr *RHS, Stmt *comp)
+	Expr *LHS, Expr *RHS, Stmt *comp, __isl_keep pet_context *pc)
 {
 	isl_pw_aff *lhs;
 	isl_pw_aff *rhs;
@@ -861,49 +754,51 @@ __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
 	enum pet_op_type type;
 
 	if (op == BO_GT)
-		return extract_comparison(BO_LT, RHS, LHS, comp);
+		return extract_comparison(BO_LT, RHS, LHS, comp, pc);
 	if (op == BO_GE)
-		return extract_comparison(BO_LE, RHS, LHS, comp);
+		return extract_comparison(BO_LE, RHS, LHS, comp, pc);
 
 	if (op == BO_LT || op == BO_LE) {
 		Expr *expr1, *expr2;
 		if (is_min(RHS, expr1, expr2)) {
-			lhs = extract_comparison(op, LHS, expr1, comp);
-			rhs = extract_comparison(op, LHS, expr2, comp);
+			lhs = extract_comparison(op, LHS, expr1, comp, pc);
+			rhs = extract_comparison(op, LHS, expr2, comp, pc);
 			return pet_and(lhs, rhs);
 		}
 		if (is_max(LHS, expr1, expr2)) {
-			lhs = extract_comparison(op, expr1, RHS, comp);
-			rhs = extract_comparison(op, expr2, RHS, comp);
+			lhs = extract_comparison(op, expr1, RHS, comp, pc);
+			rhs = extract_comparison(op, expr2, RHS, comp, pc);
 			return pet_and(lhs, rhs);
 		}
 	}
 
-	lhs = extract_affine(LHS);
-	rhs = extract_affine(RHS);
+	lhs = extract_affine(LHS, pc);
+	rhs = extract_affine(RHS, pc);
 
 	type = BinaryOperatorKind2pet_op_type(op);
 	return pet_comparison(type, lhs, rhs);
 }
 
-__isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp)
+__isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp,
+	__isl_keep pet_context *pc)
 {
 	return extract_comparison(comp->getOpcode(), comp->getLHS(),
-				comp->getRHS(), comp);
+				comp->getRHS(), comp, pc);
 }
 
-/* Extract an affine expression from a boolean expression.
+/* Extract an affine expression from a boolean expression
+ * within the context "pc".
  * In particular, return the expression "expr ? 1 : 0".
  * Return NULL if we are unable to extract an affine expression.
  *
  * We first convert the clang::Expr to a pet_expr and
  * then extract an affine expression from that pet_expr.
  */
-__isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
+__isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr,
+	__isl_keep pet_context *pc)
 {
 	isl_pw_aff *cond;
 	pet_expr *pe;
-	pet_context *pc;
 
 	if (!expr) {
 		isl_set *u = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
@@ -911,8 +806,8 @@ __isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 	}
 
 	pe = extract_expr(expr);
-	pc = convert_assignments(ctx, assigned_value);
 	pe = pet_expr_plug_in_args(pe, pc);
+	pc = pet_context_copy(pc);
 	pc = pet_context_set_allow_nested(pc, nesting_enabled);
 	cond = pet_expr_extract_affine_condition(pe, pc);
 	if (isl_pw_aff_involves_nan(cond))
@@ -957,13 +852,12 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 }
 
 /* If the access expression "expr" writes to a (non-virtual) scalar,
- * then mark the scalar as having an unknown value in "assigned_value".
+ * then mark the scalar as having an unknown value in "pc".
  */
 static int clear_write(__isl_keep pet_expr *expr, void *user)
 {
 	isl_id *id;
-	ValueDecl *decl;
-	PetScan *ps = (PetScan *) user;
+	pet_context **pc = (pet_context **) user;
 
 	if (!pet_expr_access_is_write(expr))
 		return 0;
@@ -971,81 +865,85 @@ static int clear_write(__isl_keep pet_expr *expr, void *user)
 		return 0;
 
 	id = pet_expr_access_get_id(expr);
-	decl = (ValueDecl *) isl_id_get_user(id);
-	isl_id_free(id);
-
-	if (decl)
-		clear_assignment(ps->assigned_value, decl);
+	if (isl_id_get_user(id))
+		*pc = pet_context_mark_assigned(*pc, id);
+	else
+		isl_id_free(id);
 
 	return 0;
 }
 
-/* Take into account the writes in "stmt".
+/* Update "pc" by taking into account the writes in "stmt".
  * That is, first mark all scalar variables that are written by "stmt"
  * as having an unknown value.  Afterwards,
  * if "stmt" is a top-level (i.e., unconditional) assignment
- * to a scalar variable, then update "assigned_value" accordingly.
+ * to a scalar variable, then update "pc" accordingly.
  *
  * In particular, if the lhs of the assignment is a scalar variable, then mark
  * the variable as having been assigned.  If, furthermore, the rhs
- * is an affine expression, then keep track of this value in assigned_value
+ * is an affine expression, then keep track of this value in "pc"
  * so that we can plug it in when we later come across the same variable.
  *
  * We skip assignments to virtual arrays (those with NULL user pointer).
  */
-void PetScan::handle_writes(struct pet_stmt *stmt)
+__isl_give pet_context *PetScan::handle_writes(struct pet_stmt *stmt,
+	__isl_take pet_context *pc)
 {
 	pet_expr *body = stmt->body;
 	pet_expr *arg;
 	isl_id *id;
-	ValueDecl *decl;
-	pet_context *pc;
 	isl_pw_aff *pa;
 
-	pet_expr_foreach_access_expr(body, &clear_write, this);
+	if (pet_expr_foreach_access_expr(body, &clear_write, &pc) < 0)
+		return pet_context_free(pc);
 
 	if (!pet_stmt_is_assign(stmt))
-		return;
+		return pc;
 	if (!isl_set_plain_is_universe(stmt->domain))
-		return;
+		return pc;
 	arg = pet_expr_get_arg(body, 0);
 	if (!pet_expr_is_scalar_access(arg)) {
 		pet_expr_free(arg);
-		return;
+		return pc;
 	}
 
 	id = pet_expr_access_get_id(arg);
-	decl = (ValueDecl *) isl_id_get_user(id);
-	isl_id_free(id);
 	pet_expr_free(arg);
 
-	if (!decl)
-		return;
+	if (!isl_id_get_user(id)) {
+		isl_id_free(id);
+		return pc;
+	}
 
 	arg = pet_expr_get_arg(body, 1);
-	pc = convert_assignments(ctx, assigned_value);
 	pa = pet_expr_extract_affine(arg, pc);
-	pet_context_free(pc);
-	clear_assignment(assigned_value, decl);
+	pc = pet_context_mark_assigned(pc, isl_id_copy(id));
 	pet_expr_free(arg);
 
 	if (isl_pw_aff_involves_nan(pa))
 		pa = isl_pw_aff_free(pa);
-	if (!pa)
-		return;
-	assigned_value[decl] = pa;
-	insert_expression(pa);
+	if (!pa) {
+		isl_id_free(id);
+		return pc;
+	}
+
+	pc = pet_context_set_value(pc, id, pa);
+
+	return pc;
 }
 
-/* Update "assigned_value" based on the write accesses (and, in particular,
+/* Update "pc" based on the write accesses (and, in particular,
  * assignments) in "scop".
  */
-void PetScan::handle_writes(struct pet_scop *scop)
+__isl_give pet_context *PetScan::handle_writes(struct pet_scop *scop,
+	__isl_take pet_context *pc)
 {
 	if (!scop)
-		return;
+		return pet_context_free(pc);
 	for (int i = 0; i < scop->n_stmt; ++i)
-		handle_writes(scop->stmts[i]);
+		pc = handle_writes(scop->stmts[i], pc);
+
+	return pc;
 }
 
 /* Construct a pet_expr representing a binary operator expression.
@@ -1081,9 +979,10 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 }
 
 /* Construct a pet_scop with a single statement killing the entire
- * array "array".
+ * array "array" within the context "pc".
  */
-struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
+struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array,
+	__isl_keep pet_context *pc)
 {
 	isl_id *id;
 	isl_space *space;
@@ -1099,10 +998,11 @@ struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 	index = isl_multi_pw_aff_zero(space);
 	expr = pet_expr_kill_from_access_and_index(access, index);
-	return extract(expr, stmt->getSourceRange(), false);
+	return extract(expr, stmt->getSourceRange(), false, pc);
 }
 
-/* Construct a pet_scop for a (single) variable declaration.
+/* Construct a pet_scop for a (single) variable declaration
+ * within the context "pc".
  *
  * The scop contains the variable being declared (as an array)
  * and a statement killing the array.
@@ -1110,7 +1010,7 @@ struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
  * If the variable is initialized in the AST, then the scop
  * also contains an assignment to the variable.
  */
-struct pet_scop *PetScan::extract(DeclStmt *stmt)
+struct pet_scop *PetScan::extract(DeclStmt *stmt, __isl_keep pet_context *pc)
 {
 	int type_size;
 	Decl *decl;
@@ -1127,10 +1027,10 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	decl = stmt->getSingleDecl();
 	vd = cast<VarDecl>(decl);
 
-	array = extract_array(ctx, vd, NULL);
+	array = extract_array(ctx, vd, NULL, pc);
 	if (array)
 		array->declared = 1;
-	scop_decl = kill(stmt, array);
+	scop_decl = kill(stmt, array, pc);
 	scop_decl = pet_scop_add_array(scop_decl, array);
 
 	if (!vd->getInit())
@@ -1143,7 +1043,7 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 
 	type_size = get_type_size(vd->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
-	scop = extract(pe, stmt->getSourceRange(), false);
+	scop = extract(pe, stmt->getSourceRange(), false, pc);
 
 	scop_decl = pet_scop_prefix(scop_decl, 0);
 	scop = pet_scop_prefix(scop, 1);
@@ -1781,7 +1681,8 @@ static struct pet_scop *scop_add_break(struct pet_scop *scop,
 	return scop;
 }
 
-/* Construct a pet_scop for an infinite loop around the given body.
+/* Construct a pet_scop for an infinite loop around the given body
+ * within the context "pc".
  *
  * We extract a pet_scop for the body and then embed it in a loop with
  * iteration domain
@@ -1799,7 +1700,8 @@ static struct pet_scop *scop_add_break(struct pet_scop *scop,
  * If we were only able to extract part of the body, then simply
  * return that part.
  */
-struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
+struct pet_scop *PetScan::extract_infinite_loop(Stmt *body,
+	__isl_keep pet_context *pc)
 {
 	isl_id *id, *id_test;
 	isl_set *domain;
@@ -1807,7 +1709,7 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 	struct pet_scop *scop;
 	bool has_var_break;
 
-	scop = extract(body);
+	scop = extract(body, pc);
 	if (!scop)
 		return NULL;
 	if (partial)
@@ -1836,13 +1738,20 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
  *	for (;;)
  *		body
  *
+ * within the context "pc".
  */
-struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
+struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt,
+	__isl_keep pet_context *pc)
 {
-	clear_assignments clear(assigned_value);
+	struct pet_scop *scop;
+
+	pc = pet_context_copy(pc);
+	clear_assignments clear(pc);
 	clear.TraverseStmt(stmt->getBody());
 
-	return extract_infinite_loop(stmt->getBody());
+	scop = extract_infinite_loop(stmt->getBody(), pc);
+	pet_context_free(pc);
+	return scop;
 }
 
 /* Add an array with the given extent (range of "index") to the list
@@ -1864,12 +1773,13 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
  *	while (pa)
  *		body
  *
+ * within the context "pc".
  * In particular, construct a scop for an infinite loop around body and
  * intersect the domain with the affine expression.
  * Note that this intersection may result in an empty loop.
  */
 struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
-	Stmt *body)
+	Stmt *body, __isl_take pet_context *pc)
 {
 	struct pet_scop *scop;
 	isl_set *dom;
@@ -1877,10 +1787,11 @@ struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
 
 	valid = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	dom = isl_pw_aff_non_zero_set(pa);
-	scop = extract_infinite_loop(body);
+	scop = extract_infinite_loop(body, pc);
 	scop = pet_scop_restrict(scop, isl_set_params(dom));
 	scop = pet_scop_restrict_context(scop, isl_set_params(valid));
 
+	pet_context_free(pc);
 	return scop;
 }
 
@@ -1940,13 +1851,15 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
  * to extend the iteration domain with an infinite loop.
  * If we were only able to extract part of the body, then simply
  * return that part.
+ *
+ * "pc" is the context in which the affine expressions in the scop are created.
  */
-struct pet_scop *PetScan::extract(WhileStmt *stmt)
+struct pet_scop *PetScan::extract(WhileStmt *stmt, __isl_keep pet_context *pc)
 {
 	Expr *cond;
 	int test_nr, stmt_nr;
 	isl_pw_aff *pa;
-	struct pet_scop *scop_body;
+	struct pet_scop *scop, *scop_body;
 
 	cond = stmt->getCond();
 	if (!cond) {
@@ -1954,29 +1867,34 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		return NULL;
 	}
 
-	clear_assignments clear(assigned_value);
+	pc = pet_context_copy(pc);
+	clear_assignments clear(pc);
 	clear.TraverseStmt(stmt->getBody());
 
-	pa = extract_condition(cond);
+	pa = extract_condition(cond, pc);
 	if (pa)
-		return extract_affine_while(pa, stmt->getBody());
+		return extract_affine_while(pa, stmt->getBody(), pc);
 
 	if (!allow_nested) {
 		unsupported(stmt);
+		pet_context_free(pc);
 		return NULL;
 	}
 
 	test_nr = n_test++;
 	stmt_nr = n_stmt++;
-	scop_body = extract(stmt->getBody());
-	if (partial)
+	scop_body = extract(stmt->getBody(), pc);
+	if (partial) {
+		pet_context_free(pc);
 		return scop_body;
+	}
 
-	return extract_while(cond, test_nr, stmt_nr, scop_body, NULL);
+	return extract_while(cond, test_nr, stmt_nr, scop_body, NULL, pc);
 }
 
 /* Construct a generic while scop, with iteration domain
- * { [t] : t >= 0 } around "scop_body".  The scop consists of two parts,
+ * { [t] : t >= 0 } around "scop_body" within the context "pc".
+ * The scop consists of two parts,
  * one for evaluating the condition "cond" and one for the body.
  * "test_nr" is the sequence number of the virtual test variable that contains
  * the result of the condition and "stmt_nr" is the sequence number
@@ -2000,7 +1918,8 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
  * or in scop_add_break (if the skip condition is not affine).
  */
 struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
-	struct pet_scop *scop_body, struct pet_scop *scop_inc)
+	struct pet_scop *scop_body, struct pet_scop *scop_inc,
+	__isl_take pet_context *pc)
 {
 	isl_id *id, *id_test, *id_break_test;
 	isl_set *domain;
@@ -2011,7 +1930,7 @@ struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
 
 	test_index = pet_create_test_index(ctx, test_nr);
 	scop = extract_non_affine_condition(cond, stmt_nr,
-					    isl_multi_pw_aff_copy(test_index));
+				isl_multi_pw_aff_copy(test_index), pc);
 	scop = scop_add_array(scop, test_index, ast_context);
 	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
 	isl_multi_pw_aff_free(test_index);
@@ -2052,6 +1971,7 @@ struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
 	scop = scop_add_while(scop, scop_body, id_test, domain,
 				isl_val_one(ctx));
 
+	pet_context_free(pc);
 	return scop;
 }
 
@@ -2257,7 +2177,7 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	return enforce_subset(dom, cond);
 }
 
-/* Extract the for loop "stmt" as a while loop.
+/* Extract the for loop "stmt" as a while loop within the context "pc".
  * "iv" is the loop iterator. "init" is the initialization.
  * "inc" is the increment.
  *
@@ -2282,7 +2202,8 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
  * and after the loop.
  */
 struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
-	__isl_take pet_expr *init, __isl_take pet_expr *inc)
+	__isl_take pet_expr *init, __isl_take pet_expr *inc,
+	__isl_take pet_context *pc)
 {
 	int declared;
 	int test_nr, stmt_nr;
@@ -2294,10 +2215,11 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
 
 	if (!allow_nested) {
 		unsupported(stmt);
+		pet_context_free(pc);
 		return NULL;
 	}
 
-	clear_assignment(assigned_value, iv);
+	pc = pet_context_mark_assigned(pc, create_decl_id(ctx, iv));
 
 	declared = !initialization_assignment(stmt->getInit());
 
@@ -2305,14 +2227,15 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
 	expr_iv = mark_write(expr_iv);
 	type_size = pet_expr_get_type_size(expr_iv);
 	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
-	scop_init = extract(init, stmt->getInit()->getSourceRange(), false);
+	scop_init = extract(init, stmt->getInit()->getSourceRange(), false, pc);
 	scop_init = pet_scop_prefix(scop_init, declared);
 
 	test_nr = n_test++;
 	stmt_nr = n_stmt++;
-	scop_body = extract(stmt->getBody());
+	scop_body = extract(stmt->getBody(), pc);
 	if (partial) {
 		pet_scop_free(scop_init);
+		pet_context_free(pc);
 		return scop_body;
 	}
 
@@ -2320,37 +2243,41 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
 	expr_iv = mark_write(expr_iv);
 	type_size = pet_expr_get_type_size(expr_iv);
 	inc = pet_expr_new_binary(type_size, pet_op_add_assign, expr_iv, inc);
-	scop_inc = extract(inc, stmt->getInc()->getSourceRange(), false);
+	scop_inc = extract(inc, stmt->getInc()->getSourceRange(), false, pc);
 	if (!scop_inc) {
 		pet_scop_free(scop_init);
 		pet_scop_free(scop_body);
+		pet_context_free(pc);
 		return NULL;
 	}
 
 	scop = extract_while(stmt->getCond(), test_nr, stmt_nr, scop_body,
-				scop_inc);
+				scop_inc, pet_context_copy(pc));
 
 	scop = pet_scop_prefix(scop, declared + 1);
 	scop = pet_scop_add_seq(ctx, scop_init, scop);
 
-	if (!declared)
+	if (!declared) {
+		pet_context_free(pc);
 		return scop;
+	}
 
-	array = extract_array(ctx, iv, NULL);
+	array = extract_array(ctx, iv, NULL, pc);
 	if (array)
 		array->declared = 1;
-	scop_kill = kill(stmt, array);
+	scop_kill = kill(stmt, array, pc);
 	scop_kill = pet_scop_prefix(scop_kill, 0);
 	scop = pet_scop_add_seq(ctx, scop_kill, scop);
-	scop_kill = kill(stmt, array);
+	scop_kill = kill(stmt, array, pc);
 	scop_kill = pet_scop_add_array(scop_kill, array);
 	scop_kill = pet_scop_prefix(scop_kill, 3);
 	scop = pet_scop_add_seq(ctx, scop, scop_kill);
 
+	pet_context_free(pc);
 	return scop;
 }
 
-/* Construct a pet_scop for a for statement.
+/* Construct a pet_scop for a for statement within the context "pc".
  * The for loop is required to be of one of the following forms
  *
  *	for (i = init; condition; ++i)
@@ -2420,7 +2347,7 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
  * possibly satisfy the loop condition.
  *
  * Before extracting a pet_scop from the body we remove all
- * assignments in assigned_value to variables that are assigned
+ * assignments in "pc" to variables that are assigned
  * somewhere in the body of the loop.
  *
  * Valid parameters for a for loop are those for which the initial
@@ -2440,7 +2367,7 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
  * If we were only able to extract part of the body, then simply
  * return that part.
  */
-struct pet_scop *PetScan::extract_for(ForStmt *stmt)
+struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 {
 	BinaryOperator *ass;
 	Decl *decl;
@@ -2454,7 +2381,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_set *skip = NULL;
 	isl_id *id, *id_test = NULL, *id_break_test;
 	struct pet_scop *scop, *scop_cond = NULL;
-	assigned_value_cache cache(assigned_value);
 	isl_val *inc;
 	bool is_one;
 	bool is_unsigned;
@@ -2471,10 +2397,10 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_set *valid_inc;
 	int stmt_id;
 	pet_expr *pe_init, *pe_inc;
-	pet_context *pc, *pc_init_val;
+	pet_context *pc_init_val;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
-		return extract_infinite_for(stmt);
+		return extract_infinite_for(stmt, pc);
 
 	init = stmt->getInit();
 	if (!init) {
@@ -2501,19 +2427,18 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	id = create_decl_id(ctx, iv);
 
-	assigned_value.erase(iv);
-	clear_assignments clear(assigned_value);
+	pc = pet_context_copy(pc);
+	pc = pet_context_clear_value(pc, isl_id_copy(id));
+	clear_assignments clear(pc);
 	clear.TraverseStmt(stmt->getBody());
 
 	pe_init = extract_expr(rhs);
 	pe_inc = extract_increment(stmt, iv);
-	pc = convert_assignments(ctx, assigned_value);
 	pc_init_val = pet_context_copy(pc);
 	pc_init_val = pet_context_mark_unknown(pc_init_val, isl_id_copy(id));
 	init_val = pet_expr_extract_affine(pe_init, pc_init_val);
 	pet_context_free(pc_init_val);
 	pa_inc = pet_expr_extract_affine(pe_inc, pc);
-	pet_context_free(pc);
 	inc = pet_extract_cst(pa_inc);
 	if (!pe_init || !pe_inc || !inc || isl_val_is_nan(inc) ||
 	    isl_pw_aff_involves_nan(pa_inc) ||
@@ -2524,25 +2449,27 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		isl_pw_aff_free(init_val);
 		if (pe_init && pe_inc && !(pa_inc && !inc))
 			return extract_non_affine_for(stmt, iv,
-							pe_init, pe_inc);
+							pe_init, pe_inc, pc);
 		pet_expr_free(pe_init);
 		pet_expr_free(pe_inc);
+		pet_context_free(pc);
 		return NULL;
 	}
 	pet_expr_free(pe_init);
 	pet_expr_free(pe_inc);
 
-	pa = try_extract_nested_condition(stmt->getCond());
+	pa = try_extract_nested_condition(stmt->getCond(), pc);
 	if (allow_nested && (!pa || pet_nested_any_in_pw_aff(pa)))
 		stmt_id = n_stmt++;
 
-	scop = extract(stmt->getBody());
+	scop = extract(stmt->getBody(), pc);
 	if (partial) {
 		isl_id_free(id);
 		isl_pw_aff_free(init_val);
 		isl_pw_aff_free(pa_inc);
 		isl_pw_aff_free(pa);
 		isl_val_free(inc);
+		pet_context_free(pc);
 		return scop;
 	}
 
@@ -2564,7 +2491,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	}
 
 	if (!allow_nested && !pa)
-		pa = extract_condition(stmt->getCond());
+		pa = extract_condition(stmt->getCond(), pc);
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
 	if (allow_nested && !cond) {
@@ -2573,7 +2500,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		test_index = pet_create_test_index(ctx, n_test++);
 		n_stmt = stmt_id;
 		scop_cond = extract_non_affine_condition(stmt->getCond(),
-				n_stmt++, isl_multi_pw_aff_copy(test_index));
+			n_stmt++, isl_multi_pw_aff_copy(test_index), pc);
 		n_stmt = save_n_stmt;
 		scop_cond = scop_add_array(scop_cond, test_index, ast_context);
 		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
@@ -2599,7 +2526,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (is_one && !is_virtual) {
 		isl_pw_aff_free(init_val);
 		pa = extract_comparison(isl_val_is_pos(inc) ? BO_GE : BO_LE,
-				lhs, rhs, init);
+				lhs, rhs, init, pc);
 		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 		valid_init = set_project_out_by_id(valid_init, id);
 		domain = isl_pw_aff_non_zero_set(pa);
@@ -2664,25 +2591,28 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		scop = pet_scop_restrict_context(scop, valid_cond_init);
 		isl_set_free(domain);
 	}
-	clear_assignment(assigned_value, iv);
 
 	isl_val_free(inc);
 
 	scop = pet_scop_restrict_context(scop, isl_set_params(valid_init));
 
+	pet_context_free(pc);
 	return scop;
 }
 
-/* Try and construct a pet_scop corresponding to a compound statement.
+/* Try and construct a pet_scop corresponding to a compound statement
+ * within the context "pc".
  *
  * "skip_declarations" is set if we should skip initial declarations
  * in the children of the compound statements.  This then implies
  * that this sequence of children should not be treated as a block
  * since the initial statements may be skipped.
  */
-struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
+struct pet_scop *PetScan::extract(CompoundStmt *stmt,
+	__isl_keep pet_context *pc, bool skip_declarations)
 {
-	return extract(stmt->children(), !skip_declarations, skip_declarations);
+	return extract(stmt->children(),
+			!skip_declarations, skip_declarations, pc);
 }
 
 /* For each nested access parameter in "space",
@@ -3103,25 +3033,6 @@ static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
 		return loc;
 }
 
-/* If "expr" is an assume expression, then try and convert
- * its single argument to an affine expression.
- */
-__isl_give pet_expr *PetScan::resolve_assume(__isl_take pet_expr *expr)
-{
-	pet_context *pc;
-
-	if (!expr)
-		return NULL;
-	if (!pet_expr_is_assume(expr))
-		return expr;
-
-	pc = convert_assignments(ctx, assigned_value);
-	expr = pet_expr_resolve_assume(expr, pc);
-	pet_context_free(pc);
-
-	return expr;
-}
-
 /* Update start and end of "scop" to include the region covered by "range".
  * If "skip_semi" is set, then we assume "range" is followed by
  * a semicolon and also include this semicolon.
@@ -3147,7 +3058,8 @@ struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
 	return scop;
 }
 
-/* Convert a top-level pet_expr to a pet_scop with one statement.
+/* Convert a top-level pet_expr to a pet_scop with one statement
+ * within the context "pc".
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
  * The name is given by "label" if it is non-NULL.  Otherwise,
@@ -3157,20 +3069,16 @@ struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
  * is also included.
  */
 struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
-	bool skip_semi, __isl_take isl_id *label)
+	bool skip_semi, __isl_keep pet_context *pc, __isl_take isl_id *label)
 {
 	struct pet_stmt *ps;
 	struct pet_scop *scop;
 	SourceLocation loc = range.getBegin();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
-	pet_context *pc;
 
-	pc = convert_assignments(ctx, assigned_value);
 	expr = pet_expr_plug_in_args(expr, pc);
-	pet_context_free(pc);
-
 	expr = resolve_nested(expr);
-	expr = resolve_assume(expr);
+	expr = pet_expr_resolve_assume(expr, pc);
 	ps = pet_stmt_from_pet_expr(line, label, n_stmt++, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 
@@ -3178,25 +3086,26 @@ struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
 	return scop;
 }
 
-/* Check whether "expr" is an affine constraint.
+/* Check whether "expr" is an affine constraint within the context "pc".
  */
-bool PetScan::is_affine_condition(Expr *expr)
+bool PetScan::is_affine_condition(Expr *expr, __isl_keep pet_context *pc)
 {
 	isl_pw_aff *cond;
 
-	cond = extract_condition(expr);
+	cond = extract_condition(expr, pc);
 	isl_pw_aff_free(cond);
 
 	return cond != NULL;
 }
 
-/* Check if we can extract a condition from "expr".
+/* Check if we can extract a condition from "expr" within the context "pc".
  * Return the condition as an isl_pw_aff if we can and NULL otherwise.
  * If allow_nested is set, then the condition may involve parameters
  * corresponding to nested accesses.
  * We turn on autodetection so that we won't generate any warnings.
  */
-__isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr)
+__isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr,
+	__isl_keep pet_context *pc)
 {
 	isl_pw_aff *cond;
 	int save_autodetect = options->autodetect;
@@ -3204,7 +3113,7 @@ __isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr)
 
 	options->autodetect = 1;
 	nesting_enabled = allow_nested;
-	cond = extract_condition(expr);
+	cond = extract_condition(expr, pc);
 
 	options->autodetect = save_autodetect;
 	nesting_enabled = save_nesting;
@@ -3233,8 +3142,9 @@ static BinaryOperator *top_assignment_or_null(Stmt *stmt)
 }
 
 /* Check if the given if statement is a conditional assignement
- * with a non-affine condition.  If so, construct a pet_scop
- * corresponding to this conditional assignment.  Otherwise return NULL.
+ * with a non-affine condition within the context "pc".
+ * If so, construct a pet_scop corresponding to this conditional assignment.
+ * Otherwise return NULL.
  *
  * In particular we check if "stmt" is of the form
  *
@@ -3251,7 +3161,8 @@ static BinaryOperator *top_assignment_or_null(Stmt *stmt)
  * All access relations in f(...) are intersected with condition
  * while all access relation in g(...) are intersected with the complement.
  */
-struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
+struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt,
+	__isl_keep pet_context *pc)
 {
 	BinaryOperator *ass_then, *ass_else;
 	pet_expr *write_then, *write_else;
@@ -3272,7 +3183,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	if (!ass_then || !ass_else)
 		return NULL;
 
-	if (is_affine_condition(stmt->getCond()))
+	if (is_affine_condition(stmt->getCond(), pc))
 		return NULL;
 
 	write_then = extract_access_expr(ass_then->getLHS());
@@ -3286,7 +3197,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	}
 
 	nesting_enabled = allow_nested;
-	pa = extract_condition(stmt->getCond());
+	pa = extract_condition(stmt->getCond(), pc);
 	nesting_enabled = save_nesting;
 	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(pa));
 	comp = isl_pw_aff_zero_set(isl_pw_aff_copy(pa));
@@ -3304,31 +3215,27 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	write_then = pet_expr_access_set_read(write_then, 0);
 	type_size = get_type_size(ass_then->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, write_then, pe);
-	return extract(pe, stmt->getSourceRange(), false);
+	return extract(pe, stmt->getSourceRange(), false, pc);
 }
 
 /* Create a pet_scop with a single statement with name S_<stmt_nr>,
  * evaluating "cond" and writing the result to a virtual scalar,
  * as expressed by "index".
+ * Do so within the context "pc".
  */
 struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
-	__isl_take isl_multi_pw_aff *index)
+	__isl_take isl_multi_pw_aff *index, __isl_keep pet_context *pc)
 {
 	pet_expr *expr, *write;
 	struct pet_stmt *ps;
 	SourceLocation loc = cond->getLocStart();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
-	pet_context *pc;
 
 	write = pet_expr_from_index(index);
 	write = pet_expr_access_set_write(write, 1);
 	write = pet_expr_access_set_read(write, 0);
 	expr = extract_expr(cond);
-
-	pc = convert_assignments(ctx, assigned_value);
 	expr = pet_expr_plug_in_args(expr, pc);
-	pet_context_free(pc);
-
 	expr = resolve_nested(expr);
 	expr = pet_expr_new_binary(1, pet_op_assign, write, expr);
 	ps = pet_stmt_from_pet_expr(line, NULL, stmt_nr, expr);
@@ -3608,7 +3515,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 	return true;
 }
 
-/* Construct a pet_scop for a non-affine if statement.
+/* Construct a pet_scop for a non-affine if statement within the context "pc".
  *
  * We create a separate statement that writes the result
  * of the non-affine condition to a virtual scalar.
@@ -3628,7 +3535,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
  */
 struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	struct pet_scop *scop_then, struct pet_scop *scop_else,
-	bool have_else, int stmt_id)
+	bool have_else, int stmt_id, __isl_take pet_context *pc)
 {
 	struct pet_scop *scop;
 	isl_multi_pw_aff *test_index;
@@ -3638,7 +3545,7 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	test_index = pet_create_test_index(ctx, n_test++);
 	n_stmt = stmt_id;
 	scop = extract_non_affine_condition(cond, n_stmt++,
-					isl_multi_pw_aff_copy(test_index));
+					isl_multi_pw_aff_copy(test_index), pc);
 	n_stmt = save_n_stmt;
 	scop = scop_add_array(scop, test_index, ast_context);
 
@@ -3663,10 +3570,11 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 
 	scop = pet_skip_info_if_add(&skip, scop, 2);
 
+	pet_context_free(pc);
 	return scop;
 }
 
-/* Construct a pet_scop for an if statement.
+/* Construct a pet_scop for an if statement within the context "pc".
  *
  * If the condition fits the pattern of a conditional assignment,
  * then it is handled by extract_conditional_assignment.
@@ -3701,7 +3609,7 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
  * to be computed.  If so, it does so in pet_skip_info_if_extract_cond and
  * adds them in pet_skip_info_if_add.
  */
-struct pet_scop *PetScan::extract(IfStmt *stmt)
+struct pet_scop *PetScan::extract(IfStmt *stmt, __isl_keep pet_context *pc)
 {
 	struct pet_scop *scop_then, *scop_else = NULL, *scop;
 	isl_pw_aff *cond;
@@ -3710,36 +3618,37 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	isl_set *set;
 	isl_set *valid;
 
-	clear_assignments clear(assigned_value);
+	pc = pet_context_copy(pc);
+	clear_assignments clear(pc);
 	clear.TraverseStmt(stmt->getThen());
 	if (stmt->getElse())
 		clear.TraverseStmt(stmt->getElse());
 
-	scop = extract_conditional_assignment(stmt);
-	if (scop)
+	scop = extract_conditional_assignment(stmt, pc);
+	if (scop) {
+		pet_context_free(pc);
 		return scop;
+	}
 
-	cond = try_extract_nested_condition(stmt->getCond());
+	cond = try_extract_nested_condition(stmt->getCond(), pc);
 	if (allow_nested && (!cond || pet_nested_any_in_pw_aff(cond)))
 		stmt_id = n_stmt++;
 
-	{
-		assigned_value_cache cache(assigned_value);
-		scop_then = extract(stmt->getThen());
-	}
+	scop_then = extract(stmt->getThen(), pc);
 
 	if (stmt->getElse()) {
-		assigned_value_cache cache(assigned_value);
-		scop_else = extract(stmt->getElse());
+		scop_else = extract(stmt->getElse(), pc);
 		if (options->autodetect) {
 			if (scop_then && !scop_else) {
 				partial = true;
 				isl_pw_aff_free(cond);
+				pet_context_free(pc);
 				return scop_then;
 			}
 			if (!scop_then && scop_else) {
 				partial = true;
 				isl_pw_aff_free(cond);
+				pet_context_free(pc);
 				return scop_else;
 			}
 		}
@@ -3753,10 +3662,10 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	}
 	if (allow_nested && !cond)
 		return extract_non_affine_if(stmt->getCond(), scop_then,
-					scop_else, stmt->getElse(), stmt_id);
+				scop_else, stmt->getElse(), stmt_id, pc);
 
 	if (!cond)
-		cond = extract_condition(stmt->getCond());
+		cond = extract_condition(stmt->getCond(), pc);
 
 	pet_skip_info skip;
 	pet_skip_info_if_init(&skip, ctx, scop_then, scop_else,
@@ -3780,13 +3689,14 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		scop = pet_scop_prefix(scop, 0);
 	scop = pet_skip_info_if_add(&skip, scop, 1);
 
+	pet_context_free(pc);
 	return scop;
 }
 
-/* Try and construct a pet_scop for a label statement.
+/* Try and construct a pet_scop for a label statement within the context "pc".
  * We currently only allow labels on expression statements.
  */
-struct pet_scop *PetScan::extract(LabelStmt *stmt)
+struct pet_scop *PetScan::extract(LabelStmt *stmt, __isl_keep pet_context *pc)
 {
 	isl_id *label;
 	Stmt *sub;
@@ -3800,7 +3710,7 @@ struct pet_scop *PetScan::extract(LabelStmt *stmt)
 	label = isl_id_alloc(ctx, stmt->getName(), NULL);
 
 	return extract(extract_expr(cast<Expr>(sub)), stmt->getSourceRange(),
-			true, label);
+			true, pc, label);
 }
 
 /* Return a one-dimensional multi piecewise affine expression that is equal
@@ -3865,7 +3775,8 @@ struct pet_scop *PetScan::extract(BreakStmt *stmt)
 	return scop;
 }
 
-/* Try and construct a pet_scop corresponding to "stmt".
+/* Try and construct a pet_scop corresponding to "stmt"
+ * within the context "pc".
  *
  * If "stmt" is a compound statement, then "skip_declarations"
  * indicates whether we should skip initial declarations in the
@@ -3881,29 +3792,30 @@ struct pet_scop *PetScan::extract(BreakStmt *stmt)
  * skip_declarations will be set and the braces will not be taken into
  * account in scop->start and scop->end.
  */
-struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
+struct pet_scop *PetScan::extract(Stmt *stmt, __isl_keep pet_context *pc,
+	bool skip_declarations)
 {
 	struct pet_scop *scop;
 
 	if (isa<Expr>(stmt))
 		return extract(extract_expr(cast<Expr>(stmt)),
-				stmt->getSourceRange(), true);
+				stmt->getSourceRange(), true, pc);
 
 	switch (stmt->getStmtClass()) {
 	case Stmt::WhileStmtClass:
-		scop = extract(cast<WhileStmt>(stmt));
+		scop = extract(cast<WhileStmt>(stmt), pc);
 		break;
 	case Stmt::ForStmtClass:
-		scop = extract_for(cast<ForStmt>(stmt));
+		scop = extract_for(cast<ForStmt>(stmt), pc);
 		break;
 	case Stmt::IfStmtClass:
-		scop = extract(cast<IfStmt>(stmt));
+		scop = extract(cast<IfStmt>(stmt), pc);
 		break;
 	case Stmt::CompoundStmtClass:
-		scop = extract(cast<CompoundStmt>(stmt), skip_declarations);
+		scop = extract(cast<CompoundStmt>(stmt), pc, skip_declarations);
 		break;
 	case Stmt::LabelStmtClass:
-		scop = extract(cast<LabelStmt>(stmt));
+		scop = extract(cast<LabelStmt>(stmt), pc);
 		break;
 	case Stmt::ContinueStmtClass:
 		scop = extract(cast<ContinueStmt>(stmt));
@@ -3912,7 +3824,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 		scop = extract(cast<BreakStmt>(stmt));
 		break;
 	case Stmt::DeclStmtClass:
-		scop = extract(cast<DeclStmt>(stmt));
+		scop = extract(cast<DeclStmt>(stmt), pc);
 		break;
 	default:
 		unsupported(stmt);
@@ -3971,14 +3883,14 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
 }
 
 /* Try and construct a pet_scop corresponding to (part of)
- * a sequence of statements.
+ * a sequence of statements within the context "pc".
  *
  * "block" is set if the sequence respresents the children of
  * a compound statement.
  * "skip_declarations" is set if we should skip initial declarations
  * in the sequence of statements.
  *
- * After extracting a statement, we update "assigned_value"
+ * After extracting a statement, we update "pc"
  * based on the top-level assignments in the statement
  * so that we can exploit them in subsequent statements in the same block.
  *
@@ -4006,7 +3918,7 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  * range.
  */
 struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
-	bool skip_declarations)
+	bool skip_declarations, __isl_keep pet_context *pc)
 {
 	pet_scop *scop;
 	StmtIterator i;
@@ -4018,6 +3930,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 
 	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
 
+	pc = pet_context_copy(pc);
 	scop = pet_scop_empty(ctx);
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j) {
 		Stmt *child = *i;
@@ -4027,12 +3940,12 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 		    child->getStmtClass() == Stmt::DeclStmtClass)
 			continue;
 
-		scop_i = extract(child);
+		scop_i = extract(child, pc);
 		if (scop->n_stmt != 0 && partial) {
 			pet_scop_free(scop_i);
 			break;
 		}
-		handle_writes(scop_i);
+		pc = handle_writes(scop_i, pc);
 		pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
 		pet_skip_info_seq_extract(&skip, int_size, &n_stmt, &n_test);
@@ -4069,6 +3982,8 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 		scop = pet_scop_add_seq(ctx, scop, scop_j);
 	}
 
+	pet_context_free(pc);
+
 	if (scop && partial_range) {
 		if (scop->n_stmt == 0 || kills.size() != 0) {
 			pet_scop_free(scop);
@@ -4083,9 +3998,10 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 /* Check if the scop marked by the user is exactly this Stmt
  * or part of this Stmt.
  * If so, return a pet_scop corresponding to the marked region.
+ * The pet_scop is created within the context "pc".
  * Otherwise, return NULL.
  */
-struct pet_scop *PetScan::scan(Stmt *stmt)
+struct pet_scop *PetScan::scan(Stmt *stmt, __isl_keep pet_context *pc)
 {
 	SourceManager &SM = PP.getSourceManager();
 	unsigned start_off, end_off;
@@ -4098,7 +4014,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	if (end_off < loc.start)
 		return NULL;
 	if (start_off >= loc.start && end_off <= loc.end) {
-		return extract(stmt);
+		return extract(stmt, pc);
 	}
 
 	StmtIterator start;
@@ -4109,7 +4025,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 		start_off = getExpansionOffset(SM, child->getLocStart());
 		end_off = getExpansionOffset(SM, child->getLocEnd());
 		if (start_off < loc.start && end_off >= loc.end)
-			return scan(child);
+			return scan(child, pc);
 		if (start_off >= loc.start)
 			break;
 	}
@@ -4122,7 +4038,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			break;
 	}
 
-	return extract(StmtRange(start, end), false, false);
+	return extract(StmtRange(start, end), false, false, pc);
 }
 
 /* Set the size of index "pos" of "array" to "size".
@@ -4238,17 +4154,16 @@ static int is_infty(__isl_keep pet_expr *expr)
  * and updated from the type.
  *
  * The arguments of the size expression that have been updated
- * are then converted to an affine expression and incorporated
- * into the size of "array".  If we are unable to convert
+ * are then converted to an affine expression within the context "pc" and
+ * incorporated into the size of "array".  If we are unable to convert
  * a size expression to an affine expression, then we leave
  * the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
-	const Type *type)
+	const Type *type, __isl_keep pet_context *pc)
 {
 	int depth = array_depth(type);
 	pet_expr *expr, *inf;
-	pet_context *pc;
 
 	if (!array)
 		return NULL;
@@ -4261,7 +4176,6 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 
 	expr = set_upper_bounds(expr, type, 0);
 
-	pc = convert_assignments(ctx, assigned_value);
 	for (int i = 0; i < depth; ++i) {
 		pet_expr *arg;
 		isl_pw_aff *size;
@@ -4279,7 +4193,6 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 		pet_expr_free(arg);
 	}
 	pet_expr_free(expr);
-	pet_context_free(pc);
 
 	return array;
 }
@@ -4333,7 +4246,8 @@ static bool has_printable_definition(RecordDecl *decl)
  *	{ name[i_1,...,i_d] : i_1,...,i_d >= 0 }
  *
  * and then call set_upper_bounds to set the upper bounds on the indices
- * based on the type of the variable.
+ * based on the type of the variable.  The upper bounds are converted
+ * to affine expressions within the context "pc".
  *
  * If the base type is that of a record with a top-level definition and
  * if "types" is not null, then the RecordDecl corresponding to the type
@@ -4343,7 +4257,7 @@ static bool has_printable_definition(RecordDecl *decl)
  * then we replace it by "<subfield>".
  */
 struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
-	lex_recorddecl_set *types)
+	lex_recorddecl_set *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
 	QualType qt = get_array_type(decl);
@@ -4367,7 +4281,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 	dim = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(dim);
 
-	array = set_upper_bounds(array, type);
+	array = set_upper_bounds(array, type, pc);
 	if (!array)
 		return NULL;
 
@@ -4390,6 +4304,8 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 
 /* Construct and return a pet_array corresponding to the sequence
  * of declarations "decls".
+ * The upper bounds of the array are converted to affine expressions
+ * within the context "pc".
  * If the sequence contains a single declaration, then it corresponds
  * to a simple array access.  Otherwise, it corresponds to a member access,
  * with the declaration for the substructure following that of the containing
@@ -4400,14 +4316,15 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
  * Additionally, keep track of all required types in "types".
  */
 struct pet_array *PetScan::extract_array(isl_ctx *ctx,
-	vector<ValueDecl *> decls, lex_recorddecl_set *types)
+	vector<ValueDecl *> decls, lex_recorddecl_set *types,
+	__isl_keep pet_context *pc)
 {
 	struct pet_array *array;
 	vector<ValueDecl *>::iterator it;
 
 	it = decls.begin();
 
-	array = extract_array(ctx, *it, types);
+	array = extract_array(ctx, *it, types, pc);
 
 	for (++it; it != decls.end(); ++it) {
 		struct pet_array *parent;
@@ -4415,7 +4332,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 		char *product_name;
 
 		parent = array;
-		array = extract_array(ctx, *it, types);
+		array = extract_array(ctx, *it, types, pc);
 		if (!array)
 			return pet_array_free(parent);
 
@@ -4495,6 +4412,8 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 
 /* Construct a list of pet_arrays, one for each array (or scalar)
  * accessed inside "scop", add this list to "scop" and return the result.
+ * The upper bounds of the arrays are converted to affine expressions
+ * within the context "pc".
  *
  * The context of "scop" is updated with the intersection of
  * the contexts of all arrays, i.e., constraints on the parameters
@@ -4503,7 +4422,8 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * If the any of the extracted arrays refers to a member access,
  * then also add the required types to "scop".
  */
-struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
+struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
+	__isl_keep pet_context *pc)
 {
 	int i;
 	array_desc_set arrays;
@@ -4531,7 +4451,7 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
 
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
-		array = extract_array(ctx, *it, &types);
+		array = extract_array(ctx, *it, &types, pc);
 		scop->arrays[n_array + i] = array;
 		if (!scop->arrays[n_array + i])
 			goto error;
@@ -4604,17 +4524,20 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 {
 	pet_scop *scop;
 	Stmt *stmt;
+	pet_context *pc;
 
 	stmt = fd->getBody();
 
-	if (options->autodetect)
-		scop = extract(stmt, true);
-	else {
-		scop = scan(stmt);
+	pc = pet_context_alloc(isl_space_set_alloc(ctx, 0, 0));
+	if (options->autodetect) {
+		scop = extract(stmt, pc, true);
+	} else {
+		scop = scan(stmt, pc);
 		scop = pet_scop_update_start_end(scop, loc.start, loc.end);
 	}
 	scop = pet_scop_detect_parameter_accesses(scop);
-	scop = scan_arrays(scop);
+	scop = scan_arrays(scop, pc);
+	pet_context_free(pc);
 	scop = add_parameter_bounds(scop);
 	scop = pet_scop_gist(scop, value_bounds);
 
