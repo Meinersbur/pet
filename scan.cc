@@ -1098,33 +1098,50 @@ __isl_give pet_expr *PetScan::mark_write(__isl_take pet_expr *access)
 	return access;
 }
 
-/* Assign "rhs" to "lhs".
+/* If "stmt" is a top-level (i.e., unconditional) assignment
+ * to a scalar variable, then update "assigned_value" accordingly.
  *
- * In particular, if "lhs" is a scalar variable, then mark
- * the variable as having been assigned.  If, furthermore, "rhs"
+ * In particular, if the lhs of the assignment is a scalar variable, then mark
+ * the variable as having been assigned.  If, furthermore, the rhs
  * is an affine expression, then keep track of this value in assigned_value
  * so that we can plug it in when we later come across the same variable.
+ *
+ * We skip assignments to virtual arrays (those with NULL user pointer).
  */
-void PetScan::assign(__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs)
+void PetScan::handle_assignments(struct pet_stmt *stmt)
 {
+	pet_expr *body = stmt->body;
+	pet_expr *arg;
 	isl_id *id;
 	ValueDecl *decl;
 	pet_context *pc;
 	isl_pw_aff *pa;
 
-	if (!lhs)
+	if (!pet_stmt_is_assign(stmt))
 		return;
-	if (!pet_expr_is_scalar_access(lhs))
+	if (!isl_set_plain_is_universe(stmt->domain))
 		return;
+	arg = pet_expr_get_arg(body, 0);
+	if (!pet_expr_is_scalar_access(arg)) {
+		pet_expr_free(arg);
+		return;
+	}
 
-	id = pet_expr_access_get_id(lhs);
+	id = pet_expr_access_get_id(arg);
 	decl = (ValueDecl *) isl_id_get_user(id);
 	isl_id_free(id);
+	pet_expr_free(arg);
 
+	if (!decl)
+		return;
+
+	arg = pet_expr_get_arg(body, 1);
 	pc = convert_assignments(ctx, assigned_value);
-	pa = pet_expr_extract_affine(rhs, pc);
+	pa = pet_expr_extract_affine(arg, pc);
 	pet_context_free(pc);
 	clear_assignment(assigned_value, decl);
+	pet_expr_free(arg);
+
 	if (isl_pw_aff_involves_nan(pa))
 		pa = isl_pw_aff_free(pa);
 	if (!pa)
@@ -1133,16 +1150,21 @@ void PetScan::assign(__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs)
 	insert_expression(pa);
 }
 
+/* Update "assigned_value" based on the assignment statements in "scop".
+ */
+void PetScan::handle_assignments(struct pet_scop *scop)
+{
+	if (!scop)
+		return;
+	for (int i = 0; i < scop->n_stmt; ++i)
+		handle_assignments(scop->stmts[i]);
+}
+
 /* Construct a pet_expr representing a binary operator expression.
  *
  * If the top level operator is an assignment and the LHS is an access,
  * then we mark that access as a write.  If the operator is a compound
  * assignment, the access is marked as both a read and a write.
- *
- * If "expr" assigns something to a scalar variable, then we mark
- * the variable as having been assigned.  If, furthermore, the expression
- * is affine, then keep track of this value in assigned_value
- * so that we can plug it in when we later come across the same variable.
  */
 __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 {
@@ -1165,9 +1187,6 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 		if (expr->isCompoundAssignmentOp())
 			lhs = pet_expr_access_set_read(lhs, 1);
 	}
-
-	if (expr->getOpcode() == BO_Assign)
-		assign(lhs, rhs);
 
 	type_size = get_type_size(expr->getType(), ast_context);
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
@@ -1233,7 +1252,6 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	rhs = extract_expr(vd->getInit());
 
 	lhs = mark_write(lhs);
-	assign(lhs, rhs);
 
 	type_size = get_type_size(vd->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
@@ -3913,6 +3931,10 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  * "skip_declarations" is set if we should skip initial declarations
  * in the sequence of statements.
  *
+ * After extracting a statement, we update "assigned_value"
+ * based on the top-level assignments in the statement
+ * so that we can exploit them in subsequent statements in the same block.
+ *
  * If there are any breaks or continues in the individual statements,
  * then we may have to compute a new skip condition.
  * This is handled using a pet_skip_info object.
@@ -3963,6 +3985,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 			pet_scop_free(scop_i);
 			break;
 		}
+		handle_assignments(scop_i);
 		pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
 		pet_skip_info_seq_extract(&skip, int_size, &n_stmt, &n_test);

@@ -97,8 +97,6 @@ struct PetScan {
 	static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 		const llvm::APInt &val);
 private:
-	void assign(__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs);
-
 	void insert_expression(__isl_take isl_pw_aff *expr);
 	struct pet_scop *scan(clang::Stmt *stmt);
 
@@ -228,4 +226,7 @@ private:
 	void unsupported(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
+
+	void handle_assignments(struct pet_stmt *stmt);
+	void handle_assignments(struct pet_scop *scop);
 };
