@@ -1076,29 +1076,43 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 }
 
 /* Mark the given access pet_expr as a write.
- * If a scalar is being accessed, then mark its value
- * as unknown in assigned_value.
  */
 __isl_give pet_expr *PetScan::mark_write(__isl_take pet_expr *access)
 {
-	isl_id *id;
-	ValueDecl *decl;
-
 	access = pet_expr_access_set_write(access, 1);
 	access = pet_expr_access_set_read(access, 0);
-
-	if (!access || !pet_expr_is_scalar_access(access))
-		return access;
-
-	id = pet_expr_access_get_id(access);
-	decl = (ValueDecl *) isl_id_get_user(id);
-	clear_assignment(assigned_value, decl);
-	isl_id_free(id);
 
 	return access;
 }
 
-/* If "stmt" is a top-level (i.e., unconditional) assignment
+/* If the access expression "expr" writes to a (non-virtual) scalar,
+ * then mark the scalar as having an unknown value in "assigned_value".
+ */
+static int clear_write(__isl_keep pet_expr *expr, void *user)
+{
+	isl_id *id;
+	ValueDecl *decl;
+	PetScan *ps = (PetScan *) user;
+
+	if (!pet_expr_access_is_write(expr))
+		return 0;
+	if (!pet_expr_is_scalar_access(expr))
+		return 0;
+
+	id = pet_expr_access_get_id(expr);
+	decl = (ValueDecl *) isl_id_get_user(id);
+	isl_id_free(id);
+
+	if (decl)
+		clear_assignment(ps->assigned_value, decl);
+
+	return 0;
+}
+
+/* Take into account the writes in "stmt".
+ * That is, first mark all scalar variables that are written by "stmt"
+ * as having an unknown value.  Afterwards,
+ * if "stmt" is a top-level (i.e., unconditional) assignment
  * to a scalar variable, then update "assigned_value" accordingly.
  *
  * In particular, if the lhs of the assignment is a scalar variable, then mark
@@ -1108,7 +1122,7 @@ __isl_give pet_expr *PetScan::mark_write(__isl_take pet_expr *access)
  *
  * We skip assignments to virtual arrays (those with NULL user pointer).
  */
-void PetScan::handle_assignments(struct pet_stmt *stmt)
+void PetScan::handle_writes(struct pet_stmt *stmt)
 {
 	pet_expr *body = stmt->body;
 	pet_expr *arg;
@@ -1116,6 +1130,8 @@ void PetScan::handle_assignments(struct pet_stmt *stmt)
 	ValueDecl *decl;
 	pet_context *pc;
 	isl_pw_aff *pa;
+
+	pet_expr_foreach_access_expr(body, &clear_write, this);
 
 	if (!pet_stmt_is_assign(stmt))
 		return;
@@ -1150,14 +1166,15 @@ void PetScan::handle_assignments(struct pet_stmt *stmt)
 	insert_expression(pa);
 }
 
-/* Update "assigned_value" based on the assignment statements in "scop".
+/* Update "assigned_value" based on the write accesses (and, in particular,
+ * assignments) in "scop".
  */
-void PetScan::handle_assignments(struct pet_scop *scop)
+void PetScan::handle_writes(struct pet_scop *scop)
 {
 	if (!scop)
 		return;
 	for (int i = 0; i < scop->n_stmt; ++i)
-		handle_assignments(scop->stmts[i]);
+		handle_writes(scop->stmts[i]);
 }
 
 /* Construct a pet_expr representing a binary operator expression.
@@ -3985,7 +4002,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 			pet_scop_free(scop_i);
 			break;
 		}
-		handle_assignments(scop_i);
+		handle_writes(scop_i);
 		pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
 		pet_skip_info_seq_extract(&skip, int_size, &n_stmt, &n_test);

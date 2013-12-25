@@ -227,6 +227,6 @@ private:
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
 
-	void handle_assignments(struct pet_stmt *stmt);
-	void handle_assignments(struct pet_scop *scop);
+	void handle_writes(struct pet_stmt *stmt);
+	void handle_writes(struct pet_scop *scop);
 };
