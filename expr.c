@@ -1102,6 +1102,33 @@ error:
 	return NULL;
 }
 
+/* Replace the index expression and access relation of "expr"
+ * by their preimages under the function represented by "mpa".
+ */
+__isl_give pet_expr *pet_expr_access_pullback_multi_pw_aff(
+	__isl_take pet_expr *expr, __isl_take isl_multi_pw_aff *mpa)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !mpa)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", goto error);
+
+	expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
+				expr->acc.access, isl_multi_pw_aff_copy(mpa));
+	expr->acc.index = isl_multi_pw_aff_pullback_multi_pw_aff(
+				expr->acc.index, mpa);
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+error:
+	isl_multi_pw_aff_free(mpa);
+	pet_expr_free(expr);
+	return NULL;
+}
+
 /* Return the access relation of access expression "expr".
  */
 __isl_give isl_map *pet_expr_access_get_access(__isl_keep pet_expr *expr)

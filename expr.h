@@ -149,6 +149,8 @@ __isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,
 	enum isl_dim_type src_type, unsigned src_pos, unsigned n);
 __isl_give pet_expr *pet_expr_access_pullback_multi_aff(
 	__isl_take pet_expr *expr, __isl_take isl_multi_aff *ma);
+__isl_give pet_expr *pet_expr_access_pullback_multi_pw_aff(
+	__isl_take pet_expr *expr, __isl_take isl_multi_pw_aff *mpa);
 __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr);
 __isl_give pet_expr *pet_expr_restrict(__isl_take pet_expr *expr,
 	__isl_take isl_set *cond);
