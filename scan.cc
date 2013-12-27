@@ -52,6 +52,7 @@
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
+#include "expr_arg.h"
 #include "nest.h"
 #include "options.h"
 #include "scan.h"
@@ -2810,6 +2811,157 @@ __isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
 	return expr;
 }
 
+/* Are "expr1" and "expr2" both array accesses such that
+ * the access relation of "expr1" is a subset of that of "expr2"?
+ * Only take into account the first "n_arg" arguments.
+ */
+static int is_sub_access(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2,
+	int n_arg)
+{
+	isl_id *id1, *id2;
+	isl_map *access1, *access2;
+	int is_subset;
+	int i, n1, n2;
+
+	if (!expr1 || !expr2)
+		return 0;
+	if (pet_expr_get_type(expr1) != pet_expr_access)
+		return 0;
+	if (pet_expr_get_type(expr2) != pet_expr_access)
+		return 0;
+	if (pet_expr_is_affine(expr1))
+		return 0;
+	if (pet_expr_is_affine(expr2))
+		return 0;
+	n1 = pet_expr_get_n_arg(expr1);
+	if (n1 > n_arg)
+		n1 = n_arg;
+	n2 = pet_expr_get_n_arg(expr2);
+	if (n2 > n_arg)
+		n2 = n_arg;
+	if (n1 != n2)
+		return 0;
+	for (i = 0; i < n1; ++i) {
+		pet_expr *arg1, *arg2;
+		int equal;
+		arg1 = pet_expr_get_arg(expr1, i);
+		arg2 = pet_expr_get_arg(expr2, i);
+		equal = pet_expr_is_equal(arg1, arg2);
+		pet_expr_free(arg1);
+		pet_expr_free(arg2);
+		if (equal < 0 || !equal)
+			return equal;
+	}
+	id1 = pet_expr_access_get_id(expr1);
+	id2 = pet_expr_access_get_id(expr2);
+	isl_id_free(id1);
+	isl_id_free(id2);
+	if (!id1 || !id2)
+		return 0;
+	if (id1 != id2)
+		return 0;
+
+	access1 = pet_expr_access_get_access(expr1);
+	access2 = pet_expr_access_get_access(expr2);
+	is_subset = isl_map_is_subset(access1, access2);
+	isl_map_free(access1);
+	isl_map_free(access2);
+
+	return is_subset;
+}
+
+/* Mark self dependences among the arguments of "expr" starting at "first".
+ * These arguments have already been added to the list of arguments
+ * but are not yet referenced directly from the index expression.
+ * Instead, they are still referenced through parameters encoding
+ * nested accesses.
+ *
+ * In particular, if "expr" is a read access, then check the arguments
+ * starting at "first" to see if "expr" accesses a subset of
+ * the elements accessed by the argument, or under more restrictive conditions.
+ * If so, then this nested access can be removed from the constraints
+ * governing the outer access.  There is no point in restricting
+ * accesses to an array if in order to evaluate the restriction,
+ * we have to access the same elements (or more).
+ *
+ * Rather than removing the argument at this point (which would
+ * complicate the resolution of the other nested accesses), we simply
+ * mark it here by replacing it by a NaN pet_expr.
+ * These NaNs are then later removed in remove_marked_self_dependences.
+ */
+static __isl_give pet_expr *mark_self_dependences(__isl_take pet_expr *expr,
+	int first)
+{
+	int n;
+
+	if (pet_expr_access_is_write(expr))
+		return expr;
+
+	n = pet_expr_get_n_arg(expr);
+	for (int i = first; i < n; ++i) {
+		int mark;
+		pet_expr *arg;
+
+		arg = pet_expr_get_arg(expr, i);
+		mark = is_sub_access(expr, arg, first);
+		pet_expr_free(arg);
+		if (mark < 0)
+			return pet_expr_free(expr);
+		if (!mark)
+			continue;
+
+		arg = pet_expr_new_int(isl_val_nan(pet_expr_get_ctx(expr)));
+		expr = pet_expr_set_arg(expr, i, arg);
+	}
+
+	return expr;
+}
+
+/* Is "expr" a NaN integer expression?
+ */
+static int expr_is_nan(__isl_keep pet_expr *expr)
+{
+	isl_val *v;
+	int is_nan;
+
+	if (pet_expr_get_type(expr) != pet_expr_int)
+		return 0;
+
+	v = pet_expr_int_get_val(expr);
+	is_nan = isl_val_is_nan(v);
+	isl_val_free(v);
+
+	return is_nan;
+}
+
+/* Check if we have marked any self dependences (as NaNs)
+ * in mark_self_dependences and remove them here.
+ * It is safe to project them out since these arguments
+ * can at most be referenced from the condition of the access relation,
+ * but do not appear in the index expression.
+ * "dim" is the dimension of the iteration domain.
+ */
+static __isl_give pet_expr *remove_marked_self_dependences(
+	__isl_take pet_expr *expr, int dim, int first)
+{
+	int n;
+
+	n = pet_expr_get_n_arg(expr);
+	for (int i = n - 1; i >= first; --i) {
+		int is_nan;
+		pet_expr *arg;
+
+		arg = pet_expr_get_arg(expr, i);
+		is_nan = expr_is_nan(arg);
+		pet_expr_free(arg);
+		if (!is_nan)
+			continue;
+		expr = pet_expr_access_project_out_arg(expr, dim, i);
+	}
+
+	return expr;
+}
+
 /* Look for parameters in any access relation in "expr" that
  * refer to nested accesses.  In particular, these are
  * parameters with name "__pet_expr".
@@ -2868,6 +3020,7 @@ __isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 		return NULL;
 
 	expr = pet_expr_access_align_params(expr);
+	expr = mark_self_dependences(expr, n_arg);
 	if (!expr)
 		return NULL;
 
@@ -2913,6 +3066,8 @@ __isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 	isl_local_space_free(ls);
 
 	expr = pet_expr_access_pullback_multi_aff(expr, ma);
+
+	expr = remove_marked_self_dependences(expr, 0, n_arg);
 
 	return expr;
 }
