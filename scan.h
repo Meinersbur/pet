@@ -190,20 +190,17 @@ private:
 	struct pet_scop *resolve_nested(struct pet_scop *scop);
 	struct pet_stmt *resolve_nested(struct pet_stmt *stmt);
 	__isl_give pet_expr *extract_access_expr(clang::QualType qt,
-		__isl_take isl_multi_pw_aff *index);
+		__isl_take pet_expr *index);
 	__isl_give pet_expr *extract_access_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
-	__isl_give isl_multi_pw_aff *extract_index(
+	__isl_give pet_expr *extract_index_expr(
 		clang::ArraySubscriptExpr *expr);
-	__isl_give isl_multi_pw_aff *extract_index(clang::Expr *expr);
-	__isl_give isl_multi_pw_aff *extract_index(
-		clang::ImplicitCastExpr *expr);
-	__isl_give isl_multi_pw_aff *extract_index(clang::DeclRefExpr *expr);
-	__isl_give isl_multi_pw_aff *extract_index(clang::ValueDecl *decl);
-	__isl_give isl_multi_pw_aff *extract_index(
-		clang::IntegerLiteral *expr);
-	__isl_give isl_multi_pw_aff *extract_index(clang::MemberExpr *expr);
+	__isl_give pet_expr *extract_index_expr(clang::Expr *expr);
+	__isl_give pet_expr *extract_index_expr(clang::ImplicitCastExpr *expr);
+	__isl_give pet_expr *extract_index_expr(clang::DeclRefExpr *expr);
+	__isl_give pet_expr *extract_index_expr(clang::ValueDecl *decl);
+	__isl_give pet_expr *extract_index_expr(clang::MemberExpr *expr);
 
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);

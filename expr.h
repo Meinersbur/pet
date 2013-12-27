@@ -92,8 +92,6 @@ enum pet_expr_type pet_str_type(const char *str);
 enum pet_op_type pet_str_op(const char *str);
 
 __isl_give pet_expr *pet_expr_alloc(isl_ctx *ctx, enum pet_expr_type type);
-__isl_give pet_expr *pet_expr_from_index_and_depth(int type_size,
-	__isl_take isl_multi_pw_aff *index, int depth);
 __isl_give pet_expr *pet_expr_from_access_and_index(__isl_take isl_map *access,
 	__isl_take isl_multi_pw_aff *index);
 __isl_give pet_expr *pet_expr_kill_from_access_and_index(
@@ -173,9 +171,16 @@ __isl_give pet_expr *pet_expr_gist(__isl_take pet_expr *expr,
 __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 	__isl_take isl_map *access);
 
+__isl_give pet_expr *pet_expr_access_subscript(__isl_take pet_expr *base,
+	__isl_take pet_expr *index);
+__isl_give pet_expr *pet_expr_access_member(__isl_take pet_expr *base,
+	__isl_take isl_id *member);
+
 int pet_expr_get_type_size(__isl_keep pet_expr *expr);
 __isl_give pet_expr *pet_expr_set_type_size(__isl_take pet_expr *expr,
 	int type_size);
+__isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
+	int depth);
 
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 

@@ -609,9 +609,9 @@ __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 	return pa;
 }
 
-__isl_give isl_multi_pw_aff *PetScan::extract_index(ImplicitCastExpr *expr)
+__isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 {
-	return extract_index(expr->getSubExpr());
+	return extract_index_expr(expr->getSubExpr());
 }
 
 /* Return the depth of an array of the given type.
@@ -672,63 +672,57 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	return array_depth(decl->getType().getTypePtr());
 }
 
-/* Extract an index expression from a reference to a variable.
- * If the variable has name "A", then the returned index expression
- * is of the form
- *
- *	{ [] -> A[] }
+/* Return the depth of the array accessed by the access expression "expr".
  */
-__isl_give isl_multi_pw_aff *PetScan::extract_index(DeclRefExpr *expr)
+static int extract_depth(__isl_keep pet_expr *expr)
 {
-	return extract_index(expr->getDecl());
+	isl_multi_pw_aff *index;
+	int depth;
+
+	index = pet_expr_access_get_index(expr);
+	depth = extract_depth(index);
+	isl_multi_pw_aff_free(index);
+
+	return depth;
 }
 
-/* Extract an index expression from a variable.
- * If the variable has name "A", then the returned index expression
- * is of the form
- *
- *	{ [] -> A[] }
+/* Construct a pet_expr representing an index expression for an access
+ * to the variable referenced by "expr".
  */
-__isl_give isl_multi_pw_aff *PetScan::extract_index(ValueDecl *decl)
+__isl_give pet_expr *PetScan::extract_index_expr(DeclRefExpr *expr)
+{
+	return extract_index_expr(expr->getDecl());
+}
+
+/* Construct a pet_expr representing an index expression for an access
+ * to the variable "decl".
+ */
+__isl_give pet_expr *PetScan::extract_index_expr(ValueDecl *decl)
 {
 	isl_id *id = create_decl_id(ctx, decl);
 	isl_space *space = isl_space_alloc(ctx, 0, 0, 0);
 
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 
-	return isl_multi_pw_aff_zero(space);
+	return pet_expr_from_index(isl_multi_pw_aff_zero(space));
 }
 
-/* Extract an index expression from an integer contant.
- * If the value of the constant is "v", then the returned access relation
- * is
- *
- *	{ [] -> [v] }
+/* Construct a pet_expr representing the index expression "expr"
+ * Return NULL on error.
  */
-__isl_give isl_multi_pw_aff *PetScan::extract_index(IntegerLiteral *expr)
-{
-	isl_multi_pw_aff *mpa;
-
-	mpa = isl_multi_pw_aff_from_pw_aff(extract_affine(expr));
-	return mpa;
-}
-
-/* Try and extract an index expression from the given Expr.
- * Return NULL if it doesn't work out.
- */
-__isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
+__isl_give pet_expr *PetScan::extract_index_expr(Expr *expr)
 {
 	switch (expr->getStmtClass()) {
 	case Stmt::ImplicitCastExprClass:
-		return extract_index(cast<ImplicitCastExpr>(expr));
+		return extract_index_expr(cast<ImplicitCastExpr>(expr));
 	case Stmt::DeclRefExprClass:
-		return extract_index(cast<DeclRefExpr>(expr));
+		return extract_index_expr(cast<DeclRefExpr>(expr));
 	case Stmt::ArraySubscriptExprClass:
-		return extract_index(cast<ArraySubscriptExpr>(expr));
+		return extract_index_expr(cast<ArraySubscriptExpr>(expr));
 	case Stmt::IntegerLiteralClass:
-		return extract_index(cast<IntegerLiteral>(expr));
+		return extract_expr(cast<IntegerLiteral>(expr));
 	case Stmt::MemberExprClass:
-		return extract_index(cast<MemberExpr>(expr));
+		return extract_index_expr(cast<MemberExpr>(expr));
 	default:
 		unsupported(expr);
 	}
@@ -736,35 +730,26 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
 }
 
 /* Extract an index expression from the given array subscript expression.
- * If nesting is allowed in general, then we turn it on while
- * examining the index expression.
  *
  * We first extract an index expression from the base.
  * This will result in an index expression with a range that corresponds
  * to the earlier indices.
- * We then extract the current index, restrict its domain
- * to those values that result in a non-negative index and
- * append the index to the base index expression.
+ * We then extract the current index and let
+ * pet_expr_access_subscript combine the two.
  */
-__isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
+__isl_give pet_expr *PetScan::extract_index_expr(ArraySubscriptExpr *expr)
 {
 	Expr *base = expr->getBase();
 	Expr *idx = expr->getIdx();
-	isl_pw_aff *index;
-	isl_multi_pw_aff *base_access;
-	isl_multi_pw_aff *access;
-	bool save_nesting = nesting_enabled;
+	pet_expr *index;
+	pet_expr *base_expr;
 
-	nesting_enabled = allow_nested;
+	base_expr = extract_index_expr(base);
+	index = extract_expr(idx);
 
-	base_access = extract_index(base);
-	index = extract_affine(idx);
+	base_expr = pet_expr_access_subscript(base_expr, index);
 
-	nesting_enabled = save_nesting;
-
-	access = pet_array_subscript(base_access, index);
-
-	return access;
+	return base_expr;
 }
 
 /* Extract an index expression from a member expression.
@@ -772,16 +757,16 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
  * If the base access (to the structure containing the member)
  * is of the form
  *
- *	[] -> A[..]
+ *	A[..]
  *
  * and the member is called "f", then the member access is of
  * the form
  *
- *	[] -> A_f[A[..] -> f[]]
+ *	A_f[A[..] -> f[]]
  *
  * If the member access is to an anonymous struct, then simply return
  *
- *	[] -> A[..]
+ *	A[..]
  *
  * If the member access in the source code is of the form
  *
@@ -791,34 +776,26 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
  *
  *	A[0].f
  */
-__isl_give isl_multi_pw_aff *PetScan::extract_index(MemberExpr *expr)
+__isl_give pet_expr *PetScan::extract_index_expr(MemberExpr *expr)
 {
 	Expr *base = expr->getBase();
 	FieldDecl *field = cast<FieldDecl>(expr->getMemberDecl());
-	isl_multi_pw_aff *base_access, *field_access;
+	pet_expr *base_index;
 	isl_id *id;
-	isl_space *space;
 
-	base_access = extract_index(base);
+	base_index = extract_index_expr(base);
 
 	if (expr->isArrow()) {
-		isl_space *space = isl_space_set_alloc(ctx, 0, 0);
-		isl_local_space *ls = isl_local_space_from_space(space);
-		isl_aff *aff = isl_aff_zero_on_domain(ls);
-		isl_pw_aff *index = isl_pw_aff_from_aff(aff);
-		base_access = pet_array_subscript(base_access, index);
+		pet_expr *index = pet_expr_new_int(isl_val_zero(ctx));
+		base_index = pet_expr_access_subscript(base_index, index);
 	}
 
 	if (field->isAnonymousStructOrUnion())
-		return base_access;
+		return base_index;
 
 	id = create_decl_id(ctx, field);
-	space = isl_multi_pw_aff_get_domain_space(base_access);
-	space = isl_space_from_domain(space);
-	space = isl_space_set_tuple_id(space, isl_dim_out, id);
-	field_access = isl_multi_pw_aff_zero(space);
 
-	return pet_array_member(base_access, field_access);
+	return pet_expr_access_member(base_index, id);
 }
 
 /* Check if "expr" calls function "minmax" with two arguments and if so
@@ -1237,18 +1214,23 @@ __isl_give pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 /* Convert the index expression "index" into an access pet_expr of type "qt".
  */
 __isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
-	__isl_take isl_multi_pw_aff *index)
+	__isl_take pet_expr *index)
 {
-	pet_expr *pe;
 	int depth;
 	int type_size;
+	pet_context *pc;
 
 	depth = extract_depth(index);
 	type_size = get_type_size(qt, ast_context);
 
-	pe = pet_expr_from_index_and_depth(type_size, index, depth);
+	pc = convert_assignments(ctx, assigned_value);
+	index = pet_expr_access_plug_in_args(index, pc);
+	pet_context_free(pc);
 
-	return pe;
+	index = pet_expr_set_type_size(index, type_size);
+	index = pet_expr_access_set_depth(index, depth);
+
+	return index;
 }
 
 /* Extract an index expression from "expr" and then convert it into
@@ -1256,7 +1238,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
  */
 __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
-	return extract_access_expr(expr->getType(), extract_index(expr));
+	return extract_access_expr(expr->getType(), extract_index_expr(expr));
 }
 
 /* Extract an index expression from "decl" and then convert it into
@@ -1264,7 +1246,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
  */
 __isl_give pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
-	return extract_access_expr(decl->getType(), extract_index(decl));
+	return extract_access_expr(decl->getType(), extract_index_expr(decl));
 }
 
 __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)

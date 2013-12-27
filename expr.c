@@ -35,7 +35,9 @@
 #include <string.h>
 
 #include "aff.h"
+#include "array.h"
 #include "expr.h"
+#include "expr_arg.h"
 #include "filter.h"
 #include "nest.h"
 #include "options.h"
@@ -212,26 +214,33 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 	return access;
 }
 
-/* Construct an access pet_expr from the number of bits needed to
- * represent the type of the expression (may be zero if unknown or
- * if the type is not an integer) an index expression and
+/* Finalize the construction of an access expression by setting
  * the depth of the accessed array.
- * By default, the access is considered to be a read access.
+ *
+ * The index expression may have been updated by
+ * pet_expr_access_subscript and/or pet_expr_access_member
+ * without the access relation having been updated accordingly.
+ * We perform this update here, taking into account the depth
+ * of the accessed array.
  *
  * If the number of indices is smaller than the depth of the array,
  * then we assume that all elements of the remaining dimensions
  * are accessed.
  */
-__isl_give pet_expr *pet_expr_from_index_and_depth(int type_size,
-	__isl_take isl_multi_pw_aff *index, int depth)
+__isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
+	int depth)
 {
 	isl_map *access;
 	int dim;
-	pet_expr *expr;
 
-	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+
+	access = isl_map_from_multi_pw_aff(pet_expr_access_get_index(expr));
 	if (!access)
-		goto error;
+		return pet_expr_free(expr);
+
 	dim = isl_map_dim(access, isl_dim_out);
 	if (dim > depth)
 		isl_die(isl_map_get_ctx(access), isl_error_internal,
@@ -241,16 +250,7 @@ __isl_give pet_expr *pet_expr_from_index_and_depth(int type_size,
 	if (dim != depth)
 		access = extend_range(access, depth - dim);
 
-	expr = pet_expr_from_access_and_index(access, index);
-	if (!expr)
-		return NULL;
-
-	expr->type_size = type_size;
-
-	return expr;
-error:
-	isl_multi_pw_aff_free(index);
-	return NULL;
+	return pet_expr_access_set_access(expr, access);
 }
 
 /* Construct a pet_expr that kills the elements specified by
@@ -1599,12 +1599,18 @@ struct pet_access_gist_data {
  * the gist of the associated access relation and index expression
  * with respect to data->domain and the bounds on the values of the arguments
  * of the expression.
+ *
+ * The arguments of "expr" have been gisted right before "expr" itself
+ * is gisted.  The gisted arguments may have become equal where before
+ * they may not have been (obviously) equal.  We therefore take
+ * the opportunity to remove duplicate arguments here.
  */
 static __isl_give pet_expr *access_gist(__isl_take pet_expr *expr, void *user)
 {
 	struct pet_access_gist_data *data = user;
 	isl_set *domain;
 
+	expr = pet_expr_remove_duplicate_args(expr);
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return expr;
@@ -2037,7 +2043,8 @@ static __isl_give isl_pw_aff *non_affine(__isl_take isl_space *space)
  *
  * Note that we currently don't allow nested accesses themselves
  * to contain any nested accesses, so we check if "expr" itself
- * involves any nested accesses and return NaN if it does.
+ * involves any nested accesses (either explicitly as arguments
+ * or implicitly through parameters) and return NaN if it does.
  *
  * The new parameter is resolved in resolve_nested.
  */
@@ -2059,6 +2066,9 @@ static __isl_give isl_pw_aff *nested_access(__isl_keep pet_expr *expr,
 	if (pet_expr_get_type(expr) != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_internal,
 			"not an access expression", return NULL);
+
+	if (expr->n_arg > 0)
+		return non_affine(pet_context_get_space(pc));
 
 	space = pet_expr_access_get_parameter_space(expr);
 	nested = pet_nested_any_in_space(space);
@@ -2715,6 +2725,85 @@ __isl_give pet_expr *pet_expr_set_type_size(__isl_take pet_expr *expr,
 	expr->type_size = type_size;
 
 	return expr;
+}
+
+/* Extend an access expression "expr" with an additional index "index".
+ * In particular, add "index" as an extra argument to "expr" and
+ * adjust the index expression of "expr" to refer to this extra argument.
+ * The caller is responsible for calling pet_expr_access_set_depth
+ * to update the corresponding access relation.
+ *
+ * Note that we only collect the individual index expressions as
+ * arguments of "expr" here.
+ * An attempt to integrate them into the index expression of "expr"
+ * is performed in pet_expr_access_plug_in_args.
+ */
+__isl_give pet_expr *pet_expr_access_subscript(__isl_take pet_expr *expr,
+	__isl_take pet_expr *index)
+{
+	int n;
+	isl_space *space;
+	isl_local_space *ls;
+	isl_pw_aff *pa;
+
+	expr = pet_expr_cow(expr);
+	if (!expr || !index)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", goto error);
+
+	n = pet_expr_get_n_arg(expr);
+	expr = pet_expr_insert_arg(expr, n, index);
+	if (!expr)
+		return NULL;
+
+	space = isl_multi_pw_aff_get_domain_space(expr->acc.index);
+	ls = isl_local_space_from_space(space);
+	pa = isl_pw_aff_from_aff(isl_aff_var_on_domain(ls, isl_dim_set, n));
+	expr->acc.index = pet_array_subscript(expr->acc.index, pa);
+	if (!expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	pet_expr_free(index);
+	return NULL;
+}
+
+/* Extend an access expression "expr" with an additional member acces to "id".
+ * In particular, extend the index expression of "expr" to include
+ * the additional member access.
+ * The caller is responsible for calling pet_expr_access_set_depth
+ * to update the corresponding access relation.
+ */
+__isl_give pet_expr *pet_expr_access_member(__isl_take pet_expr *expr,
+	__isl_take isl_id *id)
+{
+	isl_space *space;
+	isl_multi_pw_aff *field_access;
+
+	expr = pet_expr_cow(expr);
+	if (!expr || !id)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", goto error);
+
+	space = isl_multi_pw_aff_get_domain_space(expr->acc.index);
+	space = isl_space_from_domain(space);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
+	field_access = isl_multi_pw_aff_zero(space);
+	expr->acc.index = pet_array_member(expr->acc.index, field_access);
+	if (!expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	isl_id_free(id);
+	return NULL;
 }
 
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
