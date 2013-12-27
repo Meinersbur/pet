@@ -44,6 +44,8 @@ libpet_la_SOURCES = \
 	context.c \
 	expr.h \
 	expr.c \
+	expr_arg.h \
+	expr_arg.c \
 	filter.h \
 	filter.c \
 	nest.h \
