@@ -481,8 +481,10 @@ static void expr_dump(struct pet_expr *expr, int indent)
 		fprintf(stderr, "%s\n", expr->d.s);
 		break;
 	case pet_expr_access:
-		isl_id_dump(expr->acc.ref_id);
-		fprintf(stderr, "%*s", indent, "");
+		if (expr->acc.ref_id) {
+			isl_id_dump(expr->acc.ref_id);
+			fprintf(stderr, "%*s", indent, "");
+		}
 		isl_map_dump(expr->acc.access);
 		fprintf(stderr, "%*s", indent, "");
 		isl_multi_pw_aff_dump(expr->acc.index);
