@@ -3101,6 +3101,10 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		return NULL;
 	}
 
+	assigned_value.erase(iv);
+	clear_assignments clear(assigned_value);
+	clear.TraverseStmt(stmt->getBody());
+
 	pa_inc = extract_increment(stmt, iv);
 	if (!pa_inc)
 		return NULL;
@@ -3116,10 +3120,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_inc = isl_pw_aff_domain(pa_inc);
 
 	is_unsigned = iv->getType()->isUnsignedIntegerType();
-
-	assigned_value.erase(iv);
-	clear_assignments clear(assigned_value);
-	clear.TraverseStmt(stmt->getBody());
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
