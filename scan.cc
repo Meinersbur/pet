@@ -308,6 +308,16 @@ void PetScan::report_prototype_required(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report a missing increment, unless autodetect is set.
+ */
+void PetScan::report_missing_increment(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "missing increment");
+	report(stmt, id);
+}
+
 /* Extract an integer from "expr".
  */
 __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
@@ -2258,7 +2268,7 @@ __isl_give isl_pw_aff *PetScan::extract_increment(clang::ForStmt *stmt,
 	Stmt *inc = stmt->getInc();
 
 	if (!inc) {
-		unsupported(stmt);
+		report_missing_increment(stmt);
 		return NULL;
 	}
 
