@@ -597,6 +597,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 	if (!pe)
 		return NULL;
 	pc = convert_assignments(ctx, assigned_value);
+	pe = pet_expr_plug_in_args(pe, pc);
 	pa = pet_expr_extract_affine(pe, pc);
 	if (isl_pw_aff_involves_nan(pa)) {
 		unsupported(expr);
@@ -924,6 +925,7 @@ __isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 
 	pe = extract_expr(expr);
 	pc = convert_assignments(ctx, assigned_value);
+	pe = pet_expr_plug_in_args(pe, pc);
 	pc = pet_context_set_allow_nested(pc, nesting_enabled);
 	cond = pet_expr_extract_affine_condition(pe, pc);
 	if (isl_pw_aff_involves_nan(cond))
@@ -1217,14 +1219,9 @@ __isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
 {
 	int depth;
 	int type_size;
-	pet_context *pc;
 
 	depth = extract_depth(index);
 	type_size = get_type_size(qt, ast_context);
-
-	pc = convert_assignments(ctx, assigned_value);
-	index = pet_expr_access_plug_in_args(index, pc);
-	pet_context_free(pc);
 
 	index = pet_expr_set_type_size(index, type_size);
 	index = pet_expr_access_set_depth(index, depth);
@@ -3171,6 +3168,11 @@ struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
 	struct pet_scop *scop;
 	SourceLocation loc = range.getBegin();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
+	pet_context *pc;
+
+	pc = convert_assignments(ctx, assigned_value);
+	expr = pet_expr_plug_in_args(expr, pc);
+	pet_context_free(pc);
 
 	expr = resolve_nested(expr);
 	ps = pet_stmt_from_pet_expr(line, label, n_stmt++, expr);
@@ -3342,11 +3344,17 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	struct pet_stmt *ps;
 	SourceLocation loc = cond->getLocStart();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
+	pet_context *pc;
 
 	write = pet_expr_from_index(index);
 	write = pet_expr_access_set_write(write, 1);
 	write = pet_expr_access_set_read(write, 0);
 	expr = extract_expr(cond);
+
+	pc = convert_assignments(ctx, assigned_value);
+	expr = pet_expr_plug_in_args(expr, pc);
+	pet_context_free(pc);
+
 	expr = resolve_nested(expr);
 	expr = pet_expr_new_binary(1, pet_op_assign, write, expr);
 	ps = pet_stmt_from_pet_expr(line, NULL, stmt_nr, expr);
