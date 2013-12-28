@@ -246,4 +246,5 @@ private:
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
 	void report_non_static_affine_increment(clang::Stmt *stmt);
+	void report_non_static_affine_initialization(clang::Stmt *stmt);
 };

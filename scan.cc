@@ -444,6 +444,17 @@ void PetScan::report_non_static_affine_increment(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report a loop initialization that is not static affine,
+ * unless autodetect is set.
+ */
+void PetScan::report_non_static_affine_initialization(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "non static-affine initialization");
+	report(stmt, id);
+}
+
 /* Extract an integer from "expr".
  */
 __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
@@ -2917,7 +2928,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	struct pet_scop *scop, *scop_cond = NULL;
 	assigned_value_cache cache(assigned_value);
 	isl_val *inc;
-	bool was_assigned;
 	bool is_one;
 	bool is_unsigned;
 	bool is_simple;
@@ -2932,8 +2942,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_set *valid_cond_next;
 	isl_set *valid_inc;
 	int stmt_id;
-	pet_expr *pe_inc;
-	pet_context *pc;
+	pet_expr *pe_init, *pe_inc;
+	pet_context *pc, *pc_init_val;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -2961,33 +2971,41 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		return NULL;
 	}
 
+	id = create_decl_id(ctx, iv);
+
 	assigned_value.erase(iv);
 	clear_assignments clear(assigned_value);
 	clear.TraverseStmt(stmt->getBody());
 
-	was_assigned = assigned_value.find(iv) != assigned_value.end();
-	clear_assignment(assigned_value, iv);
-	init_val = extract_affine(rhs);
-	if (!was_assigned)
-		assigned_value.erase(iv);
-	if (!init_val)
-		return NULL;
-
+	pe_init = extract_expr(rhs);
 	pe_inc = extract_increment(stmt, iv);
 	pc = convert_assignments(ctx, assigned_value);
+	pc_init_val = pet_context_copy(pc);
+	pc_init_val = pet_context_mark_unknown(pc_init_val, isl_id_copy(id));
+	init_val = pet_expr_extract_affine(pe_init, pc_init_val);
+	pet_context_free(pc_init_val);
 	pa_inc = pet_expr_extract_affine(pe_inc, pc);
 	pet_context_free(pc);
 	pet_expr_free(pe_inc);
-	if (!pe_inc)
-		return NULL;
-	if (isl_pw_aff_involves_nan(pa_inc)) {
+	pet_expr_free(pe_init);
+	if (!pe_init || !pe_inc ||
+	    isl_pw_aff_involves_nan(pa_inc) ||
+	    isl_pw_aff_involves_nan(init_val)) {
+		if (!pe_init || !pe_inc)
+			;
+		else if (isl_pw_aff_involves_nan(pa_inc))
+			report_non_static_affine_increment(stmt->getInc());
+		else if (isl_pw_aff_involves_nan(init_val))
+			report_non_static_affine_initialization(rhs);
+		isl_id_free(id);
 		isl_pw_aff_free(pa_inc);
-		report_non_static_affine_increment(stmt->getInc());
+		isl_pw_aff_free(init_val);
 		return NULL;
 	}
 
 	inc = pet_extract_cst(pa_inc);
 	if (!inc || isl_val_is_nan(inc)) {
+		isl_id_free(id);
 		isl_pw_aff_free(init_val);
 		isl_pw_aff_free(pa_inc);
 		unsupported(stmt->getInc());
@@ -3001,6 +3019,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	scop = extract(stmt->getBody());
 	if (partial) {
+		isl_id_free(id);
 		isl_pw_aff_free(init_val);
 		isl_pw_aff_free(pa_inc);
 		isl_pw_aff_free(pa);
@@ -3011,8 +3030,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	valid_inc = isl_pw_aff_domain(pa_inc);
 
 	is_unsigned = iv->getType()->isUnsignedIntegerType();
-
-	id = create_decl_id(ctx, iv);
 
 	has_affine_break = scop &&
 				pet_scop_has_affine_skip(scop, pet_skip_later);
