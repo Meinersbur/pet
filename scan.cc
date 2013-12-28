@@ -434,6 +434,16 @@ void PetScan::report_missing_increment(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report an increment that is not constan, unless autodetect is set.
+ */
+void PetScan::report_non_constant_increment(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "non-constant increment");
+	report(stmt, id);
+}
+
 /* Report an increment that is not static affine, unless autodetect is set.
  */
 void PetScan::report_non_static_affine_increment(Stmt *stmt)
@@ -2988,28 +2998,22 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	pet_context_free(pc);
 	pet_expr_free(pe_inc);
 	pet_expr_free(pe_init);
-	if (!pe_init || !pe_inc ||
+	inc = pet_extract_cst(pa_inc);
+	if (!pe_init || !pe_inc || !inc || isl_val_is_nan(inc) ||
 	    isl_pw_aff_involves_nan(pa_inc) ||
 	    isl_pw_aff_involves_nan(init_val)) {
-		if (!pe_init || !pe_inc)
+		if (!pe_init || !pe_inc || (pa_inc && !inc))
 			;
 		else if (isl_pw_aff_involves_nan(pa_inc))
 			report_non_static_affine_increment(stmt->getInc());
 		else if (isl_pw_aff_involves_nan(init_val))
 			report_non_static_affine_initialization(rhs);
+		else
+			report_non_constant_increment(stmt->getInc());
 		isl_id_free(id);
-		isl_pw_aff_free(pa_inc);
-		isl_pw_aff_free(init_val);
-		return NULL;
-	}
-
-	inc = pet_extract_cst(pa_inc);
-	if (!inc || isl_val_is_nan(inc)) {
-		isl_id_free(id);
-		isl_pw_aff_free(init_val);
-		isl_pw_aff_free(pa_inc);
-		unsupported(stmt->getInc());
 		isl_val_free(inc);
+		isl_pw_aff_free(pa_inc);
+		isl_pw_aff_free(init_val);
 		return NULL;
 	}
 
