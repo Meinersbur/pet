@@ -148,15 +148,15 @@ private:
 	clang::ValueDecl *extract_induction_variable(clang::BinaryOperator *stmt);
 	clang::VarDecl *extract_induction_variable(clang::Stmt *init,
 				clang::Decl *stmt);
-	__isl_give isl_pw_aff *extract_unary_increment(clang::UnaryOperator *op,
+	__isl_give pet_expr *extract_unary_increment(clang::UnaryOperator *op,
 				clang::ValueDecl *iv);
-	__isl_give isl_pw_aff *extract_binary_increment(
+	__isl_give pet_expr *extract_binary_increment(
 				clang::BinaryOperator *op,
 				clang::ValueDecl *iv);
-	__isl_give isl_pw_aff *extract_compound_increment(
+	__isl_give pet_expr *extract_compound_increment(
 				clang::CompoundAssignOperator *op,
 				clang::ValueDecl *iv);
-	__isl_give isl_pw_aff *extract_increment(clang::ForStmt *stmt,
+	__isl_give pet_expr *extract_increment(clang::ForStmt *stmt,
 				clang::ValueDecl *iv);
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
 	struct pet_scop *extract_infinite_loop(clang::Stmt *body);
@@ -245,4 +245,5 @@ private:
 	void unsupported(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
+	void report_non_static_affine_increment(clang::Stmt *stmt);
 };

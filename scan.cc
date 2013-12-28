@@ -434,6 +434,16 @@ void PetScan::report_missing_increment(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report an increment that is not static affine, unless autodetect is set.
+ */
+void PetScan::report_non_static_affine_increment(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "non static-affine increment");
+	report(stmt, id);
+}
+
 /* Extract an integer from "expr".
  */
 __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
@@ -2046,15 +2056,14 @@ VarDecl *PetScan::extract_induction_variable(Stmt *init, Decl *decl)
 }
 
 /* Check that op is of the form iv++ or iv--.
- * Return an affine expression "1" or "-1" accordingly.
+ * Return a pet_expr representing "1" or "-1" accordingly.
  */
-__isl_give isl_pw_aff *PetScan::extract_unary_increment(
+__isl_give pet_expr *PetScan::extract_unary_increment(
 	clang::UnaryOperator *op, clang::ValueDecl *iv)
 {
 	Expr *sub;
 	DeclRefExpr *ref;
-	isl_space *space;
-	isl_aff *aff;
+	isl_val *v;
 
 	if (!op->isIncrementDecrementOp()) {
 		unsupported(op);
@@ -2073,35 +2082,27 @@ __isl_give isl_pw_aff *PetScan::extract_unary_increment(
 		return NULL;
 	}
 
-	space = isl_space_set_alloc(ctx, 0, 0);
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
-
 	if (op->isIncrementOp())
-		aff = isl_aff_add_constant_si(aff, 1);
+		v = isl_val_one(ctx);
 	else
-		aff = isl_aff_add_constant_si(aff, -1);
+		v = isl_val_negone(ctx);
 
-	return isl_pw_aff_from_aff(aff);
+	return pet_expr_new_int(v);
 }
 
 /* Check if op is of the form
  *
- *	iv = iv + inc
+ *	iv = expr
  *
- * and return inc as an affine expression.
- *
- * We extract an affine expression from the RHS, subtract iv and return
- * the result.
+ * and return the increment "expr - iv" as a pet_expr.
  */
-__isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
+__isl_give pet_expr *PetScan::extract_binary_increment(BinaryOperator *op,
 	clang::ValueDecl *iv)
 {
+	int type_size;
 	Expr *lhs;
 	DeclRefExpr *ref;
-	isl_id *id;
-	isl_space *space;
-	isl_aff *aff;
-	isl_pw_aff *val;
+	pet_expr *expr, *expr_iv;
 
 	if (op->getOpcode() != BO_Assign) {
 		unsupported(op);
@@ -2120,30 +2121,23 @@ __isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
 		return NULL;
 	}
 
-	val = extract_affine(op->getRHS());
+	expr = extract_expr(op->getRHS());
+	expr_iv = extract_expr(lhs);
 
-	id = create_decl_id(ctx, iv);
-
-	space = isl_space_set_alloc(ctx, 1, 0);
-	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
-
-	val = isl_pw_aff_sub(val, isl_pw_aff_from_aff(aff));
-
-	return val;
+	type_size = get_type_size(iv->getType(), ast_context);
+	return pet_expr_new_binary(type_size, pet_op_sub, expr, expr_iv);
 }
 
 /* Check that op is of the form iv += cst or iv -= cst
- * and return an affine expression corresponding oto cst or -cst accordingly.
+ * and return a pet_expr corresponding to cst or -cst accordingly.
  */
-__isl_give isl_pw_aff *PetScan::extract_compound_increment(
+__isl_give pet_expr *PetScan::extract_compound_increment(
 	CompoundAssignOperator *op, clang::ValueDecl *iv)
 {
 	Expr *lhs;
 	DeclRefExpr *ref;
 	bool neg = false;
-	isl_pw_aff *val;
+	pet_expr *expr;
 	BinaryOperatorKind opcode;
 
 	opcode = op->getOpcode();
@@ -2166,18 +2160,18 @@ __isl_give isl_pw_aff *PetScan::extract_compound_increment(
 		return NULL;
 	}
 
-	val = extract_affine(op->getRHS());
+	expr = extract_expr(op->getRHS());
 	if (neg)
-		val = isl_pw_aff_neg(val);
+		expr = pet_expr_new_unary(pet_op_minus, expr);
 
-	return val;
+	return expr;
 }
 
 /* Check that the increment of the given for loop increments
  * (or decrements) the induction variable "iv" and return
- * the increment as an affine expression if successful.
+ * the increment as a pet_expr if successful.
  */
-__isl_give isl_pw_aff *PetScan::extract_increment(clang::ForStmt *stmt,
+__isl_give pet_expr *PetScan::extract_increment(clang::ForStmt *stmt,
 	ValueDecl *iv)
 {
 	Stmt *inc = stmt->getInc();
@@ -2938,6 +2932,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	isl_set *valid_cond_next;
 	isl_set *valid_inc;
 	int stmt_id;
+	pet_expr *pe_inc;
+	pet_context *pc;
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc())
 		return extract_infinite_for(stmt);
@@ -2977,9 +2973,16 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (!init_val)
 		return NULL;
 
-	pa_inc = extract_increment(stmt, iv);
-	if (!pa_inc) {
-		isl_pw_aff_free(init_val);
+	pe_inc = extract_increment(stmt, iv);
+	pc = convert_assignments(ctx, assigned_value);
+	pa_inc = pet_expr_extract_affine(pe_inc, pc);
+	pet_context_free(pc);
+	pet_expr_free(pe_inc);
+	if (!pe_inc)
+		return NULL;
+	if (isl_pw_aff_involves_nan(pa_inc)) {
+		isl_pw_aff_free(pa_inc);
+		report_non_static_affine_increment(stmt->getInc());
 		return NULL;
 	}
 
