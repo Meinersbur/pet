@@ -3841,7 +3841,6 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 {
 	struct pet_expr *expr, *write;
 	struct pet_stmt *ps;
-	struct pet_scop *scop;
 	SourceLocation loc = cond->getLocStart();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 
@@ -3854,10 +3853,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	expr = resolve_nested(expr);
 	expr = pet_expr_new_binary(ctx, pet_op_assign, write, expr);
 	ps = pet_stmt_from_pet_expr(ctx, line, NULL, stmt_nr, expr);
-	scop = pet_scop_from_pet_stmt(ctx, ps);
-	scop = resolve_nested(scop);
-
-	return scop;
+	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
 extern "C" {
