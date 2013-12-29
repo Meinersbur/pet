@@ -434,37 +434,6 @@ void PetScan::report_missing_increment(Stmt *stmt)
 	report(stmt, id);
 }
 
-/* Report an increment that is not constan, unless autodetect is set.
- */
-void PetScan::report_non_constant_increment(Stmt *stmt)
-{
-	DiagnosticsEngine &diag = PP.getDiagnostics();
-	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
-					   "non-constant increment");
-	report(stmt, id);
-}
-
-/* Report an increment that is not static affine, unless autodetect is set.
- */
-void PetScan::report_non_static_affine_increment(Stmt *stmt)
-{
-	DiagnosticsEngine &diag = PP.getDiagnostics();
-	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
-					   "non static-affine increment");
-	report(stmt, id);
-}
-
-/* Report a loop initialization that is not static affine,
- * unless autodetect is set.
- */
-void PetScan::report_non_static_affine_initialization(Stmt *stmt)
-{
-	DiagnosticsEngine &diag = PP.getDiagnostics();
-	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
-					   "non static-affine initialization");
-	report(stmt, id);
-}
-
 /* Extract an integer from "expr".
  */
 __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
@@ -2566,7 +2535,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	if (partial)
 		return scop_body;
 
-	return extract_while(cond, test_nr, stmt_nr, scop_body);
+	return extract_while(cond, test_nr, stmt_nr, scop_body, NULL);
 }
 
 /* Construct a generic while scop, with iteration domain
@@ -2575,6 +2544,10 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
  * "test_nr" is the sequence number of the virtual test variable that contains
  * the result of the condition and "stmt_nr" is the sequence number
  * of the statement that evaluates the condition.
+ * If "scop_inc" is not NULL, then it is added at the end of the body,
+ * after replacing any skip conditions resulting from continue statements
+ * by the skip conditions resulting from break statements (if any).
+ *
  * The schedule is adjusted to reflect that the condition is evaluated
  * before the body is executed and the body is filtered to depend
  * on the result of the condition evaluating to true on all iterations
@@ -2590,7 +2563,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
  * or in scop_add_break (if the skip condition is not affine).
  */
 struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
-	struct pet_scop *scop_body)
+	struct pet_scop *scop_body, struct pet_scop *scop_inc)
 {
 	isl_id *id, *id_test, *id_break_test;
 	isl_set *domain;
@@ -2619,6 +2592,17 @@ struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
 				isl_aff_copy(ident), isl_id_copy(id));
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
+	if (scop_inc) {
+		scop_inc = pet_scop_prefix(scop_inc, 2);
+		if (pet_scop_has_skip(scop_body, pet_skip_later)) {
+			isl_multi_pw_aff *skip;
+			skip = pet_scop_get_skip(scop_body, pet_skip_later);
+			scop_body = pet_scop_set_skip(scop_body,
+							pet_skip_now, skip);
+		} else
+			pet_scop_reset_skip(scop_body, pet_skip_now);
+		scop_body = pet_scop_add_seq(ctx, scop_body, scop_inc);
+	}
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
 				    isl_aff_copy(ident), ident, id);
 
@@ -2836,18 +2820,115 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	return enforce_subset(dom, cond);
 }
 
+/* Extract the for loop "stmt" as a while loop.
+ * "iv" is the loop iterator. "init" is the initialization.
+ * "inc" is the increment.
+ *
+ * That is, the for loop has the form
+ *
+ *	for (iv = init; cond; iv += inc)
+ *		body;
+ *
+ * and is treated as
+ *
+ *	iv = init;
+ *	while (cond) {
+ *		body;
+ *		iv += inc;
+ *	}
+ *
+ * except that the skips resulting from any continue statements
+ * in body do not apply to the increment, but are replaced by the skips
+ * resulting from break statements.
+ *
+ * If "iv" is declared in the for loop, then it is killed before
+ * and after the loop.
+ */
+struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
+	__isl_take pet_expr *init, __isl_take pet_expr *inc)
+{
+	int declared;
+	int test_nr, stmt_nr;
+	pet_expr *expr_iv;
+	struct pet_scop *scop_init, *scop_inc, *scop, *scop_body;
+	int type_size;
+	struct pet_array *array;
+	struct pet_scop *scop_kill;
+
+	if (!allow_nested) {
+		unsupported(stmt);
+		return NULL;
+	}
+
+	clear_assignment(assigned_value, iv);
+
+	declared = !initialization_assignment(stmt->getInit());
+
+	expr_iv = extract_access_expr(iv);
+	expr_iv = mark_write(expr_iv);
+	type_size = pet_expr_get_type_size(expr_iv);
+	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
+	scop_init = extract(init, stmt->getInit()->getSourceRange(), false);
+	scop_init = pet_scop_prefix(scop_init, declared);
+
+	test_nr = n_test++;
+	stmt_nr = n_stmt++;
+	scop_body = extract(stmt->getBody());
+	if (partial) {
+		pet_scop_free(scop_init);
+		return scop_body;
+	}
+
+	expr_iv = extract_access_expr(iv);
+	expr_iv = mark_write(expr_iv);
+	type_size = pet_expr_get_type_size(expr_iv);
+	inc = pet_expr_new_binary(type_size, pet_op_add_assign, expr_iv, inc);
+	scop_inc = extract(inc, stmt->getInc()->getSourceRange(), false);
+	if (!scop_inc) {
+		pet_scop_free(scop_init);
+		pet_scop_free(scop_body);
+		return NULL;
+	}
+
+	scop = extract_while(stmt->getCond(), test_nr, stmt_nr, scop_body,
+				scop_inc);
+
+	scop = pet_scop_prefix(scop, declared + 1);
+	scop = pet_scop_add_seq(ctx, scop_init, scop);
+
+	if (!declared)
+		return scop;
+
+	array = extract_array(ctx, iv, NULL);
+	if (array)
+		array->declared = 1;
+	scop_kill = kill(stmt, array);
+	scop_kill = pet_scop_prefix(scop_kill, 0);
+	scop = pet_scop_add_seq(ctx, scop_kill, scop);
+	scop_kill = kill(stmt, array);
+	scop_kill = pet_scop_add_array(scop_kill, array);
+	scop_kill = pet_scop_prefix(scop_kill, 3);
+	scop = pet_scop_add_seq(ctx, scop, scop_kill);
+
+	return scop;
+}
+
 /* Construct a pet_scop for a for statement.
- * The for loop is required to be of the form
+ * The for loop is required to be of one of the following forms
  *
  *	for (i = init; condition; ++i)
- *
- * or
- *
  *	for (i = init; condition; --i)
+ *	for (i = init; condition; i += constant)
+ *	for (i = init; condition; i -= constant)
  *
  * The initialization of the for loop should either be an assignment
- * to an integer variable, or a declaration of such a variable with
- * initialization.
+ * of a static affine value to an integer variable, or a declaration
+ * of such a variable with initialization.
+ *
+ * If the initialization or the increment do not satisfy the above
+ * conditions, i.e., if the initialization is not static affine
+ * or the increment is not constant, then the for loop is extracted
+ * as a while loop instead.
  *
  * The condition is allowed to contain nested accesses, provided
  * they are not being written to inside the body of the loop.
@@ -2996,26 +3077,23 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	pet_context_free(pc_init_val);
 	pa_inc = pet_expr_extract_affine(pe_inc, pc);
 	pet_context_free(pc);
-	pet_expr_free(pe_inc);
-	pet_expr_free(pe_init);
 	inc = pet_extract_cst(pa_inc);
 	if (!pe_init || !pe_inc || !inc || isl_val_is_nan(inc) ||
 	    isl_pw_aff_involves_nan(pa_inc) ||
 	    isl_pw_aff_involves_nan(init_val)) {
-		if (!pe_init || !pe_inc || (pa_inc && !inc))
-			;
-		else if (isl_pw_aff_involves_nan(pa_inc))
-			report_non_static_affine_increment(stmt->getInc());
-		else if (isl_pw_aff_involves_nan(init_val))
-			report_non_static_affine_initialization(rhs);
-		else
-			report_non_constant_increment(stmt->getInc());
 		isl_id_free(id);
 		isl_val_free(inc);
 		isl_pw_aff_free(pa_inc);
 		isl_pw_aff_free(init_val);
+		if (pe_init && pe_inc && !(pa_inc && !inc))
+			return extract_non_affine_for(stmt, iv,
+							pe_init, pe_inc);
+		pet_expr_free(pe_init);
+		pet_expr_free(pe_inc);
 		return NULL;
 	}
+	pet_expr_free(pe_init);
+	pet_expr_free(pe_inc);
 
 	pa = try_extract_nested_condition(stmt->getCond());
 	if (allow_nested && (!pa || pet_nested_any_in_pw_aff(pa)))

@@ -159,12 +159,16 @@ private:
 	__isl_give pet_expr *extract_increment(clang::ForStmt *stmt,
 				clang::ValueDecl *iv);
 	struct pet_scop *extract_for(clang::ForStmt *stmt);
+	struct pet_scop *extract_non_affine_for(clang::ForStmt *stmt,
+		clang::ValueDecl *iv,
+		__isl_take pet_expr *init, __isl_take pet_expr *inc);
 	struct pet_scop *extract_infinite_loop(clang::Stmt *body);
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
 	struct pet_scop *extract_affine_while(__isl_take isl_pw_aff *pa,
 				clang::Stmt *body);
 	struct pet_scop *extract_while(clang::Expr *cond, int test_nr,
-		int stmt_nr, struct pet_scop *scop_body);
+		int stmt_nr, struct pet_scop *scop_body,
+		struct pet_scop *scop_inc);
 
 	__isl_give pet_expr *mark_write(__isl_take pet_expr *access);
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
@@ -245,7 +249,4 @@ private:
 	void unsupported(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
-	void report_non_constant_increment(clang::Stmt *stmt);
-	void report_non_static_affine_increment(clang::Stmt *stmt);
-	void report_non_static_affine_initialization(clang::Stmt *stmt);
 };
