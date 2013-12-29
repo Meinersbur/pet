@@ -28,6 +28,11 @@ __isl_give isl_set *pet_nested_remove_from_set(__isl_take isl_set *set);
 
 struct pet_stmt *pet_stmt_remove_nested_parameters(struct pet_stmt *stmt);
 
+int pet_extract_nested_from_space(__isl_keep isl_space *space,
+	int n_arg, __isl_give pet_expr **args, int *param2pos);
+
+__isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr);
+
 #if defined(__cplusplus)
 }
 #endif

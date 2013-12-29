@@ -182,13 +182,8 @@ private:
 	__isl_give pet_expr *extract_expr(clang::CallExpr *expr);
 	__isl_give pet_expr *extract_expr(clang::CStyleCastExpr *expr);
 
-	int extract_nested(__isl_keep isl_space *space,
-		int n_arg, pet_expr **args, std::map<int,int> &param2pos);
-	__isl_give pet_expr *extract_nested(__isl_take pet_expr *expr, int n,
-		std::map<int,int> &param2pos);
 	struct pet_stmt *extract_nested(struct pet_stmt *stmt, int n,
-		std::map<int,int> &param2pos);
-	__isl_give pet_expr *resolve_nested(__isl_take pet_expr *expr);
+		int *param2pos);
 	struct pet_scop *resolve_nested(struct pet_scop *scop);
 	struct pet_stmt *resolve_nested(struct pet_stmt *stmt);
 	__isl_give pet_expr *extract_access_expr(clang::QualType qt,
