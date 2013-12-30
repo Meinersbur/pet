@@ -464,30 +464,6 @@ static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
 	return pa;
 }
 
-/* Extract an affine expression, if possible, from "expr"
- * within the context "pc", except that nesting is enabled.
- * Otherwise return NULL.
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr,
-	__isl_keep pet_context *pc)
-{
-	pet_expr *pe;
-	isl_pw_aff *pa;
-
-	pe = extract_expr(expr);
-	if (!pe)
-		return NULL;
-	pe = pet_expr_plug_in_args(pe, pc);
-	pa = pet_expr_extract_affine(pe, pc);
-	if (isl_pw_aff_involves_nan(pa)) {
-		unsupported(expr);
-		pa = isl_pw_aff_free(pa);
-	}
-	pet_expr_free(pe);
-
-	return pa;
-}
-
 __isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 {
 	return extract_index_expr(expr->getSubExpr());
@@ -675,115 +651,6 @@ __isl_give pet_expr *PetScan::extract_index_expr(MemberExpr *expr)
 	id = create_decl_id(ctx, field);
 
 	return pet_expr_access_member(base_index, id);
-}
-
-/* Check if "expr" calls function "minmax" with two arguments and if so
- * make lhs and rhs refer to these two arguments.
- */
-static bool is_minmax(Expr *expr, const char *minmax, Expr *&lhs, Expr *&rhs)
-{
-	CallExpr *call;
-	FunctionDecl *fd;
-	string name;
-
-	if (expr->getStmtClass() != Stmt::CallExprClass)
-		return false;
-
-	call = cast<CallExpr>(expr);
-	fd = call->getDirectCallee();
-	if (!fd)
-		return false;
-
-	if (call->getNumArgs() != 2)
-		return false;
-
-	name = fd->getDeclName().getAsString();
-	if (name != minmax)
-		return false;
-
-	lhs = call->getArg(0);
-	rhs = call->getArg(1);
-
-	return true;
-}
-
-/* Check if "expr" is of the form min(lhs, rhs) and if so make
- * lhs and rhs refer to the two arguments.
- */
-static bool is_min(Expr *expr, Expr *&lhs, Expr *&rhs)
-{
-	return is_minmax(expr, "min", lhs, rhs);
-}
-
-/* Check if "expr" is of the form max(lhs, rhs) and if so make
- * lhs and rhs refer to the two arguments.
- */
-static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
-{
-	return is_minmax(expr, "max", lhs, rhs);
-}
-
-/* Extract an affine expressions representing the comparison "LHS op RHS"
- * within the context "pc".
- * "comp" is the original statement that "LHS op RHS" is derived from
- * and is used for diagnostics.
- *
- * If the comparison is of the form
- *
- *	a <= min(b,c)
- *
- * then the expression is constructed as the conjunction of
- * the comparisons
- *
- *	a <= b		and		a <= c
- *
- * A similar optimization is performed for max(a,b) <= c.
- * We do this because that will lead to simpler representations
- * of the expression.
- * If isl is ever enhanced to explicitly deal with min and max expressions,
- * this optimization can be removed.
- */
-__isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
-	Expr *LHS, Expr *RHS, Stmt *comp, __isl_keep pet_context *pc)
-{
-	isl_pw_aff *lhs;
-	isl_pw_aff *rhs;
-	isl_pw_aff *res;
-	isl_set *cond;
-	isl_set *dom;
-	enum pet_op_type type;
-
-	if (op == BO_GT)
-		return extract_comparison(BO_LT, RHS, LHS, comp, pc);
-	if (op == BO_GE)
-		return extract_comparison(BO_LE, RHS, LHS, comp, pc);
-
-	if (op == BO_LT || op == BO_LE) {
-		Expr *expr1, *expr2;
-		if (is_min(RHS, expr1, expr2)) {
-			lhs = extract_comparison(op, LHS, expr1, comp, pc);
-			rhs = extract_comparison(op, LHS, expr2, comp, pc);
-			return pet_and(lhs, rhs);
-		}
-		if (is_max(LHS, expr1, expr2)) {
-			lhs = extract_comparison(op, expr1, RHS, comp, pc);
-			rhs = extract_comparison(op, expr2, RHS, comp, pc);
-			return pet_and(lhs, rhs);
-		}
-	}
-
-	lhs = extract_affine(LHS, pc);
-	rhs = extract_affine(RHS, pc);
-
-	type = BinaryOperatorKind2pet_op_type(op);
-	return pet_comparison(type, lhs, rhs);
-}
-
-__isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp,
-	__isl_keep pet_context *pc)
-{
-	return extract_comparison(comp->getOpcode(), comp->getLHS(),
-				comp->getRHS(), comp, pc);
 }
 
 /* Extract an affine expression from a boolean expression
@@ -2455,7 +2322,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 		pet_context_free(pc);
 		return NULL;
 	}
-	pet_expr_free(pe_init);
 	pet_expr_free(pe_inc);
 
 	pa = try_extract_nested_condition(stmt->getCond(), pc);
@@ -2468,6 +2334,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 		isl_pw_aff_free(init_val);
 		isl_pw_aff_free(pa_inc);
 		isl_pw_aff_free(pa);
+		pet_expr_free(pe_init);
 		isl_val_free(inc);
 		pet_context_free(pc);
 		return scop;
@@ -2524,9 +2391,13 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 		isl_map_range(isl_map_from_pw_aff(isl_pw_aff_copy(init_val))),
 		isl_set_copy(valid_cond));
 	if (is_one && !is_virtual) {
+		pet_expr *pe_iv;
 		isl_pw_aff_free(init_val);
-		pa = extract_comparison(isl_val_is_pos(inc) ? BO_GE : BO_LE,
-				lhs, rhs, init, pc);
+		pe_iv = extract_access_expr(iv);
+		pa = pet_expr_extract_comparison(
+			isl_val_is_pos(inc) ? pet_op_ge : pet_op_le,
+				pe_iv, pe_init, pc);
+		pet_expr_free(pe_iv);
 		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 		valid_init = set_project_out_by_id(valid_init, id);
 		domain = isl_pw_aff_non_zero_set(pa);
@@ -2592,6 +2463,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 		isl_set_free(domain);
 	}
 
+	pet_expr_free(pe_init);
 	isl_val_free(inc);
 
 	scop = pet_scop_restrict_context(scop, isl_set_params(valid_init));

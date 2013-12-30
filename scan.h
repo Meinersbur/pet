@@ -212,15 +212,7 @@ private:
 		__isl_keep pet_context *pc);
 	bool is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop);
 
-	__isl_give isl_pw_aff *extract_affine(clang::Expr *expr,
-		__isl_take pet_context *pc);
-
 	__isl_give isl_pw_aff *extract_condition(clang::Expr *expr,
-		__isl_keep pet_context *pc);
-	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperator *expr,
-		__isl_keep pet_context *pc);
-	__isl_give isl_pw_aff *extract_comparison(clang::BinaryOperatorKind op,
-		clang::Expr *LHS, clang::Expr *RHS, clang::Stmt *comp,
 		__isl_keep pet_context *pc);
 
 	void report(clang::Stmt *stmt, unsigned id);
