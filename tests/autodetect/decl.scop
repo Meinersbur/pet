@@ -19,7 +19,7 @@ arrays:
 statements:
 - line: 5
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [1] }'
+  schedule: '{ S_0[] -> [0] }'
   body:
     type: op
     operation: =
@@ -34,7 +34,7 @@ statements:
       value: 3
 - line: 6
   domain: '{ S_1[] }'
-  schedule: '{ S_1[] -> [2, 0] }'
+  schedule: '{ S_1[] -> [1, 0] }'
   body:
     type: op
     operation: kill
@@ -47,7 +47,7 @@ statements:
       write: 0
 - line: 6
   domain: '{ S_2[] }'
-  schedule: '{ S_2[] -> [2, 1] }'
+  schedule: '{ S_2[] -> [1, 1] }'
   body:
     type: op
     operation: =
@@ -62,7 +62,7 @@ statements:
       value: 5
 - line: 7
   domain: '{ S_3[] }'
-  schedule: '{ S_3[] -> [3] }'
+  schedule: '{ S_3[] -> [2] }'
   body:
     type: op
     operation: =

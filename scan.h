@@ -12,6 +12,7 @@
 #include "context.h"
 #include "loc.h"
 #include "scop.h"
+#include "tree.h"
 
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.
@@ -46,18 +47,10 @@ struct PetScan {
 	ScopLoc &loc;
 	isl_ctx *ctx;
 	pet_options *options;
-	/* The sequence number of the next statement. */
-	int n_stmt;
-	/* The sequence number of the next virtual scalar. */
-	int n_test;
 	/* Set if the pet_scop returned by an extract method only
 	 * represents part of the input tree.
 	 */
 	bool partial;
-	/* Set if nested accesses are allowed in that part of the tree
-	 * that is currently under investigation.
-	 */
-	bool nesting_enabled;
 
 	/* A union of mappings of the form
 	 *	{ identifier[] -> [i] : lower_bound <= i <= upper_bound }
@@ -70,7 +63,7 @@ struct PetScan {
 		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
 		ast_context(ast_context), loc(loc),
 		options(options), value_bounds(value_bounds),
-		n_stmt(0), n_test(0), partial(0), nesting_enabled(false) { }
+		partial(false) { }
 
 	~PetScan();
 
@@ -80,13 +73,13 @@ struct PetScan {
 		clang::IntegerLiteral *expr);
 	static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 		const llvm::APInt &val);
+	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
+		lex_recorddecl_set *types, __isl_keep pet_context *pc);
 private:
 	struct pet_scop *scan(clang::Stmt *stmt, __isl_keep pet_context *pc);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop,
 		__isl_keep pet_context *pc);
-	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
-		lex_recorddecl_set *types, __isl_keep pet_context *pc);
 	struct pet_array *extract_array(isl_ctx *ctx,
 		std::vector<clang::ValueDecl *> decls,
 		lex_recorddecl_set *types, __isl_keep pet_context *pc);
@@ -95,42 +88,26 @@ private:
 	struct pet_array *set_upper_bounds(struct pet_array *array,
 		const clang::Type *type, __isl_keep pet_context *pc);
 
-	struct pet_scop *extract_non_affine_condition(clang::Expr *cond,
-		int stmt_nr, __isl_take isl_multi_pw_aff *index,
-		__isl_keep pet_context *pc);
-
-	struct pet_scop *extract_conditional_assignment(clang::IfStmt *stmt,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract_non_affine_if(clang::Expr *cond,
-		struct pet_scop *scop_then, struct pet_scop *scop_else,
-		bool have_else, int stmt_id, __isl_keep pet_context *pc);
-
-	struct pet_scop *kill(clang::Stmt *stmt, struct pet_array *array,
-		__isl_keep pet_context *pc);
-
-	struct pet_scop *extract(clang::Stmt *stmt,
-		__isl_keep pet_context *pc, bool skip_declarations = false);
-	struct pet_scop *extract(clang::StmtRange stmt_range, bool block,
-		bool skip_declarations, __isl_keep pet_context *pc);
-	struct pet_scop *extract(clang::IfStmt *stmt,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract(clang::WhileStmt *stmt,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract(clang::CompoundStmt *stmt,
-		__isl_keep pet_context *pc, bool skip_declarations = false);
-	struct pet_scop *extract(clang::LabelStmt *stmt,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract(clang::ContinueStmt *stmt);
-	struct pet_scop *extract(clang::BreakStmt *stmt);
-	struct pet_scop *extract(clang::DeclStmt *expr,
-		__isl_keep pet_context *pc);
+	__isl_give pet_tree *extract(clang::Stmt *stmt,
+		bool skip_declarations = false);
+	__isl_give pet_tree *extract(clang::StmtRange stmt_range, bool block,
+		bool skip_declarations);
+	__isl_give pet_tree *extract(clang::IfStmt *stmt);
+	__isl_give pet_tree *extract(clang::WhileStmt *stmt);
+	__isl_give pet_tree *extract(clang::CompoundStmt *stmt,
+		bool skip_declarations = false);
+	__isl_give pet_tree *extract(clang::LabelStmt *stmt);
+	__isl_give pet_tree *extract(clang::DeclStmt *expr);
 
 	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,
 		bool skip_semi);
-	struct pet_scop *extract(__isl_take pet_expr *expr,
-		clang::SourceRange range, bool skip_semi,
-		__isl_keep pet_context *pc, __isl_take isl_id *label = NULL);
-	struct pet_stmt *extract_kill(struct pet_scop *scop);
+	__isl_give pet_tree *extract(__isl_take pet_expr *expr,
+		clang::SourceRange range, bool skip_semi);
+	__isl_give pet_tree *update_loc(__isl_take pet_tree *tree,
+		clang::Stmt *stmt);
+
+	struct pet_scop *extract_scop(__isl_take pet_tree *tree,
+		__isl_keep pet_context *pc);
 
 	clang::BinaryOperator *initialization_assignment(clang::Stmt *init);
 	clang::Decl *initialization_declaration(clang::Stmt *init);
@@ -147,21 +124,7 @@ private:
 				clang::ValueDecl *iv);
 	__isl_give pet_expr *extract_increment(clang::ForStmt *stmt,
 				clang::ValueDecl *iv);
-	struct pet_scop *extract_for(clang::ForStmt *stmt,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract_non_affine_for(clang::ForStmt *stmt,
-		clang::ValueDecl *iv,
-		__isl_take pet_expr *init, __isl_take pet_expr *inc,
-		__isl_take pet_context *pc);
-	struct pet_scop *extract_infinite_loop(clang::Stmt *body,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt,
-		__isl_keep pet_context *pc);
-	struct pet_scop *extract_affine_while(__isl_take isl_pw_aff *pa,
-		clang::Stmt *body, __isl_take pet_context *pc);
-	struct pet_scop *extract_while(clang::Expr *cond, int test_nr,
-		int stmt_nr, struct pet_scop *scop_body,
-		struct pet_scop *scop_inc, __isl_take pet_context *pc);
+	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
 
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
 	__isl_give pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
@@ -194,21 +157,8 @@ private:
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
 
-	bool is_affine_condition(clang::Expr *expr, __isl_keep pet_context *pc);
-	__isl_give isl_pw_aff *try_extract_nested_condition(clang::Expr *expr,
-		__isl_keep pet_context *pc);
-	bool is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop);
-
-	__isl_give isl_pw_aff *extract_condition(clang::Expr *expr,
-		__isl_keep pet_context *pc);
-
 	void report(clang::Stmt *stmt, unsigned id);
 	void unsupported(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
-
-	__isl_give pet_context *handle_writes(struct pet_stmt *stmt,
-		__isl_take pet_context *pc);
-	__isl_give pet_context *handle_writes(struct pet_scop *scop,
-		__isl_take pet_context *pc);
 };

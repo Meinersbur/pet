@@ -58,6 +58,7 @@ libpet_la_SOURCES = \
 	print.h \
 	tree.h \
 	tree.c \
+	tree2scop.h \
 	scan.h \
 	scan.cc \
 	scop.h \
@@ -66,6 +67,7 @@ libpet_la_SOURCES = \
 	scop_plus.cc \
 	skip.h \
 	skip.c \
+	state.h \
 	value_bounds.h \
 	value_bounds.c \
 	version.h \
