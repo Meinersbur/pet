@@ -55,6 +55,7 @@
 #include "scan.h"
 #include "scop.h"
 #include "scop_plus.h"
+#include "skip.h"
 
 #include "config.h"
 
@@ -4009,333 +4010,6 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 	return true;
 }
 
-/* Do we need to construct a skip condition of the given type
- * on an if statement, given that the if condition is non-affine?
- *
- * pet_scop_filter_skip can only handle the case where the if condition
- * holds (the then branch) and the skip condition is universal.
- * In any other case, we need to construct a new skip condition.
- */
-static bool need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
-	bool have_else, enum pet_skip type)
-{
-	if (have_else && scop_else && pet_scop_has_skip(scop_else, type))
-		return true;
-	if (scop_then && pet_scop_has_skip(scop_then, type) &&
-	    !pet_scop_has_universal_skip(scop_then, type))
-		return true;
-	return false;
-}
-
-/* Do we need to construct a skip condition of the given type
- * on an if statement, given that the if condition is affine?
- *
- * There is no need to construct a new skip condition if all
- * the skip conditions are affine.
- */
-static bool need_skip_aff(struct pet_scop *scop_then,
-	struct pet_scop *scop_else, bool have_else, enum pet_skip type)
-{
-	if (scop_then && pet_scop_has_var_skip(scop_then, type))
-		return true;
-	if (have_else && scop_else && pet_scop_has_var_skip(scop_else, type))
-		return true;
-	return false;
-}
-
-/* Do we need to construct a skip condition of the given type
- * on an if statement?
- */
-static bool need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
-	bool have_else, enum pet_skip type, bool affine)
-{
-	if (affine)
-		return need_skip_aff(scop_then, scop_else, have_else, type);
-	else
-		return need_skip(scop_then, scop_else, have_else, type);
-}
-
-/* Construct an affine expression pet_expr that evaluates
- * to the constant "val".
- */
-static __isl_give pet_expr *universally(isl_ctx *ctx, int val)
-{
-	isl_local_space *ls;
-	isl_aff *aff;
-	isl_multi_pw_aff *mpa;
-
-	ls = isl_local_space_from_space(isl_space_set_alloc(ctx, 0, 0));
-	aff = isl_aff_val_on_domain(ls, isl_val_int_from_si(ctx, val));
-	mpa = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
-
-	return pet_expr_from_index(mpa);
-}
-
-/* Construct an affine expression pet_expr that evaluates
- * to the constant 1.
- */
-static __isl_give pet_expr *universally_true(isl_ctx *ctx)
-{
-	return universally(ctx, 1);
-}
-
-/* Construct an affine expression pet_expr that evaluates
- * to the constant 0.
- */
-static __isl_give pet_expr *universally_false(isl_ctx *ctx)
-{
-	return universally(ctx, 0);
-}
-
-/* Given an index expression "test_index" for the if condition,
- * an index expression "skip_index" for the skip condition and
- * scops for the then and else branches, construct a scop for
- * computing "skip_index".
- *
- * The computed scop contains a single statement that essentially does
- *
- *	skip_index = test_cond ? skip_cond_then : skip_cond_else
- *
- * If the skip conditions of the then and/or else branch are not affine,
- * then they need to be filtered by test_index.
- * If they are missing, then this means the skip condition is false.
- *
- * Since we are constructing a skip condition for the if statement,
- * the skip conditions on the then and else branches are removed.
- */
-static struct pet_scop *extract_skip(PetScan *scan,
-	__isl_take isl_multi_pw_aff *test_index,
-	__isl_take isl_multi_pw_aff *skip_index,
-	struct pet_scop *scop_then, struct pet_scop *scop_else, bool have_else,
-	enum pet_skip type)
-{
-	pet_expr *expr_then, *expr_else, *expr, *expr_skip;
-	struct pet_stmt *stmt;
-	struct pet_scop *scop;
-	isl_ctx *ctx = scan->ctx;
-
-	if (!scop_then)
-		goto error;
-	if (have_else && !scop_else)
-		goto error;
-
-	if (pet_scop_has_skip(scop_then, type)) {
-		expr_then = pet_scop_get_skip_expr(scop_then, type);
-		pet_scop_reset_skip(scop_then, type);
-		if (!pet_expr_is_affine(expr_then))
-			expr_then = pet_expr_filter(expr_then,
-					isl_multi_pw_aff_copy(test_index), 1);
-	} else
-		expr_then = universally_false(ctx);
-
-	if (have_else && pet_scop_has_skip(scop_else, type)) {
-		expr_else = pet_scop_get_skip_expr(scop_else, type);
-		pet_scop_reset_skip(scop_else, type);
-		if (!pet_expr_is_affine(expr_else))
-			expr_else = pet_expr_filter(expr_else,
-					isl_multi_pw_aff_copy(test_index), 0);
-	} else
-		expr_else = universally_false(ctx);
-
-	expr = pet_expr_from_index(test_index);
-	expr = pet_expr_new_ternary(expr, expr_then, expr_else);
-	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
-	expr_skip = pet_expr_access_set_write(expr_skip, 1);
-	expr_skip = pet_expr_access_set_read(expr_skip, 0);
-	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(-1, NULL, scan->n_stmt++, expr);
-
-	scop = pet_scop_from_pet_stmt(ctx, stmt);
-	scop = scop_add_array(scop, skip_index, scan->ast_context);
-	isl_multi_pw_aff_free(skip_index);
-
-	return scop;
-error:
-	isl_multi_pw_aff_free(test_index);
-	isl_multi_pw_aff_free(skip_index);
-	return NULL;
-}
-
-/* Is scop's skip_now condition equal to its skip_later condition?
- * In particular, this means that it either has no skip_now condition
- * or both a skip_now and a skip_later condition (that are equal to each other).
- */
-static bool skip_equals_skip_later(struct pet_scop *scop)
-{
-	int has_skip_now, has_skip_later;
-	int equal;
-	isl_multi_pw_aff *skip_now, *skip_later;
-
-	if (!scop)
-		return false;
-	has_skip_now = pet_scop_has_skip(scop, pet_skip_now);
-	has_skip_later = pet_scop_has_skip(scop, pet_skip_later);
-	if (has_skip_now != has_skip_later)
-		return false;
-	if (!has_skip_now)
-		return true;
-
-	skip_now = pet_scop_get_skip(scop, pet_skip_now);
-	skip_later = pet_scop_get_skip(scop, pet_skip_later);
-	equal = isl_multi_pw_aff_is_equal(skip_now, skip_later);
-	isl_multi_pw_aff_free(skip_now);
-	isl_multi_pw_aff_free(skip_later);
-
-	return equal;
-}
-
-/* Drop the skip conditions of type pet_skip_later from scop1 and scop2.
- */
-static void drop_skip_later(struct pet_scop *scop1, struct pet_scop *scop2)
-{
-	pet_scop_reset_skip(scop1, pet_skip_later);
-	pet_scop_reset_skip(scop2, pet_skip_later);
-}
-
-/* Structure that handles the construction of skip conditions.
- *
- * scop_then and scop_else represent the then and else branches
- *	of the if statement
- *
- * skip[type] is true if we need to construct a skip condition of that type
- * equal is set if the skip conditions of types pet_skip_now and pet_skip_later
- *	are equal to each other
- * index[type] is an index expression from a zero-dimension domain
- *	to the virtual array representing the skip condition
- * scop[type] is a scop for computing the skip condition
- */
-struct pet_skip_info {
-	isl_ctx *ctx;
-
-	bool skip[2];
-	bool equal;
-	isl_multi_pw_aff *index[2];
-	struct pet_scop *scop[2];
-
-	pet_skip_info(isl_ctx *ctx) : ctx(ctx) {}
-
-	operator bool() { return skip[pet_skip_now] || skip[pet_skip_later]; }
-};
-
-/* Structure that handles the construction of skip conditions on if statements.
- *
- * scop_then and scop_else represent the then and else branches
- *	of the if statement
- */
-struct pet_skip_info_if : public pet_skip_info {
-	struct pet_scop *scop_then, *scop_else;
-	bool have_else;
-
-	pet_skip_info_if(isl_ctx *ctx, struct pet_scop *scop_then,
-		      struct pet_scop *scop_else, bool have_else, bool affine);
-	void extract(PetScan *scan, __isl_keep isl_multi_pw_aff *index,
-		     enum pet_skip type);
-	void extract(PetScan *scan, __isl_keep isl_multi_pw_aff *index);
-	void extract(PetScan *scan, __isl_keep isl_pw_aff *cond);
-	struct pet_scop *add(struct pet_scop *scop, enum pet_skip type,
-				int offset);
-	struct pet_scop *add(struct pet_scop *scop, int offset);
-};
-
-/* Initialize a pet_skip_info_if structure based on the then and else branches
- * and based on whether the if condition is affine or not.
- */
-pet_skip_info_if::pet_skip_info_if(isl_ctx *ctx, struct pet_scop *scop_then,
-	struct pet_scop *scop_else, bool have_else, bool affine) :
-	pet_skip_info(ctx), scop_then(scop_then), scop_else(scop_else),
-	have_else(have_else)
-{
-	skip[pet_skip_now] =
-	    need_skip(scop_then, scop_else, have_else, pet_skip_now, affine);
-	equal = skip[pet_skip_now] && skip_equals_skip_later(scop_then) &&
-			    (!have_else || skip_equals_skip_later(scop_else));
-	skip[pet_skip_later] = skip[pet_skip_now] && !equal &&
-	    need_skip(scop_then, scop_else, have_else, pet_skip_later, affine);
-}
-
-/* If we need to construct a skip condition of the given type,
- * then do so now.
- *
- * "mpa" represents the if condition.
- */
-void pet_skip_info_if::extract(PetScan *scan,
-	__isl_keep isl_multi_pw_aff *mpa, enum pet_skip type)
-{
-	isl_ctx *ctx;
-
-	if (!skip[type])
-		return;
-
-	ctx = isl_multi_pw_aff_get_ctx(mpa);
-	index[type] = pet_create_test_index(ctx, scan->n_test++);
-	scop[type] = extract_skip(scan, isl_multi_pw_aff_copy(mpa),
-				isl_multi_pw_aff_copy(index[type]),
-				scop_then, scop_else, have_else, type);
-}
-
-/* Construct the required skip conditions, given the if condition "index".
- */
-void pet_skip_info_if::extract(PetScan *scan,
-	__isl_keep isl_multi_pw_aff *index)
-{
-	extract(scan, index, pet_skip_now);
-	extract(scan, index, pet_skip_later);
-	if (equal)
-		drop_skip_later(scop_then, scop_else);
-}
-
-/* Construct the required skip conditions, given the if condition "cond".
- */
-void pet_skip_info_if::extract(PetScan *scan, __isl_keep isl_pw_aff *cond)
-{
-	isl_multi_pw_aff *test;
-
-	if (!skip[pet_skip_now] && !skip[pet_skip_later])
-		return;
-
-	test = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_copy(cond));
-	test = isl_multi_pw_aff_from_range(test);
-	extract(scan, test);
-	isl_multi_pw_aff_free(test);
-}
-
-/* Add the computed skip condition of the give type to "main" and 
- * add the scop for computing the condition at the given offset.
- *
- * If equal is set, then we only computed a skip condition for pet_skip_now,
- * but we also need to set it as main's pet_skip_later.
- */
-struct pet_scop *pet_skip_info_if::add(struct pet_scop *main,
-	enum pet_skip type, int offset)
-{
-	if (!skip[type])
-		return main;
-
-	scop[type] = pet_scop_prefix(scop[type], offset);
-	main = pet_scop_add_par(ctx, main, scop[type]);
-	scop[type] = NULL;
-
-	if (equal)
-		main = pet_scop_set_skip(main, pet_skip_later,
-					    isl_multi_pw_aff_copy(index[type]));
-
-	main = pet_scop_set_skip(main, type, index[type]);
-	index[type] = NULL;
-
-	return main;
-}
-
-/* Add the computed skip conditions to "main" and 
- * add the scops for computing the conditions at the given offset.
- */
-struct pet_scop *pet_skip_info_if::add(struct pet_scop *scop, int offset)
-{
-	scop = add(scop, pet_skip_now, offset);
-	scop = add(scop, pet_skip_later, offset);
-
-	return scop;
-}
-
 /* Construct a pet_scop for a non-affine if statement.
  *
  * We create a separate statement that writes the result
@@ -4349,9 +4023,10 @@ struct pet_scop *pet_skip_info_if::add(struct pet_scop *scop, int offset)
  *
  * If there are any breaks or continues in the then and/or else
  * branches, then we may have to compute a new skip condition.
- * This is handled using a pet_skip_info_if object.
+ * This is handled using a pet_skip_info object.
  * On initialization, the object checks if skip conditions need
- * to be computed.  If so, it does so in "extract" and adds them in "add".
+ * to be computed.  If so, it does so in pet_skip_info_if_extract_index and
+ * adds them in pet_skip_info_if_add.
  */
 struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	struct pet_scop *scop_then, struct pet_scop *scop_else,
@@ -4359,6 +4034,7 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 {
 	struct pet_scop *scop;
 	isl_multi_pw_aff *test_index;
+	int int_size;
 	int save_n_stmt = n_stmt;
 
 	test_index = pet_create_test_index(ctx, n_test++);
@@ -4368,8 +4044,11 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	n_stmt = save_n_stmt;
 	scop = scop_add_array(scop, test_index, ast_context);
 
-	pet_skip_info_if skip(ctx, scop_then, scop_else, have_else, false);
-	skip.extract(this, test_index);
+	pet_skip_info skip;
+	pet_skip_info_if_init(&skip, ctx, scop_then, scop_else, have_else, 0);
+	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
+	pet_skip_info_if_extract_index(&skip, test_index, int_size,
+					&n_stmt, &n_test);
 
 	scop = pet_scop_prefix(scop, 0);
 	scop_then = pet_scop_prefix(scop_then, 1);
@@ -4384,7 +4063,7 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 
 	scop = pet_scop_add_seq(ctx, scop, scop_then);
 
-	scop = skip.add(scop, 2);
+	scop = pet_skip_info_if_add(&skip, scop, 2);
 
 	return scop;
 }
@@ -4419,15 +4098,17 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
  *
  * If there are any breaks or continues in the then and/or else
  * branches, then we may have to compute a new skip condition.
- * This is handled using a pet_skip_info_if object.
+ * This is handled using a pet_skip_info object.
  * On initialization, the object checks if skip conditions need
- * to be computed.  If so, it does so in "extract" and adds them in "add".
+ * to be computed.  If so, it does so in pet_skip_info_if_extract_cond and
+ * adds them in pet_skip_info_if_add.
  */
 struct pet_scop *PetScan::extract(IfStmt *stmt)
 {
 	struct pet_scop *scop_then, *scop_else = NULL, *scop;
 	isl_pw_aff *cond;
 	int stmt_id;
+	int int_size;
 	isl_set *set;
 	isl_set *valid;
 
@@ -4479,8 +4160,10 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	if (!cond)
 		cond = extract_condition(stmt->getCond());
 
-	pet_skip_info_if skip(ctx, scop_then, scop_else, stmt->getElse(), true);
-	skip.extract(this, cond);
+	pet_skip_info skip;
+	pet_skip_info_if_init(&skip, ctx, scop_then, scop_else,
+				stmt->getElse() != NULL, 1);
+	pet_skip_info_if_extract_cond(&skip, cond, int_size, &n_stmt, &n_test);
 
 	valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
 	set = isl_pw_aff_non_zero_set(cond);
@@ -4495,9 +4178,9 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	scop = resolve_nested(scop);
 	scop = pet_scop_restrict_context(scop, valid);
 
-	if (skip)
+	if (pet_skip_info_has_skip(&skip))
 		scop = pet_scop_prefix(scop, 0);
-	scop = skip.add(scop, 1);
+	scop = pet_skip_info_if_add(&skip, scop, 1);
 
 	return scop;
 }
@@ -4644,174 +4327,6 @@ struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	return scop;
 }
 
-/* Do we need to construct a skip condition of the given type
- * on a sequence of statements?
- *
- * There is no need to construct a new skip condition if only
- * only of the two statements has a skip condition or if both
- * of their skip conditions are affine.
- *
- * In principle we also don't need a new continuation variable if
- * the continuation of scop2 is affine, but then we would need
- * to allow more complicated forms of continuations.
- */
-static bool need_skip_seq(struct pet_scop *scop1, struct pet_scop *scop2,
-	enum pet_skip type)
-{
-	if (!scop1 || !pet_scop_has_skip(scop1, type))
-		return false;
-	if (!scop2 || !pet_scop_has_skip(scop2, type))
-		return false;
-	if (pet_scop_has_affine_skip(scop1, type) &&
-	    pet_scop_has_affine_skip(scop2, type))
-		return false;
-	return true;
-}
-
-/* Construct a scop for computing the skip condition of the given type and
- * with index expression "skip_index" for a sequence of two scops "scop1"
- * and "scop2".
- *
- * The computed scop contains a single statement that essentially does
- *
- *	skip_index = skip_cond_1 ? 1 : skip_cond_2
- *
- * or, in other words, skip_cond1 || skip_cond2.
- * In this expression, skip_cond_2 is filtered to reflect that it is
- * only evaluated when skip_cond_1 is false.
- *
- * The skip condition on scop1 is not removed because it still needs
- * to be applied to scop2 when these two scops are combined.
- */
-static struct pet_scop *extract_skip_seq(PetScan *ps,
-	__isl_take isl_multi_pw_aff *skip_index,
-	struct pet_scop *scop1, struct pet_scop *scop2, enum pet_skip type)
-{
-	pet_expr *expr1, *expr2, *expr, *expr_skip;
-	struct pet_stmt *stmt;
-	struct pet_scop *scop;
-	isl_ctx *ctx = ps->ctx;
-
-	if (!scop1 || !scop2)
-		goto error;
-
-	expr1 = pet_scop_get_skip_expr(scop1, type);
-	expr2 = pet_scop_get_skip_expr(scop2, type);
-	pet_scop_reset_skip(scop2, type);
-
-	expr2 = pet_expr_filter(expr2, pet_expr_access_get_index(expr1), 0);
-
-	expr = universally_true(ctx);
-	expr = pet_expr_new_ternary(expr1, expr, expr2);
-	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
-	expr_skip = pet_expr_access_set_write(expr_skip, 1);
-	expr_skip = pet_expr_access_set_read(expr_skip, 0);
-	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(-1, NULL, ps->n_stmt++, expr);
-
-	scop = pet_scop_from_pet_stmt(ctx, stmt);
-	scop = scop_add_array(scop, skip_index, ps->ast_context);
-	isl_multi_pw_aff_free(skip_index);
-
-	return scop;
-error:
-	isl_multi_pw_aff_free(skip_index);
-	return NULL;
-}
-
-/* Structure that handles the construction of skip conditions
- * on sequences of statements.
- *
- * scop1 and scop2 represent the two statements that are combined
- */
-struct pet_skip_info_seq : public pet_skip_info {
-	struct pet_scop *scop1, *scop2;
-
-	pet_skip_info_seq(isl_ctx *ctx, struct pet_scop *scop1,
-			    struct pet_scop *scop2);
-	void extract(PetScan *scan, enum pet_skip type);
-	void extract(PetScan *scan);
-	struct pet_scop *add(struct pet_scop *scop, enum pet_skip type,
-				int offset);
-	struct pet_scop *add(struct pet_scop *scop, int offset);
-};
-
-/* Initialize a pet_skip_info_seq structure based on
- * on the two statements that are going to be combined.
- */
-pet_skip_info_seq::pet_skip_info_seq(isl_ctx *ctx, struct pet_scop *scop1,
-	struct pet_scop *scop2) : pet_skip_info(ctx), scop1(scop1), scop2(scop2)
-{
-	skip[pet_skip_now] = need_skip_seq(scop1, scop2, pet_skip_now);
-	equal = skip[pet_skip_now] && skip_equals_skip_later(scop1) &&
-				skip_equals_skip_later(scop2);
-	skip[pet_skip_later] = skip[pet_skip_now] && !equal &&
-			need_skip_seq(scop1, scop2, pet_skip_later);
-}
-
-/* If we need to construct a skip condition of the given type,
- * then do so now.
- */
-void pet_skip_info_seq::extract(PetScan *scan, enum pet_skip type)
-{
-	if (!skip[type])
-		return;
-
-	index[type] = pet_create_test_index(ctx, scan->n_test++);
-	scop[type] = extract_skip_seq(scan, isl_multi_pw_aff_copy(index[type]),
-				    scop1, scop2, type);
-}
-
-/* Construct the required skip conditions.
- */
-void pet_skip_info_seq::extract(PetScan *scan)
-{
-	extract(scan, pet_skip_now);
-	extract(scan, pet_skip_later);
-	if (equal)
-		drop_skip_later(scop1, scop2);
-}
-
-/* Add the computed skip condition of the given type to "main" and
- * add the scop for computing the condition at the given offset (the statement
- * number).  Within this offset, the condition is computed at position 1
- * to ensure that it is computed after the corresponding statement.
- *
- * If equal is set, then we only computed a skip condition for pet_skip_now,
- * but we also need to set it as main's pet_skip_later.
- */
-struct pet_scop *pet_skip_info_seq::add(struct pet_scop *main,
-	enum pet_skip type, int offset)
-{
-	if (!skip[type])
-		return main;
-
-	scop[type] = pet_scop_prefix(scop[type], 1);
-	scop[type] = pet_scop_prefix(scop[type], offset);
-	main = pet_scop_add_par(ctx, main, scop[type]);
-	scop[type] = NULL;
-
-	if (equal)
-		main = pet_scop_set_skip(main, pet_skip_later,
-					    isl_multi_pw_aff_copy(index[type]));
-
-	main = pet_scop_set_skip(main, type, index[type]);
-	index[type] = NULL;
-
-	return main;
-}
-
-/* Add the computed skip conditions to "main" and 
- * add the scops for computing the conditions at the given offset.
- */
-struct pet_scop *pet_skip_info_seq::add(struct pet_scop *scop, int offset)
-{
-	scop = add(scop, pet_skip_now, offset);
-	scop = add(scop, pet_skip_later, offset);
-
-	return scop;
-}
-
 /* Extract a clone of the kill statement in "scop".
  * "scop" is expected to have been created from a DeclStmt
  * and should have the kill as its first statement.
@@ -4865,9 +4380,10 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  *
  * If there are any breaks or continues in the individual statements,
  * then we may have to compute a new skip condition.
- * This is handled using a pet_skip_info_seq object.
+ * This is handled using a pet_skip_info object.
  * On initialization, the object checks if skip conditions need
- * to be computed.  If so, it does so in "extract" and adds them in "add".
+ * to be computed.  If so, it does so in pet_skip_info_seq_extract and
+ * adds them in pet_skip_info_seq_add.
  *
  * If "block" is set, then we need to insert kill statements at
  * the end of the block for any array that has been declared by
@@ -4890,10 +4406,13 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 {
 	pet_scop *scop;
 	StmtIterator i;
+	int int_size;
 	int j;
 	bool partial_range = false;
 	set<struct pet_stmt *> kills;
 	set<struct pet_stmt *>::iterator it;
+
+	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
 
 	scop = pet_scop_empty(ctx);
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j) {
@@ -4909,9 +4428,10 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 			pet_scop_free(scop_i);
 			break;
 		}
-		pet_skip_info_seq skip(ctx, scop, scop_i);
-		skip.extract(this);
-		if (skip)
+		pet_skip_info skip;
+		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
+		pet_skip_info_seq_extract(&skip, int_size, &n_stmt, &n_test);
+		if (pet_skip_info_has_skip(&skip))
 			scop_i = pet_scop_prefix(scop_i, 0);
 		if (scop_i && child->getStmtClass() == Stmt::DeclStmtClass) {
 			if (block)
@@ -4931,7 +4451,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 			scop = pet_scop_add_seq(ctx, scop, scop_i);
 		}
 
-		scop = skip.add(scop, j);
+		scop = pet_skip_info_seq_add(&skip, scop, j);
 
 		if (partial || !scop)
 			break;
