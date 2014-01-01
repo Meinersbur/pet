@@ -411,8 +411,10 @@ struct pet_implication {
  * by this scop.
  * If the scop was detected based on scop and endscop pragmas, then
  * the lines containing these pragmas are included in this region.
- * The context describes the set of parameter values for which
- * the scop can be executed.
+ * In the final result, the context describes the set of parameter values
+ * for which the scop can be executed.
+ * During the construction of the pet_scop, the context lives in a set space
+ * where each dimension refers to an outer loop.
  * context_value describes assignments to the parameters (if any)
  * outside of the scop.
  *

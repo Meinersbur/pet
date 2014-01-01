@@ -347,14 +347,18 @@ static __isl_give pet_expr *splice_sum(__isl_take pet_expr *expr, int dim,
  *
  * For example, given an access expression with index expression
  *
- *	[S[] -> [arg0]] -> A[arg0]
+ *	[S[i] -> [arg0]] -> A[arg0]
  *
  * where the first argument is itself an access to a variable "i"
- * that is not assigned an unknown value by "pc",
- * a corresponding parameter is created and this value is plugged into
+ * that is assigned the value
+ *
+ *	S[i] -> [i]
+ *
+ * by "pc", this value is plugged into
  * the index expression of "expr", resulting in
  *
  *	[i] -> { S[] -> A[i] }
+ *	S[i] -> A[i]
  *
  *
  * In particular, we first remove duplicate arguments so that we

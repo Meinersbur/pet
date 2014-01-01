@@ -193,27 +193,6 @@ static struct pet_scop *scop_from_decl(__isl_keep pet_tree *tree,
 	return scop;
 }
 
-/* Embed the given iteration domain in an extra outer loop
- * with induction variable "var".
- * If this variable appeared as a parameter in the constraints,
- * it is replaced by the new outermost dimension.
- */
-static __isl_give isl_set *embed(__isl_take isl_set *set,
-	__isl_take isl_id *var)
-{
-	int pos;
-
-	set = isl_set_insert_dims(set, isl_dim_set, 0, 1);
-	pos = isl_set_find_dim_by_id(set, isl_dim_param, var);
-	if (pos >= 0) {
-		set = isl_set_equate(set, isl_dim_param, pos, isl_dim_set, 0);
-		set = isl_set_project_out(set, isl_dim_param, pos, 1);
-	}
-
-	isl_id_free(var);
-	return set;
-}
-
 /* Return those elements in the space of "cond" that come after
  * (based on "sign") an element in "cond" in the final dimension.
  */
@@ -242,9 +221,7 @@ static __isl_give isl_set *after(__isl_take isl_set *cond, int sign)
 }
 
 /* Remove those iterations of "domain" that have an earlier iteration
- * (based on "sign") where "skip" is satisfied.
- * "domain" has an extra outer loop compared to "skip".
- * The skip condition is first embedded in the same space as "domain".
+ * (based on "sign") in the final dimension where "skip" is satisfied.
  * If "apply_skip_map" is set, then "skip_map" is first applied
  * to the embedded skip condition before removing it from the domain.
  */
@@ -252,37 +229,25 @@ static __isl_give isl_set *apply_affine_break(__isl_take isl_set *domain,
 	__isl_take isl_set *skip, int sign,
 	int apply_skip_map, __isl_keep isl_map *skip_map)
 {
-	skip = embed(skip, isl_set_get_dim_id(domain, isl_dim_set, 0));
 	if (apply_skip_map)
 		skip = isl_set_apply(skip, isl_map_copy(skip_map));
 	skip = isl_set_intersect(skip , isl_set_copy(domain));
 	return isl_set_subtract(domain, after(skip, sign));
 }
 
-/* Create the infinite iteration domain
- *
- *	{ [id] : id >= 0 }
+/* Create an affine expression on the domain space of "pc" that
+ * is equal to the final dimension of this domain.
  */
-static __isl_give isl_set *infinite_domain(__isl_take isl_id *id)
+static __isl_give isl_aff *map_to_last(__isl_keep pet_context *pc)
 {
-	isl_ctx *ctx = isl_id_get_ctx(id);
-	isl_set *domain;
-
-	domain = isl_set_nat_universe(isl_space_set_alloc(ctx, 0, 1));
-	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, id);
-
-	return domain;
-}
-
-/* Create an identity affine expression on the space containing "domain",
- * which is assumed to be one-dimensional.
- */
-static __isl_give isl_aff *identity_aff(__isl_keep isl_set *domain)
-{
+	int pos;
+	isl_space *space;
 	isl_local_space *ls;
 
-	ls = isl_local_space_from_space(isl_set_get_space(domain));
-	return isl_aff_var_on_domain(ls, isl_dim_set, 0);
+	space = pet_context_get_space(pc);
+	pos = isl_space_dim(space, isl_dim_set) - 1;
+	ls = isl_local_space_from_space(space);
+	return isl_aff_var_on_domain(ls, isl_dim_set, pos);
 }
 
 /* Create an affine expression that maps elements
@@ -382,14 +347,14 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 /* Construct a pet_scop for an infinite loop around the given body
  * within the context "pc".
  *
- * We extract a pet_scop for the body and then embed it in a loop with
- * iteration domain
+ * The domain of "pc" has already been extended with an infinite loop
  *
  *	{ [t] : t >= 0 }
  *
- * and schedule
+ * We extract a pet_scop for the body and then embed it in a loop with
+ * schedule
  *
- *	{ [t] -> [t] }
+ *	{ [outer,t] -> [t] }
  *
  * If the body contains any break, then it is taken into
  * account in apply_affine_break (if the skip condition is affine)
@@ -398,26 +363,25 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
  * Note that in case of an affine skip condition,
  * since we are dealing with a loop without loop iterator,
  * the skip condition cannot refer to the current loop iterator and
- * so effectively, the iteration domain is of the form
+ * so effectively, the effect on the iteration domain is of the form
  *
- *	{ [0]; [t] : t >= 1 and not skip }
+ *	{ [outer,0]; [outer,t] : t >= 1 and not skip }
  */
 static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	__isl_keep pet_context *pc, struct pet_state *state)
 {
 	isl_ctx *ctx;
-	isl_id *id, *id_test;
+	isl_id *id_test;
 	isl_set *domain;
 	isl_set *skip;
-	isl_aff *ident;
+	isl_aff *sched;
 	struct pet_scop *scop;
 	int has_affine_break;
 	int has_var_break;
 
 	ctx = pet_tree_get_ctx(body);
-	id = isl_id_alloc(ctx, "t", NULL);
-	domain = infinite_domain(isl_id_copy(id));
-	ident = identity_aff(domain);
+	domain = pet_context_get_domain(pc);
+	sched = map_to_last(pc);
 
 	scop = scop_from_tree(body, pc, state);
 
@@ -428,8 +392,7 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	if (has_var_break)
 		id_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
-	scop = pet_scop_embed(scop, isl_set_copy(domain),
-				isl_aff_copy(ident), ident, id);
+	scop = pet_scop_embed(scop, isl_set_copy(domain), sched);
 	if (has_affine_break) {
 		domain = apply_affine_break(domain, skip, 1, 0, NULL);
 		scop = pet_scop_intersect_domain_prefix(scop,
@@ -449,6 +412,12 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
  *		body
  *
  * within the context "pc".
+ *
+ * Extend the domain of "pc" with an extra inner loop
+ *
+ *	{ [t] : t >= 0 }
+ *
+ * and construct the scop in scop_from_infinite_loop.
  */
 static struct pet_scop *scop_from_infinite_for(__isl_keep pet_tree *tree,
 	__isl_keep pet_context *pc, struct pet_state *state)
@@ -457,6 +426,8 @@ static struct pet_scop *scop_from_infinite_for(__isl_keep pet_tree *tree,
 
 	pc = pet_context_copy(pc);
 	pc = pet_context_clear_writes_in_tree(pc, tree->u.l.body);
+
+	pc = pet_context_add_infinite_loop(pc);
 
 	scop = scop_from_infinite_loop(tree->u.l.body, pc, state);
 
@@ -471,23 +442,31 @@ static struct pet_scop *scop_from_infinite_for(__isl_keep pet_tree *tree,
  *		body
  *
  * within the context "pc".
- * In particular, construct a scop for an infinite loop around body and
- * intersect the domain with the affine expression.
- * Note that this intersection may result in an empty loop.
+ *
+ * The domain of "pc" has already been extended with an infinite loop
+ *
+ *	{ [t] : t >= 0 }
+ *
+ * Here, we add the constraints on the outer loop iterators
+ * implied by "pa" and construct the scop in scop_from_infinite_loop.
+ * Note that the intersection with these constraints
+ * may result in an empty loop.
  */
 static struct pet_scop *scop_from_affine_while(__isl_keep pet_tree *tree,
 	__isl_take isl_pw_aff *pa, __isl_take pet_context *pc,
 	struct pet_state *state)
 {
 	struct pet_scop *scop;
-	isl_set *dom;
+	isl_set *dom, *local;
 	isl_set *valid;
 
 	valid = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	dom = isl_pw_aff_non_zero_set(pa);
+	local = isl_set_add_dims(isl_set_copy(dom), isl_dim_set, 1);
+	pc = pet_context_intersect_domain(pc, local);
 	scop = scop_from_infinite_loop(tree->u.l.body, pc, state);
-	scop = pet_scop_restrict(scop, isl_set_params(dom));
-	scop = pet_scop_restrict_context(scop, isl_set_params(valid));
+	scop = pet_scop_restrict(scop, dom);
+	scop = pet_scop_restrict_context(scop, valid);
 
 	pet_context_free(pc);
 	return scop;
@@ -564,6 +543,10 @@ static struct pet_scop *scop_from_non_affine_condition(
 
 /* Construct a generic while scop, with iteration domain
  * { [t] : t >= 0 } around the scop for "tree_body" within the context "pc".
+ * The domain of "pc" has already been extended with this infinite loop
+ *
+ *	{ [t] : t >= 0 }
+ *
  * The scop consists of two parts,
  * one for evaluating the condition "cond" and one for the body.
  * If "expr_inc" is not NULL, then a scop for evaluating this expression
@@ -588,9 +571,9 @@ static struct pet_scop *scop_from_non_affine_condition(
  * Note that in case of an affine skip condition,
  * since we are dealing with a loop without loop iterator,
  * the skip condition cannot refer to the current loop iterator and
- * so effectively, the iteration domain is of the form
+ * so effectively, the effect on the iteration domain is of the form
  *
- *	{ [0]; [t] : t >= 1 and not skip }
+ *	{ [outer,0]; [outer,t] : t >= 1 and not skip }
  */
 static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	__isl_take pet_loc *loc, __isl_keep pet_tree *tree_body,
@@ -598,12 +581,12 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	struct pet_state *state)
 {
 	isl_ctx *ctx;
-	isl_id *id, *id_test, *id_break_test;
+	isl_id *id_test, *id_break_test;
 	isl_space *space;
 	isl_multi_pw_aff *test_index;
 	isl_set *domain;
 	isl_set *skip;
-	isl_aff *ident;
+	isl_aff *sched;
 	struct pet_scop *scop, *scop_body;
 	int has_affine_break;
 	int has_var_break;
@@ -616,12 +599,10 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 				pet_loc_copy(loc), pc);
 	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
 	domain = pet_context_get_domain(pc);
-	scop = pet_scop_add_boolean_array(scop, domain,
+	scop = pet_scop_add_boolean_array(scop, isl_set_copy(domain),
 					test_index, state->int_size);
 
-	id = isl_id_alloc(ctx, "t", NULL);
-	domain = infinite_domain(isl_id_copy(id));
-	ident = identity_aff(domain);
+	sched = map_to_last(pc);
 
 	scop_body = scop_from_tree(tree_body, pc, state);
 
@@ -634,8 +615,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop = pet_scop_prefix(scop, 0);
-	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_aff_copy(ident),
-				isl_aff_copy(ident), isl_id_copy(id));
+	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_aff_copy(sched));
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
 	if (expr_inc) {
@@ -653,8 +633,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		scop_body = pet_scop_add_seq(ctx, scop_body, scop_inc);
 	} else
 		pet_loc_free(loc);
-	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
-				    isl_aff_copy(ident), ident, id);
+	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain), sched);
 
 	if (has_affine_break) {
 		domain = apply_affine_break(domain, skip, 1, 0, NULL);
@@ -686,6 +665,12 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
  * Otherwise, pass control to scop_from_non_affine_while.
  *
  * "pc" is the context in which the affine expressions in the scop are created.
+ * The domain of "pc" is extended with an infinite loop
+ *
+ *	{ [t] : t >= 0 }
+ *
+ * before passing control to scop_from_affine_while or
+ * scop_from_non_affine_while.
  */
 static struct pet_scop *scop_from_while(__isl_keep pet_tree *tree,
 	__isl_keep pet_context *pc, struct pet_state *state)
@@ -703,6 +688,8 @@ static struct pet_scop *scop_from_while(__isl_keep pet_tree *tree,
 	cond_expr = pet_context_evaluate_expr(pc, cond_expr);
 	pa = pet_expr_extract_affine_condition(cond_expr, pc);
 	pet_expr_free(cond_expr);
+
+	pc = pet_context_add_infinite_loop(pc);
 
 	if (!pa)
 		goto error;
@@ -785,33 +772,39 @@ static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
 	return cond;
 }
 
-/* Construct a domain of the form
+/* Given an initial value of the form
  *
- * [id] -> { : exists a: id = init + a * inc and a >= 0 }
+ * { [outer,i] -> init(outer) }
+ *
+ * construct a domain of the form
+ *
+ * { [outer,i] : exists a: i = init(outer) + a * inc and a >= 0 }
  */
-static __isl_give isl_set *strided_domain(__isl_take isl_id *id,
-	__isl_take isl_pw_aff *init, __isl_take isl_val *inc)
+static __isl_give isl_set *strided_domain(__isl_take isl_pw_aff *init,
+	__isl_take isl_val *inc)
 {
+	int dim;
 	isl_aff *aff;
-	isl_space *dim;
+	isl_space *space;
+	isl_local_space *ls;
 	isl_set *set;
 
-	init = isl_pw_aff_insert_dims(init, isl_dim_in, 0, 1);
-	dim = isl_pw_aff_get_domain_space(init);
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
-	aff = isl_aff_add_coefficient_val(aff, isl_dim_in, 0, inc);
+	dim = isl_pw_aff_dim(init, isl_dim_in);
+
+	init = isl_pw_aff_add_dims(init, isl_dim_in, 1);
+	space = isl_pw_aff_get_domain_space(init);
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_zero_on_domain(isl_local_space_copy(ls));
+	aff = isl_aff_add_coefficient_val(aff, isl_dim_in, dim, inc);
 	init = isl_pw_aff_add(init, isl_pw_aff_from_aff(aff));
 
-	dim = isl_space_set_alloc(isl_pw_aff_get_ctx(init), 1, 1);
-	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
-
+	aff = isl_aff_var_on_domain(ls, isl_dim_set, dim - 1);
 	set = isl_pw_aff_eq_set(isl_pw_aff_from_aff(aff), init);
 
-	set = isl_set_lower_bound_si(set, isl_dim_set, 0, 0);
+	set = isl_set_lower_bound_si(set, isl_dim_set, dim, 0);
+	set = isl_set_project_out(set, isl_dim_set, dim, 1);
 
-	return isl_set_params(set);
+	return set;
 }
 
 /* Assuming "cond" represents a bound on a loop where the loop
@@ -848,94 +841,108 @@ static int can_wrap(__isl_keep isl_set *cond, __isl_keep pet_expr *iv,
 	return cw;
 }
 
-/* Given a one-dimensional space, construct the following affine expression
- * on this space
+/* Given a space
  *
- *	{ [v] -> [v mod 2^width] }
+ *	{ [outer, v] },
+ *
+ * construct the following affine expression on this space
+ *
+ *	{ [outer, v] -> [outer, v mod 2^width] }
  *
  * where width is the number of bits used to represent the values
  * of the unsigned variable "iv".
  */
-static __isl_give isl_aff *compute_wrapping(__isl_take isl_space *dim,
+static __isl_give isl_multi_aff *compute_wrapping(__isl_take isl_space *space,
 	__isl_keep pet_expr *iv)
 {
+	int dim;
 	isl_ctx *ctx;
 	isl_val *mod;
 	isl_aff *aff;
+	isl_multi_aff *ma;
 
-	ctx = isl_space_get_ctx(dim);
+	dim = isl_space_dim(space, isl_dim_set);
+
+	ctx = isl_space_get_ctx(space);
 	mod = isl_val_int_from_ui(ctx, pet_expr_get_type_size(iv));
 	mod = isl_val_2exp(mod);
 
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
+	space = isl_space_map_from_set(space);
+	ma = isl_multi_aff_identity(space);
+
+	aff = isl_multi_aff_get_aff(ma, dim - 1);
 	aff = isl_aff_mod_val(aff, mod);
+	ma = isl_multi_aff_set_aff(ma, dim - 1, aff);
 
-	return aff;
+	return ma;
 }
 
-/* Project out the parameter "id" from "set".
- */
-static __isl_give isl_set *set_project_out_by_id(__isl_take isl_set *set,
-	__isl_keep isl_id *id)
-{
-	int pos;
-
-	pos = isl_set_find_dim_by_id(set, isl_dim_param, id);
-	if (pos >= 0)
-		set = isl_set_project_out(set, isl_dim_param, pos, 1);
-
-	return set;
-}
-
-/* Compute the set of parameters for which "set1" is a subset of "set2".
+/* Given two sets in the space
+ *
+ *	{ [l,i] },
+ *
+ * where l represents the outer loop iterators, compute the set
+ * of values of l that ensure that "set1" is a subset of "set2".
  *
  * set1 is a subset of set2 if
  *
- *	forall i in set1 : i in set2
+ *	forall i: set1(l,i) => set2(l,i)
  *
  * or
  *
- *	not exists i in set1 and i not in set2
+ *	not exists i: set1(l,i) and not set2(l,i)
  *
  * i.e.,
  *
- *	not exists i in set1 \ set2
+ *	not exists i: (set1 \ set2)(l,i)
  */
 static __isl_give isl_set *enforce_subset(__isl_take isl_set *set1,
 	__isl_take isl_set *set2)
 {
-	return isl_set_complement(isl_set_params(isl_set_subtract(set1, set2)));
+	int pos;
+
+	pos = isl_set_dim(set1, isl_dim_set) - 1;
+	set1 = isl_set_subtract(set1, set2);
+	set1 = isl_set_eliminate(set1, isl_dim_set, pos, 1);
+	return isl_set_complement(set1);
 }
 
-/* Compute the set of parameter values for which "cond" holds
- * on the next iteration for each element of "dom".
+/* Compute the set of outer iterator values for which "cond" holds
+ * on the next iteration of the inner loop for each element of "dom".
  *
- * We first construct mapping { [i] -> [i + inc] }, apply that to "dom"
- * and then compute the set of parameters for which the result is a subset
- * of "cond".
+ * We first construct mapping { [l,i] -> [l,i + inc] } (where l refers
+ * to the outer loop iterators), plug that into "cond"
+ * and then compute the set of outer iterators for which "dom" is a subset
+ * of the result.
  */
 static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	__isl_take isl_set *dom, __isl_take isl_val *inc)
 {
+	int pos;
 	isl_space *space;
 	isl_aff *aff;
-	isl_map *next;
+	isl_multi_aff *ma;
 
+	pos = isl_set_dim(dom, isl_dim_set) - 1;
 	space = isl_set_get_space(dom);
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
-	aff = isl_aff_add_coefficient_si(aff, isl_dim_in, 0, 1);
+	space = isl_space_map_from_set(space);
+	ma = isl_multi_aff_identity(space);
+	aff = isl_multi_aff_get_aff(ma, pos);
 	aff = isl_aff_add_constant_val(aff, inc);
-	next = isl_map_from_basic_map(isl_basic_map_from_aff(aff));
-
-	dom = isl_set_apply(dom, next);
+	ma = isl_multi_aff_set_aff(ma, pos, aff);
+	cond = isl_set_preimage_multi_aff(cond, ma);
 
 	return enforce_subset(dom, cond);
 }
 
-/* Extract the for loop "tree" as a while loop within the context "pc".
+/* Extract the for loop "tree" as a while loop within the context "pc_init".
+ * In particular, "pc_init" represents the context of the loop,
+ * whereas "pc" represents the context of the body of the loop and
+ * has already had its domain extended with an infinite loop
  *
- * That is, the for loop has the form
+ *	{ [t] : t >= 0 }
+ *
+ * The for loop has the form
  *
  *	for (iv = init; cond; iv += inc)
  *		body;
@@ -956,7 +963,8 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
  * and after the loop.
  */
 static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
-	__isl_take pet_context *pc, struct pet_state *state)
+	__isl_keep pet_context *init_pc, __isl_take pet_context *pc,
+	struct pet_state *state)
 {
 	int declared;
 	isl_id *iv;
@@ -976,7 +984,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	init = pet_expr_copy(tree->u.l.init);
 	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
 	scop_init = scop_from_expr(init, NULL, state->n_stmt++,
-					pet_tree_get_loc(tree), pc);
+					pet_tree_get_loc(tree), init_pc);
 	scop_init = pet_scop_prefix(scop_init, declared);
 
 	expr_iv = pet_expr_copy(tree->u.l.iv);
@@ -991,23 +999,22 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	scop = pet_scop_prefix(scop, declared + 1);
 	scop = pet_scop_add_seq(state->ctx, scop_init, scop);
 
-	if (!declared) {
-		pet_context_free(pc);
-		return scop;
-	}
+	pet_context_free(pc);
 
-	array = extract_array(tree->u.l.iv, pc, state);
+	if (!declared)
+		return scop;
+
+	array = extract_array(tree->u.l.iv, init_pc, state);
 	if (array)
 		array->declared = 1;
-	scop_kill = kill(pet_tree_get_loc(tree), array, pc, state);
+	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
 	scop_kill = pet_scop_prefix(scop_kill, 0);
 	scop = pet_scop_add_seq(state->ctx, scop_kill, scop);
-	scop_kill = kill(pet_tree_get_loc(tree), array, pc, state);
+	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
 	scop_kill = pet_scop_add_array(scop_kill, array);
 	scop_kill = pet_scop_prefix(scop_kill, 3);
 	scop = pet_scop_add_seq(state->ctx, scop, scop_kill);
 
-	pet_context_free(pc);
 	return scop;
 }
 
@@ -1077,27 +1084,33 @@ static int is_nested_allowed(__isl_keep isl_pw_aff *pa,
 
 /* Construct a pet_scop for a for tree with static affine initialization
  * and constant increment within the context "pc".
+ * The domain of "pc" has already been extended with an (at this point
+ * unbounded) inner loop iterator corresponding to the current for loop.
  *
  * The condition is allowed to contain nested accesses, provided
  * they are not being written to inside the body of the loop.
  * Otherwise, or if the condition is otherwise non-affine, the for loop is
  * essentially treated as a while loop, with iteration domain
- * { [i] : i >= init }.
+ * { [l,i] : i >= init }, where l refers to the outer loop iterators.
  *
- * We extract a pet_scop for the body and then embed it in a loop with
- * iteration domain and schedule
+ * We extract a pet_scop for the body after intersecting the domain of "pc"
  *
- *	{ [i] : i >= init and condition' }
- *	{ [i] -> [i] }
+ *	{ [l,i] : i >= init and condition' }
  *
  * or
  *
- *	{ [i] : i <= init and condition' }
- *	{ [i] -> [-i] }
+ *	{ [l,i] : i <= init and condition' }
  *
  * Where condition' is equal to condition if the latter is
  * a simple upper [lower] bound and a condition that is extended
  * to apply to all previous iterations otherwise.
+ * Afterwards, the schedule of the pet_scop is extended with
+ *
+ *	{ [l,i] -> [i] }
+ *
+ * or
+ *
+ *	{ [l,i] -> [-i] }
  *
  * If the condition is non-affine, then we drop the condition from the
  * iteration domain and instead create a separate statement
@@ -1117,8 +1130,8 @@ static int is_nested_allowed(__isl_keep isl_pw_aff *pa,
  * If the loop iterator i is unsigned, then wrapping may occur.
  * We therefore use a virtual iterator instead that does not wrap.
  * However, the condition in the code applies
- * to the wrapped value, so we need to change condition(i)
- * into condition([i % 2^width]).  Similarly, we replace all accesses
+ * to the wrapped value, so we need to change condition(l,i)
+ * into condition([l,i % 2^width]).  Similarly, we replace all accesses
  * to the original iterator by the wrapping of the virtual iterator.
  * Note that there may be no need to perform this final wrapping
  * if the loop condition (after wrapping) satisfies certain conditions.
@@ -1130,7 +1143,7 @@ static int is_nested_allowed(__isl_keep isl_pw_aff *pa,
  * [decremented] by one and the last value before wrapping cannot
  * possibly satisfy the loop condition.
  *
- * Valid parameters for a for loop are those for which the initial
+ * Valid outer iterators for a for loop are those for which the initial
  * value itself, the increment on each domain iteration and
  * the condition on both the initial value and
  * the result of incrementing the iterator for each iteration of the domain
@@ -1149,13 +1162,13 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	__isl_take isl_val *inc, __isl_take pet_context *pc,
 	struct pet_state *state)
 {
-	isl_local_space *ls;
 	isl_set *domain;
 	isl_aff *sched;
 	isl_set *cond = NULL;
 	isl_set *skip = NULL;
-	isl_id *id, *id_test = NULL, *id_break_test;
+	isl_id *id_test = NULL, *id_break_test;
 	struct pet_scop *scop, *scop_cond = NULL;
+	int pos;
 	int is_one;
 	int is_unsigned;
 	int is_simple;
@@ -1164,7 +1177,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	int has_affine_break;
 	int has_var_break;
 	isl_map *rev_wrap = NULL;
-	isl_aff *wrap = NULL;
+	isl_map *init_val_map;
 	isl_pw_aff *pa;
 	isl_set *valid_init;
 	isl_set *valid_cond;
@@ -1174,8 +1187,9 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	pet_expr *cond_expr;
 	pet_context *pc_nested;
 
-	id = pet_expr_access_get_id(tree->u.l.iv);
+	pos = pet_context_dim(pc) - 1;
 
+	domain = pet_context_get_domain(pc);
 	cond_expr = pet_expr_copy(tree->u.l.cond);
 	cond_expr = pet_context_evaluate_expr(pc, cond_expr);
 	pc_nested = pet_context_copy(pc);
@@ -1196,37 +1210,43 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
 	if (is_non_affine)
-		cond = isl_set_universe(isl_space_set_alloc(state->ctx, 0, 0));
+		cond = isl_set_universe(isl_set_get_space(domain));
 
-	cond = embed(cond, isl_id_copy(id));
 	valid_cond = isl_set_coalesce(valid_cond);
-	valid_cond = embed(valid_cond, isl_id_copy(id));
-	valid_inc = embed(valid_inc, isl_id_copy(id));
 	is_one = isl_val_is_one(inc) || isl_val_is_negone(inc);
 	is_virtual = is_unsigned &&
 		(!is_one || can_wrap(cond, tree->u.l.iv, inc));
 
-	valid_cond_init = enforce_subset(
-		isl_map_range(isl_map_from_pw_aff(isl_pw_aff_copy(init_val))),
-		isl_set_copy(valid_cond));
+	init_val_map = isl_map_from_pw_aff(isl_pw_aff_copy(init_val));
+	init_val_map = isl_map_equate(init_val_map, isl_dim_in, pos,
+					isl_dim_out, 0);
+	valid_cond_init = enforce_subset(isl_map_domain(init_val_map),
+					isl_set_copy(valid_cond));
 	if (is_one && !is_virtual) {
+		isl_set *cond;
+
 		isl_pw_aff_free(init_val);
 		pa = pet_expr_extract_comparison(
 			isl_val_is_pos(inc) ? pet_op_ge : pet_op_le,
 				tree->u.l.iv, tree->u.l.init, pc);
 		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(pa));
-		valid_init = set_project_out_by_id(valid_init, id);
-		domain = isl_pw_aff_non_zero_set(pa);
+		valid_init = isl_set_eliminate(valid_init, isl_dim_set,
+				    isl_set_dim(domain, isl_dim_set) - 1, 1);
+		cond = isl_pw_aff_non_zero_set(pa);
+		domain = isl_set_intersect(domain, cond);
 	} else {
+		isl_set *strided;
+
 		valid_init = isl_pw_aff_domain(isl_pw_aff_copy(init_val));
-		domain = strided_domain(isl_id_copy(id), init_val,
-					isl_val_copy(inc));
+		strided = strided_domain(init_val, isl_val_copy(inc));
+		domain = isl_set_intersect(domain, strided);
 	}
 
-	domain = embed(domain, isl_id_copy(id));
 	if (is_virtual) {
+		isl_multi_aff *wrap;
 		wrap = compute_wrapping(isl_set_get_space(cond), tree->u.l.iv);
-		rev_wrap = isl_map_from_aff(isl_aff_copy(wrap));
+		pc = pet_context_preimage_domain(pc, wrap);
+		rev_wrap = isl_map_from_multi_aff(wrap);
 		rev_wrap = isl_map_reverse(rev_wrap);
 		cond = isl_set_apply(cond, isl_map_copy(rev_wrap));
 		valid_cond = isl_set_apply(valid_cond, isl_map_copy(rev_wrap));
@@ -1240,10 +1260,9 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (!is_simple)
 		cond = valid_for_each_iteration(cond,
 				    isl_set_copy(domain), isl_val_copy(inc));
+	cond = isl_set_align_params(cond, isl_set_get_space(domain));
 	domain = isl_set_intersect(domain, cond);
-	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
-	ls = isl_local_space_from_space(isl_set_get_space(domain));
-	sched = isl_aff_var_on_domain(ls, isl_dim_set, 0);
+	sched = map_to_last(pc);
 	if (isl_val_is_neg(inc))
 		sched = isl_aff_neg(sched);
 
@@ -1251,13 +1270,12 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 					isl_val_copy(inc));
 	valid_inc = enforce_subset(isl_set_copy(domain), valid_inc);
 
-	if (!is_virtual)
-		wrap = identity_aff(domain);
+	pc = pet_context_intersect_domain(pc, isl_set_copy(domain));
 
 	if (is_non_affine) {
 		isl_space *space;
 		isl_multi_pw_aff *test_index;
-		space = pet_context_get_space(pc);
+		space = isl_set_get_space(domain);
 		test_index = pet_create_test_index(space, state->n_test++);
 		scop_cond = scop_from_non_affine_condition(
 				pet_expr_copy(tree->u.l.cond), state->n_stmt++,
@@ -1266,12 +1284,11 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
 							isl_dim_out);
 		scop_cond = pet_scop_add_boolean_array(scop_cond,
-				pet_context_get_domain(pc), test_index,
+				isl_set_copy(domain), test_index,
 				state->int_size);
 		scop_cond = pet_scop_prefix(scop_cond, 0);
 		scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
-			    isl_aff_copy(sched), isl_aff_copy(wrap),
-			    isl_id_copy(id));
+					    isl_aff_copy(sched));
 	}
 
 	scop = scop_from_tree(tree->u.l.body, pc, state);
@@ -1286,7 +1303,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		scop = pet_scop_reset_context(scop);
 		scop = pet_scop_prefix(scop, 1);
 	}
-	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
+	scop = pet_scop_embed(scop, isl_set_copy(domain), sched);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {
 		domain = apply_affine_break(domain, skip, isl_val_sgn(inc),
@@ -1303,15 +1320,17 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 					isl_val_copy(inc));
 		isl_set_free(valid_inc);
 	} else {
+		valid_inc = isl_set_intersect(valid_inc, valid_cond_next);
+		valid_inc = isl_set_intersect(valid_inc, valid_cond_init);
+		valid_inc = isl_set_project_out(valid_inc, isl_dim_set, pos, 1);
 		scop = pet_scop_restrict_context(scop, valid_inc);
-		scop = pet_scop_restrict_context(scop, valid_cond_next);
-		scop = pet_scop_restrict_context(scop, valid_cond_init);
 		isl_set_free(domain);
 	}
 
 	isl_val_free(inc);
 
-	scop = pet_scop_restrict_context(scop, isl_set_params(valid_init));
+	valid_init = isl_set_project_out(valid_init, isl_dim_set, pos, 1);
+	scop = pet_scop_restrict_context(scop, valid_init);
 
 	pet_context_free(pc);
 	return scop;
@@ -1327,21 +1346,29 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
  * If so, we construct the pet_scop using scop_from_affine_for.
  * Otherwise, we treat the for loop as a while loop
  * in scop_from_non_affine_for.
+ *
+ * Note that the initialization and the increment are extracted
+ * in a context where the current loop iterator has been added
+ * to the context.  If these turn out not be affine, then we
+ * have reconstruct the body context without an assignment
+ * to this loop iterator, as this variable will then not be
+ * treated as a dimension of the iteration domain, but as any
+ * other variable.
  */
 static struct pet_scop *scop_from_for(__isl_keep pet_tree *tree,
-	__isl_keep pet_context *pc, struct pet_state *state)
+	__isl_keep pet_context *init_pc, struct pet_state *state)
 {
 	isl_id *iv;
 	isl_val *inc;
 	isl_pw_aff *pa_inc, *init_val;
-	pet_context *pc_init_val;
+	pet_context *pc, *pc_init_val;
 
 	if (!tree)
 		return NULL;
 
 	iv = pet_expr_access_get_id(tree->u.l.iv);
-	pc = pet_context_copy(pc);
-	pc = pet_context_clear_value(pc, iv);
+	pc = pet_context_copy(init_pc);
+	pc = pet_context_add_inner_iterator(pc, iv);
 	pc = pet_context_clear_writes_in_tree(pc, tree->u.l.body);
 
 	pc_init_val = pet_context_copy(pc);
@@ -1360,7 +1387,12 @@ static struct pet_scop *scop_from_for(__isl_keep pet_tree *tree,
 	isl_pw_aff_free(pa_inc);
 	isl_pw_aff_free(init_val);
 	isl_val_free(inc);
-	return scop_from_non_affine_for(tree, pc, state);
+	pet_context_free(pc);
+
+	pc = pet_context_copy(init_pc);
+	pc = pet_context_add_infinite_loop(pc);
+	pc = pet_context_clear_writes_in_tree(pc, tree->u.l.body);
+	return scop_from_non_affine_for(tree, init_pc, pc, state);
 error:
 	isl_pw_aff_free(pa_inc);
 	isl_pw_aff_free(init_val);
@@ -1589,34 +1621,45 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 {
 	int has_else;
 	isl_ctx *ctx;
-	isl_set *set;
+	isl_set *set, *complement;
 	isl_set *valid;
 	struct pet_skip_info skip;
 	struct pet_scop *scop, *scop_then, *scop_else = NULL;
+	pet_context *pc_body;
 
 	ctx = pet_tree_get_ctx(tree);
 
 	has_else = tree->type == pet_tree_if_else;
 
-	scop_then = scop_from_tree(tree->u.i.then_body, pc, state);
-	if (has_else)
-		scop_else = scop_from_tree(tree->u.i.else_body, pc, state);
+	valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
+	set = isl_pw_aff_non_zero_set(isl_pw_aff_copy(cond));
+
+	pc_body = pet_context_copy(pc);
+	pc_body = pet_context_intersect_domain(pc_body, isl_set_copy(set));
+	scop_then = scop_from_tree(tree->u.i.then_body, pc_body, state);
+	pet_context_free(pc_body);
+	if (has_else) {
+		pc_body = pet_context_copy(pc);
+		complement = isl_set_copy(valid);
+		complement = isl_set_subtract(valid, isl_set_copy(set));
+		pc_body = pet_context_intersect_domain(pc_body,
+						    isl_set_copy(complement));
+		scop_else = scop_from_tree(tree->u.i.else_body, pc_body, state);
+		pet_context_free(pc_body);
+	}
 
 	pet_skip_info_if_init(&skip, ctx, scop_then, scop_else, has_else, 1);
 	pet_skip_info_if_extract_cond(&skip, cond, pc, state);
+	isl_pw_aff_free(cond);
 
-	valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
-	set = isl_pw_aff_non_zero_set(cond);
-	scop = pet_scop_restrict(scop_then, isl_set_params(isl_set_copy(set)));
+	scop = pet_scop_restrict(scop_then, set);
 
 	if (has_else) {
-		set = isl_set_subtract(isl_set_copy(valid), set);
-		scop_else = pet_scop_restrict(scop_else, isl_set_params(set));
+		scop_else = pet_scop_restrict(scop_else, complement);
 		scop = pet_scop_add_par(ctx, scop, scop_else);
-	} else
-		isl_set_free(set);
+	}
 	scop = pet_scop_resolve_nested(scop);
-	scop = pet_scop_restrict_context(scop, isl_set_params(valid));
+	scop = pet_scop_restrict_context(scop, valid);
 
 	if (pet_skip_info_has_skip(&skip))
 		scop = pet_scop_prefix(scop, 0);
@@ -1870,6 +1913,24 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
 	return scop;
 }
 
+/* Given that "scop" has an affine skip condition of type pet_skip_now,
+ * apply this skip condition to the domain of "pc".
+ * That is, remove the elements satisfying the skip condition from
+ * the domain of "pc".
+ */
+static __isl_give pet_context *apply_affine_continue(__isl_take pet_context *pc,
+	struct pet_scop *scop)
+{
+	isl_set *domain, *skip;
+
+	skip = pet_scop_get_affine_skip_domain(scop, pet_skip_now);
+	domain = pet_context_get_domain(pc);
+	domain = isl_set_subtract(domain, skip);
+	pc = pet_context_intersect_domain(pc, domain);
+
+	return pc;
+}
+
 /* Try and construct a pet_scop corresponding to (part of)
  * a sequence of statements within the context "pc".
  *
@@ -1918,8 +1979,13 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 	kills = pet_scop_empty(space);
 	for (i = 0; i < tree->u.b.n; ++i) {
 		struct pet_scop *scop_i;
+		pet_context *pc_body;
 
-		scop_i = scop_from_tree(tree->u.b.child[i], pc, state);
+		pc_body = pet_context_copy(pc);
+		if (pet_scop_has_affine_skip(scop, pet_skip_now))
+			pc_body = apply_affine_continue(pc_body, scop);
+		scop_i = scop_from_tree(tree->u.b.child[i], pc_body, state);
+		pet_context_free(pc_body);
 		pc = scop_handle_writes(scop_i, pc);
 		if (is_assignment(tree->u.b.child[i]))
 			pc = handle_assignment(pc, tree->u.b.child[i]);
@@ -2024,6 +2090,9 @@ struct pet_scop *pet_scop_from_pet_tree(__isl_take pet_tree *tree, int int_size,
 	scop = pet_scop_set_loc(scop, pet_tree_get_loc(tree));
 
 	pet_tree_free(tree);
+
+	if (scop)
+		scop->context = isl_set_params(scop->context);
 
 	return scop;
 }

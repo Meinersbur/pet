@@ -1209,7 +1209,25 @@ __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 	return expr;
 }
 
-/* Add extra conditions on the parameters to all access relations in "expr".
+/* Given a set in the iteration space "domain", extend it to live in the space
+ * of the domain of access relations.
+ *
+ * That, is the number of arguments "n" is 0, then simply return domain.
+ * Otherwise, return [domain -> [a_1,...,a_n]].
+ */
+static __isl_give isl_set *add_arguments(__isl_take isl_set *domain, int n)
+{
+	isl_map *map;
+
+	if (n == 0)
+		return domain;
+
+	map = isl_map_from_domain(domain);
+	map = isl_map_add_dims(map, isl_dim_out, n);
+	return isl_map_wrap(map);
+}
+
+/* Add extra conditions to the domains of all access relations in "expr".
  *
  * The conditions are not added to the index expression.  Instead, they
  * are used to try and simplify the index expression.
@@ -1231,10 +1249,11 @@ __isl_give pet_expr *pet_expr_restrict(__isl_take pet_expr *expr,
 	}
 
 	if (expr->type == pet_expr_access) {
-		expr->acc.access = isl_map_intersect_params(expr->acc.access,
+		cond = add_arguments(cond, expr->n_arg);
+		expr->acc.access = isl_map_intersect_domain(expr->acc.access,
 							    isl_set_copy(cond));
-		expr->acc.index = isl_multi_pw_aff_gist_params(
-					expr->acc.index, isl_set_copy(cond));
+		expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index,
+							    isl_set_copy(cond));
 		if (!expr->acc.access || !expr->acc.index)
 			goto error;
 	}
@@ -1431,7 +1450,7 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 			cond = isl_pw_aff_non_zero_set(pa);
 		else
 			cond = isl_pw_aff_zero_set(pa);
-		return pet_expr_restrict(expr, isl_set_params(cond));
+		return pet_expr_restrict(expr, cond);
 	}
 
 	ctx = isl_multi_pw_aff_get_ctx(test);
