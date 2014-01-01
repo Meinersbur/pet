@@ -974,40 +974,42 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 }
 
 /* Given an access expression "expr", is the variable accessed by
- * "expr" assigned anywhere inside "scop"?
+ * "expr" assigned anywhere inside "tree"?
  */
-static int is_assigned(__isl_keep pet_expr *expr, struct pet_scop *scop)
+static int is_assigned(__isl_keep pet_expr *expr, __isl_keep pet_tree *tree)
 {
 	int assigned = 0;
 	isl_id *id;
 
 	id = pet_expr_access_get_id(expr);
-	assigned = pet_scop_writes(scop, id);
+	assigned = pet_tree_writes(tree, id);
 	isl_id_free(id);
 
 	return assigned;
 }
 
-/* Are all nested access parameters in "pa" allowed given "scop".
- * In particular, is none of them written by anywhere inside "scop".
+/* Are all nested access parameters in "pa" allowed given "tree".
+ * In particular, is none of them written by anywhere inside "tree".
  *
- * If "scop" has any skip conditions, then no nested access parameters
- * are allowed.  In particular, if there is any nested access in a guard
+ * If "tree" has any continue nodes in the current loop level,
+ * then no nested access parameters are allowed.
+ * In particular, if there is any nested access in a guard
  * for a piece of code containing a "continue", then we want to introduce
  * a separate statement for evaluating this guard so that we can express
  * that the result is false for all previous iterations.
  */
-static int is_nested_allowed(__isl_keep isl_pw_aff *pa, struct pet_scop *scop)
+static int is_nested_allowed(__isl_keep isl_pw_aff *pa,
+	__isl_keep pet_tree *tree)
 {
 	int i, nparam;
 
-	if (!scop)
-		return 1;
+	if (!tree)
+		return -1;
 
 	if (!pet_nested_any_in_pw_aff(pa))
 		return 1;
 
-	if (pet_scop_has_skip(scop, pet_skip_now))
+	if (pet_tree_has_continue(tree))
 		return 0;
 
 	nparam = isl_pw_aff_dim(pa, isl_dim_param);
@@ -1023,7 +1025,7 @@ static int is_nested_allowed(__isl_keep isl_pw_aff *pa, struct pet_scop *scop)
 
 		expr = pet_nested_extract_expr(id);
 		allowed = pet_expr_get_type(expr) == pet_expr_access &&
-			    !is_assigned(expr, scop);
+			    !is_assigned(expr, tree);
 
 		pet_expr_free(expr);
 		isl_id_free(id);
@@ -1159,7 +1161,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (has_var_break)
 		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
-	if (isl_pw_aff_involves_nan(pa) || !is_nested_allowed(pa, scop))
+	if (isl_pw_aff_involves_nan(pa) ||
+	    !is_nested_allowed(pa, tree->u.l.body))
 		pa = isl_pw_aff_free(pa);
 
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
@@ -1645,8 +1648,8 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 					stmt_id, pc, state);
 	}
 
-	if ((!is_nested_allowed(cond, scop_then) ||
-	     (has_else && !is_nested_allowed(cond, scop_else)))) {
+	if ((!is_nested_allowed(cond, tree->u.i.then_body) ||
+	     (has_else && !is_nested_allowed(cond, tree->u.i.else_body)))) {
 		isl_pw_aff_free(cond);
 		return scop_from_non_affine_if(tree, scop_then, scop_else,
 					stmt_id, pc, state);
