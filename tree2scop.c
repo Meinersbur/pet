@@ -1233,11 +1233,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		cond = valid_for_each_iteration(cond,
 				    isl_set_copy(domain), isl_val_copy(inc));
 	domain = isl_set_intersect(domain, cond);
-	if (has_affine_break) {
-		skip = isl_set_intersect(skip , isl_set_copy(domain));
-		skip = after(skip, isl_val_sgn(inc));
-		domain = isl_set_subtract(domain, skip);
-	}
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, isl_id_copy(id));
 	ls = isl_local_space_from_space(isl_set_get_space(domain));
 	sched = isl_aff_var_on_domain(ls, isl_dim_set, 0);
@@ -1255,6 +1250,13 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		    isl_aff_copy(sched), isl_aff_copy(wrap), isl_id_copy(id));
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = pet_scop_resolve_nested(scop);
+	if (has_affine_break) {
+		skip = isl_set_intersect(skip , isl_set_copy(domain));
+		skip = after(skip, isl_val_sgn(inc));
+		domain = isl_set_subtract(domain, skip);
+		scop = pet_scop_intersect_domain_prefix(scop,
+							isl_set_copy(domain));
+	}
 	if (has_var_break)
 		scop = scop_add_break(scop, id_break_test, isl_set_copy(domain),
 					isl_val_copy(inc));
