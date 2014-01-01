@@ -1,5 +1,6 @@
 /*
- * Copyright 2011 Leiden University. All rights reserved.
+ * Copyright 2011     Leiden University. All rights reserved.
+ * Copyright 2013-2014 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,6 +63,11 @@ ISL_CTX_SET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
 	autodetect)
 ISL_CTX_GET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
 	autodetect)
+
+ISL_CTX_SET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
+	detect_conditional_assignment)
+ISL_CTX_GET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
+	detect_conditional_assignment)
 
 ISL_CTX_SET_CHOICE_DEF(pet_options, struct pet_options, pet_options_args,
 	signed_overflow)

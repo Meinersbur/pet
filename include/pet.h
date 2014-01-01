@@ -23,6 +23,9 @@ ISL_ARG_DECL(pet_options, struct pet_options, pet_options_args)
 int pet_options_set_autodetect(isl_ctx *ctx, int val);
 int pet_options_get_autodetect(isl_ctx *ctx);
 
+int pet_options_set_detect_conditional_assignment(isl_ctx *ctx, int val);
+int pet_options_get_detect_conditional_assignment(isl_ctx *ctx);
+
 #define	PET_OVERFLOW_AVOID	0
 #define	PET_OVERFLOW_IGNORE	1
 int pet_options_set_signed_overflow(isl_ctx *ctx, int val);
