@@ -1125,6 +1125,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	int is_non_affine;
 	int has_affine_break;
 	int has_var_break;
+	isl_map *rev_wrap = NULL;
 	isl_aff *wrap = NULL;
 	isl_pw_aff *pa;
 	isl_set *valid_init;
@@ -1148,19 +1149,9 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (isl_pw_aff_involves_nan(pa) || pet_nested_any_in_pw_aff(pa))
 		stmt_id = state->n_stmt++;
 
-	scop = scop_from_tree(tree->u.l.body, pc, state);
-
 	valid_inc = isl_pw_aff_domain(pa_inc);
 
 	is_unsigned = pet_expr_get_type_size(tree->u.l.iv) > 0;
-
-	has_affine_break = scop &&
-				pet_scop_has_affine_skip(scop, pet_skip_later);
-	if (has_affine_break)
-		skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
-	has_var_break = scop && pet_scop_has_var_skip(scop, pet_skip_later);
-	if (has_var_break)
-		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
 	is_non_affine = isl_pw_aff_involves_nan(pa) ||
 			!is_nested_allowed(pa, tree->u.l.body);
@@ -1184,13 +1175,10 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		scop_cond = pet_scop_add_boolean_array(scop_cond, test_index,
 				state->int_size);
 		scop_cond = pet_scop_prefix(scop_cond, 0);
-		scop = pet_scop_reset_context(scop);
-		scop = pet_scop_prefix(scop, 1);
 		cond = isl_set_universe(isl_space_set_alloc(state->ctx, 0, 0));
 	}
 
 	cond = embed(cond, isl_id_copy(id));
-	skip = embed(skip, isl_id_copy(id));
 	valid_cond = isl_set_coalesce(valid_cond);
 	valid_cond = embed(valid_cond, isl_id_copy(id));
 	valid_inc = embed(valid_inc, isl_id_copy(id));
@@ -1217,14 +1205,12 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 
 	domain = embed(domain, isl_id_copy(id));
 	if (is_virtual) {
-		isl_map *rev_wrap;
 		wrap = compute_wrapping(isl_set_get_space(cond), tree->u.l.iv);
 		rev_wrap = isl_map_from_aff(isl_aff_copy(wrap));
 		rev_wrap = isl_map_reverse(rev_wrap);
 		cond = isl_set_apply(cond, isl_map_copy(rev_wrap));
-		skip = isl_set_apply(skip, isl_map_copy(rev_wrap));
 		valid_cond = isl_set_apply(valid_cond, isl_map_copy(rev_wrap));
-		valid_inc = isl_set_apply(valid_inc, rev_wrap);
+		valid_inc = isl_set_apply(valid_inc, isl_map_copy(rev_wrap));
 	}
 	is_simple = is_simple_bound(cond, inc);
 	if (!is_simple) {
@@ -1248,17 +1234,34 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (!is_virtual)
 		wrap = identity_aff(domain);
 
+	scop = scop_from_tree(tree->u.l.body, pc, state);
+
 	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
 		    isl_aff_copy(sched), isl_aff_copy(wrap), isl_id_copy(id));
+	has_affine_break = scop &&
+				pet_scop_has_affine_skip(scop, pet_skip_later);
+	if (has_affine_break)
+		skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
+	has_var_break = scop && pet_scop_has_var_skip(scop, pet_skip_later);
+	if (has_var_break)
+		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
+	if (is_non_affine) {
+		scop = pet_scop_reset_context(scop);
+		scop = pet_scop_prefix(scop, 1);
+	}
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {
+		skip = embed(skip, isl_id_copy(id));
+		if (is_virtual)
+			skip = isl_set_apply(skip, isl_map_copy(rev_wrap));
 		skip = isl_set_intersect(skip , isl_set_copy(domain));
 		skip = after(skip, isl_val_sgn(inc));
 		domain = isl_set_subtract(domain, skip);
 		scop = pet_scop_intersect_domain_prefix(scop,
 							isl_set_copy(domain));
 	}
+	isl_map_free(rev_wrap);
 	if (has_var_break)
 		scop = scop_add_break(scop, id_break_test, isl_set_copy(domain),
 					isl_val_copy(inc));
