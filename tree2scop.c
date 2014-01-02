@@ -285,32 +285,14 @@ static __isl_give isl_set *apply_affine_break(__isl_take isl_set *domain,
 /* Create the infinite iteration domain
  *
  *	{ [id] : id >= 0 }
- *
- * If "scop" has an affine skip of type pet_skip_later,
- * then remove those iterations i that have an earlier iteration
- * where the skip condition is satisfied, meaning that iteration i
- * is not executed.
- * Since we are dealing with a loop without loop iterator,
- * the skip condition cannot refer to the current loop iterator and
- * so effectively, the returned set is of the form
- *
- *	{ [0]; [id] : id >= 1 and not skip }
  */
-static __isl_give isl_set *infinite_domain(__isl_take isl_id *id,
-	struct pet_scop *scop)
+static __isl_give isl_set *infinite_domain(__isl_take isl_id *id)
 {
 	isl_ctx *ctx = isl_id_get_ctx(id);
 	isl_set *domain;
-	isl_set *skip;
 
 	domain = isl_set_nat_universe(isl_space_set_alloc(ctx, 0, 1));
 	domain = isl_set_set_dim_id(domain, isl_dim_set, 0, id);
-
-	if (!pet_scop_has_affine_skip(scop, pet_skip_later))
-		return domain;
-
-	skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
-	domain = apply_affine_break(domain, skip, 1, 0, NULL);
 
 	return domain;
 }
@@ -419,8 +401,15 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
  *	{ [t] -> [t] }
  *
  * If the body contains any break, then it is taken into
- * account in infinite_domain (if the skip condition is affine)
+ * account in apply_affine_break (if the skip condition is affine)
  * or in scop_add_break (if the skip condition is not affine).
+ *
+ * Note that in case of an affine skip condition,
+ * since we are dealing with a loop without loop iterator,
+ * the skip condition cannot refer to the current loop iterator and
+ * so effectively, the iteration domain is of the form
+ *
+ *	{ [0]; [t] : t >= 1 and not skip }
  */
 static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	__isl_keep pet_context *pc, struct pet_state *state)
@@ -428,23 +417,33 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	isl_ctx *ctx;
 	isl_id *id, *id_test;
 	isl_set *domain;
+	isl_set *skip;
 	isl_aff *ident;
 	struct pet_scop *scop;
+	int has_affine_break;
 	int has_var_break;
 
 	scop = scop_from_tree(body, pc, state);
 
 	ctx = pet_tree_get_ctx(body);
 	id = isl_id_alloc(ctx, "t", NULL);
-	domain = infinite_domain(isl_id_copy(id), scop);
+	domain = infinite_domain(isl_id_copy(id));
 	ident = identity_aff(domain);
 
+	has_affine_break = pet_scop_has_affine_skip(scop, pet_skip_later);
+	if (has_affine_break)
+		skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
 	has_var_break = pet_scop_has_var_skip(scop, pet_skip_later);
 	if (has_var_break)
 		id_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
 	scop = pet_scop_embed(scop, isl_set_copy(domain),
 				isl_aff_copy(ident), ident, id);
+	if (has_affine_break) {
+		domain = apply_affine_break(domain, skip, 1, 0, NULL);
+		scop = pet_scop_intersect_domain_prefix(scop,
+							isl_set_copy(domain));
+	}
 	if (has_var_break)
 		scop = scop_add_break(scop, id_test, domain, isl_val_one(ctx));
 	else
@@ -591,8 +590,15 @@ static struct pet_scop *scop_from_non_affine_condition(
  * if at all.
  *
  * If the body contains any break, then it is taken into
- * account in infinite_domain (if the skip condition is affine)
+ * account in apply_affine_break (if the skip condition is affine)
  * or in scop_add_break (if the skip condition is not affine).
+ *
+ * Note that in case of an affine skip condition,
+ * since we are dealing with a loop without loop iterator,
+ * the skip condition cannot refer to the current loop iterator and
+ * so effectively, the iteration domain is of the form
+ *
+ *	{ [0]; [t] : t >= 1 and not skip }
  */
 static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	int test_nr, int stmt_nr, __isl_take pet_loc *loc,
@@ -603,8 +609,10 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	isl_id *id, *id_test, *id_break_test;
 	isl_multi_pw_aff *test_index;
 	isl_set *domain;
+	isl_set *skip;
 	isl_aff *ident;
 	struct pet_scop *scop;
+	int has_affine_break;
 	int has_var_break;
 
 	ctx = state->ctx;
@@ -615,9 +623,13 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	scop = pet_scop_add_boolean_array(scop, test_index, state->int_size);
 
 	id = isl_id_alloc(ctx, "t", NULL);
-	domain = infinite_domain(isl_id_copy(id), scop_body);
+	domain = infinite_domain(isl_id_copy(id));
 	ident = identity_aff(domain);
 
+	has_affine_break = pet_scop_has_affine_skip(scop_body, pet_skip_later);
+	if (has_affine_break)
+		skip = pet_scop_get_affine_skip_domain(scop_body,
+							pet_skip_later);
 	has_var_break = pet_scop_has_var_skip(scop_body, pet_skip_later);
 	if (has_var_break)
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
@@ -641,6 +653,13 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
 				    isl_aff_copy(ident), ident, id);
 
+	if (has_affine_break) {
+		domain = apply_affine_break(domain, skip, 1, 0, NULL);
+		scop = pet_scop_intersect_domain_prefix(scop,
+							isl_set_copy(domain));
+		scop_body = pet_scop_intersect_domain_prefix(scop_body,
+							isl_set_copy(domain));
+	}
 	if (has_var_break) {
 		scop = scop_add_break(scop, isl_id_copy(id_break_test),
 					isl_set_copy(domain), isl_val_one(ctx));
