@@ -1184,20 +1184,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
-	if (is_non_affine) {
-		isl_multi_pw_aff *test_index;
-		test_index = pet_create_test_index(state->ctx, state->n_test++);
-		scop_cond = scop_from_non_affine_condition(
-				pet_expr_copy(tree->u.l.cond), state->n_stmt++,
-				isl_multi_pw_aff_copy(test_index),
-				pet_tree_get_loc(tree), pc);
-		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
-							isl_dim_out);
-		scop_cond = pet_scop_add_boolean_array(scop_cond, test_index,
-				state->int_size);
-		scop_cond = pet_scop_prefix(scop_cond, 0);
+	if (is_non_affine)
 		cond = isl_set_universe(isl_space_set_alloc(state->ctx, 0, 0));
-	}
 
 	cond = embed(cond, isl_id_copy(id));
 	valid_cond = isl_set_coalesce(valid_cond);
@@ -1255,10 +1243,24 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (!is_virtual)
 		wrap = identity_aff(domain);
 
-	scop = scop_from_tree(tree->u.l.body, pc, state);
+	if (is_non_affine) {
+		isl_multi_pw_aff *test_index;
+		test_index = pet_create_test_index(state->ctx, state->n_test++);
+		scop_cond = scop_from_non_affine_condition(
+				pet_expr_copy(tree->u.l.cond), state->n_stmt++,
+				isl_multi_pw_aff_copy(test_index),
+				pet_tree_get_loc(tree), pc);
+		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
+							isl_dim_out);
+		scop_cond = pet_scop_add_boolean_array(scop_cond, test_index,
+				state->int_size);
+		scop_cond = pet_scop_prefix(scop_cond, 0);
+		scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
+			    isl_aff_copy(sched), isl_aff_copy(wrap),
+			    isl_id_copy(id));
+	}
 
-	scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
-		    isl_aff_copy(sched), isl_aff_copy(wrap), isl_id_copy(id));
+	scop = scop_from_tree(tree->u.l.body, pc, state);
 	has_affine_break = scop &&
 				pet_scop_has_affine_skip(scop, pet_skip_later);
 	if (has_affine_break)
