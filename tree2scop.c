@@ -133,6 +133,7 @@ static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
 	__isl_keep pet_context *pc)
 {
 	isl_ctx *ctx;
+	isl_set *domain;
 	struct pet_stmt *ps;
 
 	ctx = pet_expr_get_ctx(expr);
@@ -140,7 +141,8 @@ static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
 	expr = pet_expr_plug_in_args(expr, pc);
 	expr = pet_expr_resolve_nested(expr);
 	expr = pet_expr_resolve_assume(expr, pc);
-	ps = pet_stmt_from_pet_expr(loc, label, stmt_nr, expr);
+	domain = pet_context_get_domain(pc);
+	ps = pet_stmt_from_pet_expr(domain, loc, label, stmt_nr, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
@@ -1752,6 +1754,7 @@ static struct pet_scop *extract_kill(isl_ctx *ctx, struct pet_scop *scop,
 {
 	pet_expr *kill;
 	struct pet_stmt *stmt;
+	isl_set *domain;
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *arg;
@@ -1773,7 +1776,8 @@ static struct pet_scop *extract_kill(isl_ctx *ctx, struct pet_scop *scop,
 	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
 	kill = pet_expr_kill_from_access_and_index(access, index);
-	stmt = pet_stmt_from_pet_expr(pet_loc_copy(stmt->loc),
+	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	stmt = pet_stmt_from_pet_expr(domain, pet_loc_copy(stmt->loc),
 					NULL, state->n_stmt++, kill);
 	return pet_scop_from_pet_stmt(ctx, stmt);
 }

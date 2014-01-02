@@ -106,6 +106,7 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx;
+	isl_set *domain;
 
 	if (!scop_then)
 		goto error;
@@ -138,7 +139,8 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL,
+	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	stmt = pet_stmt_from_pet_expr(domain, &pet_loc_dummy, NULL,
 					state->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
@@ -348,6 +350,7 @@ static struct pet_scop *extract_skip_seq(
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx;
+	isl_set *domain;
 
 	if (!scop1 || !scop2)
 		goto error;
@@ -366,7 +369,8 @@ static struct pet_scop *extract_skip_seq(
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL,
+	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	stmt = pet_stmt_from_pet_expr(domain, &pet_loc_dummy, NULL,
 					state->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);

@@ -72,26 +72,27 @@ struct pet_scop_ext {
 	FILE *input;
 };
 
-/* Construct a pet_stmt with given location and statement
+/* Construct a pet_stmt with given domain, location and statement
  * number from a pet_expr.
- * The initial iteration domain is the zero-dimensional universe.
- * The name of the domain is given by "label" if it is non-NULL.
+ * The input domain is anonymous and is the same as the domains
+ * of the access expressions inside "expr".
+ * These domains are modified to include the name of the statement.
+ * This name is given by "label" if it is non-NULL.
  * Otherwise, the name is constructed as S_<id>.
- * The domains of all access relations are modified to refer
- * to the statement iteration domain.
  */
-struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
-	__isl_take isl_id *label, int id, __isl_take pet_expr *expr)
+struct pet_stmt *pet_stmt_from_pet_expr(__isl_take isl_set *domain,
+	__isl_take pet_loc *loc, __isl_take isl_id *label, int id,
+	__isl_take pet_expr *expr)
 {
 	struct pet_stmt *stmt;
 	isl_ctx *ctx;
 	isl_space *space;
-	isl_set *dom;
 	isl_map *sched;
+	isl_multi_aff *ma;
 	isl_multi_pw_aff *add_name;
 	char name[50];
 
-	if (!loc || !expr)
+	if (!domain || !loc || !expr)
 		goto error;
 
 	ctx = pet_expr_get_ctx(expr);
@@ -99,21 +100,21 @@ struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
 	if (!stmt)
 		goto error;
 
-	space = isl_space_set_alloc(ctx, 0, 0);
 	if (!label) {
 		snprintf(name, sizeof(name), "S_%d", id);
 		label = isl_id_alloc(ctx, name, NULL);
 	}
-	space = isl_space_set_tuple_id(space, isl_dim_set, label);
-	dom = isl_set_universe(isl_space_copy(space));
-	sched = isl_map_from_domain(isl_set_copy(dom));
+	domain = isl_set_set_tuple_id(domain, label);
+	space = isl_set_get_space(domain);
+	space = pet_nested_remove_from_space(space);
+	sched = isl_map_universe(isl_space_from_domain(isl_space_copy(space)));
+	ma = pet_prefix_projection(space, isl_space_dim(space, isl_dim_set));
 
-	space = isl_space_from_domain(space);
-	add_name = isl_multi_pw_aff_zero(space);
+	add_name = isl_multi_pw_aff_from_multi_aff(ma);
 	expr = pet_expr_update_domain(expr, add_name);
 
 	stmt->loc = loc;
-	stmt->domain = dom;
+	stmt->domain = domain;
 	stmt->schedule = sched;
 	stmt->body = expr;
 
@@ -122,6 +123,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
 
 	return stmt;
 error:
+	isl_set_free(domain);
 	isl_id_free(label);
 	pet_loc_free(loc);
 	pet_expr_free(expr);

@@ -15,8 +15,9 @@ extern "C" {
  */
 enum pet_skip { pet_skip_now = 0, pet_skip_later = 1 };
 
-struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
-	__isl_take isl_id *label, int id, __isl_take pet_expr *expr);
+struct pet_stmt *pet_stmt_from_pet_expr(__isl_take isl_set *domain,
+	__isl_take pet_loc *loc, __isl_take isl_id *label, int id,
+	__isl_take pet_expr *expr);
 void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
