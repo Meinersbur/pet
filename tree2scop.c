@@ -423,12 +423,12 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	int has_affine_break;
 	int has_var_break;
 
-	scop = scop_from_tree(body, pc, state);
-
 	ctx = pet_tree_get_ctx(body);
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id));
 	ident = identity_aff(domain);
+
+	scop = scop_from_tree(body, pc, state);
 
 	has_affine_break = pet_scop_has_affine_skip(scop, pet_skip_later);
 	if (has_affine_break)
