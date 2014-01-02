@@ -569,13 +569,14 @@ static struct pet_scop *scop_from_non_affine_condition(
 }
 
 /* Construct a generic while scop, with iteration domain
- * { [t] : t >= 0 } around "scop_body" within the context "pc".
+ * { [t] : t >= 0 } around the scop for "tree_body" within the context "pc".
  * The scop consists of two parts,
  * one for evaluating the condition "cond" and one for the body.
  * "test_nr" is the sequence number of the virtual test variable that contains
  * the result of the condition and "stmt_nr" is the sequence number
  * of the statement that evaluates the condition.
- * If "scop_inc" is not NULL, then it is added at the end of the body,
+ * If "expr_inc" is not NULL, then a scop for evaluating this expression
+ * is added at the end of the body,
  * after replacing any skip conditions resulting from continue statements
  * by the skip conditions resulting from break statements (if any).
  *
@@ -602,7 +603,7 @@ static struct pet_scop *scop_from_non_affine_condition(
  */
 static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	int test_nr, int stmt_nr, __isl_take pet_loc *loc,
-	struct pet_scop *scop_body, struct pet_scop *scop_inc,
+	__isl_keep pet_tree *tree_body, __isl_take pet_expr *expr_inc,
 	__isl_take pet_context *pc, struct pet_state *state)
 {
 	isl_ctx *ctx;
@@ -611,20 +612,23 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	isl_set *domain;
 	isl_set *skip;
 	isl_aff *ident;
-	struct pet_scop *scop;
+	struct pet_scop *scop, *scop_body;
 	int has_affine_break;
 	int has_var_break;
 
 	ctx = state->ctx;
 	test_index = pet_create_test_index(ctx, test_nr);
 	scop = scop_from_non_affine_condition(cond, stmt_nr,
-				isl_multi_pw_aff_copy(test_index), loc, pc);
+				isl_multi_pw_aff_copy(test_index),
+				pet_loc_copy(loc), pc);
 	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
 	scop = pet_scop_add_boolean_array(scop, test_index, state->int_size);
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id));
 	ident = identity_aff(domain);
+
+	scop_body = scop_from_tree(tree_body, pc, state);
 
 	has_affine_break = pet_scop_has_affine_skip(scop_body, pet_skip_later);
 	if (has_affine_break)
@@ -639,7 +643,10 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 				isl_aff_copy(ident), isl_id_copy(id));
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
-	if (scop_inc) {
+	if (expr_inc) {
+		struct pet_scop *scop_inc;
+		scop_inc = scop_from_expr(expr_inc, NULL, state->n_stmt++,
+					loc, pc);
 		scop_inc = pet_scop_prefix(scop_inc, 2);
 		if (pet_scop_has_skip(scop_body, pet_skip_later)) {
 			isl_multi_pw_aff *skip;
@@ -649,7 +656,8 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		} else
 			pet_scop_reset_skip(scop_body, pet_skip_now);
 		scop_body = pet_scop_add_seq(ctx, scop_body, scop_inc);
-	}
+	} else
+		pet_loc_free(loc);
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain),
 				    isl_aff_copy(ident), ident, id);
 
@@ -680,8 +688,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
  *
  * If so, call scop_from_affine_while to construct a scop.
  *
- * Otherwise, extract the body and pass control to scop_from_non_affine_while
- * to extend the iteration domain with an infinite loop.
+ * Otherwise, pass control to scop_from_non_affine_while.
  *
  * "pc" is the context in which the affine expressions in the scop are created.
  */
@@ -691,7 +698,6 @@ static struct pet_scop *scop_from_while(__isl_keep pet_tree *tree,
 	pet_expr *cond_expr;
 	int test_nr, stmt_nr;
 	isl_pw_aff *pa;
-	struct pet_scop *scop_body;
 
 	if (!tree)
 		return NULL;
@@ -712,10 +718,9 @@ static struct pet_scop *scop_from_while(__isl_keep pet_tree *tree,
 	isl_pw_aff_free(pa);
 	test_nr = state->n_test++;
 	stmt_nr = state->n_stmt++;
-	scop_body = scop_from_tree(tree->u.l.body, pc, state);
 	return scop_from_non_affine_while(pet_expr_copy(tree->u.l.cond),
 				test_nr, stmt_nr, pet_tree_get_loc(tree),
-				scop_body, NULL, pc, state);
+				tree->u.l.body, NULL, pc, state);
 error:
 	pet_context_free(pc);
 	return NULL;
@@ -952,7 +957,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	int test_nr, stmt_nr;
 	isl_id *iv;
 	pet_expr *expr_iv, *init, *inc;
-	struct pet_scop *scop_init, *scop_inc, *scop, *scop_body;
+	struct pet_scop *scop_init, *scop;
 	int type_size;
 	struct pet_array *array;
 	struct pet_scop *scop_kill;
@@ -972,18 +977,15 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 
 	test_nr = state->n_test++;
 	stmt_nr = state->n_stmt++;
-	scop_body = scop_from_tree(tree->u.l.body, pc, state);
 
 	expr_iv = pet_expr_copy(tree->u.l.iv);
 	type_size = pet_expr_get_type_size(expr_iv);
 	inc = pet_expr_copy(tree->u.l.inc);
 	inc = pet_expr_new_binary(type_size, pet_op_add_assign, expr_iv, inc);
-	scop_inc = scop_from_expr(inc, NULL, state->n_stmt++,
-				pet_tree_get_loc(tree), pc);
 
 	scop = scop_from_non_affine_while(pet_expr_copy(tree->u.l.cond),
 			test_nr, stmt_nr, pet_tree_get_loc(tree),
-			scop_body, scop_inc, pet_context_copy(pc), state);
+			tree->u.l.body, inc, pet_context_copy(pc), state);
 
 	scop = pet_scop_prefix(scop, declared + 1);
 	scop = pet_scop_add_seq(state->ctx, scop_init, scop);
