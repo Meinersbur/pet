@@ -1133,7 +1133,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	isl_set *valid_cond_init;
 	isl_set *valid_cond_next;
 	isl_set *valid_inc;
-	int stmt_id;
 	pet_expr *cond_expr;
 	pet_context *pc_nested;
 
@@ -1146,8 +1145,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	pa = pet_expr_extract_affine_condition(cond_expr, pc_nested);
 	pet_context_free(pc_nested);
 	pet_expr_free(cond_expr);
-	if (isl_pw_aff_involves_nan(pa) || pet_nested_any_in_pw_aff(pa))
-		stmt_id = state->n_stmt++;
 
 	valid_inc = isl_pw_aff_domain(pa_inc);
 
@@ -1162,14 +1159,11 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	cond = isl_pw_aff_non_zero_set(pa);
 	if (is_non_affine) {
 		isl_multi_pw_aff *test_index;
-		int save_n_stmt = state->n_stmt;
 		test_index = pet_create_test_index(state->ctx, state->n_test++);
-		state->n_stmt = stmt_id;
 		scop_cond = scop_from_non_affine_condition(
 				pet_expr_copy(tree->u.l.cond), state->n_stmt++,
 				isl_multi_pw_aff_copy(test_index),
 				pet_tree_get_loc(tree), pc);
-		state->n_stmt = save_n_stmt;
 		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
 							isl_dim_out);
 		scop_cond = pet_scop_add_boolean_array(scop_cond, test_index,
