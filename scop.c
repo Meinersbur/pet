@@ -1,6 +1,6 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
- * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2983,9 +2983,8 @@ static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
 	if (is_univ < 0)
 		return pet_scop_free(scop);
 	if (satisfied && is_univ) {
-		isl_space *space = isl_multi_pw_aff_get_space(test);
 		isl_multi_pw_aff *skip;
-		skip = isl_multi_pw_aff_zero(space);
+		skip = isl_multi_pw_aff_copy(test);
 		scop = pet_scop_set_skip(scop, type, skip);
 		if (!scop)
 			return NULL;
