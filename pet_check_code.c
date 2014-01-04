@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,18 +36,21 @@
 #include <string.h>
 #include <isl/arg.h>
 #include <isl/aff.h>
+#include <isl/options.h>
 #include <isl/set.h>
 #include <isl/union_map.h>
 #include <isl/id_to_pw_aff.h>
 #include <pet.h>
 
 struct options {
+	struct isl_options	*isl;
 	struct pet_options	*pet;
 	char *schedule;
 	char *code;
 };
 
 ISL_ARGS_START(struct options, options_args)
+ISL_ARG_CHILD(struct options, isl, "isl", &isl_options_args, "isl options")
 ISL_ARG_CHILD(struct options, pet, NULL, &pet_options_args, "pet options")
 ISL_ARG_ARG(struct options, schedule, "schedule", NULL)
 ISL_ARG_ARG(struct options, code, "code", NULL)
