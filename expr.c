@@ -2182,6 +2182,9 @@ static __isl_give isl_pw_aff *extract_affine_add_sub(__isl_keep pet_expr *expr,
  *
  * If the second argument (rhs) is not a (positive) integer constant,
  * then we fail to extract an affine expression.
+ *
+ * We simplify the result in the context of the domain of "pc" in case
+ * this domain implies that lhs >= 0 (or < 0).
  */
 static __isl_give isl_pw_aff *extract_affine_div_mod(__isl_keep pet_expr *expr,
 	__isl_keep pet_context *pc)
@@ -2189,6 +2192,7 @@ static __isl_give isl_pw_aff *extract_affine_div_mod(__isl_keep pet_expr *expr,
 	int is_cst;
 	isl_pw_aff *lhs;
 	isl_pw_aff *rhs;
+	isl_pw_aff *res;
 
 	if (!expr)
 		return NULL;
@@ -2208,9 +2212,11 @@ static __isl_give isl_pw_aff *extract_affine_div_mod(__isl_keep pet_expr *expr,
 
 	switch (pet_expr_op_get_type(expr)) {
 	case pet_op_div:
-		return isl_pw_aff_tdiv_q(lhs, rhs);
+		res = isl_pw_aff_tdiv_q(lhs, rhs);
+		break;
 	case pet_op_mod:
-		return isl_pw_aff_tdiv_r(lhs, rhs);
+		res = isl_pw_aff_tdiv_r(lhs, rhs);
+		break;
 	default:
 		isl_pw_aff_free(lhs);
 		isl_pw_aff_free(rhs);
@@ -2218,6 +2224,7 @@ static __isl_give isl_pw_aff *extract_affine_div_mod(__isl_keep pet_expr *expr,
 			"not a div or mod operator", return NULL);
 	}
 
+	return isl_pw_aff_gist(res, pet_context_get_gist_domain(pc));
 }
 
 /* Extract an affine expression from a multiplication operation.
