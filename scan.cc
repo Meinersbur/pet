@@ -1589,6 +1589,7 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 
 	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 	pc = pet_context_alloc(domain);
+	pc = pet_context_clear_writes_in_tree(pc, tree);
 	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, this, pc);
 	scop = pet_scop_detect_parameter_accesses(scop);
