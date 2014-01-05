@@ -178,6 +178,9 @@ int pet_expr_access_is_write(struct pet_expr *expr);
 /* Return the identifier of the outer array accessed by "expr". */
 __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr);
 
+/* Return the reference identifier of access expression "expr". */
+__isl_give isl_id *pet_expr_access_get_ref_id(struct pet_expr *expr);
+
 /* Return the potential read access relation of access expression "expr". */
 __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr);
 /* Return the definite access relation of access expression "expr". */

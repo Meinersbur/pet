@@ -1249,6 +1249,18 @@ struct pet_expr *pet_expr_gist(struct pet_expr *expr,
 	return pet_expr_map_access(expr, &access_gist, &data);
 }
 
+/* Return the reference identifier of access expression "expr".
+ */
+__isl_give isl_id *pet_expr_access_get_ref_id(struct pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return NULL;
+
+	return isl_id_copy(expr->acc.ref_id);
+}
+
 /* Tag the access relation "access" with "id".
  * That is, insert the id as the range of a wrapped relation
  * in the domain of "access".
