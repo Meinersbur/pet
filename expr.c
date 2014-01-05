@@ -560,6 +560,18 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 	return 1;
 }
 
+/* Does the access expression "expr" read the accessed elements?
+ */
+int pet_expr_access_is_read(struct pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_access)
+		return -1;
+
+	return expr->acc.read;
+}
+
 /* Does the access expression "expr" write to the accessed elements?
  */
 int pet_expr_access_is_write(struct pet_expr *expr)

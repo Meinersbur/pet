@@ -171,6 +171,8 @@ struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index);
 
 /* Does "expr" represent an affine expression? */
 int pet_expr_is_affine(struct pet_expr *expr);
+/* Does the access expression "expr" read the accessed elements? */
+int pet_expr_access_is_read(struct pet_expr *expr);
 /* Does the access expression "expr" write to the accessed elements? */
 int pet_expr_access_is_write(struct pet_expr *expr);
 /* Return the identifier of the outer array accessed by "expr". */
