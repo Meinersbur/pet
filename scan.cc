@@ -2427,6 +2427,9 @@ static struct pet_scop *scop_add_break(struct pet_scop *scop,
  * If the body contains any break, then it is taken into
  * account in infinite_domain (if the skip condition is affine)
  * or in scop_add_break (if the skip condition is not affine).
+ *
+ * If we were only able to extract part of the body, then simply
+ * return that part.
  */
 struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 {
@@ -2439,6 +2442,8 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
 	scop = extract(body);
 	if (!scop)
 		return NULL;
+	if (partial)
+		return scop;
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id), scop);
@@ -2629,10 +2634,14 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
  * If the body contains any break, then it is taken into
  * account in infinite_domain (if the skip condition is affine)
  * or in scop_add_break (if the skip condition is not affine).
+ *
+ * If we were only able to extract part of the body, then simply
+ * return that part.
  */
 struct pet_scop *PetScan::extract(WhileStmt *stmt)
 {
 	Expr *cond;
+	int test_nr, stmt_nr;
 	isl_id *id, *id_test, *id_break_test;
 	isl_multi_pw_aff *test_index;
 	isl_set *domain;
@@ -2659,13 +2668,18 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 		return NULL;
 	}
 
-	test_index = create_test_index(ctx, n_test++);
-	scop = extract_non_affine_condition(cond, n_stmt++,
+	test_nr = n_test++;
+	stmt_nr = n_stmt++;
+	scop_body = extract(stmt->getBody());
+	if (partial)
+		return scop_body;
+
+	test_index = create_test_index(ctx, test_nr);
+	scop = extract_non_affine_condition(cond, stmt_nr,
 					    isl_multi_pw_aff_copy(test_index));
 	scop = scop_add_array(scop, test_index, ast_context);
 	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
 	isl_multi_pw_aff_free(test_index);
-	scop_body = extract(stmt->getBody());
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id), scop_body);
@@ -3042,6 +3056,9 @@ static bool has_nested(__isl_keep isl_pw_aff *pa)
  * respect to previous iterations in the virtual domain (if any)
  * and that the domain needs to be kept virtual if there is a non-affine
  * break condition.
+ *
+ * If we were only able to extract part of the body, then simply
+ * return that part.
  */
 struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 {
@@ -3129,17 +3146,25 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		isl_val_free(inc);
 		return NULL;
 	}
-	valid_inc = isl_pw_aff_domain(pa_inc);
-
-	is_unsigned = iv->getType()->isUnsignedIntegerType();
-
-	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
 	pa = try_extract_nested_condition(stmt->getCond());
 	if (allow_nested && (!pa || has_nested(pa)))
 		stmt_id = n_stmt++;
 
 	scop = extract(stmt->getBody());
+	if (partial) {
+		isl_pw_aff_free(init_val);
+		isl_pw_aff_free(pa_inc);
+		isl_pw_aff_free(pa);
+		isl_val_free(inc);
+		return scop;
+	}
+
+	valid_inc = isl_pw_aff_domain(pa_inc);
+
+	is_unsigned = iv->getType()->isUnsignedIntegerType();
+
+	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
 	has_affine_break = scop &&
 				pet_scop_has_affine_skip(scop, pet_skip_later);

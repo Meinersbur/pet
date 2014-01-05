@@ -1,0 +1,28 @@
+start: 52
+end: 61
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 7
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [1, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> a[] }'
+      index: '{ S_0[] -> a[] }'
+      reference: __pet_ref_0
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[] -> [5] }'
+      index: '{ S_0[] -> [(5)] }'
+      reference: __pet_ref_1
+      read: 1
+      write: 0

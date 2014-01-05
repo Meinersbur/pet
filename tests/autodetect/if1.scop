@@ -1,0 +1,28 @@
+start: 25
+end: 46
+context: '[a] -> {  : a <= 2147483647 and a >= -2147483648 }'
+arrays:
+- context: '{  :  }'
+  extent: '[a] -> { b[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 6
+  domain: '[a] -> { S_0[] : a >= 1 }'
+  schedule: '{ S_0[] -> [1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '[a] -> { S_0[] -> b[] }'
+      index: '[a] -> { S_0[] -> b[] }'
+      reference: __pet_ref_0
+      read: 0
+      write: 1
+    - type: access
+      relation: '[a] -> { S_0[] -> [5] }'
+      index: '[a] -> { S_0[] -> [(5)] }'
+      reference: __pet_ref_1
+      read: 1
+      write: 0

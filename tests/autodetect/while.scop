@@ -1,0 +1,24 @@
+start: 69
+end: 80
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ s[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 9
+  domain: '{ S_1[] }'
+  schedule: '{ S_1[] -> [1, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_1[] -> s[] }'
+      index: '{ S_1[] -> s[] }'
+      reference: __pet_ref_0
+      read: 0
+      write: 1
+    - type: call
+      name: f
