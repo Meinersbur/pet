@@ -32,7 +32,6 @@ struct pet_expr *pet_expr_new_double(isl_ctx *ctx, double d, const char *s);
 struct pet_expr *pet_expr_new_int(__isl_take isl_val *v);
 void pet_expr_dump(struct pet_expr *expr);
 
-int pet_expr_is_affine(struct pet_expr *expr);
 int pet_expr_is_scalar_access(struct pet_expr *expr);
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2);
 

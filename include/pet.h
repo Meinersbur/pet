@@ -169,6 +169,9 @@ struct pet_expr *pet_expr_free(struct pet_expr *expr);
 /* Construct a (read) access pet_expr from an index expression. */
 struct pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index);
 
+/* Does "expr" represent an affine expression? */
+int pet_expr_is_affine(struct pet_expr *expr);
+
 /* Return the potential read access relation of access expression "expr". */
 __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr);
 /* Return the tagged potential read access relation of access "expr". */
