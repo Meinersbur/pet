@@ -1311,6 +1311,17 @@ __isl_give isl_map *pet_expr_access_get_tagged_may_access(
 	return access;
 }
 
+/* Return a string representation of the double expression "expr".
+ */
+__isl_give char *pet_expr_double_get_str(struct pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_double)
+		return NULL;
+	return strdup(expr->d.s);
+}
+
 void pet_expr_dump_with_indent(struct pet_expr *expr, int indent)
 {
 	int i;
