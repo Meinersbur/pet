@@ -167,7 +167,7 @@ static __isl_give isl_union_map *extract_code_schedule(struct pet_scop *scop)
 	isl_union_map *schedule;
 	isl_union_map *calls;
 
-	schedule = pet_scop_collect_schedule(scop);
+	schedule = isl_schedule_get_map(scop->schedule);
 
 	calls = scop_collect_calls(scop);
 
