@@ -22,7 +22,6 @@ arrays:
 statements:
 - line: 10
   domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: expression
     expr:
@@ -44,7 +43,6 @@ statements:
     write: 0
 - line: 11
   domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_1[i, j] -> [0, i, j, 1, 0] }'
   body:
     type: expression
     expr:
@@ -66,7 +64,6 @@ statements:
     write: 0
 - line: 13
   domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_2[i, j] -> [0, i, j, 2] }'
   body:
     type: expression
     expr:

@@ -12,7 +12,6 @@ arrays:
 statements:
 - line: 8
   domain: '[n] -> { S_0[i] : i >= 0 and i <= n and i <= 2147483547 }'
-  schedule: '[n] -> { S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:

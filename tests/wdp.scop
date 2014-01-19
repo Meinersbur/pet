@@ -41,7 +41,6 @@ arrays:
 statements:
 - line: 19
   domain: '[N] -> { S_0[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:
@@ -57,7 +56,6 @@ statements:
         name: _Source_x
 - line: 22
   domain: '[N] -> { S_1[i] : i <= N and i >= 0 }'
-  schedule: '[N] -> { S_1[i] -> [1, i] }'
   body:
     type: expression
     expr:
@@ -82,7 +80,6 @@ statements:
           write: 1
 - line: 25
   domain: '[N] -> { S_2[i] : i <= 1 + N and i >= 0 }'
-  schedule: '[N] -> { S_2[i] -> [2, i] }'
   body:
     type: expression
     expr:
@@ -98,7 +95,6 @@ statements:
         name: _Source_z
 - line: 29
   domain: '[N] -> { [S_3[i] -> [0]] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_3[i] -> [3, i, 0] }'
   body:
     type: expression
     expr:
@@ -126,7 +122,6 @@ statements:
     write: 0
 - line: 30
   domain: '[N] -> { S_4[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_4[i] -> [3, i, 1, 0] }'
   body:
     type: expression
     expr:
@@ -158,7 +153,6 @@ statements:
           value: 100
 - line: 31
   domain: '[N] -> { [S_5[i] -> [1]] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_5[i] -> [3, i, 1, 1, 0] }'
   body:
     type: expression
     expr:
@@ -186,7 +180,6 @@ statements:
     write: 0
 - line: 32
   domain: '[N] -> { [S_6[i] -> [1]] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_6[i] -> [3, i, 1, 1, 1] }'
   body:
     type: expression
     expr:
@@ -214,7 +207,6 @@ statements:
     write: 0
 - line: 34
   domain: '[N] -> { S_7[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_7[i] -> [3, i, 2] }'
   body:
     type: expression
     expr:

@@ -19,7 +19,6 @@ arrays:
 statements:
 - line: 27
   domain: '[n] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:

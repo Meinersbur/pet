@@ -32,8 +32,6 @@ struct pet_array *pet_array_free(struct pet_array *array);
 void *pet_implication_free(struct pet_implication *implication);
 void *pet_independence_free(struct pet_independence *independence);
 
-struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos);
-
 struct pet_scop *pet_scop_from_pet_stmt(__isl_take isl_space *space,
 	struct pet_stmt *stmt);
 struct pet_scop *pet_scop_alloc(isl_ctx *ctx);
@@ -47,7 +45,6 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2);
 
 struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
 	__isl_take isl_set *domain);
-struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos);
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_multi_aff *sched);
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,

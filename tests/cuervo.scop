@@ -22,7 +22,6 @@ arrays:
 statements:
 - line: 6
   domain: '[n, m] -> { S_0[i, j] : j <= m and i >= 0 and i <= n and j >= 0 }'
-  schedule: '[n, m] -> { S_0[i, j] -> [0, i, j] }'
   body:
     type: expression
     expr:

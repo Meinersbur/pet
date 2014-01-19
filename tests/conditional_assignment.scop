@@ -39,7 +39,6 @@ arrays:
 statements:
 - line: 21
   domain: '[N, M] -> { S_0[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_0[i] -> [0, i, 0] }'
   body:
     type: expression
     expr:
@@ -64,7 +63,6 @@ statements:
 - line: 23
   domain: '[N, M] -> { S_1[i, j] : i >= 0 and i <= -1 + N and j >= 0 and j <= -1 +
     M }'
-  schedule: '[N, M] -> { S_1[i, j] -> [0, i, 1, j] }'
   body:
     type: expression
     expr:
@@ -94,7 +92,6 @@ statements:
           write: 0
 - line: 24
   domain: '[N, M] -> { S_2[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_2[i] -> [0, i, 2] }'
   body:
     type: expression
     expr:
@@ -117,7 +114,6 @@ statements:
         write: 1
 - line: 26
   domain: '[N, M] -> { S_3[] }'
-  schedule: '{ S_3[] -> [1] }'
   body:
     type: expression
     expr:
@@ -133,7 +129,6 @@ statements:
         value: 0
 - line: 28
   domain: '[N, M] -> { S_4[i] : i >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_4[i] -> [2, i] }'
   body:
     type: expression
     expr:

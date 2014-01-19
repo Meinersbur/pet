@@ -21,7 +21,6 @@ arrays:
 statements:
 - line: 9
   domain: '[N] -> { S_0[99, t, j] : j >= 0 and j <= -1 + N and t >= 0 }'
-  schedule: '[N] -> { S_0[i, t, j] -> [0, i, t, 0, j] }'
   body:
     type: expression
     expr:
@@ -37,7 +36,6 @@ statements:
         value: 0
 - line: 11
   domain: '[N] -> { S_1[99, t, j] : j >= 0 and j <= -1 + N and t >= 0 }'
-  schedule: '[N] -> { S_1[i, t, j] -> [0, i, t, 1, j] }'
   body:
     type: expression
     expr:

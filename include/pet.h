@@ -364,7 +364,6 @@ void pet_tree_dump(__isl_keep pet_tree *tree);
 struct pet_stmt {
 	pet_loc *loc;
 	isl_set *domain;
-	isl_map *schedule;
 	pet_tree *body;
 
 	unsigned n_arg;
@@ -583,7 +582,6 @@ __isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop);
 /* Collect all tagged definite kill access relations. */
 __isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
 	struct pet_scop *scop);
-__isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop);
 
 /* Compute a mapping from all outermost arrays (of structs) in scop
  * to their innermost members.

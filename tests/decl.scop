@@ -41,7 +41,6 @@ statements:
 - line: 8
   domain: '[N, K, M] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >= 0 and j <= -1
     + N }'
-  schedule: '[M, N] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: expression
     expr:
@@ -58,7 +57,6 @@ statements:
 - line: 10
   domain: '[N, K, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
     -1 + N and k >= 0 and k <= -1 + K }'
-  schedule: '[M, N, K] -> { S_1[i, j, k] -> [0, i, j, 1, k, 0, 0] }'
   body:
     type: expression
     expr:
@@ -73,7 +71,6 @@ statements:
 - line: 10
   domain: '[N, K, M] -> { S_2[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
     -1 + N and k >= 0 and k <= -1 + K }'
-  schedule: '[M, N, K] -> { S_2[i, j, k] -> [0, i, j, 1, k, 0, 1] }'
   body:
     type: expression
     expr:
@@ -101,7 +98,6 @@ statements:
 - line: 11
   domain: '[N, K, M] -> { S_4[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
     -1 + N and k >= 0 and k <= -1 + K }'
-  schedule: '[M, N, K] -> { S_4[i, j, k] -> [0, i, j, 1, k, 1] }'
   body:
     type: expression
     expr:
@@ -121,7 +117,6 @@ statements:
 - line: 10
   domain: '[N, K, M] -> { S_3[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
     -1 + N and k >= 0 and k <= -1 + K }'
-  schedule: '[M, N, K] -> { S_3[i, j, k] -> [0, i, j, 1, k, 2] }'
   body:
     type: expression
     expr:

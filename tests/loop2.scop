@@ -12,7 +12,6 @@ arrays:
 statements:
 - line: 9
   domain: '{ S_0[i] : (i <= 9 and i >= 6) or (i <= 4 and i >= 0) }'
-  schedule: '{ S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:

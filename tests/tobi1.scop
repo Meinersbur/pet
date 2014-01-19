@@ -13,7 +13,6 @@ statements:
 - line: 8
   domain: '{ S_0[i] : exists (e0 = floor((i)/65): 65e0 = i and i <= 1039 and i >=
     0) }'
-  schedule: '{ S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:

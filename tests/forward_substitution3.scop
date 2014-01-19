@@ -25,7 +25,6 @@ arrays:
 statements:
 - line: 5
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0, 0] }'
   body:
     type: expression
     expr:
@@ -39,7 +38,6 @@ statements:
         kill: 1
 - line: 5
   domain: '{ S_1[] }'
-  schedule: '{ S_1[] -> [0, 1] }'
   body:
     type: expression
     expr:
@@ -55,7 +53,6 @@ statements:
         value: 1
 - line: 6
   domain: '{ S_2[] }'
-  schedule: '{ S_2[] -> [1, 0] }'
   body:
     type: expression
     expr:
@@ -69,7 +66,6 @@ statements:
         kill: 1
 - line: 6
   domain: '{ S_3[] }'
-  schedule: '{ S_3[] -> [1, 1] }'
   body:
     type: expression
     expr:
@@ -88,7 +84,6 @@ statements:
         write: 0
 - line: 7
   domain: '{ S_4[] }'
-  schedule: '{ S_4[] -> [2] }'
   body:
     type: expression
     expr:
@@ -104,7 +99,6 @@ statements:
         value: 2
 - line: 8
   domain: '{ S_5[] }'
-  schedule: '{ S_5[] -> [3] }'
   body:
     type: expression
     expr:

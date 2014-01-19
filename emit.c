@@ -806,11 +806,6 @@ static int emit_stmt(yaml_emitter_t *emitter, struct pet_stmt *stmt)
 	if (emit_set(emitter, stmt->domain) < 0)
 		return -1;
 
-	if (emit_string(emitter, "schedule") < 0)
-		return -1;
-	if (emit_map(emitter, stmt->schedule) < 0)
-		return -1;
-
 	if (emit_string(emitter, "body") < 0)
 		return -1;
 	if (emit_tree(emitter, stmt->body) < 0)

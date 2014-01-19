@@ -34,7 +34,6 @@ arrays:
 statements:
 - line: 9
   domain: '{ S_0[i] : i >= 0 and i <= 99 }'
-  schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
     type: expression
     expr:
@@ -50,7 +49,6 @@ statements:
         name: f
 - line: 12
   domain: '{ S_1[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
-  schedule: '{ S_1[i] -> [0, i, 2] }'
   body:
     type: expression
     expr:
@@ -69,7 +67,6 @@ statements:
         write: 0
 - line: 13
   domain: '{ S_2[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
-  schedule: '{ S_2[i] -> [0, i, 3] }'
   body:
     type: expression
     expr:
@@ -85,7 +82,6 @@ statements:
         name: f
 - line: 14
   domain: '{ S_3[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
-  schedule: '{ S_3[i] -> [0, i, 4, 0, 0] }'
   body:
     type: expression
     expr:
@@ -109,7 +105,6 @@ statements:
           value: 0
 - line: -1
   domain: '{ S_4[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
-  schedule: '{ S_4[i] -> [0, i, 4, 1] }'
   body:
     type: expression
     expr:
@@ -142,7 +137,6 @@ statements:
           write: 0
 - line: 16
   domain: '{ [S_5[i] -> [0]] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
-  schedule: '{ S_5[i] -> [0, i, 5] }'
   body:
     type: expression
     expr:

@@ -24,7 +24,6 @@ arrays:
 statements:
 - line: 8
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0, 0] }'
   body:
     type: expression
     expr:
@@ -40,7 +39,6 @@ statements:
         name: f
 - line: 8
   domain: '{ [S_1[0] -> [1]] }'
-  schedule: '{ S_1[t] -> [0, 1, t, 0] }'
   body:
     type: expression
     expr:
@@ -70,7 +68,6 @@ statements:
     write: 0
 - line: 9
   domain: '{ [S_2[0] -> [1]] }'
-  schedule: '{ S_2[t] -> [0, 1, t, 1, 0] }'
   body:
     type: expression
     expr:
@@ -98,7 +95,6 @@ statements:
     write: 0
 - line: 12
   domain: '{ [S_3[t] -> [__pet_test_0]] : 1 = 0 }'
-  schedule: '{ S_3[t] -> [0, 1, t, 1, 2] }'
   body:
     type: expression
     expr:
@@ -126,7 +122,6 @@ statements:
     write: 0
 - line: 8
   domain: '{ [S_4[t] -> [__pet_test_0]] : 1 = 0 }'
-  schedule: '{ S_4[t] -> [0, 1, t, 2] }'
   body:
     type: expression
     expr:

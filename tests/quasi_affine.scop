@@ -19,7 +19,6 @@ arrays:
 statements:
 - line: 14
   domain: '[N, in] -> { S_0[] : N >= 0 }'
-  schedule: '[N] -> { S_0[] -> [0, 0] }'
   body:
     type: expression
     expr:
@@ -38,7 +37,6 @@ statements:
         write: 0
 - line: 16
   domain: '[N, in] -> { S_1[i] : i >= 1 and i <= N }'
-  schedule: '[N] -> { S_1[i] -> [0, 1, i, 0] }'
   body:
     type: expression
     expr:
@@ -63,7 +61,6 @@ statements:
             write: 0
 - line: 18
   domain: '[N, in] -> { S_2[] : N >= 0 }'
-  schedule: '[N] -> { S_2[] -> [0, 2] }'
   body:
     type: expression
     expr:

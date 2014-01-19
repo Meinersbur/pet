@@ -22,7 +22,6 @@ statements:
     i >= 0 and j <= 99 and j >= 0) or (i <= 60 and i >= 10 and j >= 0 and j <= i)
     or (i <= 74 and i >= 61 and j >= 0 and j <= i) or (i <= 99 and i >= 90 and j <=
     150 - i and j >= 0) }'
-  schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: expression
     expr:
@@ -40,7 +39,6 @@ statements:
   domain: '{ S_1[i, j] : (i <= 89 and i >= 75 and j <= 60 and j >= 0) or (i <= 60
     and i >= 10 and j >= 0 and j <= -1 + i) or (i <= 74 and i >= 61 and j <= 60 and
     j >= 0) or (i <= 99 and i >= 90 and j <= 149 - i and j >= 0) }'
-  schedule: '{ S_1[i, j] -> [0, i, j, 5] }'
   body:
     type: expression
     expr:

@@ -12,7 +12,6 @@ arrays:
 statements:
 - line: 9
   domain: '[N] -> { S_0[i] : i >= 1 and i <= -1 + N }'
-  schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:

@@ -14,7 +14,6 @@ statements:
 - line: 9
   domain: '{ S_0[i, j] : exists (e0 = floor((2 + 4i)/5): i <= 4 and i >= 0 and 5e0
     <= 5i - j and 5e0 >= -2 + 4i and j >= i) }'
-  schedule: '{ S_0[i, j] -> [0, i, j] }'
   body:
     type: expression
     expr:

@@ -120,7 +120,6 @@ arrays:
 statements:
 - line: 10
   domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: expression
     expr:
@@ -142,7 +141,6 @@ statements:
     write: 0
 - line: 12
   domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }'
-  schedule: '{ S_1[i, j] -> [0, i, j, 1, 0, 0, 0] }'
   body:
     type: expression
     expr:
@@ -164,7 +162,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_2[i, j] -> [0, i, j, 1, 1] }'
   body:
     type: expression
     expr:
@@ -203,7 +200,6 @@ statements:
     write: 0
 - line: 15
   domain: '{ [S_3[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_3[i, j] -> [0, i, j, 2, 0, 0] }'
   body:
     type: expression
     expr:
@@ -231,7 +227,6 @@ statements:
 - line: 16
   domain: '{ [S_4[i, j] -> [0, 0, 1]] : i >= 0 and i <= 99 and j >= 0 and j <= 99
     }'
-  schedule: '{ S_4[i, j] -> [0, i, j, 2, 0, 1, 0, 0] }'
   body:
     type: expression
     expr:
@@ -264,7 +259,6 @@ statements:
 - line: 18
   domain: '{ [S_5[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j >= 0 and j <=
     99 }'
-  schedule: '{ S_5[i, j] -> [0, i, j, 2, 0, 1, 1] }'
   body:
     type: expression
     expr:
@@ -302,7 +296,6 @@ statements:
 - line: 19
   domain: '{ [S_6[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j >= 0 and j <=
     99 }'
-  schedule: '{ S_6[i, j] -> [0, i, j, 2, 0, 1, 2, 0, 0] }'
   body:
     type: expression
     expr:
@@ -340,7 +333,6 @@ statements:
 - line: 22
   domain: '{ [S_7[i, j] -> [0, 0, 1, 0, 0]] : i >= 0 and i <= 99 and j >= 0 and j
     <= 99 }'
-  schedule: '{ S_7[i, j] -> [0, i, j, 2, 0, 1, 2, 0, 1] }'
   body:
     type: expression
     expr:
@@ -383,7 +375,6 @@ statements:
 - line: -1
   domain: '{ [S_8[i, j] -> [0, 0, 1]] : i >= 0 and i <= 99 and j >= 0 and j <= 99
     }'
-  schedule: '{ S_8[i, j] -> [0, i, j, 2, 0, 1, 2, 1] }'
   body:
     type: expression
     expr:
@@ -439,7 +430,6 @@ statements:
 - line: 23
   domain: '{ [S_9[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j >= 0 and j <=
     99 }'
-  schedule: '{ S_9[i, j] -> [0, i, j, 2, 0, 1, 3] }'
   body:
     type: expression
     expr:
@@ -476,7 +466,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_10[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_10[i, j] -> [0, i, j, 2, 0, 2] }'
   body:
     type: expression
     expr:
@@ -526,7 +515,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_11[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_11[i, j] -> [0, i, j, 2, 0, 2] }'
   body:
     type: expression
     expr:
@@ -576,7 +564,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_12[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_12[i, j] -> [0, i, j, 2, 1] }'
   body:
     type: expression
     expr:
@@ -621,7 +608,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_13[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_13[i, j] -> [0, i, j, 2, 1] }'
   body:
     type: expression
     expr:
@@ -666,7 +652,6 @@ statements:
     write: 0
 - line: 25
   domain: '{ [S_14[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_14[i, j] -> [0, i, j, 3, 0, 0] }'
   body:
     type: expression
     expr:
@@ -693,7 +678,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_15[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_15[i, j] -> [0, i, j, 3, 1] }'
   body:
     type: expression
     expr:
@@ -738,7 +722,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_16[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_16[i, j] -> [0, i, j, 3, 1] }'
   body:
     type: expression
     expr:
@@ -783,7 +766,6 @@ statements:
     write: 0
 - line: 27
   domain: '{ [S_17[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_17[i, j] -> [0, i, j, 4] }'
   body:
     type: expression
     expr:

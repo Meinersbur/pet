@@ -23,7 +23,6 @@ arrays:
 statements:
 - line: 4
   domain: '[n] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -38,7 +37,6 @@ statements:
         kill: 1
 - line: 7
   domain: '[n] -> { S_1[i] : i >= 0 and i <= -1 + n }'
-  schedule: '[n] -> { S_1[i] -> [1, i, 0] }'
   body:
     type: expression
     expr:
@@ -54,7 +52,6 @@ statements:
         kill: 1
 - line: 7
   domain: '[n] -> { S_2[i] : i >= 0 and i <= -1 + n }'
-  schedule: '[n] -> { S_2[i] -> [1, i, 1] }'
   body:
     type: expression
     expr:

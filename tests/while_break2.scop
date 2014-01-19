@@ -27,7 +27,6 @@ statements:
 - line: 10
   domain: '[N] -> { [S_0[i, t] -> [1]] : N = 0 and i <= 9 and i >= 0 and t >= 0; [S_0[0,
     t] -> [1]] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0) }'
-  schedule: '[N] -> { S_0[i, t] -> [0, i, 0, t, 0] }'
   body:
     type: expression
     expr:
@@ -50,7 +49,6 @@ statements:
 - line: 11
   domain: '[N] -> { [S_1[i, t] -> [1]] : N = 0 and i <= 9 and i >= 0 and t >= 0; [S_1[0,
     t] -> [1]] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0) }'
-  schedule: '[N] -> { S_1[i, t] -> [0, i, 0, t, 1] }'
   body:
     type: expression
     expr:
@@ -72,7 +70,6 @@ statements:
     write: 0
 - line: 14
   domain: '[N] -> { S_2[i] : N = 0 and i <= 9 and i >= 0 }'
-  schedule: '[N] -> { S_2[i] -> [0, i, 2] }'
   body:
     type: expression
     expr:

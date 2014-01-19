@@ -16,7 +16,6 @@ arrays:
 statements:
 - line: 9
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -32,7 +31,6 @@ statements:
         name: f
 - line: 10
   domain: '{ S_5[] }'
-  schedule: '{ S_5[] -> [1] }'
   body:
     type: for
     declared: 0

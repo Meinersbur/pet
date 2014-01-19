@@ -31,7 +31,6 @@ arrays:
 statements:
 - line: 13
   domain: '[n] -> { S1[x1] : x1 >= 0 and x1 <= -1 + n }'
-  schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
     type: expression
     expr:
@@ -47,7 +46,6 @@ statements:
         name: f
 - line: 14
   domain: '[n] -> { S_1[x1] : x1 >= 0 and x1 <= -1 + n }'
-  schedule: '[n] -> { S_1[x1] -> [0, x1, 1, 0] }'
   body:
     type: expression
     expr:
@@ -63,7 +61,6 @@ statements:
         value: 0
 - line: 14
   domain: '[n] -> { [S_2[x1, t] -> [1]] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
-  schedule: '[n] -> { S_2[x1, t] -> [0, x1, 1, 1, t, 0] }'
   body:
     type: expression
     expr:
@@ -96,7 +93,6 @@ statements:
     write: 0
 - line: 15
   domain: '[n] -> { [S2[x1, t] -> [1]] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
-  schedule: '[n] -> { S2[x1, t] -> [0, x1, 1, 1, t, 1, 0] }'
   body:
     type: expression
     expr:
@@ -124,7 +120,6 @@ statements:
     write: 0
 - line: 14
   domain: '[n] -> { [S_4[x1, t] -> [1]] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
-  schedule: '[n] -> { S_4[x1, t] -> [0, x1, 1, 1, t, 2] }'
   body:
     type: expression
     expr:
@@ -149,7 +144,6 @@ statements:
     write: 0
 - line: 17
   domain: '[n] -> { R[x1] : x1 >= 0 and x1 <= -1 + n }'
-  schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
   body:
     type: expression
     expr:

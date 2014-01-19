@@ -15,7 +15,6 @@ arrays:
 statements:
 - line: 10
   domain: '[n] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -30,7 +29,6 @@ statements:
 - line: 12
   domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i >= 0 and i <=
     -4 + n) }'
-  schedule: '[n] -> { S_1[i] -> [1, i] }'
   body:
     type: expression
     expr:

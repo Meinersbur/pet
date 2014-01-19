@@ -14,7 +14,6 @@ statements:
 - line: 8
   domain: '[N] -> { S_0[i] : exists (e0 = floor((-2 - N + i)/3): 3e0 = -2 - N + i
     and i <= -1 + N and i >= 0) }'
-  schedule: '[N] -> { S_0[i] -> [0, -i] }'
   body:
     type: expression
     expr:

@@ -15,7 +15,6 @@ statements:
 - line: 6
   domain: '[n] -> { S_0[i, j] : j >= 0 and j <= -1 + n and i >= 0 and i <= -1 + n
     }'
-  schedule: '[n] -> { S_0[i, j] -> [0, i, j] }'
   body:
     type: expression
     expr:

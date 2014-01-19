@@ -29,7 +29,6 @@ statements:
 - line: 7
   domain: '[n] -> { S_0[i, j] : j >= 0 and j <= -1 + n and i >= 0 and i <= -1 + n
     }'
-  schedule: '[n] -> { S_0[i, j] -> [0, i, j, 0, 0] }'
   body:
     type: expression
     expr:
@@ -44,7 +43,6 @@ statements:
 - line: 7
   domain: '[n] -> { S_1[i, j] : j >= 0 and j <= -1 + n and i >= 0 and i <= -1 + n
     }'
-  schedule: '[n] -> { S_1[i, j] -> [0, i, j, 0, 1] }'
   body:
     type: expression
     expr:
@@ -72,7 +70,6 @@ statements:
 - line: 8
   domain: '[n] -> { S_3[i, j] : j >= 0 and j <= -1 + n and i >= 0 and i <= -1 + n
     }'
-  schedule: '[n] -> { S_3[i, j] -> [0, i, j, 1] }'
   body:
     type: expression
     expr:
@@ -98,7 +95,6 @@ statements:
 - line: 7
   domain: '[n] -> { S_2[i, j] : j >= 0 and j <= -1 + n and i >= 0 and i <= -1 + n
     }'
-  schedule: '[n] -> { S_2[i, j] -> [0, i, j, 2] }'
   body:
     type: expression
     expr:

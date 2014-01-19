@@ -239,9 +239,6 @@ static struct pet_scop *scop_from_decl(__isl_keep pet_tree *tree,
 	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
 	scop = scop_from_expr(pe, state->n_stmt++, pet_tree_get_loc(tree), pc);
 
-	scop_decl = pet_scop_prefix(scop_decl, 0);
-	scop = pet_scop_prefix(scop, 1);
-
 	ctx = pet_tree_get_ctx(tree);
 	scop = pet_scop_add_seq(ctx, scop_decl, scop);
 
@@ -781,7 +778,6 @@ static struct pet_scop *scop_add_inc(struct pet_scop *scop,
 	} else
 		pet_scop_reset_skip(scop, pet_skip_now);
 	scop_inc = scop_from_expr(inc, state->n_stmt++, loc, pc);
-	scop_inc = pet_scop_prefix(scop_inc, 2);
 	scop = pet_scop_add_seq(state->ctx, scop, scop_inc);
 
 	pet_context_free(pc);
@@ -862,9 +858,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	if (has_var_break)
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
-	scop = pet_scop_prefix(scop, 0);
 	scop_body = pet_scop_reset_context(scop_body);
-	scop_body = pet_scop_prefix(scop_body, 1);
 	if (expr_inc) {
 		scop_body = scop_add_inc(scop_body, expr_inc, loc, pc, state);
 	} else
@@ -1223,7 +1217,6 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
 	scop_init = scop_from_expr(init, state->n_stmt++,
 					pet_tree_get_loc(tree), init_pc);
-	scop_init = pet_scop_prefix(scop_init, declared);
 
 	expr_iv = pet_expr_copy(tree->u.l.iv);
 	type_size = pet_expr_get_type_size(expr_iv);
@@ -1234,7 +1227,6 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 			pet_tree_get_loc(tree), tree->u.l.body, inc,
 			pet_context_copy(pc), state);
 
-	scop = pet_scop_prefix(scop, declared + 1);
 	scop = pet_scop_add_seq(state->ctx, scop_init, scop);
 
 	pet_context_free(pc);
@@ -1246,11 +1238,9 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	if (array)
 		array->declared = 1;
 	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
-	scop_kill = pet_scop_prefix(scop_kill, 0);
 	scop = pet_scop_add_seq(state->ctx, scop_kill, scop);
 	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
 	scop_kill = pet_scop_add_array(scop_kill, array);
-	scop_kill = pet_scop_prefix(scop_kill, 3);
 	scop = pet_scop_add_seq(state->ctx, scop, scop_kill);
 
 	return scop;
@@ -1644,7 +1634,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		scop_cond = pet_scop_add_boolean_array(scop_cond,
 				isl_set_copy(domain), test_index,
 				state->int_size);
-		scop_cond = pet_scop_prefix(scop_cond, 0);
 	}
 
 	scop = scop_from_tree(tree->u.l.body, pc, state);
@@ -1657,7 +1646,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
 	if (is_non_affine) {
 		scop = pet_scop_reset_context(scop);
-		scop = pet_scop_prefix(scop, 1);
 	}
 	scop = pet_scop_reset_skips(scop);
 	scop = pet_scop_resolve_nested(scop);
@@ -1937,12 +1925,9 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 					has_else, 0);
 	pet_skip_info_if_extract_index(&skip, test_index, pc, state);
 
-	scop = pet_scop_prefix(scop, 0);
-	scop_then = pet_scop_prefix(scop_then, 1);
 	scop_then = pet_scop_filter(scop_then,
 					isl_multi_pw_aff_copy(test_index), 1);
 	if (has_else) {
-		scop_else = pet_scop_prefix(scop_else, 1);
 		scop_else = pet_scop_filter(scop_else, test_index, 0);
 		scop_then = pet_scop_add_par(state->ctx, scop_then, scop_else);
 	} else
@@ -1950,7 +1935,7 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 
 	scop = pet_scop_add_seq(state->ctx, scop, scop_then);
 
-	scop = pet_skip_info_if_add(&skip, scop, 2);
+	scop = pet_skip_info_if_add(&skip, scop);
 
 	pet_context_free(pc);
 	return scop;
@@ -2015,9 +2000,7 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 	scop = pet_scop_resolve_nested(scop);
 	scop = pet_scop_restrict_context(scop, valid);
 
-	if (pet_skip_info_has_skip(&skip))
-		scop = pet_scop_prefix(scop, 0);
-	scop = pet_skip_info_if_add(&skip, scop, 1);
+	scop = pet_skip_info_if_add(&skip, scop);
 
 	pet_context_free(pc);
 	return scop;
@@ -2329,8 +2312,6 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		struct pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
 		pet_skip_info_seq_extract(&skip, pc, state);
-		if (pet_skip_info_has_skip(&skip))
-			scop_i = pet_scop_prefix(scop_i, 0);
 		if (scop_i && pet_tree_is_decl(tree->u.b.child[i])) {
 			if (tree->u.b.block) {
 				struct pet_scop *kill;
@@ -2339,17 +2320,15 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 			} else
 				scop_i = mark_exposed(scop_i);
 		}
-		scop_i = pet_scop_prefix(scop_i, i);
 		scop = pet_scop_add_seq(ctx, scop, scop_i);
 
-		scop = pet_skip_info_seq_add(&skip, scop, i);
+		scop = pet_skip_info_seq_add(&skip, scop);
 
 		if (!scop)
 			break;
 	}
 	isl_set_free(domain);
 
-	kills = pet_scop_prefix(kills, tree->u.b.n);
 	scop = pet_scop_add_seq(ctx, scop, kills);
 
 	pet_context_free(pc);
@@ -2453,10 +2432,6 @@ static struct pet_scop *scop_from_tree_macro(__isl_take pet_tree *tree,
 
 	if (!data.any)
 		return data.scop;
-
-	data.kill_before = pet_scop_prefix(data.kill_before, 0);
-	data.scop = pet_scop_prefix(data.scop, 1);
-	data.kill_after = pet_scop_prefix(data.kill_after, 2);
 
 	data.scop = pet_scop_add_seq(data.ctx, data.kill_before, data.scop);
 	data.scop = pet_scop_add_seq(data.ctx, data.scop, data.kill_after);

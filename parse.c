@@ -1256,8 +1256,6 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 			end = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "domain"))
 			stmt->domain = extract_set(ctx, document, value);
-		if (!strcmp((char *) key->data.scalar.value, "schedule"))
-			stmt->schedule = extract_map(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "body"))
 			stmt->body = extract_tree(ctx, document, value);
 

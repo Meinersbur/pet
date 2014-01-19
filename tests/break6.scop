@@ -47,7 +47,6 @@ arrays:
 statements:
 - line: 8
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0, 0] }'
   body:
     type: expression
     expr:
@@ -63,7 +62,6 @@ statements:
         name: f
 - line: 8
   domain: '{ [S_1[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_1[t] -> [0, 1, t, 0] }'
   body:
     type: expression
     expr:
@@ -98,7 +96,6 @@ statements:
     write: 0
 - line: 9
   domain: '{ [S_2[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_2[t] -> [0, 1, t, 1, 0] }'
   body:
     type: expression
     expr:
@@ -131,7 +128,6 @@ statements:
     write: 0
 - line: 10
   domain: '{ [S_3[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_3[t] -> [0, 1, t, 1, 1, 0] }'
   body:
     type: expression
     expr:
@@ -158,7 +154,6 @@ statements:
     write: 0
 - line: 12
   domain: '{ [S_4[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_4[t] -> [0, 1, t, 1, 2] }'
   body:
     type: expression
     expr:
@@ -191,7 +186,6 @@ statements:
     write: 0
 - line: 13
   domain: '{ [S_5[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_5[t] -> [0, 1, t, 1, 3, 0, 0] }'
   body:
     type: expression
     expr:
@@ -218,7 +212,6 @@ statements:
     write: 0
 - line: -1
   domain: '{ [S_6[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_6[t] -> [0, 1, t, 1, 3, 1] }'
   body:
     type: expression
     expr:
@@ -268,7 +261,6 @@ statements:
     write: 0
 - line: 15
   domain: '{ [S_7[t] -> [1, 0, 0]] : t >= 0 }'
-  schedule: '{ S_7[t] -> [0, 1, t, 1, 4] }'
   body:
     type: expression
     expr:
@@ -306,7 +298,6 @@ statements:
     write: 0
 - line: 8
   domain: '{ [S_8[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_8[t] -> [0, 1, t, 2] }'
   body:
     type: expression
     expr:

@@ -319,18 +319,6 @@ struct pet_scop *pet_skip_info_add_scops(struct pet_skip_info *skip,
 	return main;
 }
 
-/* Adjust the schedule of the scop for computing the skip condition
- * of the given type with the given offset.
- */
-static void pet_skip_info_if_prefix(struct pet_skip_info *skip,
-	enum pet_skip type, int offset)
-{
-	if (!skip->skip[type])
-		return;
-
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
-}
-
 /* Add the computed skip condition of the give type to "main".
  *
  * If equal is set, then we only computed a skip condition for pet_skip_now,
@@ -353,13 +341,11 @@ struct pet_scop *pet_skip_info_add_type(struct pet_skip_info *skip,
 }
 
 /* Add the computed skip conditions to "main" and
- * add the scops for computing the conditions at the given offset.
+ * add the scops for computing the conditions.
  */
 struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
-	struct pet_scop *scop, int offset)
+	struct pet_scop *scop)
 {
-	pet_skip_info_if_prefix(skip, pet_skip_now, offset);
-	pet_skip_info_if_prefix(skip, pet_skip_later, offset);
 	scop = pet_skip_info_add_scops(skip, scop);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_now);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_later);
@@ -498,29 +484,12 @@ void pet_skip_info_seq_extract(struct pet_skip_info *skip,
 		drop_skip_later(skip->u.s.scop1, skip->u.s.scop2);
 }
 
-/* Adjust the schedule of the scop for computing the skip condition
- * of the given type with the given offset (the statement number).
- * Within this offset, the condition is computed at position 1
- * to ensure that it is computed after the corresponding statement.
- */
-static void pet_skip_info_seq_prefix(struct pet_skip_info *skip,
-	enum pet_skip type, int offset)
-{
-	if (!skip->skip[type])
-		return;
-
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], 1);
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
-}
-
 /* Add the computed skip conditions to "main" and
- * add the scops for computing the conditions at the given offset.
+ * add the scops for computing the conditions.
  */
 struct pet_scop *pet_skip_info_seq_add(struct pet_skip_info *skip,
-	struct pet_scop *scop, int offset)
+	struct pet_scop *scop)
 {
-	pet_skip_info_seq_prefix(skip, pet_skip_now, offset);
-	pet_skip_info_seq_prefix(skip, pet_skip_later, offset);
 	scop = pet_skip_info_add_scops(skip, scop);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_now);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_later);

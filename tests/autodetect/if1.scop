@@ -11,7 +11,6 @@ arrays:
 statements:
 - line: 6
   domain: '[a] -> { S_0[] : a >= 1 }'
-  schedule: '[a] -> { S_0[] -> [0] }'
   body:
     type: expression
     expr:

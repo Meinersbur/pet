@@ -32,7 +32,6 @@ arrays:
 statements:
 - line: 12
   domain: '[n] -> { S1[x1] : x1 >= 0 and x1 <= -1 + n }'
-  schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
     type: expression
     expr:
@@ -49,7 +48,6 @@ statements:
 - line: 13
   domain: '[n] -> { [S_1[x1, x2] -> [1]] : exists (e0 = floor((x2)/3): 3e0 = x2 and
     x1 <= -1 + n and x2 <= 9 and x1 >= 0) }'
-  schedule: '[n] -> { S_1[x1, x2] -> [0, x1, 1, -x2, 0] }'
   body:
     type: expression
     expr:
@@ -84,7 +82,6 @@ statements:
   domain: '[n] -> { [S2[x1, x2, x3] -> [1]] : exists (e0 = floor((x2)/256), e1 = floor((x2)/3):
     3e1 = x2 and x1 <= -1 + n and x2 <= 9 and x3 >= 0 and 256e0 <= x2 - x3 and x1
     >= 0 and 256e0 >= -255 + x2) }'
-  schedule: '[n] -> { S2[x1, x2, x3] -> [0, x1, 1, -x2, 1, 0, x3] }'
   body:
     type: expression
     expr:
@@ -121,7 +118,6 @@ statements:
     write: 0
 - line: 17
   domain: '[n] -> { R[x1] : x1 >= 0 and x1 <= -1 + n }'
-  schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
   body:
     type: expression
     expr:

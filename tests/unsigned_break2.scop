@@ -24,7 +24,6 @@ statements:
   domain: '{ [S_0[k] -> [0]] : (exists (e0 = floor((k)/256): k <= 261 and k >= 252
     and 256e0 >= -255 + k and 256e0 <= -2 + k)) or (exists (e0 = floor((k)/256): 256e0
     = k and k <= 261 and k >= 252)) }'
-  schedule: '{ S_0[k] -> [0, k, 0] }'
   body:
     type: expression
     expr:
@@ -46,7 +45,6 @@ statements:
     write: 0
 - line: 12
   domain: '{ [S_1[k] -> [0]] : k <= 261 and k >= 252 }'
-  schedule: '{ S_1[k] -> [0, k, 1, 0] }'
   body:
     type: expression
     expr:
@@ -68,7 +66,6 @@ statements:
     write: 0
 - line: 14
   domain: '{ [S_2[k] -> [0]] : k <= 261 and k >= 252 }'
-  schedule: '{ S_2[k] -> [0, k, 2] }'
   body:
     type: expression
     expr:

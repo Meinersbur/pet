@@ -15,7 +15,6 @@ statements:
   domain: '[N] -> { S_0[i] : exists (e0 = floor((10 + N)/4294967296): 4294967296e0
     <= 9 + N - i and i <= 19 and i >= 0 and 4294967296e0 <= 10 + N and 4294967296e0
     >= -4294967285 + N) }'
-  schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:
