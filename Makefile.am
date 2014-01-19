@@ -27,10 +27,10 @@ include_HEADERS = include/pet.h
 EXTRA_DIST = \
 	tests
 
-INCLUDES = -I$(srcdir) -I$(srcdir)/include
+PET_INCLUDES = -I$(srcdir) -I$(srcdir)/include
 
-AM_CFLAGS = $(INCLUDES) @ISL_CFLAGS@
-AM_CXXFLAGS = $(INCLUDES) $(CLANG_CXXFLAGS) @ISL_CFLAGS@
+AM_CFLAGS = $(PET_INCLUDES) @ISL_CFLAGS@
+AM_CXXFLAGS = $(PET_INCLUDES) $(CLANG_CXXFLAGS) @ISL_CFLAGS@
 AM_LDFLAGS = $(CLANG_LDFLAGS)
 
 libpet_la_SOURCES = \
