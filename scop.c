@@ -2177,15 +2177,17 @@ static __isl_give isl_space *independence_collect_params(
 	return space;
 }
 
-/* Add all parameters in "scop" to "space" and return the result.
+/* Collect all parameters in "scop" in a parameter space and return the result.
  */
-static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
-	__isl_take isl_space *space)
+static __isl_give isl_space *scop_collect_params(struct pet_scop *scop)
 {
+	isl_space *space;
 	int i;
 
 	if (!scop)
-		return isl_space_free(space);
+		return NULL;
+
+	space = isl_set_get_space(scop->context);
 
 	for (i = 0; i < scop->n_array; ++i)
 		space = array_collect_params(scop->arrays[i], space);
@@ -2295,6 +2297,11 @@ static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
 	if (!scop)
 		goto error;
 
+	scop->context = isl_set_align_params(scop->context,
+						isl_space_copy(space));
+	if (!scop->context)
+		goto error;
+
 	for (i = 0; i < scop->n_array; ++i) {
 		scop->arrays[i] = array_propagate_params(scop->arrays[i],
 							isl_space_copy(space));
@@ -2333,15 +2340,9 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 
-	space = isl_set_get_space(scop->context);
-	space = scop_collect_params(scop, space);
+	space = scop_collect_params(scop);
 
-	scop->context = isl_set_align_params(scop->context,
-						isl_space_copy(space));
 	scop = scop_propagate_params(scop, space);
-
-	if (scop && !scop->context)
-		return pet_scop_free(scop);
 
 	return scop;
 }
