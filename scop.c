@@ -3024,68 +3024,69 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Add all parameters in "expr" to "dim" and return the result.
+/* Add all parameters in "expr" to "space" and return the result.
  */
 static __isl_give isl_space *expr_collect_params(struct pet_expr *expr,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	int i;
 
 	if (!expr)
 		goto error;
 	for (i = 0; i < expr->n_arg; ++i)
-
-		dim = expr_collect_params(expr->args[i], dim);
+		space = expr_collect_params(expr->args[i], space);
 
 	if (expr->type == pet_expr_access)
-		dim = isl_space_align_params(dim,
+		space = isl_space_align_params(space,
 					    isl_map_get_space(expr->acc.access));
 
-	return dim;
+	return space;
 error:
 	pet_expr_free(expr);
-	return isl_space_free(dim);
+	return isl_space_free(space);
 }
 
-/* Add all parameters in "stmt" to "dim" and return the result.
+/* Add all parameters in "stmt" to "space" and return the result.
  */
 static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	if (!stmt)
 		goto error;
 
-	dim = isl_space_align_params(dim, isl_set_get_space(stmt->domain));
-	dim = isl_space_align_params(dim, isl_map_get_space(stmt->schedule));
-	dim = expr_collect_params(stmt->body, dim);
+	space = isl_space_align_params(space, isl_set_get_space(stmt->domain));
+	space = isl_space_align_params(space,
+					isl_map_get_space(stmt->schedule));
+	space = expr_collect_params(stmt->body, space);
 
-	return dim;
+	return space;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_stmt_free(stmt);
 }
 
-/* Add all parameters in "array" to "dim" and return the result.
+/* Add all parameters in "array" to "space" and return the result.
  */
 static __isl_give isl_space *array_collect_params(struct pet_array *array,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	if (!array)
 		goto error;
 
-	dim = isl_space_align_params(dim, isl_set_get_space(array->context));
-	dim = isl_space_align_params(dim, isl_set_get_space(array->extent));
+	space = isl_space_align_params(space,
+					isl_set_get_space(array->context));
+	space = isl_space_align_params(space, isl_set_get_space(array->extent));
 
-	return dim;
+	return space;
 error:
 	pet_array_free(array);
-	return isl_space_free(dim);
+	return isl_space_free(space);
 }
 
-/* Add all parameters in "scop" to "dim" and return the result.
+/* Add all parameters in "scop" to "space" and return the result.
  */
 static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	int i;
 
@@ -3093,23 +3094,23 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 		goto error;
 
 	for (i = 0; i < scop->n_array; ++i)
-		dim = array_collect_params(scop->arrays[i], dim);
+		space = array_collect_params(scop->arrays[i], space);
 
 	for (i = 0; i < scop->n_stmt; ++i)
-		dim = stmt_collect_params(scop->stmts[i], dim);
+		space = stmt_collect_params(scop->stmts[i], space);
 
-	return dim;
+	return space;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	pet_scop_free(scop);
 	return NULL;
 }
 
-/* Add all parameters in "dim" to all access relations and index expressions
+/* Add all parameters in "space" to all access relations and index expressions
  * in "expr".
  */
 static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	int i;
 
@@ -3119,66 +3120,67 @@ static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
 	for (i = 0; i < expr->n_arg; ++i) {
 		expr->args[i] =
 			expr_propagate_params(expr->args[i],
-						isl_space_copy(dim));
+						isl_space_copy(space));
 		if (!expr->args[i])
 			goto error;
 	}
 
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = isl_map_align_params(expr->acc.access,
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		if (!expr->acc.access || !expr->acc.index)
 			goto error;
 	}
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return expr;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_expr_free(expr);
 }
 
-/* Add all parameters in "dim" to the domain, schedule and
+/* Add all parameters in "space" to the domain, schedule and
  * all access relations in "stmt".
  */
 static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	if (!stmt)
 		goto error;
 
-	stmt->domain = isl_set_align_params(stmt->domain, isl_space_copy(dim));
+	stmt->domain = isl_set_align_params(stmt->domain,
+						isl_space_copy(space));
 	stmt->schedule = isl_map_align_params(stmt->schedule,
-						isl_space_copy(dim));
-	stmt->body = expr_propagate_params(stmt->body, isl_space_copy(dim));
+						isl_space_copy(space));
+	stmt->body = expr_propagate_params(stmt->body, isl_space_copy(space));
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		goto error;
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return stmt;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_stmt_free(stmt);
 }
 
-/* Add all parameters in "dim" to "array".
+/* Add all parameters in "space" to "array".
  */
 static struct pet_array *array_propagate_params(struct pet_array *array,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	if (!array)
 		goto error;
 
 	array->context = isl_set_align_params(array->context,
-						isl_space_copy(dim));
+						isl_space_copy(space));
 	array->extent = isl_set_align_params(array->extent,
-						isl_space_copy(dim));
+						isl_space_copy(space));
 	if (array->value_bounds) {
 		array->value_bounds = isl_set_align_params(array->value_bounds,
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		if (!array->value_bounds)
 			goto error;
 	}
@@ -3186,17 +3188,17 @@ static struct pet_array *array_propagate_params(struct pet_array *array,
 	if (!array->context || !array->extent)
 		goto error;
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return array;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_array_free(array);
 }
 
-/* Add all parameters in "dim" to "scop".
+/* Add all parameters in "space" to "scop".
  */
 static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	int i;
 
@@ -3205,22 +3207,22 @@ static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_array; ++i) {
 		scop->arrays[i] = array_propagate_params(scop->arrays[i],
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		if (!scop->arrays[i])
 			goto error;
 	}
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_propagate_params(scop->stmts[i],
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		if (!scop->stmts[i])
 			goto error;
 	}
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return scop;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_scop_free(scop);
 }
 
@@ -3229,16 +3231,17 @@ error:
  */
 struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 {
-	isl_space *dim;
+	isl_space *space;
 
 	if (!scop)
 		return NULL;
 
-	dim = isl_set_get_space(scop->context);
-	dim = scop_collect_params(scop, dim);
+	space = isl_set_get_space(scop->context);
+	space = scop_collect_params(scop, space);
 
-	scop->context = isl_set_align_params(scop->context, isl_space_copy(dim));
-	scop = scop_propagate_params(scop, dim);
+	scop->context = isl_set_align_params(scop->context,
+						isl_space_copy(space));
+	scop = scop_propagate_params(scop, space);
 
 	return scop;
 }
