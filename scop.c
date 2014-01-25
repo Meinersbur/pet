@@ -3051,12 +3051,16 @@ error:
 static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
 	__isl_take isl_space *space)
 {
+	int i;
+
 	if (!stmt)
 		return isl_space_free(space);
 
 	space = isl_space_align_params(space, isl_set_get_space(stmt->domain));
 	space = isl_space_align_params(space,
 					isl_map_get_space(stmt->schedule));
+	for (i = 0; i < stmt->n_arg; ++i)
+		space = expr_collect_params(stmt->args[i], space);
 	space = expr_collect_params(stmt->body, space);
 
 	return space;
