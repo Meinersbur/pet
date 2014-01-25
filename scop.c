@@ -3052,7 +3052,7 @@ static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
 	__isl_take isl_space *space)
 {
 	if (!stmt)
-		goto error;
+		return isl_space_free(space);
 
 	space = isl_space_align_params(space, isl_set_get_space(stmt->domain));
 	space = isl_space_align_params(space,
@@ -3060,9 +3060,6 @@ static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
 	space = expr_collect_params(stmt->body, space);
 
 	return space;
-error:
-	isl_space_free(space);
-	return pet_stmt_free(stmt);
 }
 
 /* Add all parameters in "array" to "space" and return the result.
@@ -3071,16 +3068,13 @@ static __isl_give isl_space *array_collect_params(struct pet_array *array,
 	__isl_take isl_space *space)
 {
 	if (!array)
-		goto error;
+		return isl_space_free(space);
 
 	space = isl_space_align_params(space,
 					isl_set_get_space(array->context));
 	space = isl_space_align_params(space, isl_set_get_space(array->extent));
 
 	return space;
-error:
-	pet_array_free(array);
-	return isl_space_free(space);
 }
 
 /* Add all parameters in "scop" to "space" and return the result.
@@ -3091,7 +3085,7 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 	int i;
 
 	if (!scop)
-		goto error;
+		return isl_space_free(space);
 
 	for (i = 0; i < scop->n_array; ++i)
 		space = array_collect_params(scop->arrays[i], space);
@@ -3100,10 +3094,6 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 		space = stmt_collect_params(scop->stmts[i], space);
 
 	return space;
-error:
-	isl_space_free(space);
-	pet_scop_free(scop);
-	return NULL;
 }
 
 /* Add all parameters in "space" to all access relations and index expressions
