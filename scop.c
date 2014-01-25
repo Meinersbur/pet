@@ -1923,26 +1923,17 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Add all parameters in "expr" to "space" and return the result.
+/* Add the parameters of the access expression "expr" to "space".
  */
-static __isl_give isl_space *expr_collect_params(__isl_keep pet_expr *expr,
-	__isl_take isl_space *space)
+static int access_collect_params(__isl_keep pet_expr *expr, void *user)
 {
 	int i;
+	isl_space **space = user;
 
-	if (!expr)
-		goto error;
-	for (i = 0; i < expr->n_arg; ++i)
-		space = expr_collect_params(expr->args[i], space);
+	*space = isl_space_align_params(*space,
+					isl_map_get_space(expr->acc.access));
 
-	if (expr->type == pet_expr_access)
-		space = isl_space_align_params(space,
-					    isl_map_get_space(expr->acc.access));
-
-	return space;
-error:
-	pet_expr_free(expr);
-	return isl_space_free(space);
+	return *space ? 0 : -1;
 }
 
 /* Add all parameters in "stmt" to "space" and return the result.
@@ -1959,8 +1950,12 @@ static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
 	space = isl_space_align_params(space,
 					isl_map_get_space(stmt->schedule));
 	for (i = 0; i < stmt->n_arg; ++i)
-		space = expr_collect_params(stmt->args[i], space);
-	space = expr_collect_params(stmt->body, space);
+		if (pet_expr_foreach_access_expr(stmt->args[i],
+					&access_collect_params, &space) < 0)
+			space = isl_space_free(space);
+	if (pet_expr_foreach_access_expr(stmt->body, &access_collect_params,
+					&space) < 0)
+		space = isl_space_free(space);
 
 	return space;
 }
