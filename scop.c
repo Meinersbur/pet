@@ -3141,6 +3141,8 @@ error:
 static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
 	__isl_take isl_space *space)
 {
+	int i;
+
 	if (!stmt)
 		goto error;
 
@@ -3148,6 +3150,13 @@ static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
 						isl_space_copy(space));
 	stmt->schedule = isl_map_align_params(stmt->schedule,
 						isl_space_copy(space));
+
+	for (i = 0; i < stmt->n_arg; ++i) {
+		stmt->args[i] = expr_propagate_params(stmt->args[i],
+						isl_space_copy(space));
+		if (!stmt->args[i])
+			goto error;
+	}
 	stmt->body = expr_propagate_params(stmt->body, isl_space_copy(space));
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
