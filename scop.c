@@ -398,6 +398,28 @@ error:
 	return NULL;
 }
 
+/* Is "stmt" an assume statement with an affine assumption?
+ */
+int pet_stmt_is_affine_assume(struct pet_stmt *stmt)
+{
+	if (!pet_stmt_is_assume(stmt))
+		return 0;
+	return pet_expr_is_affine(stmt->body->args[0]);
+}
+
+/* Given an assume statement "stmt" with an access argument,
+ * return the index expression of the argument.
+ */
+__isl_give isl_multi_pw_aff *pet_stmt_assume_get_index(struct pet_stmt *stmt)
+{
+	if (!stmt)
+		return NULL;
+	if (!pet_stmt_is_assume(stmt))
+		isl_die(isl_set_get_ctx(stmt->domain), isl_error_invalid,
+			"not an assume statement", return NULL);
+	return pet_expr_access_get_index(stmt->body->args[0]);
+}
+
 /* Update "context" with the constraints imposed on the outer iteration
  * domain by "stmt".
  *
@@ -411,14 +433,14 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 {
 	int i;
 
-	if (pet_stmt_is_assume(stmt) &&
-	    pet_expr_is_affine(stmt->body->args[0])) {
+	if (pet_stmt_is_affine_assume(stmt)) {
 		isl_multi_pw_aff *index;
 		isl_pw_aff *pa;
 		isl_set *cond;
 
-		index = stmt->body->args[0]->acc.index;
+		index = pet_stmt_assume_get_index(stmt);
 		pa = isl_multi_pw_aff_get_pw_aff(index, 0);
+		isl_multi_pw_aff_free(index);
 		cond = isl_pw_aff_non_zero_set(pa);
 		cond = isl_set_reset_tuple_id(cond);
 		return isl_set_intersect(context, cond);
