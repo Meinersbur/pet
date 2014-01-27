@@ -620,6 +620,7 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_pair_t * pair;
 	int line = -1;
 	unsigned start = 0, end = 0;
+	char *indent = NULL;
 
 	if (node->type != YAML_MAPPING_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting mapping",
@@ -642,6 +643,8 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 			isl_die(ctx, isl_error_invalid, "expecting scalar key",
 				return pet_stmt_free(stmt));
 
+		if (!strcmp((char *) key->data.scalar.value, "indent"))
+			indent = extract_string(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "line"))
 			line = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "start"))
@@ -662,7 +665,9 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 			return NULL;
 	}
 
-	stmt->loc = pet_loc_alloc(ctx, start, end, line);
+	if (!indent)
+		indent = strdup("");
+	stmt->loc = pet_loc_alloc(ctx, start, end, line, indent);
 	if (!stmt->loc)
 		return pet_stmt_free(stmt);
 

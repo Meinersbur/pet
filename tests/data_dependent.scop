@@ -1,5 +1,6 @@
 start: 274
 end: 498
+indent: "\t"
 context: '[N, M] -> {  : N <= 1000 and N >= 10 and M >= 10 and M <= 1000 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'

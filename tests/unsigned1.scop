@@ -1,5 +1,6 @@
 start: 60
 end: 256
+indent: '        '
 context: '{  :  }'
 arrays:
 - context: '{  :  }'

@@ -992,7 +992,9 @@ struct pet_transform_data {
  *
  * We first copy the input text code from the end of the previous scop
  * until the start of "scop" and then print the scop itself through
- * a call to data->transform.
+ * a call to data->transform.  We set up the printer to print
+ * the transformed code with the same (initial) indentation as
+ * the original code.
  * Finally, we keep track of the end of "scop" so that we can
  * continue copying when we find the next scop.
  *
@@ -1010,6 +1012,8 @@ static int pet_transform(struct pet_scop *scop, void *user)
 		goto error;
 	data->end = pet_loc_get_end(scop->loc);
 	scop = pet_scop_set_input_file(scop, data->in);
+	data->p = isl_printer_set_indent_prefix(data->p,
+					pet_loc_get_indent(scop->loc));
 	data->p = data->transform(data->p, scop, data->user);
 	if (!data->p)
 		return -1;

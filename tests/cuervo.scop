@@ -1,5 +1,6 @@
 start: 52
 end: 176
+indent: "\t"
 context: '[n, m] -> {  : n <= 2147483647 and m <= 2147483647 - n and m >= -2147483648
   and n >= -2147483648 and m <= 2147483647 }'
 arrays:

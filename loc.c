@@ -40,6 +40,7 @@
  * The "start" and "end" fields contain the offsets in the input file
  * of the region, where end points to the first character after the region.
  * "line" is the line number of a line inside the region.
+ * "indentation" is (a reasonable guess at) the indentation of the region.
  *
  * A special pet_loc_dummy instance is used to indicate that
  * no offset information is available (yet).
@@ -51,6 +52,7 @@ struct pet_loc {
 	unsigned start;
 	unsigned end;
 	int line;
+	char *indent;
 };
 
 /* A special pet_loc object that is used to indicate that
@@ -65,18 +67,22 @@ pet_loc pet_loc_dummy = {
 	.start = 0,
 	.end = 0,
 	.line = -1,
+	.indent = ""
 };
 
-/* Allocate a pet_loc with the given start, end and line number.
+/* Allocate a pet_loc with the given start, end, line number and indentation.
  */
 __isl_give pet_loc *pet_loc_alloc(isl_ctx *ctx,
-	unsigned start, unsigned end, int line)
+	unsigned start, unsigned end, int line, __isl_take char *indent)
 {
 	pet_loc *loc;
 
+	if (!indent)
+		return NULL;
+
 	loc = isl_alloc_type(ctx, struct pet_loc);
 	if (!loc)
-		return NULL;
+		goto error;
 
 	loc->ctx = ctx;
 	isl_ctx_ref(ctx);
@@ -85,8 +91,12 @@ __isl_give pet_loc *pet_loc_alloc(isl_ctx *ctx,
 	loc->start = start;
 	loc->end = end;
 	loc->line = line;
+	loc->indent = indent;
 
 	return loc;
+error:
+	free(indent);
+	return NULL;
 }
 
 /* Return a pet_loc that is equal to "loc" and that has only one reference.
@@ -105,7 +115,8 @@ __isl_give pet_loc *pet_loc_cow(__isl_take pet_loc *loc)
 	if (loc->ref == 1)
 		return loc;
 	loc->ref--;
-	return pet_loc_alloc(loc->ctx, loc->start, loc->end, loc->line);
+	return pet_loc_alloc(loc->ctx, loc->start, loc->end, loc->line,
+				strdup(loc->indent));
 }
 
 /* Return an extra reference to "loc".
@@ -137,6 +148,7 @@ __isl_null pet_loc *pet_loc_free(__isl_take pet_loc *loc)
 	if (--loc->ref > 0)
 		return NULL;
 
+	free(loc->indent);
 	isl_ctx_deref(loc->ctx);
 	free(loc);
 	return NULL;
@@ -161,6 +173,13 @@ unsigned pet_loc_get_end(__isl_keep pet_loc *loc)
 int pet_loc_get_line(__isl_keep pet_loc *loc)
 {
 	return loc ? loc->line : -1;
+}
+
+/* Return the indentation of the "loc" region.
+ */
+__isl_keep const char *pet_loc_get_indent(__isl_keep pet_loc *loc)
+{
+	return loc ? loc->indent : NULL;
 }
 
 /* Update loc->start and loc->end to include the region from "start"
@@ -199,4 +218,20 @@ __isl_give pet_loc *pet_loc_update_start_end_from_loc(__isl_take pet_loc *loc,
 	if (loc2 == &pet_loc_dummy)
 		return loc;
 	return pet_loc_update_start_end(loc, loc2->start, loc2->end);
+}
+
+/* Replace the indentation of "loc" by "indent".
+ */
+__isl_give pet_loc *pet_loc_set_indent(__isl_take pet_loc *loc,
+	__isl_take char *indent)
+{
+	if (!loc || !indent)
+		goto error;
+
+	free(loc->indent);
+	loc->indent = indent;
+	return loc;
+error:
+	free(indent);
+	return pet_loc_free(loc);
 }

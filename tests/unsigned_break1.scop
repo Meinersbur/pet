@@ -1,5 +1,6 @@
 start: 40
 end: 150
+indent: "\t"
 context: '{  :  }'
 arrays:
 - context: '{  :  }'

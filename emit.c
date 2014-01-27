@@ -53,6 +53,18 @@ static int emit_string(yaml_emitter_t *emitter, const char *str)
 	return 0;
 }
 
+/* Print the string "name" and the string "str" to "emitter".
+ */
+static int emit_named_string(yaml_emitter_t *emitter, const char *name,
+	const char *str)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_string(emitter, str) < 0)
+		return -1;
+	return 0;
+}
+
 /* Print the isl_id "id" to "emitter".
  */
 static int emit_id(yaml_emitter_t *emitter, __isl_keep isl_id *id)
@@ -652,6 +664,9 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 				"start", pet_loc_get_start(scop->loc)) < 0)
 		return -1;
 	if (emit_named_unsigned(emitter, "end", pet_loc_get_end(scop->loc)) < 0)
+		return -1;
+	if (emit_named_string(emitter,
+				"indent", pet_loc_get_indent(scop->loc)) < 0)
 		return -1;
 	if (emit_string(emitter, "context") < 0)
 		return -1;

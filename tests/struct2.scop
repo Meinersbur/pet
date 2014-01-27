@@ -1,5 +1,6 @@
 start: 58
 end: 166
+indent: "\t"
 context: '{  :  }'
 types:
 - name: s

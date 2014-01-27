@@ -1314,8 +1314,9 @@ static SourceLocation location_after_semi(SourceLocation loc, SourceManager &SM,
 #endif
 
 /* If the token at "loc" is the first token on the line, then return
- * a location referring to the start of the line.
- * Otherwise, return "loc".
+ * a location referring to the start of the line and set *indent
+ * to the indentation of "loc"
+ * Otherwise, return "loc" and set *indent to "".
  *
  * This function is used to extend a scop to the start of the line
  * if the first token of the scop is also the first token on the line.
@@ -1324,7 +1325,7 @@ static SourceLocation location_after_semi(SourceLocation loc, SourceManager &SM,
  * then the latter is the location of the first token on the line.
  */
 static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
-	SourceManager &SM, const LangOptions &LO)
+	SourceManager &SM, const LangOptions &LO, char **indent)
 {
 	std::pair<FileID, unsigned> file_offset_pair;
 	llvm::StringRef file;
@@ -1332,6 +1333,7 @@ static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
 	Token tok;
 	SourceLocation token_loc, line_loc;
 	int col;
+	const char *s;
 
 	loc = SM.getExpansionLoc(loc);
 	col = SM.getExpansionColumnNumber(loc);
@@ -1344,6 +1346,9 @@ static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
 					file.begin(), pos, file.end());
 	lexer.LexFromRawLexer(tok);
 	token_loc = tok.getLocation();
+
+	s = SM.getCharacterData(line_loc);
+	*indent = strndup(s, token_loc == loc ? col - 1 : 0);
 
 	if (token_loc == loc)
 		return line_loc;
@@ -1363,8 +1368,9 @@ __isl_give pet_loc *PetScan::construct_pet_loc(SourceRange range,
 	const LangOptions &LO = PP.getLangOpts();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 	unsigned start, end;
+	char *indent;
 
-	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
+	loc = move_to_start_of_line_if_first_token(loc, SM, LO, &indent);
 	start = getExpansionOffset(SM, loc);
 	loc = range.getEnd();
 	if (skip_semi)
@@ -1373,7 +1379,7 @@ __isl_give pet_loc *PetScan::construct_pet_loc(SourceRange range,
 		loc = PP.getLocForEndOfToken(loc);
 	end = getExpansionOffset(SM, loc);
 
-	return pet_loc_alloc(ctx, start, end, line);
+	return pet_loc_alloc(ctx, start, end, line, indent);
 }
 
 /* Convert a top-level pet_expr to an expression pet_tree.

@@ -1,5 +1,6 @@
 start: 95
 end: 277
+indent: "\t"
 context: '[N, K, M] -> {  : K >= 0 and N >= 0 and N <= 2147483647 and K <= 2147483647
   and M <= 2147483647 and M >= -2147483648 }'
 arrays:

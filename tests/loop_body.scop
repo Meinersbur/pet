@@ -1,5 +1,6 @@
 start: 58
 end: 96
+indent: "\t\t"
 context: '{  :  }'
 arrays:
 - context: '{  :  }'

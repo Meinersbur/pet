@@ -589,7 +589,7 @@ struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 
 	if (scop->loc == &pet_loc_dummy)
 		scop->loc = pet_loc_alloc(isl_set_get_ctx(scop->context),
-					    start, end, -1);
+					    start, end, -1, strdup(""));
 	else
 		scop->loc = pet_loc_update_start_end(scop->loc, start, end);
 

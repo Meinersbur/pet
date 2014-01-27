@@ -1,5 +1,6 @@
 start: 25
 end: 46
+indent: "\t"
 context: '[a] -> {  : a <= 2147483647 and a >= -2147483648 }'
 arrays:
 - context: '{  :  }'

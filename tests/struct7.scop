@@ -1,5 +1,6 @@
 start: 132
 end: 179
+indent: "\t"
 context: '{  :  }'
 types:
 - name: scomplex

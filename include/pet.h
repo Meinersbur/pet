@@ -46,6 +46,8 @@ unsigned pet_loc_get_start(__isl_keep pet_loc *loc);
 unsigned pet_loc_get_end(__isl_keep pet_loc *loc);
 /* Return the line number of a line within the "loc" region. */
 int pet_loc_get_line(__isl_keep pet_loc *loc);
+/* Return the indentation of the "loc" region. */
+__isl_keep const char *pet_loc_get_indent(__isl_keep pet_loc *loc);
 
 enum pet_expr_type {
 	pet_expr_error = -1,
