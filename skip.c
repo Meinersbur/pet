@@ -2,6 +2,7 @@
 #include "loc.h"
 #include "scop.h"
 #include "skip.h"
+#include "tree.h"
 
 /* Do we need to construct a skip condition of the given type
  * on an if statement, given that the if condition is non-affine?
@@ -105,6 +106,7 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	enum pet_skip type, __isl_keep pet_context *pc, struct pet_state *state)
 {
 	pet_expr *expr_then, *expr_else, *expr, *expr_skip;
+	pet_tree *tree;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx;
@@ -142,8 +144,9 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
 	domain = pet_context_get_domain(pc);
-	stmt = pet_stmt_from_pet_expr(isl_set_copy(domain), &pet_loc_dummy,
-					NULL, state->n_stmt++, expr);
+	tree = pet_tree_new_expr(expr);
+	stmt = pet_stmt_from_pet_tree(isl_set_copy(domain),
+					state->n_stmt++, tree);
 
 	scop = pet_scop_from_pet_stmt(pet_context_get_space(pc), stmt);
 	scop = pet_scop_add_boolean_array(scop, domain, skip_index,
@@ -358,6 +361,7 @@ static struct pet_scop *extract_skip_seq(
 	__isl_keep pet_context *pc, struct pet_state *state)
 {
 	pet_expr *expr1, *expr2, *expr, *expr_skip;
+	pet_tree *tree;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx;
@@ -381,8 +385,9 @@ static struct pet_scop *extract_skip_seq(
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
 	domain = pet_context_get_domain(pc);
-	stmt = pet_stmt_from_pet_expr(isl_set_copy(domain), &pet_loc_dummy,
-					NULL, state->n_stmt++, expr);
+	tree = pet_tree_new_expr(expr);
+	stmt = pet_stmt_from_pet_tree(isl_set_copy(domain),
+					state->n_stmt++, tree);
 
 	scop = pet_scop_from_pet_stmt(pet_context_get_space(pc), stmt);
 	scop = pet_scop_add_boolean_array(scop, domain, skip_index,

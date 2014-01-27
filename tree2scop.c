@@ -83,14 +83,19 @@ static struct pet_scop *scop_from_evaluated_expr(__isl_take pet_expr *expr,
 {
 	isl_space *space;
 	isl_set *domain;
+	pet_tree *tree;
 	struct pet_stmt *ps;
 
 	space = pet_context_get_space(pc);
 
 	expr = pet_expr_resolve_nested(expr, space);
 	expr = pet_expr_resolve_assume(expr, pc);
+	tree = pet_tree_new_expr(expr);
+	tree = pet_tree_set_loc(tree, loc);
+	if (label)
+		tree = pet_tree_set_label(tree, label);
 	domain = pet_context_get_domain(pc);
-	ps = pet_stmt_from_pet_expr(domain, loc, label, stmt_nr, expr);
+	ps = pet_stmt_from_pet_tree(domain, stmt_nr, tree);
 	return pet_scop_from_pet_stmt(space, ps);
 }
 
@@ -1812,6 +1817,7 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *expr, *arg;
+	pet_tree *tree;
 
 	if (!domain || !scop)
 		return NULL;
@@ -1832,8 +1838,10 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
 	kill = pet_expr_kill_from_access_and_index(access, index);
-	stmt = pet_stmt_from_pet_expr(isl_set_copy(domain),
-			pet_loc_copy(stmt->loc), NULL, state->n_stmt++, kill);
+	tree = pet_tree_new_expr(kill);
+	tree = pet_tree_set_loc(tree, pet_loc_copy(stmt->loc));
+	stmt = pet_stmt_from_pet_tree(isl_set_copy(domain),
+			state->n_stmt++, tree);
 	return pet_scop_from_pet_stmt(isl_set_get_space(domain), stmt);
 }
 

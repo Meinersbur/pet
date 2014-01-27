@@ -146,6 +146,8 @@ __isl_give pet_tree *pet_tree_add_ref_ids(__isl_take pet_tree *tree,
 __isl_give pet_tree *pet_tree_anonymize(__isl_take pet_tree *tree);
 __isl_give pet_tree *pet_tree_gist(__isl_take pet_tree *tree,
 	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds);
+__isl_give pet_tree *pet_tree_update_domain(__isl_take pet_tree *tree,
+	__isl_take isl_multi_pw_aff *update);
 
 void pet_tree_dump_with_indent(__isl_keep pet_tree *tree, int indent);
 

@@ -1422,6 +1422,27 @@ int pet_tree_writes(__isl_keep pet_tree *tree, __isl_keep isl_id *id)
 	return data.writes;
 }
 
+/* Wrapper around pet_expr_update_domain
+ * for use as a pet_tree_map_expr callback.
+ */
+static __isl_give pet_expr *update_domain(__isl_take pet_expr *expr, void *user)
+{
+	isl_multi_pw_aff *update = user;
+
+	return pet_expr_update_domain(expr, isl_multi_pw_aff_copy(update));
+}
+
+/* Modify all access relations in "tree" by precomposing them with
+ * the given iteration space transformation.
+ */
+__isl_give pet_tree *pet_tree_update_domain(__isl_take pet_tree *tree,
+	__isl_take isl_multi_pw_aff *update)
+{
+	tree = pet_tree_map_expr(tree, &update_domain, update);
+	isl_multi_pw_aff_free(update);
+	return tree;
+}
+
 /* Does "tree" contain a continue node (not contained in any loop
  * subtree of "tree"?
  */
