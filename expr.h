@@ -41,8 +41,6 @@ __isl_give isl_space *pet_expr_access_get_parameter_space(
 	struct pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_data_space(struct pet_expr *expr);
 
-int pet_expr_foreach_access_expr(struct pet_expr *expr,
-	int (*fn)(struct pet_expr *expr, void *user), void *user);
 struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
 	struct pet_expr *(*fn)(struct pet_expr *expr, void *user),
 	void *user);

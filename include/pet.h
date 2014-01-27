@@ -175,6 +175,10 @@ __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr);
 __isl_give isl_map *pet_expr_access_get_tagged_may_access(
 	struct pet_expr *expr);
 
+/* Call "fn" on each of the subexpressions of "expr" of type pet_expr_access. */
+int pet_expr_foreach_access_expr(struct pet_expr *expr,
+	int (*fn)(struct pet_expr *expr, void *user), void *user);
+
 /* If the statement has arguments, i.e., n_arg != 0, then
  * "domain" is a wrapped map, mapping the iteration domain
  * to the values of the arguments for which this statement
