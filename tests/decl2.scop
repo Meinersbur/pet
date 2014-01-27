@@ -14,27 +14,31 @@ statements:
   domain: '[N] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: kill
-    arguments:
-    - type: access
-      relation: '[N] -> { S_0[] -> A[o0] : o0 <= -1 + N and o0 >= 0 }'
-      index: '[N] -> { S_0[] -> A[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        relation: '[N] -> { S_0[] -> A[o0] : o0 <= -1 + N and o0 >= 0 }'
+        index: '[N] -> { S_0[] -> A[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 0
 - line: 5
   domain: '[N] -> { S_1[] }'
   schedule: '{ S_1[] -> [1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_1[] -> A[0] }'
-      index: '[N] -> { S_1[] -> A[(0)] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: int
-      value: 1
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_1[] -> A[0] }'
+        index: '[N] -> { S_1[] -> A[(0)] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: int
+        value: 1

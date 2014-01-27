@@ -22,58 +22,64 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> index[] }'
-      index: '{ S_0[] -> index[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> index[] }'
+        index: '{ S_0[] -> index[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
 - line: 7
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [1, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[] -> __pet_test_0[] }'
-      index: '{ S_1[] -> __pet_test_0[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: access
-      relation: '{ [S_1[] -> [i0]] -> test[i0] : i0 >= 0 }'
-      index: '{ [S_1[] -> [i0]] -> test[((i0) : i0 >= 0)] }'
-      reference: __pet_ref_3
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_1[] -> index[] }'
-        index: '{ S_1[] -> index[] }'
-        reference: __pet_ref_2
+        relation: '{ S_1[] -> __pet_test_0[] }'
+        index: '{ S_1[] -> __pet_test_0[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: access
+        relation: '{ [S_1[] -> [i0]] -> test[i0] : i0 >= 0 }'
+        index: '{ [S_1[] -> [i0]] -> test[((i0) : i0 >= 0)] }'
+        reference: __pet_ref_3
         read: 1
         write: 0
+        arguments:
+        - type: access
+          relation: '{ S_1[] -> index[] }'
+          index: '{ S_1[] -> index[] }'
+          reference: __pet_ref_2
+          read: 1
+          write: 0
 - line: 8
   domain: '{ [S_2[] -> [1]] }'
   schedule: '{ S_2[] -> [1, 1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_2[] -> index[] }'
-      index: '{ S_2[] -> index[] }'
-      reference: __pet_ref_5
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_2[] -> index[] }'
+        index: '{ S_2[] -> index[] }'
+        reference: __pet_ref_5
+        read: 0
+        write: 1
+      - type: int
+        value: 5
   arguments:
   - type: access
     relation: '{ S_2[] -> __pet_test_0[] }'

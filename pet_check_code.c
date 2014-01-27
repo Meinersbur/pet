@@ -84,29 +84,40 @@ static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt)
 	isl_map *call;
 	const char *name;
 	pet_context *pc;
+	pet_expr *expr;
+
+	expr = pet_tree_expr_get_expr(stmt->body);
+	if (!expr)
+		return NULL;
+	if (pet_expr_get_type(expr) != pet_expr_call)
+		isl_die(pet_expr_get_ctx(expr),
+			isl_error_invalid, "expecting call statement",
+			goto error);
 
 	domain = isl_set_copy(stmt->domain);
 	call = isl_map_from_domain(domain);
 
-	assert(pet_expr_get_type(stmt->body) == pet_expr_call);
-
 	pc = pet_context_alloc(isl_set_copy(stmt->domain));
-	n = pet_expr_get_n_arg(stmt->body);
+	n = pet_expr_get_n_arg(expr);
 	for (i = 0; i < n; ++i) {
 		isl_map *map_i;
 		pet_expr *arg;
 
-		arg = pet_expr_get_arg(stmt->body, i);
+		arg = pet_expr_get_arg(expr, i);
 		map_i = expr_extract_map(arg, pc);
 		pet_expr_free(arg);
 		call = isl_map_flat_range_product(call, map_i);
 	}
 	pet_context_free(pc);
 
-	name = pet_expr_call_get_name(stmt->body);
+	name = pet_expr_call_get_name(expr);
 	call = isl_map_set_tuple_name(call, isl_dim_out, name);
 
+	pet_expr_free(expr);
 	return call;
+error:
+	pet_expr_free(expr);
+	return NULL;
 }
 
 /* Extract a mapping from the iterations domains of "scop" to

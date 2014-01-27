@@ -18,32 +18,36 @@ statements:
   domain: '[N] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_0[] -> s[] }'
-      index: '[N] -> { S_0[] -> s[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_0[] -> s[] }'
+        index: '[N] -> { S_0[] -> s[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 0
 - line: 12
   domain: '[N] -> { [S_1[T] -> [1]] : T >= 0 }'
   schedule: '{ S_1[T] -> [1, T, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_1[T] -> __pet_test_0[T] }'
-      index: '[N] -> { S_1[T] -> __pet_test_0[(T)] }'
-      reference: __pet_ref_2
-      read: 0
-      write: 1
-    - type: call
-      name: t
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_1[T] -> __pet_test_0[T] }'
+        index: '[N] -> { S_1[T] -> __pet_test_0[(T)] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+      - type: call
+        name: t
   arguments:
   - type: access
     relation: '[N] -> { S_1[T] -> __pet_test_0[-1 + T] : T >= 1 }'
@@ -56,26 +60,28 @@ statements:
     i <= -1 + 2N }'
   schedule: '[N] -> { S_2[T, i] -> [1, T, 1, 0, i] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_2[T, i] -> s[] }'
-      index: '[N] -> { S_2[T, i] -> s[] }'
-      reference: __pet_ref_4
-      read: 0
-      write: 1
-    - type: op
-      operation: +
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
         relation: '[N] -> { S_2[T, i] -> s[] }'
         index: '[N] -> { S_2[T, i] -> s[] }'
-        reference: __pet_ref_5
-        read: 1
-        write: 0
-      - type: int
-        value: 1
+        reference: __pet_ref_4
+        read: 0
+        write: 1
+      - type: op
+        operation: +
+        arguments:
+        - type: access
+          relation: '[N] -> { S_2[T, i] -> s[] }'
+          index: '[N] -> { S_2[T, i] -> s[] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
+        - type: int
+          value: 1
   arguments:
   - type: access
     relation: '[N] -> { S_2[T, i] -> __pet_test_0[T] }'

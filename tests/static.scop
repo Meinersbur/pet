@@ -14,14 +14,16 @@ statements:
     }'
   schedule: '[n] -> { S_0[i, j] -> [0, i, j] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S_0[i, j] -> A[i, j] }'
-      index: '[n] -> { S_0[i, j] -> A[(i), (j)] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[n] -> { S_0[i, j] -> A[i, j] }'
+        index: '[n] -> { S_0[i, j] -> A[(i), (j)] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 0

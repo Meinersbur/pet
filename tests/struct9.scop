@@ -22,40 +22,46 @@ statements:
     and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_0[i, j, k, l] -> [0, i, j, k, l, 0] }'
   body:
-    type: call
-    name: f1
-    arguments:
-    - type: access
-      relation: '{ S_0[i, j, k, l] -> s_a[s[i, j] -> a[k, l]] }'
-      index: '{ S_0[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k), (l)]] }'
-      reference: __pet_ref_0
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: call
+      name: f1
+      arguments:
+      - type: access
+        relation: '{ S_0[i, j, k, l] -> s_a[s[i, j] -> a[k, l]] }'
+        index: '{ S_0[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k), (l)]] }'
+        reference: __pet_ref_0
+        read: 1
+        write: 0
 - line: 19
   domain: '{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
     and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_1[i, j, k, l] -> [0, i, j, k, l, 1] }'
   body:
-    type: call
-    name: f2
-    arguments:
-    - type: access
-      relation: '{ S_1[i, j, k, l] -> s_a[s[i, j] -> a[k, o3]] }'
-      index: '{ S_1[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k)]] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
+    type: expression
+    expr:
+      type: call
+      name: f2
+      arguments:
+      - type: access
+        relation: '{ S_1[i, j, k, l] -> s_a[s[i, j] -> a[k, o3]] }'
+        index: '{ S_1[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k)]] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
 - line: 20
   domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
     and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_2[i, j, k, l] -> [0, i, j, k, l, 2] }'
   body:
-    type: call
-    name: f3
-    arguments:
-    - type: access
-      relation: '{ S_2[i, j, k, l] -> s_a[s[i, j] -> a[o2, o3]] }'
-      index: '{ S_2[i, j, k, l] -> s_a[s[(i), (j)] -> a[]] }'
-      reference: __pet_ref_2
-      read: 0
-      write: 1
+    type: expression
+    expr:
+      type: call
+      name: f3
+      arguments:
+      - type: access
+        relation: '{ S_2[i, j, k, l] -> s_a[s[i, j] -> a[o2, o3]] }'
+        index: '{ S_2[i, j, k, l] -> s_a[s[(i), (j)] -> a[]] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1

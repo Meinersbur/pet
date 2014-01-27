@@ -12,39 +12,41 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> A[0] }'
-      index: '{ S_0[] -> A[(0)] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: op
-      operation: '||'
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
+      - type: access
+        relation: '{ S_0[] -> A[0] }'
+        index: '{ S_0[] -> A[(0)] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
       - type: op
-        operation: '&&'
+        operation: '||'
         arguments:
-        - type: access
-          relation: '{ S_0[] -> A[1] }'
-          index: '{ S_0[] -> A[(1)] }'
-          reference: __pet_ref_1
-          read: 1
-          write: 0
-        - type: access
-          relation: '{ S_0[] -> A[2] }'
-          index: '{ S_0[] -> A[(2)] }'
-          reference: __pet_ref_2
-          read: 1
-          write: 0
-      - type: op
-        operation: '!'
-        arguments:
-        - type: access
-          relation: '{ S_0[] -> A[3] }'
-          index: '{ S_0[] -> A[(3)] }'
-          reference: __pet_ref_3
-          read: 1
-          write: 0
+        - type: op
+          operation: '&&'
+          arguments:
+          - type: access
+            relation: '{ S_0[] -> A[1] }'
+            index: '{ S_0[] -> A[(1)] }'
+            reference: __pet_ref_1
+            read: 1
+            write: 0
+          - type: access
+            relation: '{ S_0[] -> A[2] }'
+            index: '{ S_0[] -> A[(2)] }'
+            reference: __pet_ref_2
+            read: 1
+            write: 0
+        - type: op
+          operation: '!'
+          arguments:
+          - type: access
+            relation: '{ S_0[] -> A[3] }'
+            index: '{ S_0[] -> A[(3)] }'
+            reference: __pet_ref_3
+            read: 1
+            write: 0

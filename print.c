@@ -1,6 +1,6 @@
 /*
  * Copyright 2011 Leiden University. All rights reserved.
- * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,7 +71,7 @@ int pet_stmt_can_build_ast_exprs(struct pet_stmt *stmt)
 	if (!stmt)
 		return -1;
 
-	r = pet_expr_foreach_access_expr(stmt->body,
+	r = pet_tree_foreach_access_expr(stmt->body,
 					&depends_on_expressions, &found);
 	if (r < 0 && !found)
 		return -1;
@@ -302,7 +302,7 @@ __isl_give isl_id_to_ast_expr *pet_stmt_build_ast_exprs(struct pet_stmt *stmt,
 
 	ctx = isl_ast_build_get_ctx(build);
 	data.ref2expr = isl_id_to_ast_expr_alloc(ctx, 0);
-	if (pet_expr_foreach_access_expr(stmt->body, &add_access, &data) < 0)
+	if (pet_tree_foreach_access_expr(stmt->body, &add_access, &data) < 0)
 		data.ref2expr = isl_id_to_ast_expr_free(data.ref2expr);
 
 	return data.ref2expr;
@@ -452,6 +452,273 @@ static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
 	return p;
 }
 
+static __isl_give isl_printer *print_pet_tree(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, int in_block,
+	__isl_keep isl_id_to_ast_expr *ref2expr);
+
+/* Print "tree" to "p", where "tree" is of type pet_tree_block.
+ *
+ * If "in_block" is set, then the caller has just printed a block,
+ * so there is no need to print one for this node.
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+static __isl_give isl_printer *print_pet_tree_block(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, int in_block,
+	__isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	int i, n;
+
+	if (!in_block) {
+		p = isl_printer_start_line(p);
+		p = isl_printer_print_str(p, "{");
+		p = isl_printer_end_line(p);
+		p = isl_printer_indent(p, 2);
+	}
+
+	n = pet_tree_block_n_child(tree);
+
+	for (i = 0; i < n; ++i) {
+		pet_tree *child;
+
+		child = pet_tree_block_get_child(tree, i);
+		p = print_pet_tree(p, child, 0, ref2expr);
+		pet_tree_free(child);
+	}
+
+	if (!in_block) {
+		p = isl_printer_indent(p, -2);
+		p = isl_printer_start_line(p);
+		p = isl_printer_print_str(p, "}");
+		p = isl_printer_end_line(p);
+	}
+
+	return p;
+}
+
+/* Print "tree" to "p", where "tree" is of type pet_tree_if or
+ * pet_tree_if_else..
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+static __isl_give isl_printer *print_pet_tree_if(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, __isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	pet_expr *expr;
+	pet_tree *body;
+
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "if (");
+	expr = pet_tree_if_get_cond(tree);
+	p = print_pet_expr(p, expr, 1, ref2expr);
+	pet_expr_free(expr);
+	p = isl_printer_print_str(p, ") {");
+	p = isl_printer_end_line(p);
+
+	p = isl_printer_indent(p, 2);
+	body = pet_tree_if_get_then(tree);
+	p = print_pet_tree(p, body, 1, ref2expr);
+	pet_tree_free(body);
+	p = isl_printer_indent(p, -2);
+
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "}");
+
+	if (pet_tree_get_type(tree) == pet_tree_if_else) {
+		p = isl_printer_print_str(p, " else {");
+		p = isl_printer_end_line(p);
+
+		p = isl_printer_indent(p, 2);
+		body = pet_tree_if_get_else(tree);
+		p = print_pet_tree(p, body, 1, ref2expr);
+		pet_tree_free(body);
+		p = isl_printer_indent(p, -2);
+
+		p = isl_printer_start_line(p);
+		p = isl_printer_print_str(p, "}");
+	}
+
+	p = isl_printer_end_line(p);
+
+	return p;
+}
+
+/* Print "tree" to "p", where "tree" is of type pet_tree_for.
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+static __isl_give isl_printer *print_pet_tree_for(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, __isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	pet_expr *expr_iv, *expr;
+	pet_tree *body;
+
+	expr_iv = pet_tree_loop_get_var(tree);
+
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "for (");
+	p = print_pet_expr(p, expr_iv, 1, ref2expr);
+	p = isl_printer_print_str(p, " = ");
+	expr = pet_tree_loop_get_init(tree);
+	p = print_pet_expr(p, expr, 0, ref2expr);
+	pet_expr_free(expr);
+	p = isl_printer_print_str(p, "; ");
+	expr = pet_tree_loop_get_cond(tree);
+	p = print_pet_expr(p, expr, 1, ref2expr);
+	pet_expr_free(expr);
+	p = isl_printer_print_str(p, "; ");
+	p = print_pet_expr(p, expr_iv, 1, ref2expr);
+	p = isl_printer_print_str(p, " += ");
+	expr = pet_tree_loop_get_inc(tree);
+	p = print_pet_expr(p, expr, 0, ref2expr);
+	pet_expr_free(expr);
+	p = isl_printer_print_str(p, ") {");
+	p = isl_printer_end_line(p);
+
+	pet_expr_free(expr_iv);
+
+	p = isl_printer_indent(p, 2);
+	body = pet_tree_loop_get_body(tree);
+	p = print_pet_tree(p, body, 1, ref2expr);
+	pet_tree_free(body);
+	p = isl_printer_indent(p, -2);
+
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "}");
+	p = isl_printer_end_line(p);
+
+	return p;
+}
+
+/* Print "tree" to "p", where "tree" is of type pet_tree_while or
+ * pet_tree_infinite_loop.
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ *
+ * pet_tree_loop_get_cond returns "1" when called on a tree of type
+ * pet_tree_infinite_loop, so we can treat them in the same way
+ * as trees of type pet_tree_while.
+ */
+static __isl_give isl_printer *print_pet_tree_while(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, __isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	pet_expr *expr;
+	pet_tree *body;
+
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "while (");
+	expr = pet_tree_loop_get_cond(tree);
+	p = print_pet_expr(p, expr, 1, ref2expr);
+	pet_expr_free(expr);
+	p = isl_printer_print_str(p, ") {");
+	p = isl_printer_end_line(p);
+
+	p = isl_printer_indent(p, 2);
+	body = pet_tree_loop_get_body(tree);
+	p = print_pet_tree(p, body, 1, ref2expr);
+	pet_tree_free(body);
+	p = isl_printer_indent(p, -2);
+
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "}");
+	p = isl_printer_end_line(p);
+
+	return p;
+}
+
+/* Print "tree" to "p", where "tree" is of type pet_tree_decl_init.
+ *
+ * We assume all variables have already been declared, so we
+ * only print the assignment implied by the declaration initialization.
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+static __isl_give isl_printer *print_pet_tree_decl_init(
+	__isl_take isl_printer *p, __isl_keep pet_tree *tree,
+	__isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	pet_expr *var, *init;
+
+	p = isl_printer_start_line(p);
+
+	var = pet_tree_decl_get_var(tree);
+	p = print_pet_expr(p, var, 1, ref2expr);
+	pet_expr_free(var);
+
+	p = isl_printer_print_str(p, " = ");
+
+	init = pet_tree_decl_get_init(tree);
+	p = print_pet_expr(p, init, 1, ref2expr);
+	pet_expr_free(init);
+
+	p = isl_printer_print_str(p, ";");
+	p = isl_printer_end_line(p);
+
+	return p;
+}
+
+/* Print "tree" to "p".
+ *
+ * If "in_block" is set, then the caller has just printed a block,
+ * so there is no need to print one for this node.
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ *
+ * We assume all variables have already been declared,
+ * so there is nothing to print for nodes of type pet_tree_decl.
+ */
+static __isl_give isl_printer *print_pet_tree(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, int in_block,
+	__isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	pet_expr *expr;
+	enum pet_tree_type type;
+
+	type = pet_tree_get_type(tree);
+	switch (type) {
+	case pet_tree_error:
+		return isl_printer_free(p);
+	case pet_tree_block:
+		return print_pet_tree_block(p, tree, in_block, ref2expr);
+	case pet_tree_break:
+	case pet_tree_continue:
+		p = isl_printer_start_line(p);
+		if (type == pet_tree_break)
+			p = isl_printer_print_str(p, "break;");
+		else
+			p = isl_printer_print_str(p, "continue;");
+		return isl_printer_end_line(p);
+	case pet_tree_expr:
+		expr = pet_tree_expr_get_expr(tree);
+		p = isl_printer_start_line(p);
+		p = print_pet_expr(p, expr, 1, ref2expr);
+		p = isl_printer_print_str(p, ";");
+		p = isl_printer_end_line(p);
+		pet_expr_free(expr);
+		break;
+	case pet_tree_if:
+	case pet_tree_if_else:
+		return print_pet_tree_if(p, tree, ref2expr);
+	case pet_tree_for:
+		return print_pet_tree_for(p, tree, ref2expr);
+	case pet_tree_while:
+	case pet_tree_infinite_loop:
+		return print_pet_tree_while(p, tree, ref2expr);
+	case pet_tree_decl:
+		return p;
+	case pet_tree_decl_init:
+		return print_pet_tree_decl_init(p, tree, ref2expr);
+	}
+
+	return p;
+}
+
 /* Print "stmt" to "p".
  *
  * The access expressions in "stmt" are replaced by the isl_ast_expr
@@ -466,10 +733,7 @@ __isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
 		return isl_printer_free(p);
 	if (pet_stmt_is_assume(stmt))
 		return p;
-	p = isl_printer_start_line(p);
-	p = print_pet_expr(p, stmt->body, 1, ref2expr);
-	p = isl_printer_print_str(p, ";");
-	p = isl_printer_end_line(p);
+	p = print_pet_tree(p, stmt->body, 0, ref2expr);
 
 	return p;
 }

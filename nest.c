@@ -39,6 +39,7 @@
 #include "expr_arg.h"
 #include "nest.h"
 #include "scop.h"
+#include "tree.h"
 
 /* A wrapper around pet_expr_free to be used as an isl_id free user function.
  */
@@ -293,7 +294,7 @@ struct pet_stmt *pet_stmt_remove_nested_parameters(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 	stmt->schedule = pet_nested_remove_from_map(stmt->schedule);
-	stmt->body = pet_expr_map_access(stmt->body,
+	stmt->body = pet_tree_map_access_expr(stmt->body,
 			    &expr_remove_nested_parameters, NULL);
 	if (!stmt->schedule || !stmt->body)
 		goto error;

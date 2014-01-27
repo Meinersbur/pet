@@ -12,21 +12,23 @@ statements:
   domain: '[c] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[c] -> { S_0[] -> a[] }'
-      index: '[c] -> { S_0[] -> a[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: cast
-      type_name: int
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '[c] -> { S_0[] -> [c] }'
-        index: '[c] -> { S_0[] -> [(c)] }'
-        reference: __pet_ref_1
-        read: 1
-        write: 0
+        relation: '[c] -> { S_0[] -> a[] }'
+        index: '[c] -> { S_0[] -> a[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: cast
+        type_name: int
+        arguments:
+        - type: access
+          relation: '[c] -> { S_0[] -> [c] }'
+          index: '[c] -> { S_0[] -> [(c)] }'
+          reference: __pet_ref_1
+          read: 1
+          write: 0

@@ -16,51 +16,57 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> i[] }'
-      index: '{ S_0[] -> i[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> i[] }'
+        index: '{ S_0[] -> i[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 5
 - line: 7
   domain: '{ S_1[t] : t >= 0 }'
   schedule: '{ S_1[t] -> [1, t, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ [S_1[t] -> [i1]] -> A[i1] : i1 >= 0 }'
-      index: '{ [S_1[t] -> [i1]] -> A[((i1) : i1 >= 0)] }'
-      reference: __pet_ref_2
-      read: 0
-      write: 1
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_1[t] -> i[] }'
-        index: '{ S_1[t] -> i[] }'
-        reference: __pet_ref_1
-        read: 1
-        write: 0
-    - type: int
-      value: 6
+        relation: '{ [S_1[t] -> [i1]] -> A[i1] : i1 >= 0 }'
+        index: '{ [S_1[t] -> [i1]] -> A[((i1) : i1 >= 0)] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+        arguments:
+        - type: access
+          relation: '{ S_1[t] -> i[] }'
+          index: '{ S_1[t] -> i[] }'
+          reference: __pet_ref_1
+          read: 1
+          write: 0
+      - type: int
+        value: 6
 - line: 8
   domain: '{ S_2[t] : t >= 0 }'
   schedule: '{ S_2[t] -> [1, t, 1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_2[t] -> i[] }'
-      index: '{ S_2[t] -> i[] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: int
-      value: 7
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_2[t] -> i[] }'
+        index: '{ S_2[t] -> i[] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: int
+        value: 7

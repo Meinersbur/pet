@@ -20,27 +20,29 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> c[] }'
-      index: '{ S_0[] -> c[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: op
-      operation: /
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> a[] }'
-        index: '{ S_0[] -> a[] }'
-        reference: __pet_ref_1
-        read: 1
-        write: 0
-      - type: access
-        relation: '{ S_0[] -> b[] }'
-        index: '{ S_0[] -> b[] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
+        relation: '{ S_0[] -> c[] }'
+        index: '{ S_0[] -> c[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: op
+        operation: /
+        arguments:
+        - type: access
+          relation: '{ S_0[] -> a[] }'
+          index: '{ S_0[] -> a[] }'
+          reference: __pet_ref_1
+          read: 1
+          write: 0
+        - type: access
+          relation: '{ S_0[] -> b[] }'
+          index: '{ S_0[] -> b[] }'
+          reference: __pet_ref_2
+          read: 1
+          write: 0

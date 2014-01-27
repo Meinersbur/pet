@@ -18,37 +18,41 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> __pet_test_0[] }'
-      index: '{ S_0[] -> __pet_test_0[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: op
-      operation: <<
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
-      - type: int
-        value: 1
-      - type: int
-        value: 0
+      - type: access
+        relation: '{ S_0[] -> __pet_test_0[] }'
+        index: '{ S_0[] -> __pet_test_0[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: op
+        operation: <<
+        arguments:
+        - type: int
+          value: 1
+        - type: int
+          value: 0
 - line: 7
   domain: '{ [S_1[] -> [1]] }'
   schedule: '{ S_1[] -> [0, 1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[] -> a[] }'
-      index: '{ S_1[] -> a[] }'
-      reference: __pet_ref_2
-      read: 0
-      write: 1
-    - type: int
-      value: 1
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[] -> a[] }'
+        index: '{ S_1[] -> a[] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+      - type: int
+        value: 1
   arguments:
   - type: access
     relation: '{ S_1[] -> __pet_test_0[] }'

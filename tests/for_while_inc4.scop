@@ -22,60 +22,66 @@ statements:
   domain: '[n] -> { S1[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S1[x1] -> s[] }'
-      index: '[n] -> { S1[x1] -> s[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[n] -> { S1[x1] -> s[] }'
+        index: '[n] -> { S1[x1] -> s[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
 - line: 14
   domain: '[n] -> { S_1[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { S_1[x1] -> [0, x1, 1, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S_1[x1] -> x2[] }'
-      index: '[n] -> { S_1[x1] -> x2[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: int
-      value: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[n] -> { S_1[x1] -> x2[] }'
+        index: '[n] -> { S_1[x1] -> x2[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: int
+        value: 0
 - line: 14
   domain: '[n] -> { [S_2[x1, t] -> [1]] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
   schedule: '[n] -> { S_2[x1, t] -> [0, x1, 1, 1, t, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S_2[x1, t] -> __pet_test_0[x1, t] }'
-      index: '[n] -> { S_2[x1, t] -> __pet_test_0[(x1), (t)] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: call
-      name: P
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S_2[x1, t] -> [x1] }'
-        index: '[n] -> { S_2[x1, t] -> [(x1)] }'
-        reference: __pet_ref_4
-        read: 1
-        write: 0
-      - type: access
-        relation: '[n] -> { S_2[x1, t] -> x2[] }'
-        index: '[n] -> { S_2[x1, t] -> x2[] }'
-        reference: __pet_ref_5
-        read: 1
-        write: 0
+        relation: '[n] -> { S_2[x1, t] -> __pet_test_0[x1, t] }'
+        index: '[n] -> { S_2[x1, t] -> __pet_test_0[(x1), (t)] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: call
+        name: P
+        arguments:
+        - type: access
+          relation: '[n] -> { S_2[x1, t] -> [x1] }'
+          index: '[n] -> { S_2[x1, t] -> [(x1)] }'
+          reference: __pet_ref_4
+          read: 1
+          write: 0
+        - type: access
+          relation: '[n] -> { S_2[x1, t] -> x2[] }'
+          index: '[n] -> { S_2[x1, t] -> x2[] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
   arguments:
   - type: access
     relation: '[n] -> { S_2[x1, t] -> __pet_test_0[x1, -1 + t] : t >= 1 }'
@@ -87,24 +93,26 @@ statements:
   domain: '[n] -> { [S2[x1, t] -> [1]] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
   schedule: '[n] -> { S2[x1, t] -> [0, x1, 1, 1, t, 1, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S2[x1, t] -> s[] }'
-      index: '[n] -> { S2[x1, t] -> s[] }'
-      reference: __pet_ref_7
-      read: 0
-      write: 1
-    - type: call
-      name: g
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
         relation: '[n] -> { S2[x1, t] -> s[] }'
         index: '[n] -> { S2[x1, t] -> s[] }'
-        reference: __pet_ref_8
-        read: 1
-        write: 0
+        reference: __pet_ref_7
+        read: 0
+        write: 1
+      - type: call
+        name: g
+        arguments:
+        - type: access
+          relation: '[n] -> { S2[x1, t] -> s[] }'
+          index: '[n] -> { S2[x1, t] -> s[] }'
+          reference: __pet_ref_8
+          read: 1
+          write: 0
   arguments:
   - type: access
     relation: '[n] -> { S2[x1, t] -> __pet_test_0[x1, t] }'
@@ -116,21 +124,23 @@ statements:
   domain: '[n] -> { [S_4[x1, t] -> [1]] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
   schedule: '[n] -> { S_4[x1, t] -> [0, x1, 1, 1, t, 2] }'
   body:
-    type: op
-    operation: +=
-    arguments:
-    - type: access
-      relation: '[n] -> { S_4[x1, t] -> x2[] }'
-      index: '[n] -> { S_4[x1, t] -> x2[] }'
-      reference: __pet_ref_10
-      read: 0
-      write: 1
-    - type: access
-      relation: '[n] -> { S_4[x1, t] -> [n] }'
-      index: '[n] -> { S_4[x1, t] -> [(n)] }'
-      reference: __pet_ref_11
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: +=
+      arguments:
+      - type: access
+        relation: '[n] -> { S_4[x1, t] -> x2[] }'
+        index: '[n] -> { S_4[x1, t] -> x2[] }'
+        reference: __pet_ref_10
+        read: 0
+        write: 1
+      - type: access
+        relation: '[n] -> { S_4[x1, t] -> [n] }'
+        index: '[n] -> { S_4[x1, t] -> [(n)] }'
+        reference: __pet_ref_11
+        read: 1
+        write: 0
   arguments:
   - type: access
     relation: '[n] -> { S_4[x1, t] -> __pet_test_0[x1, t] }'
@@ -142,15 +152,17 @@ statements:
   domain: '[n] -> { R[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
   body:
-    type: call
-    name: h
-    arguments:
-    - type: access
-      relation: '[n] -> { R[x1] -> s[] }'
-      index: '[n] -> { R[x1] -> s[] }'
-      reference: __pet_ref_12
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: call
+      name: h
+      arguments:
+      - type: access
+        relation: '[n] -> { R[x1] -> s[] }'
+        index: '[n] -> { R[x1] -> s[] }'
+        reference: __pet_ref_12
+        read: 1
+        write: 0
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[x1, t] -> __pet_test_0[x1, t''] : t'' <= t and

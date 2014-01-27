@@ -1147,6 +1147,92 @@ __isl_give pet_tree *pet_tree_map_access_expr(__isl_take pet_tree *tree,
 	return pet_tree_map_expr(tree, &map_access_expr, &data);
 }
 
+/* Wrapper around pet_expr_align_params
+ * for use as a pet_tree_map_expr callback.
+ */
+static __isl_give pet_expr *align_params(__isl_take pet_expr *expr,
+	void *user)
+{
+	isl_space *space = user;
+
+	return pet_expr_align_params(expr, isl_space_copy(space));
+}
+
+/* Add all parameters in "space" to all access relations and index expressions
+ * in "tree".
+ */
+__isl_give pet_tree *pet_tree_align_params(__isl_take pet_tree *tree,
+	__isl_take isl_space *space)
+{
+	tree = pet_tree_map_expr(tree, &align_params, space);
+	isl_space_free(space);
+	return tree;
+}
+
+/* Wrapper around pet_expr_add_ref_ids
+ * for use as a pet_tree_map_expr callback.
+ */
+static __isl_give pet_expr *add_ref_ids(__isl_take pet_expr *expr, void *user)
+{
+	int *n_ref = user;
+
+	return pet_expr_add_ref_ids(expr, n_ref);
+}
+
+/* Add reference identifiers to all access expressions in "tree".
+ * "n_ref" points to an integer that contains the sequence number
+ * of the next reference.
+ */
+__isl_give pet_tree *pet_tree_add_ref_ids(__isl_take pet_tree *tree,
+	int *n_ref)
+{
+	return pet_tree_map_expr(tree, &add_ref_ids, n_ref);
+}
+
+/* Wrapper around pet_expr_anonymize
+ * for use as a pet_tree_map_expr callback.
+ */
+static __isl_give pet_expr *anonymize(__isl_take pet_expr *expr, void *user)
+{
+	return pet_expr_anonymize(expr);
+}
+
+/* Reset the user pointer on all parameter and tuple ids in "tree".
+ */
+__isl_give pet_tree *pet_tree_anonymize(__isl_take pet_tree *tree)
+{
+	return pet_tree_map_expr(tree, &anonymize, NULL);
+}
+
+/* Arguments to be passed to pet_expr_gist from the gist wrapper.
+ */
+struct pet_tree_gist_data {
+	isl_set *domain;
+	isl_union_map *value_bounds;
+};
+
+/* Wrapper around pet_expr_gist for use as a pet_tree_map_expr callback.
+ */
+static __isl_give pet_expr *gist(__isl_take pet_expr *expr, void *user)
+{
+	struct pet_tree_gist_data *data = user;
+
+	return pet_expr_gist(expr, data->domain, data->value_bounds);
+}
+
+/* Compute the gist of all access relations and index expressions inside
+ * "tree" based on the constraints on the parameters specified by "context"
+ * and the constraints on the values of nested accesses specified
+ * by "value_bounds".
+ */
+__isl_give pet_tree *pet_tree_gist(__isl_take pet_tree *tree,
+	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds)
+{
+	struct pet_tree_gist_data data = { context, value_bounds };
+
+	return pet_tree_map_expr(tree, &gist, &data);
+}
+
 /* Return 1 if the two pet_tree objects are equivalent.
  *
  * We ignore the locations of the trees.

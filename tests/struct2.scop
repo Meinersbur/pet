@@ -21,14 +21,16 @@ statements:
   domain: '{ S_0[i, j] : i >= 0 and i <= 9 and j <= 19 and j >= 0 }'
   schedule: '{ S_0[i, j] -> [0, i, j] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[i, j] -> s_a[s[i, j] -> a[]] }'
-      index: '{ S_0[i, j] -> s_a[s[(i), (j)] -> a[]] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[i, j] -> s_a[s[i, j] -> a[]] }'
+        index: '{ S_0[i, j] -> s_a[s[(i), (j)] -> a[]] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 5

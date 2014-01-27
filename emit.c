@@ -38,6 +38,7 @@
 #include "loc.h"
 #include "scop.h"
 #include "scop_yaml.h"
+#include "tree.h"
 
 static int emit_string(yaml_emitter_t *emitter, const char *str)
 {
@@ -507,6 +508,150 @@ static int emit_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 	return 0;
 }
 
+/* Print the string "name" and the expression "expr" to "emitter".
+ */
+static int emit_named_expr(yaml_emitter_t *emitter, const char *name,
+	 __isl_keep pet_expr *expr)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_expr(emitter, expr) < 0)
+		return -1;
+	return 0;
+}
+
+/* Print "type" to "emitter".
+ */
+static int emit_tree_type(yaml_emitter_t *emitter, enum pet_tree_type type)
+{
+	if (emit_string(emitter, pet_tree_type_str(type)) < 0)
+		return -1;
+	return 0;
+}
+
+/* Recursively print "tree" to "emitter".
+ */
+static int emit_tree(yaml_emitter_t *emitter, __isl_keep pet_tree *tree)
+{
+	yaml_event_t event;
+	int i;
+
+	if (!yaml_mapping_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_MAPPING_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	if (emit_string(emitter, "type") < 0)
+		return -1;
+	if (emit_tree_type(emitter, tree->type) < 0)
+		return -1;
+
+	switch (tree->type) {
+	case pet_tree_error:
+		return -1;
+	case pet_tree_block:
+		if (emit_named_int(emitter, "block", tree->u.b.block) < 0)
+			return -1;
+		if (tree->u.b.n == 0)
+			break;
+
+		if (emit_string(emitter, "children") < 0)
+			return -1;
+		if (!yaml_sequence_start_event_initialize(&event, NULL, NULL, 1,
+						    YAML_BLOCK_SEQUENCE_STYLE))
+			return -1;
+		if (!yaml_emitter_emit(emitter, &event))
+			return -1;
+
+		for (i = 0; i < tree->u.b.n; ++i)
+			if (emit_tree(emitter, tree->u.b.child[i]) < 0)
+				return -1;
+
+		if (!yaml_sequence_end_event_initialize(&event))
+			return -1;
+		if (!yaml_emitter_emit(emitter, &event))
+			return -1;
+		break;
+	case pet_tree_break:
+	case pet_tree_continue:
+		break;
+	case pet_tree_decl:
+		if (emit_named_expr(emitter, "variable", tree->u.d.var) < 0)
+			return -1;
+		break;
+	case pet_tree_decl_init:
+		if (emit_named_expr(emitter, "variable", tree->u.d.var) < 0)
+			return -1;
+		if (emit_named_expr(emitter,
+				    "initialization", tree->u.d.init) < 0)
+			return -1;
+		break;
+	case pet_tree_expr:
+		if (emit_named_expr(emitter, "expr", tree->u.e.expr) < 0)
+			return -1;
+		break;
+	case pet_tree_for:
+		if (emit_named_int(emitter, "declared", tree->u.l.declared) < 0)
+			return -1;
+		if (emit_named_expr(emitter, "variable", tree->u.l.iv) < 0)
+			return -1;
+		if (emit_named_expr(emitter,
+				    "initialization", tree->u.l.init) < 0)
+			return -1;
+		if (emit_named_expr(emitter, "condition", tree->u.l.cond) < 0)
+			return -1;
+		if (emit_named_expr(emitter, "increment", tree->u.l.inc) < 0)
+			return -1;
+		if (emit_string(emitter, "body") < 0)
+			return -1;
+		if (emit_tree(emitter, tree->u.l.body) < 0)
+			return -1;
+		break;
+	case pet_tree_while:
+		if (emit_named_expr(emitter, "condition", tree->u.l.cond) < 0)
+			return -1;
+		if (emit_string(emitter, "body") < 0)
+			return -1;
+		if (emit_tree(emitter, tree->u.l.body) < 0)
+			return -1;
+		break;
+	case pet_tree_infinite_loop:
+		if (emit_string(emitter, "body") < 0)
+			return -1;
+		if (emit_tree(emitter, tree->u.l.body) < 0)
+			return -1;
+		break;
+	case pet_tree_if:
+		if (emit_named_expr(emitter, "condition", tree->u.i.cond) < 0)
+			return -1;
+		if (emit_string(emitter, "then") < 0)
+			return -1;
+		if (emit_tree(emitter, tree->u.i.then_body) < 0)
+			return -1;
+		break;
+	case pet_tree_if_else:
+		if (emit_named_expr(emitter, "condition", tree->u.i.cond) < 0)
+			return -1;
+		if (emit_string(emitter, "then") < 0)
+			return -1;
+		if (emit_tree(emitter, tree->u.i.then_body) < 0)
+			return -1;
+		if (emit_string(emitter, "else") < 0)
+			return -1;
+		if (emit_tree(emitter, tree->u.i.else_body) < 0)
+			return -1;
+		break;
+	}
+
+	if (!yaml_mapping_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
 static int emit_stmt(yaml_emitter_t *emitter, struct pet_stmt *stmt)
 {
 	yaml_event_t event;
@@ -534,7 +679,7 @@ static int emit_stmt(yaml_emitter_t *emitter, struct pet_stmt *stmt)
 
 	if (emit_string(emitter, "body") < 0)
 		return -1;
-	if (emit_expr(emitter, stmt->body) < 0)
+	if (emit_tree(emitter, stmt->body) < 0)
 		return -1;
 
 	if (stmt->n_arg > 0) {

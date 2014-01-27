@@ -12,18 +12,20 @@ statements:
   domain: '[N] -> { S_0[i] : i >= 0 and i >= -10 + N and i <= -1 + N }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_0[i] -> a[i] }'
-      index: '[N] -> { S_0[i] -> a[(i)] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: access
-      relation: '[N] -> { S_0[i] -> [i] }'
-      index: '[N] -> { S_0[i] -> [(i)] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_0[i] -> a[i] }'
+        index: '[N] -> { S_0[i] -> a[(i)] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: access
+        relation: '[N] -> { S_0[i] -> [i] }'
+        index: '[N] -> { S_0[i] -> [(i)] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0

@@ -332,7 +332,7 @@ struct pet_stmt {
 	pet_loc *loc;
 	isl_set *domain;
 	isl_map *schedule;
-	pet_expr *body;
+	pet_tree *body;
 
 	unsigned n_arg;
 	pet_expr **args;

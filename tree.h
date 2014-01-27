@@ -139,6 +139,14 @@ __isl_give pet_tree *pet_tree_map_expr(__isl_take pet_tree *tree,
 int pet_tree_writes(__isl_keep pet_tree *tree, __isl_keep isl_id *id);
 int pet_tree_has_continue(__isl_keep pet_tree *tree);
 
+__isl_give pet_tree *pet_tree_align_params(__isl_take pet_tree *tree,
+	__isl_take isl_space *space);
+__isl_give pet_tree *pet_tree_add_ref_ids(__isl_take pet_tree *tree,
+	int *n_ref);
+__isl_give pet_tree *pet_tree_anonymize(__isl_take pet_tree *tree);
+__isl_give pet_tree *pet_tree_gist(__isl_take pet_tree *tree,
+	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds);
+
 void pet_tree_dump_with_indent(__isl_keep pet_tree *tree, int indent);
 
 #if defined(__cplusplus)

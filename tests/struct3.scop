@@ -22,45 +22,47 @@ statements:
     and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_0[i, j, k, l] -> [0, i, j, k, l] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[i, j, k, l] -> s_a[s[i, j] -> a[k, l]] }'
-      index: '{ S_0[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k), (l)]] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: op
-      operation: +
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
+      - type: access
+        relation: '{ S_0[i, j, k, l] -> s_a[s[i, j] -> a[k, l]] }'
+        index: '{ S_0[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k), (l)]] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
       - type: op
         operation: +
         arguments:
         - type: op
           operation: +
           arguments:
+          - type: op
+            operation: +
+            arguments:
+            - type: access
+              relation: '{ S_0[i, j, k, l] -> [i] }'
+              index: '{ S_0[i, j, k, l] -> [(i)] }'
+              reference: __pet_ref_1
+              read: 1
+              write: 0
+            - type: access
+              relation: '{ S_0[i, j, k, l] -> [j] }'
+              index: '{ S_0[i, j, k, l] -> [(j)] }'
+              reference: __pet_ref_2
+              read: 1
+              write: 0
           - type: access
-            relation: '{ S_0[i, j, k, l] -> [i] }'
-            index: '{ S_0[i, j, k, l] -> [(i)] }'
-            reference: __pet_ref_1
-            read: 1
-            write: 0
-          - type: access
-            relation: '{ S_0[i, j, k, l] -> [j] }'
-            index: '{ S_0[i, j, k, l] -> [(j)] }'
-            reference: __pet_ref_2
+            relation: '{ S_0[i, j, k, l] -> [k] }'
+            index: '{ S_0[i, j, k, l] -> [(k)] }'
+            reference: __pet_ref_3
             read: 1
             write: 0
         - type: access
-          relation: '{ S_0[i, j, k, l] -> [k] }'
-          index: '{ S_0[i, j, k, l] -> [(k)] }'
-          reference: __pet_ref_3
+          relation: '{ S_0[i, j, k, l] -> [l] }'
+          index: '{ S_0[i, j, k, l] -> [(l)] }'
+          reference: __pet_ref_4
           read: 1
           write: 0
-      - type: access
-        relation: '{ S_0[i, j, k, l] -> [l] }'
-        index: '{ S_0[i, j, k, l] -> [(l)] }'
-        reference: __pet_ref_4
-        read: 1
-        write: 0

@@ -12,14 +12,16 @@ statements:
   domain: '[a] -> { S_0[] : a >= 1 }'
   schedule: '[a] -> { S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[a] -> { S_0[] -> b[] }'
-      index: '[a] -> { S_0[] -> b[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[a] -> { S_0[] -> b[] }'
+        index: '[a] -> { S_0[] -> b[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 5

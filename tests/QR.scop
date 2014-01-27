@@ -23,143 +23,153 @@ statements:
   domain: '[N, K] -> { S_0[j, i] : i >= j and j >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_0[j, i] -> [0, j, i] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N, K] -> { S_0[j, i] -> R[j, i] }'
-      index: '[N, K] -> { S_0[j, i] -> R[(j), (i)] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: Zero
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_0[j, i] -> R[j, i] }'
+        index: '[N, K] -> { S_0[j, i] -> R[(j), (i)] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: Zero
 - line: 23
   domain: '[N, K] -> { S_1[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
     0 }'
   schedule: '[K, N] -> { S_1[k, j] -> [1, k, j] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N, K] -> { S_1[k, j] -> X[k, j] }'
-      index: '[N, K] -> { S_1[k, j] -> X[(k), (j)] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: call
-      name: ReadMatrix
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_1[k, j] -> X[k, j] }'
+        index: '[N, K] -> { S_1[k, j] -> X[(k), (j)] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: call
+        name: ReadMatrix
 - line: 27
   domain: '[N, K] -> { S_2[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
     0 }'
   schedule: '[K, N] -> { S_2[k, j] -> [2, k, j, 0] }'
   body:
-    type: call
-    name: Vectorize
-    arguments:
-    - type: access
-      relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
-      index: '[N, K] -> { S_2[k, j] -> R[(j), (j)] }'
-      reference: __pet_ref_2
-      read: 1
-      write: 0
-    - type: access
-      relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
-      index: '[N, K] -> { S_2[k, j] -> X[(k), (j)] }'
-      reference: __pet_ref_3
-      read: 1
-      write: 0
-    - type: op
-      operation: '&'
+    type: expression
+    expr:
+      type: call
+      name: Vectorize
       arguments:
       - type: access
         relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
         index: '[N, K] -> { S_2[k, j] -> R[(j), (j)] }'
-        reference: __pet_ref_4
-        read: 0
-        write: 1
-    - type: op
-      operation: '&'
-      arguments:
+        reference: __pet_ref_2
+        read: 1
+        write: 0
       - type: access
         relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
         index: '[N, K] -> { S_2[k, j] -> X[(k), (j)] }'
-        reference: __pet_ref_5
-        read: 0
-        write: 1
-    - type: op
-      operation: '&'
-      arguments:
-      - type: access
-        relation: '[N, K] -> { S_2[k, j] -> t[] }'
-        index: '[N, K] -> { S_2[k, j] -> t[] }'
-        reference: __pet_ref_6
-        read: 0
-        write: 1
+        reference: __pet_ref_3
+        read: 1
+        write: 0
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '[N, K] -> { S_2[k, j] -> R[j, j] }'
+          index: '[N, K] -> { S_2[k, j] -> R[(j), (j)] }'
+          reference: __pet_ref_4
+          read: 0
+          write: 1
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '[N, K] -> { S_2[k, j] -> X[k, j] }'
+          index: '[N, K] -> { S_2[k, j] -> X[(k), (j)] }'
+          reference: __pet_ref_5
+          read: 0
+          write: 1
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '[N, K] -> { S_2[k, j] -> t[] }'
+          index: '[N, K] -> { S_2[k, j] -> t[] }'
+          reference: __pet_ref_6
+          read: 0
+          write: 1
 - line: 29
   domain: '[N, K] -> { S_3[k, j, i] : i >= 1 + j and j >= 0 and k <= -1 + K and k
     >= 0 and i <= -1 + N }'
   schedule: '[K, N] -> { S_3[k, j, i] -> [2, k, j, 1, i] }'
   body:
-    type: call
-    name: Rotate
-    arguments:
-    - type: access
-      relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
-      index: '[N, K] -> { S_3[k, j, i] -> R[(j), (i)] }'
-      reference: __pet_ref_7
-      read: 1
-      write: 0
-    - type: access
-      relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
-      index: '[N, K] -> { S_3[k, j, i] -> X[(k), (i)] }'
-      reference: __pet_ref_8
-      read: 1
-      write: 0
-    - type: access
-      relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
-      index: '[N, K] -> { S_3[k, j, i] -> t[] }'
-      reference: __pet_ref_9
-      read: 1
-      write: 0
-    - type: op
-      operation: '&'
+    type: expression
+    expr:
+      type: call
+      name: Rotate
       arguments:
       - type: access
         relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
         index: '[N, K] -> { S_3[k, j, i] -> R[(j), (i)] }'
-        reference: __pet_ref_10
-        read: 0
-        write: 1
-    - type: op
-      operation: '&'
-      arguments:
+        reference: __pet_ref_7
+        read: 1
+        write: 0
       - type: access
         relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
         index: '[N, K] -> { S_3[k, j, i] -> X[(k), (i)] }'
-        reference: __pet_ref_11
-        read: 0
-        write: 1
-    - type: op
-      operation: '&'
-      arguments:
+        reference: __pet_ref_8
+        read: 1
+        write: 0
       - type: access
         relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
         index: '[N, K] -> { S_3[k, j, i] -> t[] }'
-        reference: __pet_ref_12
-        read: 0
-        write: 1
+        reference: __pet_ref_9
+        read: 1
+        write: 0
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
+          index: '[N, K] -> { S_3[k, j, i] -> R[(j), (i)] }'
+          reference: __pet_ref_10
+          read: 0
+          write: 1
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
+          index: '[N, K] -> { S_3[k, j, i] -> X[(k), (i)] }'
+          reference: __pet_ref_11
+          read: 0
+          write: 1
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '[N, K] -> { S_3[k, j, i] -> t[] }'
+          index: '[N, K] -> { S_3[k, j, i] -> t[] }'
+          reference: __pet_ref_12
+          read: 0
+          write: 1
 - line: 34
   domain: '[N, K] -> { S_4[j, i] : i >= j and j >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_4[j, i] -> [3, j, i] }'
   body:
-    type: call
-    name: WriteMatrix
-    arguments:
-    - type: access
-      relation: '[N, K] -> { S_4[j, i] -> R[j, i] }'
-      index: '[N, K] -> { S_4[j, i] -> R[(j), (i)] }'
-      reference: __pet_ref_13
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: call
+      name: WriteMatrix
+      arguments:
+      - type: access
+        relation: '[N, K] -> { S_4[j, i] -> R[j, i] }'
+        index: '[N, K] -> { S_4[j, i] -> R[(j), (i)] }'
+        reference: __pet_ref_13
+        read: 1
+        write: 0

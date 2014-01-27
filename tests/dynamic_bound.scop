@@ -22,61 +22,67 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> N[] }'
-      index: '{ S_0[] -> N[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> N[] }'
+        index: '{ S_0[] -> N[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
 - line: 14
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[] -> M[] }'
-      index: '{ S_1[] -> M[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: call
-      name: g
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[] -> M[] }'
+        index: '{ S_1[] -> M[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: call
+        name: g
 - line: 17
   domain: '{ [S_2[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
     j }'
   schedule: '{ S_2[i, j] -> [2, i, j] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_2[i, j] -> a[i, j] }'
-      index: '{ S_2[i, j] -> a[(i), (j)] }'
-      reference: __pet_ref_4
-      read: 0
-      write: 1
-    - type: op
-      operation: +
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_2[i, j] -> [i] }'
-        index: '{ S_2[i, j] -> [(i)] }'
-        reference: __pet_ref_5
-        read: 1
-        write: 0
-      - type: access
-        relation: '{ S_2[i, j] -> [j] }'
-        index: '{ S_2[i, j] -> [(j)] }'
-        reference: __pet_ref_6
-        read: 1
-        write: 0
+        relation: '{ S_2[i, j] -> a[i, j] }'
+        index: '{ S_2[i, j] -> a[(i), (j)] }'
+        reference: __pet_ref_4
+        read: 0
+        write: 1
+      - type: op
+        operation: +
+        arguments:
+        - type: access
+          relation: '{ S_2[i, j] -> [i] }'
+          index: '{ S_2[i, j] -> [(i)] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
+        - type: access
+          relation: '{ S_2[i, j] -> [j] }'
+          index: '{ S_2[i, j] -> [(j)] }'
+          reference: __pet_ref_6
+          read: 1
+          write: 0
   arguments:
   - type: access
     relation: '{ S_2[i, j] -> N[] }'
@@ -95,27 +101,29 @@ statements:
     j }'
   schedule: '{ S_3[i, j] -> [3, i, j] }'
   body:
-    type: call
-    name: h
-    arguments:
-    - type: access
-      relation: '{ S_3[i, j] -> [i] }'
-      index: '{ S_3[i, j] -> [(i)] }'
-      reference: __pet_ref_9
-      read: 1
-      write: 0
-    - type: access
-      relation: '{ S_3[i, j] -> [j] }'
-      index: '{ S_3[i, j] -> [(j)] }'
-      reference: __pet_ref_10
-      read: 1
-      write: 0
-    - type: access
-      relation: '{ S_3[i, j] -> a[i, j] }'
-      index: '{ S_3[i, j] -> a[(i), (j)] }'
-      reference: __pet_ref_11
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: call
+      name: h
+      arguments:
+      - type: access
+        relation: '{ S_3[i, j] -> [i] }'
+        index: '{ S_3[i, j] -> [(i)] }'
+        reference: __pet_ref_9
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_3[i, j] -> [j] }'
+        index: '{ S_3[i, j] -> [(j)] }'
+        reference: __pet_ref_10
+        read: 1
+        write: 0
+      - type: access
+        relation: '{ S_3[i, j] -> a[i, j] }'
+        index: '{ S_3[i, j] -> a[(i), (j)] }'
+        reference: __pet_ref_11
+        read: 1
+        write: 0
   arguments:
   - type: access
     relation: '{ S_3[i, j] -> N[] }'

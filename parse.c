@@ -1,6 +1,6 @@
 /*
- * Copyright 2011 Leiden University. All rights reserved.
- * Copyright 2013 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2011      Leiden University. All rights reserved.
+ * Copyright 2013-2014 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +39,7 @@
 #include "loc.h"
 #include "scop.h"
 #include "scop_yaml.h"
+#include "tree.h"
 
 static char *extract_string(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
@@ -584,6 +585,524 @@ static __isl_give pet_expr *extract_expr(isl_ctx *ctx,
 	return expr;
 }
 
+/* Extract a pet_tree_type from "node".
+ */
+static enum pet_tree_type extract_tree_type(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return -1);
+
+	return pet_tree_str_type((char *) node->data.scalar.value);
+}
+
+static __isl_give pet_tree *extract_tree(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node);
+
+/* Extract a pet_tree of type pet_tree_block from "node".
+ */
+static __isl_give pet_tree *extract_tree_block(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	int block = 0;
+	int i, n;
+	yaml_node_pair_t *pair;
+	yaml_node_item_t *item;
+	yaml_node_t *children = NULL;
+	pet_tree *tree;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "block"))
+			block = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "children"))
+			children = value;
+	}
+
+	if (!children)
+		n = 0;
+	else
+		n = children->data.sequence.items.top -
+					    children->data.sequence.items.start;
+
+	tree = pet_tree_new_block(ctx, block, n);
+	if (!children)
+		return tree;
+
+	for (item = children->data.sequence.items.start, i = 0;
+	     item < children->data.sequence.items.top; ++item, ++i) {
+		yaml_node_t *n;
+		pet_tree *child;
+
+		n = yaml_document_get_node(document, *item);
+		child = extract_tree(ctx, document, n);
+		tree = pet_tree_block_add_child(tree, child);
+	}
+
+	return tree;
+}
+
+/* Extract a pet_tree of type pet_tree_decl from "node".
+ */
+static __isl_give pet_tree *extract_tree_decl(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_expr *var = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "variable")) {
+			var = extract_expr(ctx, document, value);
+			if (!var)
+				return NULL;
+		}
+	}
+
+	if (!var)
+		isl_die(ctx, isl_error_invalid,
+			"no variable field", return NULL);
+
+	return pet_tree_new_decl(var);
+}
+
+/* Extract a pet_tree of type pet_tree_decl_init from "node".
+ */
+static __isl_give pet_tree *extract_tree_decl_init(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_expr *var = NULL;
+	pet_expr *init = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "variable")) {
+			var = extract_expr(ctx, document, value);
+			if (!var)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value,
+							"initialization")) {
+			init = extract_expr(ctx, document, value);
+			if (!init)
+				goto error;
+		}
+	}
+
+	if (!var)
+		isl_die(ctx, isl_error_invalid,
+			"no variable field", goto error);
+	if (!init)
+		isl_die(ctx, isl_error_invalid,
+			"no initialization field", goto error);
+
+	return pet_tree_new_decl_init(var, init);
+error:
+	pet_expr_free(var);
+	pet_expr_free(init);
+	return NULL;
+}
+
+/* Extract a pet_tree of type pet_tree_expr from "node".
+ */
+static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_expr *expr = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "expr")) {
+			expr = extract_expr(ctx, document, value);
+			if (!expr)
+				return NULL;
+		}
+	}
+
+	if (!expr)
+		isl_die(ctx, isl_error_invalid,
+			"no expr field", return NULL);
+
+	return pet_tree_new_expr(expr);
+}
+
+/* Extract a pet_tree of type pet_tree_while from "node".
+ */
+static __isl_give pet_tree *extract_tree_while(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_expr *cond = NULL;
+	pet_tree *body = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "condition")) {
+			cond = extract_expr(ctx, document, value);
+			if (!cond)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "body")) {
+			body = extract_tree(ctx, document, value);
+			if (!body)
+				goto error;
+		}
+	}
+
+	if (!cond)
+		isl_die(ctx, isl_error_invalid,
+			"no condition field", goto error);
+	if (!body)
+		isl_die(ctx, isl_error_invalid,
+			"no body field", goto error);
+
+	return pet_tree_new_while(cond, body);
+error:
+	pet_expr_free(cond);
+	pet_tree_free(body);
+	return NULL;
+}
+
+/* Extract a pet_tree of type pet_tree_infinite_loop from "node".
+ */
+static __isl_give pet_tree *extract_tree_infinite_loop(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_tree *body;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "body")) {
+			body = extract_tree(ctx, document, value);
+			if (!body)
+				return NULL;
+		}
+	}
+
+	if (!body)
+		isl_die(ctx, isl_error_invalid,
+			"no body field", return NULL);
+
+	return pet_tree_new_infinite_loop(body);
+}
+
+/* Extract a pet_tree of type pet_tree_if from "node".
+ */
+static __isl_give pet_tree *extract_tree_if(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_expr *cond = NULL;
+	pet_tree *then_body = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "condition")) {
+			cond = extract_expr(ctx, document, value);
+			if (!cond)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "then")) {
+			then_body = extract_tree(ctx, document, value);
+			if (!then_body)
+				goto error;
+		}
+	}
+
+	if (!cond)
+		isl_die(ctx, isl_error_invalid,
+			"no condition field", goto error);
+	if (!then_body)
+		isl_die(ctx, isl_error_invalid,
+			"no then body", goto error);
+
+	return pet_tree_new_if(cond, then_body);
+error:
+	pet_expr_free(cond);
+	pet_tree_free(then_body);
+	return NULL;
+}
+
+/* Extract a pet_tree of type pet_tree_if_else from "node".
+ */
+static __isl_give pet_tree *extract_tree_if_else(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	pet_expr *cond = NULL;
+	pet_tree *then_body = NULL;
+	pet_tree *else_body = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "condition")) {
+			cond = extract_expr(ctx, document, value);
+			if (!cond)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "then")) {
+			then_body = extract_tree(ctx, document, value);
+			if (!then_body)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "else")) {
+			else_body = extract_tree(ctx, document, value);
+			if (!else_body)
+				goto error;
+		}
+	}
+
+	if (!cond)
+		isl_die(ctx, isl_error_invalid,
+			"no condition field", goto error);
+	if (!then_body)
+		isl_die(ctx, isl_error_invalid,
+			"no then body", goto error);
+	if (!else_body)
+		isl_die(ctx, isl_error_invalid,
+			"no else body", goto error);
+
+	return pet_tree_new_if_else(cond, then_body, else_body);
+error:
+	pet_expr_free(cond);
+	pet_tree_free(then_body);
+	pet_tree_free(else_body);
+	return NULL;
+}
+
+/* Extract a pet_tree of type pet_tree_for from "node".
+ */
+static __isl_give pet_tree *extract_tree_for(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	yaml_node_pair_t *pair;
+	int declared = 0;
+	pet_expr *iv = NULL;
+	pet_expr *init = NULL;
+	pet_expr *cond = NULL;
+	pet_expr *inc = NULL;
+	pet_tree *body = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return NULL);
+
+		if (!strcmp((char *) key->data.scalar.value, "declared"))
+			declared = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "variable")) {
+			iv = extract_expr(ctx, document, value);
+			if (!iv)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value,
+							"initialization")) {
+			init = extract_expr(ctx, document, value);
+			if (!init)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "condition")) {
+			cond = extract_expr(ctx, document, value);
+			if (!cond)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "increment")) {
+			inc = extract_expr(ctx, document, value);
+			if (!inc)
+				goto error;
+		}
+		if (!strcmp((char *) key->data.scalar.value, "body")) {
+			body = extract_tree(ctx, document, value);
+			if (!body)
+				goto error;
+		}
+	}
+
+	if (!iv)
+		isl_die(ctx, isl_error_invalid,
+			"no variable field", goto error);
+	if (!init)
+		isl_die(ctx, isl_error_invalid,
+			"no initialization field", goto error);
+	if (!cond)
+		isl_die(ctx, isl_error_invalid,
+			"no condition field", goto error);
+	if (!inc)
+		isl_die(ctx, isl_error_invalid,
+			"no increment field", goto error);
+	if (!body)
+		isl_die(ctx, isl_error_invalid,
+			"no body field", goto error);
+
+	return pet_tree_new_for(declared, iv, init, cond, inc, body);
+error:
+	pet_expr_free(iv);
+	pet_expr_free(init);
+	pet_expr_free(cond);
+	pet_expr_free(inc);
+	pet_tree_free(body);
+	return NULL;
+}
+
+/* Extract a pet_tree from "node".
+ *
+ * We first extract the type of the pet_tree and then call
+ * the appropriate function to extract and construct a pet_tree
+ * of that type.
+ */
+static __isl_give pet_tree *extract_tree(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	enum pet_tree_type type = pet_tree_error;
+	pet_tree *tree;
+	yaml_node_pair_t *pair;
+
+	if (node->type != YAML_MAPPING_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting mapping",
+			return NULL);
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_tree_free(tree));
+
+		if (!strcmp((char *) key->data.scalar.value, "type"))
+			type = extract_tree_type(ctx, document, value);
+	}
+
+	if (type == pet_tree_error)
+		isl_die(ctx, isl_error_invalid, "cannot determine type",
+			return NULL);
+
+	switch (type) {
+	case pet_tree_error:
+		return NULL;
+	case pet_tree_block:
+		tree = extract_tree_block(ctx, document, node);
+		break;
+	case pet_tree_break:
+		tree = pet_tree_new_break(ctx);
+		break;
+	case pet_tree_continue:
+		tree = pet_tree_new_continue(ctx);
+		break;
+	case pet_tree_decl:
+		tree = extract_tree_decl(ctx, document, node);
+		break;
+	case pet_tree_decl_init:
+		tree = extract_tree_decl_init(ctx, document, node);
+		break;
+	case pet_tree_expr:
+		tree = extract_tree_expr(ctx, document, node);
+		break;
+	case pet_tree_for:
+		tree = extract_tree_for(ctx, document, node);
+		break;
+	case pet_tree_while:
+		tree = extract_tree_while(ctx, document, node);
+		break;
+	case pet_tree_infinite_loop:
+		tree = extract_tree_infinite_loop(ctx, document, node);
+		break;
+	case pet_tree_if:
+		tree = extract_tree_if(ctx, document, node);
+		break;
+	case pet_tree_if_else:
+		tree = extract_tree_if_else(ctx, document, node);
+		break;
+	}
+
+	return tree;
+}
+
 static struct pet_stmt *extract_stmt_arguments(isl_ctx *ctx,
 	yaml_document_t *document, yaml_node_t *node, struct pet_stmt *stmt)
 {
@@ -656,7 +1175,7 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 		if (!strcmp((char *) key->data.scalar.value, "schedule"))
 			stmt->schedule = extract_map(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "body"))
-			stmt->body = extract_expr(ctx, document, value);
+			stmt->body = extract_tree(ctx, document, value);
 
 		if (!strcmp((char *) key->data.scalar.value, "arguments"))
 			stmt = extract_stmt_arguments(ctx, document,

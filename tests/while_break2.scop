@@ -20,17 +20,19 @@ statements:
     t] -> [1]] : t >= 0 }'
   schedule: '{ S_0[i, t] -> [0, i, 0, t, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_0[i, t] -> __pet_test_0[i, t] }'
-      index: '[N] -> { S_0[i, t] -> __pet_test_0[(i), (t)] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_0[i, t] -> __pet_test_0[i, t] }'
+        index: '[N] -> { S_0[i, t] -> __pet_test_0[(i), (t)] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: call
+        name: f
   arguments:
   - type: access
     relation: '[N] -> { S_0[i, t] -> __pet_test_0[i, -1 + t] : t >= 1 }'
@@ -43,17 +45,19 @@ statements:
     t] -> [1]] : t >= 0 }'
   schedule: '{ S_1[i, t] -> [0, i, 0, t, 1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_1[i, t] -> a[] }'
-      index: '[N] -> { S_1[i, t] -> a[] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_1[i, t] -> a[] }'
+        index: '[N] -> { S_1[i, t] -> a[] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: int
+        value: 5
   arguments:
   - type: access
     relation: '[N] -> { S_1[i, t] -> __pet_test_0[i, t] }'
@@ -65,17 +69,19 @@ statements:
   domain: '[N] -> { S_2[i] : N = 0 and i <= 9 and i >= 1; S_2[0] : N = 0 }'
   schedule: '[N] -> { S_2[i] -> [0, i, 2] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[N] -> { S_2[i] -> a[] }'
-      index: '[N] -> { S_2[i] -> a[] }'
-      reference: __pet_ref_4
-      read: 0
-      write: 1
-    - type: int
-      value: 6
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[N] -> { S_2[i] -> a[] }'
+        index: '[N] -> { S_2[i] -> a[] }'
+        reference: __pet_ref_4
+        read: 0
+        write: 1
+      - type: int
+        value: 6
 implications:
 - satisfied: 1
   extension: '[N] -> { __pet_test_0[i, t] -> __pet_test_0[i, t''] : N = 0 and t''

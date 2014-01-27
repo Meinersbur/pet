@@ -12,30 +12,34 @@ statements:
   domain: '{ S_0[k] : k >= 252 and k <= 257 }'
   schedule: '{ S_0[k] -> [0, k, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[k] -> a[] }'
-      index: '{ S_0[k] -> a[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[k] -> a[] }'
+        index: '{ S_0[k] -> a[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 5
 - line: 11
   domain: '{ S_1[k] : exists (e0 = floor((-1 + k)/256): k >= 252 and k <= 257 and
     256e0 >= -256 + k and 256e0 <= -2 + k) }'
   schedule: '{ S_1[k] -> [0, k, 2] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[k] -> a[] }'
-      index: '{ S_1[k] -> a[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: int
-      value: 6
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[k] -> a[] }'
+        index: '{ S_1[k] -> a[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: int
+        value: 6

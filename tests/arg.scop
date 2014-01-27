@@ -16,49 +16,53 @@ statements:
   domain: '{ S_0[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
-    type: call
-    name: f
-    arguments:
-    - type: op
-      operation: '&'
+    type: expression
+    expr:
+      type: call
+      name: f
       arguments:
-      - type: access
-        relation: '{ S_0[i] -> a[] }'
-        index: '{ S_0[i] -> a[] }'
-        reference: __pet_ref_0
-        read: 1
-        write: 0
-    - type: op
-      operation: '&'
-      arguments:
-      - type: access
-        relation: '{ S_0[i] -> a[] }'
-        index: '{ S_0[i] -> a[] }'
-        reference: __pet_ref_1
-        read: 0
-        write: 1
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '{ S_0[i] -> a[] }'
+          index: '{ S_0[i] -> a[] }'
+          reference: __pet_ref_0
+          read: 1
+          write: 0
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '{ S_0[i] -> a[] }'
+          index: '{ S_0[i] -> a[] }'
+          reference: __pet_ref_1
+          read: 0
+          write: 1
 - line: 12
   domain: '{ S_1[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_1[i] -> [0, i, 1] }'
   body:
-    type: call
-    name: f
-    arguments:
-    - type: op
-      operation: '&'
+    type: expression
+    expr:
+      type: call
+      name: f
       arguments:
-      - type: access
-        relation: '{ S_1[i] -> b[i] }'
-        index: '{ S_1[i] -> b[(i)] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
-    - type: op
-      operation: '&'
-      arguments:
-      - type: access
-        relation: '{ S_1[i] -> b[1 + i] }'
-        index: '{ S_1[i] -> b[(1 + i)] }'
-        reference: __pet_ref_3
-        read: 0
-        write: 1
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '{ S_1[i] -> b[i] }'
+          index: '{ S_1[i] -> b[(i)] }'
+          reference: __pet_ref_2
+          read: 1
+          write: 0
+      - type: op
+        operation: '&'
+        arguments:
+        - type: access
+          relation: '{ S_1[i] -> b[1 + i] }'
+          index: '{ S_1[i] -> b[(1 + i)] }'
+          reference: __pet_ref_3
+          read: 0
+          write: 1

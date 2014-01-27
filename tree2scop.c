@@ -50,7 +50,7 @@
 static __isl_give pet_context *handle_writes(struct pet_stmt *stmt,
 	__isl_take pet_context *pc)
 {
-	return pet_context_clear_writes_in_expr(pc, stmt->body);
+	return pet_context_clear_writes_in_tree(pc, stmt->body);
 }
 
 /* Update "pc" based on the write accesses in "scop".
@@ -1811,7 +1811,7 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 	struct pet_stmt *stmt;
 	isl_multi_pw_aff *index;
 	isl_map *access;
-	pet_expr *arg;
+	pet_expr *expr, *arg;
 
 	if (!domain || !scop)
 		return NULL;
@@ -1823,7 +1823,9 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 		isl_die(isl_set_get_ctx(domain), isl_error_internal,
 			"expecting kill statement", return NULL);
 
-	arg = pet_expr_get_arg(stmt->body, 0);
+	expr = pet_tree_expr_get_expr(stmt->body);
+	arg = pet_expr_get_arg(expr, 0);
+	pet_expr_free(expr);
 	index = pet_expr_access_get_index(arg);
 	access = pet_expr_access_get_access(arg);
 	pet_expr_free(arg);

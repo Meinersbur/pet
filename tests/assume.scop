@@ -13,31 +13,35 @@ statements:
   domain: '[S, n, m] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: assume
-    arguments:
-    - type: access
-      relation: '[S, n, m] -> { S_0[] -> [1] }'
-      index: '[S, n, m] -> { S_0[] -> [(1)] }'
-      reference: __pet_ref_0
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: assume
+      arguments:
+      - type: access
+        relation: '[S, n, m] -> { S_0[] -> [1] }'
+        index: '[S, n, m] -> { S_0[] -> [(1)] }'
+        reference: __pet_ref_0
+        read: 1
+        write: 0
 - line: 6
   domain: '[S, n, m] -> { S_1[i] : i <= -1 + n and i >= 0 }'
   schedule: '[n] -> { S_1[i] -> [1, i, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[S, n, m] -> { S_1[i] -> D[i] }'
-      index: '[S, n, m] -> { S_1[i] -> D[(i)] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: access
-      relation: '[S, n, m] -> { S_1[i] -> D[m + i] }'
-      index: '[S, n, m] -> { S_1[i] -> D[(m + i)] }'
-      reference: __pet_ref_2
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[S, n, m] -> { S_1[i] -> D[i] }'
+        index: '[S, n, m] -> { S_1[i] -> D[(i)] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: access
+        relation: '[S, n, m] -> { S_1[i] -> D[m + i] }'
+        index: '[S, n, m] -> { S_1[i] -> D[(m + i)] }'
+        reference: __pet_ref_2
+        read: 1
+        write: 0

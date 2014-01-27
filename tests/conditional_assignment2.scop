@@ -32,157 +32,169 @@ statements:
   domain: '[M, N] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[M, N] -> { S_0[] -> in2[] }'
-      index: '[M, N] -> { S_0[] -> in2[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: g2
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[M, N] -> { S_0[] -> in2[] }'
+        index: '[M, N] -> { S_0[] -> in2[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: g2
 - line: 23
   domain: '[M, N] -> { S_1[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_1[i] -> [1, i, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[M, N] -> { S_1[i] -> m[] }'
-      index: '[M, N] -> { S_1[i] -> m[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: op
-      operation: +
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '[M, N] -> { S_1[i] -> [i] }'
-        index: '[M, N] -> { S_1[i] -> [(i)] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
-      - type: int
-        value: 1
+        relation: '[M, N] -> { S_1[i] -> m[] }'
+        index: '[M, N] -> { S_1[i] -> m[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: op
+        operation: +
+        arguments:
+        - type: access
+          relation: '[M, N] -> { S_1[i] -> [i] }'
+          index: '[M, N] -> { S_1[i] -> [(i)] }'
+          reference: __pet_ref_2
+          read: 1
+          write: 0
+        - type: int
+          value: 1
 - line: 25
   domain: '[M, N] -> { S_2[i, j] : j <= -1 + M and j >= 0 and i <= -1 + N and i >=
     0 }'
   schedule: '[N, M] -> { S_2[i, j] -> [1, i, 1, j] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[M, N] -> { S_2[i, j] -> m[] }'
-      index: '[M, N] -> { S_2[i, j] -> m[] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: call
-      name: g
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[M, N] -> { S_2[i, j] -> m[] }'
+        index: '[M, N] -> { S_2[i, j] -> m[] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: call
+        name: g
+        arguments:
+        - type: call
+          name: h
+          arguments:
+          - type: access
+            relation: '[M, N] -> { S_2[i, j] -> m[] }'
+            index: '[M, N] -> { S_2[i, j] -> m[] }'
+            reference: __pet_ref_4
+            read: 1
+            write: 0
+        - type: access
+          relation: '[M, N] -> { S_2[i, j] -> in1[i, j] }'
+          index: '[M, N] -> { S_2[i, j] -> in1[(i), (j)] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
+- line: 26
+  domain: '[M, N] -> { S_3[i] : i <= -1 + N and i >= 0 }'
+  schedule: '[N] -> { S_3[i] -> [1, i, 2] }'
+  body:
+    type: expression
+    expr:
+      type: call
+      name: compute_row
       arguments:
       - type: call
         name: h
         arguments:
         - type: access
-          relation: '[M, N] -> { S_2[i, j] -> m[] }'
-          index: '[M, N] -> { S_2[i, j] -> m[] }'
-          reference: __pet_ref_4
+          relation: '[M, N] -> { S_3[i] -> m[] }'
+          index: '[M, N] -> { S_3[i] -> m[] }'
+          reference: __pet_ref_6
           read: 1
           write: 0
       - type: access
-        relation: '[M, N] -> { S_2[i, j] -> in1[i, j] }'
-        index: '[M, N] -> { S_2[i, j] -> in1[(i), (j)] }'
-        reference: __pet_ref_5
-        read: 1
-        write: 0
-- line: 26
-  domain: '[M, N] -> { S_3[i] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_3[i] -> [1, i, 2] }'
-  body:
-    type: call
-    name: compute_row
-    arguments:
-    - type: call
-      name: h
-      arguments:
-      - type: access
-        relation: '[M, N] -> { S_3[i] -> m[] }'
-        index: '[M, N] -> { S_3[i] -> m[] }'
-        reference: __pet_ref_6
-        read: 1
-        write: 0
-    - type: access
-      relation: '[M, N] -> { S_3[i] -> A[i, o1] }'
-      index: '[M, N] -> { S_3[i] -> A[(i)] }'
-      reference: __pet_ref_7
-      read: 0
-      write: 1
+        relation: '[M, N] -> { S_3[i] -> A[i, o1] }'
+        index: '[M, N] -> { S_3[i] -> A[(i)] }'
+        reference: __pet_ref_7
+        read: 0
+        write: 1
 - line: 28
   domain: '[M, N] -> { S_4[] }'
   schedule: '{ S_4[] -> [2] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[M, N] -> { S_4[] -> A[5, 6] }'
-      index: '[M, N] -> { S_4[] -> A[(5), (6)] }'
-      reference: __pet_ref_8
-      read: 0
-      write: 1
-    - type: int
-      value: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[M, N] -> { S_4[] -> A[5, 6] }'
+        index: '[M, N] -> { S_4[] -> A[(5), (6)] }'
+        reference: __pet_ref_8
+        read: 0
+        write: 1
+      - type: int
+        value: 0
 - line: 30
   domain: '[M, N] -> { S_5[i] : i <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_5[i] -> [3, i] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[M, N] -> { S_5[i] -> C[i] }'
-      index: '[M, N] -> { S_5[i] -> C[(i)] }'
-      reference: __pet_ref_9
-      read: 0
-      write: 1
-    - type: op
-      operation: '?:'
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '[M, N] -> { [S_5[i] -> [i1]] -> [1] : i1 >= -i and i1 <= -1 + N
-          - i; [S_5[-1 + N] -> [1]] -> [0]; [S_5[0] -> [-1]] -> [0] }'
-        index: '[M, N] -> { [S_5[i] -> [i1]] -> [((1) : i1 >= -i and i1 <= -1 + N
-          - i; (0) : i = -1 + N and i1 = 1; (0) : i = 0 and i1 = -1)] }'
-        reference: __pet_ref_11
-        read: 1
-        write: 0
+        relation: '[M, N] -> { S_5[i] -> C[i] }'
+        index: '[M, N] -> { S_5[i] -> C[(i)] }'
+        reference: __pet_ref_9
+        read: 0
+        write: 1
+      - type: op
+        operation: '?:'
         arguments:
         - type: access
-          relation: '[M, N] -> { S_5[i] -> in2[] }'
-          index: '[M, N] -> { S_5[i] -> in2[] }'
-          reference: __pet_ref_10
-          read: 1
-          write: 0
-      - type: call
-        name: f
-        arguments:
-        - type: access
-          relation: '[M, N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and
-            i1 <= -1 + N - i }'
-          index: '[M, N] -> { [S_5[i] -> [i1]] -> A[((i + i1) : i1 >= -i)] }'
-          reference: __pet_ref_13
+          relation: '[M, N] -> { [S_5[i] -> [i1]] -> [1] : i1 >= -i and i1 <= -1 +
+            N - i; [S_5[-1 + N] -> [1]] -> [0]; [S_5[0] -> [-1]] -> [0] }'
+          index: '[M, N] -> { [S_5[i] -> [i1]] -> [((1) : i1 >= -i and i1 <= -1 +
+            N - i; (0) : i = -1 + N and i1 = 1; (0) : i = 0 and i1 = -1)] }'
+          reference: __pet_ref_11
           read: 1
           write: 0
           arguments:
           - type: access
             relation: '[M, N] -> { S_5[i] -> in2[] }'
             index: '[M, N] -> { S_5[i] -> in2[] }'
-            reference: __pet_ref_12
+            reference: __pet_ref_10
             read: 1
             write: 0
-      - type: int
-        value: 0
+        - type: call
+          name: f
+          arguments:
+          - type: access
+            relation: '[M, N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and
+              i1 <= -1 + N - i }'
+            index: '[M, N] -> { [S_5[i] -> [i1]] -> A[((i + i1) : i1 >= -i)] }'
+            reference: __pet_ref_13
+            read: 1
+            write: 0
+            arguments:
+            - type: access
+              relation: '[M, N] -> { S_5[i] -> in2[] }'
+              index: '[M, N] -> { S_5[i] -> in2[] }'
+              reference: __pet_ref_12
+              read: 1
+              write: 0
+        - type: int
+          value: 0

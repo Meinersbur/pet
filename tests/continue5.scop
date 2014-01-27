@@ -28,133 +28,145 @@ statements:
   domain: '{ S_0[i] : i >= 0 and i <= 99 }'
   schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[i] -> j[] }'
-      index: '{ S_0[i] -> j[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[i] -> j[] }'
+        index: '{ S_0[i] -> j[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
 - line: 12
   domain: '{ S_1[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
   schedule: '{ S_1[i] -> [0, i, 2] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[i] -> a[i] }'
-      index: '{ S_1[i] -> a[(i)] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: access
-      relation: '{ S_1[i] -> [i] }'
-      index: '{ S_1[i] -> [(i)] }'
-      reference: __pet_ref_2
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[i] -> a[i] }'
+        index: '{ S_1[i] -> a[(i)] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: access
+        relation: '{ S_1[i] -> [i] }'
+        index: '{ S_1[i] -> [(i)] }'
+        reference: __pet_ref_2
+        read: 1
+        write: 0
 - line: 13
   domain: '{ S_2[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
   schedule: '{ S_2[i] -> [0, i, 3] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_2[i] -> j[] }'
-      index: '{ S_2[i] -> j[] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_2[i] -> j[] }'
+        index: '{ S_2[i] -> j[] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: call
+        name: f
 - line: 14
   domain: '{ S_3[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
   schedule: '{ S_3[i] -> [0, i, 4, 0, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_3[i] -> __pet_test_0[i] }'
-      index: '{ S_3[i] -> __pet_test_0[(i)] }'
-      reference: __pet_ref_4
-      read: 0
-      write: 1
-    - type: op
-      operation: ==
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_3[i] -> j[] }'
-        index: '{ S_3[i] -> j[] }'
-        reference: __pet_ref_5
-        read: 1
-        write: 0
-      - type: int
-        value: 0
+        relation: '{ S_3[i] -> __pet_test_0[i] }'
+        index: '{ S_3[i] -> __pet_test_0[(i)] }'
+        reference: __pet_ref_4
+        read: 0
+        write: 1
+      - type: op
+        operation: ==
+        arguments:
+        - type: access
+          relation: '{ S_3[i] -> j[] }'
+          index: '{ S_3[i] -> j[] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
+        - type: int
+          value: 0
 - line: -1
   domain: '{ S_4[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
   schedule: '{ S_4[i] -> [0, i, 4, 1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_4[i] -> __pet_test_1[i] }'
-      index: '{ S_4[i] -> __pet_test_1[(i)] }'
-      reference: __pet_ref_6
-      read: 0
-      write: 1
-    - type: op
-      operation: '?:'
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_4[i] -> [0] : i >= 58 or i <= 56; S_4[57] -> [1] }'
-        index: '{ S_4[i] -> [((0) : i >= 58 or i <= 56)] }'
-        reference: __pet_ref_7
-        read: 1
-        write: 0
-      - type: access
-        relation: '{ S_4[i] -> [1] }'
-        index: '{ S_4[i] -> [(1)] }'
-        reference: __pet_ref_8
-        read: 1
-        write: 0
-      - type: access
-        relation: '{ S_4[i] -> __pet_test_0[i] : i >= 58 or i <= 56 }'
-        index: '{ S_4[i] -> __pet_test_0[(i)] }'
-        reference: __pet_ref_9
-        read: 1
-        write: 0
+        relation: '{ S_4[i] -> __pet_test_1[i] }'
+        index: '{ S_4[i] -> __pet_test_1[(i)] }'
+        reference: __pet_ref_6
+        read: 0
+        write: 1
+      - type: op
+        operation: '?:'
+        arguments:
+        - type: access
+          relation: '{ S_4[i] -> [0] : i >= 58 or i <= 56; S_4[57] -> [1] }'
+          index: '{ S_4[i] -> [((0) : i >= 58 or i <= 56)] }'
+          reference: __pet_ref_7
+          read: 1
+          write: 0
+        - type: access
+          relation: '{ S_4[i] -> [1] }'
+          index: '{ S_4[i] -> [(1)] }'
+          reference: __pet_ref_8
+          read: 1
+          write: 0
+        - type: access
+          relation: '{ S_4[i] -> __pet_test_0[i] : i >= 58 or i <= 56 }'
+          index: '{ S_4[i] -> __pet_test_0[(i)] }'
+          reference: __pet_ref_9
+          read: 1
+          write: 0
 - line: 16
   domain: '{ [S_5[i] -> [0]] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
   schedule: '{ S_5[i] -> [0, i, 5] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_5[i] -> a[i] }'
-      index: '{ S_5[i] -> a[(i)] }'
-      reference: __pet_ref_11
-      read: 0
-      write: 1
-    - type: op
-      operation: +
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
         relation: '{ S_5[i] -> a[i] }'
         index: '{ S_5[i] -> a[(i)] }'
-        reference: __pet_ref_12
-        read: 1
-        write: 0
-      - type: int
-        value: 1
+        reference: __pet_ref_11
+        read: 0
+        write: 1
+      - type: op
+        operation: +
+        arguments:
+        - type: access
+          relation: '{ S_5[i] -> a[i] }'
+          index: '{ S_5[i] -> a[(i)] }'
+          reference: __pet_ref_12
+          read: 1
+          write: 0
+        - type: int
+          value: 1
   arguments:
   - type: access
     relation: '{ S_5[i] -> __pet_test_1[i] }'

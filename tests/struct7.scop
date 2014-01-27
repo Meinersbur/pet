@@ -44,18 +44,20 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> p_a_re[p_a[p[] -> a[]] -> re[]] }'
-      index: '{ S_0[] -> p_a_re[p_a[p[] -> a[]] -> re[]] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: access
-      relation: '{ S_0[] -> p_b_im[p_b[p[] -> b[]] -> im[]] }'
-      index: '{ S_0[] -> p_b_im[p_b[p[] -> b[]] -> im[]] }'
-      reference: __pet_ref_1
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> p_a_re[p_a[p[] -> a[]] -> re[]] }'
+        index: '{ S_0[] -> p_a_re[p_a[p[] -> a[]] -> re[]] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: access
+        relation: '{ S_0[] -> p_b_im[p_b[p[] -> b[]] -> im[]] }'
+        index: '{ S_0[] -> p_b_im[p_b[p[] -> b[]] -> im[]] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0

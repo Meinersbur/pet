@@ -19,46 +19,50 @@ statements:
   domain: '[n] -> { S1[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S1[x1] -> s[] }'
-      index: '[n] -> { S1[x1] -> s[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '[n] -> { S1[x1] -> s[] }'
+        index: '[n] -> { S1[x1] -> s[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
 - line: 13
   domain: '[n] -> { [S_1[x1, x2] -> [1]] : exists (e0 = floor((-1 + x2)/2): 2e0 =
     -1 + x2 and x1 <= -1 + n and x1 >= 0 and x2 >= 9) }'
   schedule: '[n] -> { S_1[x1, x2] -> [0, x1, 1, x2, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, x2] }'
-      index: '[n] -> { S_1[x1, x2] -> __pet_test_0[(x1), (x2)] }'
-      reference: __pet_ref_2
-      read: 0
-      write: 1
-    - type: call
-      name: P
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S_1[x1, x2] -> [x1] }'
-        index: '[n] -> { S_1[x1, x2] -> [(x1)] }'
-        reference: __pet_ref_3
-        read: 1
-        write: 0
-      - type: access
-        relation: '[n] -> { S_1[x1, x2] -> [x2] }'
-        index: '[n] -> { S_1[x1, x2] -> [(x2)] }'
-        reference: __pet_ref_4
-        read: 1
-        write: 0
+        relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, x2] }'
+        index: '[n] -> { S_1[x1, x2] -> __pet_test_0[(x1), (x2)] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+      - type: call
+        name: P
+        arguments:
+        - type: access
+          relation: '[n] -> { S_1[x1, x2] -> [x1] }'
+          index: '[n] -> { S_1[x1, x2] -> [(x1)] }'
+          reference: __pet_ref_3
+          read: 1
+          write: 0
+        - type: access
+          relation: '[n] -> { S_1[x1, x2] -> [x2] }'
+          index: '[n] -> { S_1[x1, x2] -> [(x2)] }'
+          reference: __pet_ref_4
+          read: 1
+          write: 0
   arguments:
   - type: access
     relation: '[n] -> { S_1[x1, x2] -> __pet_test_0[x1, -2 + x2] : x2 >= 11 }'
@@ -71,24 +75,26 @@ statements:
     + x2 and x1 <= -1 + n and x1 >= 0 and x2 >= 9) }'
   schedule: '[n] -> { S2[x1, x2] -> [0, x1, 1, x2, 1, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '[n] -> { S2[x1, x2] -> s[] }'
-      index: '[n] -> { S2[x1, x2] -> s[] }'
-      reference: __pet_ref_6
-      read: 0
-      write: 1
-    - type: call
-      name: g
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
         relation: '[n] -> { S2[x1, x2] -> s[] }'
         index: '[n] -> { S2[x1, x2] -> s[] }'
-        reference: __pet_ref_7
-        read: 1
-        write: 0
+        reference: __pet_ref_6
+        read: 0
+        write: 1
+      - type: call
+        name: g
+        arguments:
+        - type: access
+          relation: '[n] -> { S2[x1, x2] -> s[] }'
+          index: '[n] -> { S2[x1, x2] -> s[] }'
+          reference: __pet_ref_7
+          read: 1
+          write: 0
   arguments:
   - type: access
     relation: '[n] -> { S2[x1, x2] -> __pet_test_0[x1, x2] }'
@@ -100,15 +106,17 @@ statements:
   domain: '[n] -> { R[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
   body:
-    type: call
-    name: h
-    arguments:
-    - type: access
-      relation: '[n] -> { R[x1] -> s[] }'
-      index: '[n] -> { R[x1] -> s[] }'
-      reference: __pet_ref_8
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: call
+      name: h
+      arguments:
+      - type: access
+        relation: '[n] -> { R[x1] -> s[] }'
+        index: '[n] -> { R[x1] -> s[] }'
+        reference: __pet_ref_8
+        read: 1
+        write: 0
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[x1, x2] -> __pet_test_0[x1, x2''] : exists (e0

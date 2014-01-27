@@ -38,6 +38,7 @@
 #include "clang.h"
 #include "expr.h"
 #include "scop_plus.h"
+#include "tree.h"
 
 using namespace std;
 using namespace clang;
@@ -145,6 +146,18 @@ static void expr_collect_arrays(__isl_keep pet_expr *expr,
 		access_collect_arrays(expr, arrays);
 }
 
+/* Wrapper around access_collect_arrays for use as a callback function
+ * to pet_tree_foreach_access_expr.
+ */
+static int access_collect_wrap(__isl_keep pet_expr *expr, void *user)
+{
+	array_desc_set *arrays = (array_desc_set *) user;
+
+	access_collect_arrays(expr, *arrays);
+
+	return 0;
+}
+
 static void stmt_collect_arrays(struct pet_stmt *stmt,
 	array_desc_set &arrays)
 {
@@ -154,7 +167,7 @@ static void stmt_collect_arrays(struct pet_stmt *stmt,
 	for (int i = 0; i < stmt->n_arg; ++i)
 		expr_collect_arrays(stmt->args[i], arrays);
 
-	expr_collect_arrays(stmt->body, arrays);
+	pet_tree_foreach_access_expr(stmt->body, &access_collect_wrap, &arrays);
 }
 
 /* Collect the set of all accessed arrays (or scalars) in "scop",

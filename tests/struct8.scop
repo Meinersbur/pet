@@ -31,42 +31,46 @@ statements:
   domain: '{ S_0[i, j] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
   schedule: '{ S_0[i, j] -> [0, i, j] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[i, j] -> s_f_a[s_f[s[] -> f[i]] -> a[j]] }'
-      index: '{ S_0[i, j] -> s_f_a[s_f[s[] -> f[(i)]] -> a[(j)]] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: op
-      operation: '*'
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_0[i, j] -> [i] }'
-        index: '{ S_0[i, j] -> [(i)] }'
-        reference: __pet_ref_1
-        read: 1
-        write: 0
-      - type: access
-        relation: '{ S_0[i, j] -> [j] }'
-        index: '{ S_0[i, j] -> [(j)] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
+        relation: '{ S_0[i, j] -> s_f_a[s_f[s[] -> f[i]] -> a[j]] }'
+        index: '{ S_0[i, j] -> s_f_a[s_f[s[] -> f[(i)]] -> a[(j)]] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: op
+        operation: '*'
+        arguments:
+        - type: access
+          relation: '{ S_0[i, j] -> [i] }'
+          index: '{ S_0[i, j] -> [(i)] }'
+          reference: __pet_ref_1
+          read: 1
+          write: 0
+        - type: access
+          relation: '{ S_0[i, j] -> [j] }'
+          index: '{ S_0[i, j] -> [(j)] }'
+          reference: __pet_ref_2
+          read: 1
+          write: 0
 - line: 18
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[] -> s_b[s[] -> b[]] }'
-      index: '{ S_1[] -> s_b[s[] -> b[]] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: int
-      value: 1
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[] -> s_b[s[] -> b[]] }'
+        index: '{ S_1[] -> s_b[s[] -> b[]] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: int
+        value: 1

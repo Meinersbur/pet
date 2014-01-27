@@ -8,5 +8,7 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: call
-    name: f
+    type: expression
+    expr:
+      type: call
+      name: f

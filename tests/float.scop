@@ -12,31 +12,35 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> a[] }'
-      index: '{ S_0[] -> a[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: double
-      value: 0.333
-      string: 0.333f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> a[] }'
+        index: '{ S_0[] -> a[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: double
+        value: 0.333
+        string: 0.333f
 - line: 7
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[] -> a[] }'
-      index: '{ S_1[] -> a[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: double
-      value: 0
-      string: 0.
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[] -> a[] }'
+        index: '{ S_1[] -> a[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: double
+        value: 0
+        string: 0.

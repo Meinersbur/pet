@@ -42,6 +42,7 @@
 #include "loc.h"
 #include "nest.h"
 #include "scop.h"
+#include "tree.h"
 #include "print.h"
 #include "value_bounds.h"
 
@@ -116,7 +117,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(__isl_take isl_set *domain,
 	stmt->loc = loc;
 	stmt->domain = domain;
 	stmt->schedule = sched;
-	stmt->body = expr;
+	stmt->body = pet_tree_new_expr(expr);
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		return pet_stmt_free(stmt);
@@ -140,7 +141,7 @@ void *pet_stmt_free(struct pet_stmt *stmt)
 	pet_loc_free(stmt->loc);
 	isl_set_free(stmt->domain);
 	isl_map_free(stmt->schedule);
-	pet_expr_free(stmt->body);
+	pet_tree_free(stmt->body);
 
 	for (i = 0; i < stmt->n_arg; ++i)
 		pet_expr_free(stmt->args[i]);
@@ -183,7 +184,7 @@ static void stmt_dump(struct pet_stmt *stmt, int indent)
 	isl_set_dump(stmt->domain);
 	fprintf(stderr, "%*s", indent, "");
 	isl_map_dump(stmt->schedule);
-	pet_expr_dump_with_indent(stmt->body, indent);
+	pet_tree_dump_with_indent(stmt->body, indent);
 	for (i = 0; i < stmt->n_arg; ++i)
 		pet_expr_dump_with_indent(stmt->args[i], indent + 2);
 }
@@ -402,9 +403,9 @@ error:
  */
 int pet_stmt_is_affine_assume(struct pet_stmt *stmt)
 {
-	if (!pet_stmt_is_assume(stmt))
+	if (!stmt)
 		return 0;
-	return pet_expr_is_affine(stmt->body->args[0]);
+	return pet_tree_is_affine_assume(stmt->body);
 }
 
 /* Given an assume statement "stmt" with an access argument,
@@ -414,10 +415,7 @@ __isl_give isl_multi_pw_aff *pet_stmt_assume_get_index(struct pet_stmt *stmt)
 {
 	if (!stmt)
 		return NULL;
-	if (!pet_stmt_is_assume(stmt))
-		isl_die(isl_set_get_ctx(stmt->domain), isl_error_invalid,
-			"not an assume statement", return NULL);
-	return pet_expr_access_get_index(stmt->body->args[0]);
+	return pet_tree_assume_get_index(stmt->body);
 }
 
 /* Update "context" with the constraints imposed on the outer iteration
@@ -425,13 +423,17 @@ __isl_give isl_multi_pw_aff *pet_stmt_assume_get_index(struct pet_stmt *stmt)
  *
  * If the statement is an assume statement with an affine expression,
  * then intersect "context" with that expression.
- * Otherwise, intersect "context" with the contexts of the expressions
- * inside "stmt".
+ * Otherwise, if the statement body is an expression tree,
+ * then intersect "context" with the context of this expression.
+ * Note that we cannot safely extract a context from subtrees
+ * of the statement body since we cannot tell when those subtrees
+ * are executed, if at all.
  */
 static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	__isl_take isl_set *context)
 {
 	int i;
+	pet_expr *body;
 
 	if (pet_stmt_is_affine_assume(stmt)) {
 		isl_multi_pw_aff *index;
@@ -449,7 +451,12 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	for (i = 0; i < stmt->n_arg; ++i)
 		context = expr_extract_context(stmt->args[i], context);
 
-	context = expr_extract_context(stmt->body, context);
+	if (pet_tree_get_type(stmt->body) != pet_tree_expr)
+		return context;
+
+	body = pet_tree_expr_get_expr(stmt->body);
+	context = expr_extract_context(body, context);
+	pet_expr_free(body);
 
 	return context;
 }
@@ -1009,7 +1016,7 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 		return 0;
 	if (!isl_map_is_equal(stmt1->schedule, stmt2->schedule))
 		return 0;
-	if (!pet_expr_is_equal(stmt1->body, stmt2->body))
+	if (!pet_tree_is_equal(stmt1->body, stmt2->body))
 		return 0;
 	if (stmt1->n_arg != stmt2->n_arg)
 		return 0;
@@ -1975,7 +1982,7 @@ static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
 		if (pet_expr_foreach_access_expr(stmt->args[i],
 					&access_collect_params, &space) < 0)
 			space = isl_space_free(space);
-	if (pet_expr_foreach_access_expr(stmt->body, &access_collect_params,
+	if (pet_tree_foreach_access_expr(stmt->body, &access_collect_params,
 					&space) < 0)
 		space = isl_space_free(space);
 
@@ -2038,7 +2045,7 @@ static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
 		if (!stmt->args[i])
 			goto error;
 	}
-	stmt->body = pet_expr_align_params(stmt->body, isl_space_copy(space));
+	stmt->body = pet_tree_align_params(stmt->body, isl_space_copy(space));
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		goto error;
@@ -2218,6 +2225,9 @@ static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
  * In particular, if the statement has any arguments, then if "must" is
  * set we currently skip the statement completely.  If "must" is not set,
  * we project out the values of the statement arguments.
+ * If the statement body is not an expression tree, then we cannot
+ * know for sure if/when the accesses inside the tree are performed.
+ * We therefore ignore such statements when "must" is set.
  */
 static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	int read, int write, int kill, int must, int tag,
@@ -2232,15 +2242,23 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 
 	if (must && stmt->n_arg > 0)
 		return data.accesses;
+	if (must && pet_tree_get_type(stmt->body) != pet_tree_expr)
+		return data.accesses;
 
 	data.domain = isl_set_copy(stmt->domain);
 	if (isl_set_is_wrapping(data.domain))
 		data.domain = isl_map_domain(isl_set_unwrap(data.domain));
 
-	if (kill)
-		data.accesses = expr_collect_access(stmt->body->args[0], tag,
+	if (kill) {
+		pet_expr *body, *arg;
+
+		body = pet_tree_expr_get_expr(stmt->body);
+		arg = pet_expr_get_arg(body, 0);
+		data.accesses = expr_collect_access(arg, tag,
 						data.accesses, data.domain);
-	else if (pet_expr_foreach_access_expr(stmt->body,
+		pet_expr_free(arg);
+		pet_expr_free(body);
+	} else if (pet_tree_foreach_access_expr(stmt->body,
 					&expr_collect_accesses, &data) < 0)
 		data.accesses = isl_union_map_free(data.accesses);
 
@@ -2255,9 +2273,7 @@ int pet_stmt_is_assign(struct pet_stmt *stmt)
 {
 	if (!stmt)
 		return 0;
-	if (stmt->body->type != pet_expr_op)
-		return 0;
-	return stmt->body->op == pet_op_assign;
+	return pet_tree_is_assign(stmt->body);
 }
 
 /* Is "stmt" a kill statement?
@@ -2266,9 +2282,7 @@ int pet_stmt_is_kill(struct pet_stmt *stmt)
 {
 	if (!stmt)
 		return 0;
-	if (stmt->body->type != pet_expr_op)
-		return 0;
-	return stmt->body->op == pet_op_kill;
+	return pet_tree_is_kill(stmt->body);
 }
 
 /* Is "stmt" an assume statement?
@@ -2277,7 +2291,7 @@ int pet_stmt_is_assume(struct pet_stmt *stmt)
 {
 	if (!stmt)
 		return 0;
-	return pet_expr_is_assume(stmt->body);
+	return pet_tree_is_assume(stmt->body);
 }
 
 /* Compute a mapping from all arrays (of structs) in scop
@@ -2517,7 +2531,7 @@ static struct pet_stmt *stmt_add_ref_ids(struct pet_stmt *stmt, int *n_ref)
 			return pet_stmt_free(stmt);
 	}
 
-	stmt->body = pet_expr_add_ref_ids(stmt->body, n_ref);
+	stmt->body = pet_tree_add_ref_ids(stmt->body, n_ref);
 	if (!stmt->body)
 		return pet_stmt_free(stmt);
 
@@ -2581,7 +2595,7 @@ static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 			return pet_stmt_free(stmt);
 	}
 
-	stmt->body = pet_expr_anonymize(stmt->body);
+	stmt->body = pet_tree_anonymize(stmt->body);
 	if (!stmt->body)
 		return pet_stmt_free(stmt);
 
@@ -2667,7 +2681,7 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 			goto error;
 	}
 
-	stmt->body = pet_expr_gist(stmt->body, domain, value_bounds);
+	stmt->body = pet_tree_gist(stmt->body, domain, value_bounds);
 	if (!stmt->body)
 		goto error;
 
@@ -2961,7 +2975,7 @@ int pet_scop_has_data_dependent_accesses(struct pet_scop *scop)
 		return -1;
 
 	for (i = 0; i < scop->n_stmt; ++i) {
-		int r = pet_expr_foreach_access_expr(scop->stmts[i]->body,
+		int r = pet_tree_foreach_access_expr(scop->stmts[i]->body,
 					&is_data_dependent, &found);
 		if (r < 0 && !found)
 			return -1;

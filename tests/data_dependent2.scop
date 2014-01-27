@@ -22,74 +22,80 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> N[] }'
-      index: '{ S_0[] -> N[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> N[] }'
+        index: '{ S_0[] -> N[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 5
 - line: 12
   domain: '{ S_1[i] : i >= 0 and i <= 9 }'
   schedule: '{ S_1[i] -> [1, i, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[i] -> __pet_test_0[i] }'
-      index: '{ S_1[i] -> __pet_test_0[(i)] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: op
-      operation: <=
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
       - type: access
-        relation: '{ S_1[i] -> N[] }'
-        index: '{ S_1[i] -> N[] }'
-        reference: __pet_ref_2
-        read: 1
-        write: 0
-      - type: int
-        value: 4
+        relation: '{ S_1[i] -> __pet_test_0[i] }'
+        index: '{ S_1[i] -> __pet_test_0[(i)] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: op
+        operation: <=
+        arguments:
+        - type: access
+          relation: '{ S_1[i] -> N[] }'
+          index: '{ S_1[i] -> N[] }'
+          reference: __pet_ref_2
+          read: 1
+          write: 0
+        - type: int
+          value: 4
 - line: 14
   domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
   schedule: '{ S_2[i, j] -> [1, i, 1, j, 0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_2[i, j] -> a[j] }'
-      index: '{ S_2[i, j] -> a[(j)] }'
-      reference: __pet_ref_4
-      read: 0
-      write: 1
-    - type: op
-      operation: +
+    type: expression
+    expr:
+      type: op
+      operation: =
       arguments:
+      - type: access
+        relation: '{ S_2[i, j] -> a[j] }'
+        index: '{ S_2[i, j] -> a[(j)] }'
+        reference: __pet_ref_4
+        read: 0
+        write: 1
       - type: op
         operation: +
         arguments:
-        - type: int
-          value: 5
+        - type: op
+          operation: +
+          arguments:
+          - type: int
+            value: 5
+          - type: access
+            relation: '{ S_2[i, j] -> [j] }'
+            index: '{ S_2[i, j] -> [(j)] }'
+            reference: __pet_ref_5
+            read: 1
+            write: 0
         - type: access
-          relation: '{ S_2[i, j] -> [j] }'
-          index: '{ S_2[i, j] -> [(j)] }'
-          reference: __pet_ref_5
+          relation: '{ S_2[i, j] -> N[] }'
+          index: '{ S_2[i, j] -> N[] }'
+          reference: __pet_ref_6
           read: 1
           write: 0
-      - type: access
-        relation: '{ S_2[i, j] -> N[] }'
-        index: '{ S_2[i, j] -> N[] }'
-        reference: __pet_ref_6
-        read: 1
-        write: 0
   arguments:
   - type: access
     relation: '{ S_2[i, j] -> __pet_test_0[i] }'
@@ -101,17 +107,19 @@ statements:
   domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
   schedule: '{ S_3[i, j] -> [1, i, 1, j, 1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_3[i, j] -> N[] }'
-      index: '{ S_3[i, j] -> N[] }'
-      reference: __pet_ref_8
-      read: 0
-      write: 1
-    - type: call
-      name: f
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_3[i, j] -> N[] }'
+        index: '{ S_3[i, j] -> N[] }'
+        reference: __pet_ref_8
+        read: 0
+        write: 1
+      - type: call
+        name: f
   arguments:
   - type: access
     relation: '{ S_3[i, j] -> __pet_test_0[i] }'

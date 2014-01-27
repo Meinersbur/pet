@@ -20,63 +20,71 @@ statements:
   domain: '{ S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_0[] -> b[] }'
-      index: '{ S_0[] -> b[] }'
-      reference: __pet_ref_0
-      read: 0
-      write: 1
-    - type: int
-      value: 1
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> b[] }'
+        index: '{ S_0[] -> b[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 1
 - line: 6
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [1] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_1[] -> c[] }'
-      index: '{ S_1[] -> c[] }'
-      reference: __pet_ref_1
-      read: 0
-      write: 1
-    - type: access
-      relation: '{ S_1[] -> [1] }'
-      index: '{ S_1[] -> [(1)] }'
-      reference: __pet_ref_2
-      read: 1
-      write: 0
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[] -> c[] }'
+        index: '{ S_1[] -> c[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: access
+        relation: '{ S_1[] -> [1] }'
+        index: '{ S_1[] -> [(1)] }'
+        reference: __pet_ref_2
+        read: 1
+        write: 0
 - line: 7
   domain: '{ S_2[] }'
   schedule: '{ S_2[] -> [2] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_2[] -> b[] }'
-      index: '{ S_2[] -> b[] }'
-      reference: __pet_ref_3
-      read: 0
-      write: 1
-    - type: int
-      value: 2
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_2[] -> b[] }'
+        index: '{ S_2[] -> b[] }'
+        reference: __pet_ref_3
+        read: 0
+        write: 1
+      - type: int
+        value: 2
 - line: 8
   domain: '{ S_3[] }'
   schedule: '{ S_3[] -> [3] }'
   body:
-    type: op
-    operation: =
-    arguments:
-    - type: access
-      relation: '{ S_3[] -> a[1] }'
-      index: '{ S_3[] -> a[(1)] }'
-      reference: __pet_ref_4
-      read: 0
-      write: 1
-    - type: int
-      value: 5
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_3[] -> a[1] }'
+        index: '{ S_3[] -> a[(1)] }'
+        reference: __pet_ref_4
+        read: 0
+        write: 1
+      - type: int
+        value: 5
