@@ -2129,40 +2129,59 @@ static __isl_give isl_union_map *expr_collect_access(__isl_keep pet_expr *expr,
 	return isl_union_map_add_map(accesses, access);
 }
 
-/* Add all read access relations (if "read" is set) and/or all write
- * access relations (if "write" is set) to "accesses" and return the result.
- * The domains of the access relations are intersected with "domain".
- * If "tag" is set, then the access relations are tagged with
+/* Internal data structure for expr_collect_accesses.
+ *
+ * "read" is set if we want to collect read accesses.
+ * "write" is set if we want to collect write accesses.
+ * "must" is set if we only want definite accesses.
+ * "tag" is set if the access relations should be tagged with
+ * the corresponding reference identifiers.
+ * "domain" are constraints on the domain of the access relations.
+ * "accesses" collects the results.
+ */
+struct pet_expr_collect_accesses_data {
+	int read;
+	int write;
+	int must;
+	int tag;
+	isl_set *domain;
+
+	isl_union_map *accesses;
+};
+
+/* Add the access relation of the access expression "expr"
+ * to data->accesses if the access expression is a read and data->read is set
+ * and/or it is a write and data->write is set.
+ * The domains of the access relations are intersected with data->domain.
+ * If data->tag is set, then the access relations are tagged with
  * the corresponding reference identifiers.
  *
- * If "must" is set, then we only add the accesses that are definitely
+ * If data->must is set, then we only add the accesses that are definitely
  * performed.  Otherwise, we add all potential accesses.
- * In particular, if the access has any arguments, then if "must" is
- * set we currently skip the access completely.  If "must" is not set,
+ * In particular, if the access has any arguments, then if data->must is
+ * set we currently skip the access completely.  If data->must is not set,
  * we project out the values of the access arguments.
  */
-static __isl_give isl_union_map *expr_collect_accesses(
-	__isl_keep pet_expr *expr, int read, int write, int must, int tag,
-	__isl_take isl_union_map *accesses, __isl_keep isl_set *domain)
+static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 {
+	struct pet_expr_collect_accesses_data *data = user;
 	int i;
 	isl_id *id;
 	isl_space *dim;
 
 	if (!expr)
-		return isl_union_map_free(accesses);
+		return -1;
 
-	for (i = 0; i < expr->n_arg; ++i)
-		accesses = expr_collect_accesses(expr->args[i],
-				     read, write, must, tag, accesses, domain);
+	if (pet_expr_is_affine(expr))
+		return 0;
+	if (data->must && expr->n_arg != 0)
+		return 0;
 
-	if (expr->type == pet_expr_access && !pet_expr_is_affine(expr) &&
-	    ((read && expr->acc.read) || (write && expr->acc.write)) &&
-	    (!must || expr->n_arg == 0)) {
-		accesses = expr_collect_access(expr, tag, accesses, domain);
-	}
+	if ((data->read && expr->acc.read) || (data->write && expr->acc.write))
+		data->accesses = expr_collect_access(expr, data->tag,
+						data->accesses, data->domain);
 
-	return accesses;
+	return data->accesses ? 0 : -1;
 }
 
 /* Collect and return all read access relations (if "read" is set)
@@ -2182,30 +2201,30 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	int read, int write, int kill, int must, int tag,
 	__isl_take isl_space *dim)
 {
-	isl_union_map *accesses;
-	isl_set *domain;
+	struct pet_expr_collect_accesses_data data = { read, write, must, tag };
 
 	if (!stmt)
 		return NULL;
 
-	accesses = isl_union_map_empty(dim);
+	data.accesses = isl_union_map_empty(dim);
 
 	if (must && stmt->n_arg > 0)
-		return accesses;
+		return data.accesses;
 
-	domain = isl_set_copy(stmt->domain);
-	if (isl_set_is_wrapping(domain))
-		domain = isl_map_domain(isl_set_unwrap(domain));
+	data.domain = isl_set_copy(stmt->domain);
+	if (isl_set_is_wrapping(data.domain))
+		data.domain = isl_map_domain(isl_set_unwrap(data.domain));
 
 	if (kill)
-		accesses = expr_collect_access(stmt->body->args[0], tag,
-						accesses, domain);
-	else
-		accesses = expr_collect_accesses(stmt->body, read, write,
-						must, tag, accesses, domain);
-	isl_set_free(domain);
+		data.accesses = expr_collect_access(stmt->body->args[0], tag,
+						data.accesses, data.domain);
+	else if (pet_expr_foreach_access_expr(stmt->body,
+					&expr_collect_accesses, &data) < 0)
+		data.accesses = isl_union_map_free(data.accesses);
 
-	return accesses;
+	isl_set_free(data.domain);
+
+	return data.accesses;
 }
 
 /* Is "stmt" an assignment statement?
