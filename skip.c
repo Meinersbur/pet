@@ -1,4 +1,5 @@
 #include "expr.h"
+#include "loc.h"
 #include "scop.h"
 #include "skip.h"
 
@@ -137,7 +138,7 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(-1, NULL, (*n_stmt)++, expr);
+	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL, (*n_stmt)++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
 	scop = pet_scop_add_boolean_array(scop, skip_index, int_size);
@@ -368,7 +369,7 @@ static struct pet_scop *extract_skip_seq(
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(-1, NULL, (*n_stmt)++, expr);
+	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL, (*n_stmt)++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
 	scop = pet_scop_add_boolean_array(scop, skip_index, int_size);

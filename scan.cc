@@ -2564,16 +2564,17 @@ static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
 		return loc;
 }
 
-/* Update start and end of "scop" to include the region covered by "range".
+/* Construct a pet_loc corresponding to the region covered by "range".
  * If "skip_semi" is set, then we assume "range" is followed by
  * a semicolon and also include this semicolon.
  */
-struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
-	SourceRange range, bool skip_semi)
+__isl_give pet_loc *PetScan::construct_pet_loc(SourceRange range,
+	bool skip_semi)
 {
 	SourceLocation loc = range.getBegin();
 	SourceManager &SM = PP.getSourceManager();
 	const LangOptions &LO = PP.getLangOpts();
+	int line = PP.getSourceManager().getExpansionLineNumber(loc);
 	unsigned start, end;
 
 	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
@@ -2585,8 +2586,7 @@ struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
 		loc = PP.getLocForEndOfToken(loc);
 	end = getExpansionOffset(SM, loc);
 
-	scop = pet_scop_update_start_end(scop, start, end);
-	return scop;
+	return pet_loc_alloc(ctx, start, end, line);
 }
 
 /* Convert a top-level pet_expr to a pet_scop with one statement
@@ -2604,16 +2604,15 @@ struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
 {
 	struct pet_stmt *ps;
 	struct pet_scop *scop;
-	SourceLocation loc = range.getBegin();
-	int line = PP.getSourceManager().getExpansionLineNumber(loc);
+	pet_loc *loc;
 
 	expr = pet_expr_plug_in_args(expr, pc);
 	expr = pet_expr_resolve_nested(expr);
 	expr = pet_expr_resolve_assume(expr, pc);
-	ps = pet_stmt_from_pet_expr(line, label, n_stmt++, expr);
-	scop = pet_scop_from_pet_stmt(ctx, ps);
 
-	scop = update_scop_start_end(scop, range, skip_semi);
+	loc = construct_pet_loc(range, skip_semi);
+	ps = pet_stmt_from_pet_expr(loc, label, n_stmt++, expr);
+	scop = pet_scop_from_pet_stmt(ctx, ps);
 	return scop;
 }
 
@@ -2759,8 +2758,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 {
 	pet_expr *expr, *write;
 	struct pet_stmt *ps;
-	SourceLocation loc = cond->getLocStart();
-	int line = PP.getSourceManager().getExpansionLineNumber(loc);
+	pet_loc *loc;
 
 	write = pet_expr_from_index(index);
 	write = pet_expr_access_set_write(write, 1);
@@ -2769,7 +2767,8 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	expr = pet_expr_plug_in_args(expr, pc);
 	expr = pet_expr_resolve_nested(expr);
 	expr = pet_expr_new_binary(1, pet_op_assign, write, expr);
-	ps = pet_stmt_from_pet_expr(line, NULL, stmt_nr, expr);
+	loc = construct_pet_loc(cond->getSourceRange(), false);
+	ps = pet_stmt_from_pet_expr(loc, NULL, stmt_nr, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
@@ -3116,6 +3115,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, __isl_keep pet_context *pc,
 	bool skip_declarations)
 {
 	struct pet_scop *scop;
+	pet_loc *loc;
 
 	if (isa<Expr>(stmt))
 		return extract(extract_expr(cast<Expr>(stmt)),
@@ -3154,7 +3154,9 @@ struct pet_scop *PetScan::extract(Stmt *stmt, __isl_keep pet_context *pc,
 	if (partial || skip_declarations)
 		return scop;
 
-	scop = update_scop_start_end(scop, stmt->getSourceRange(), false);
+	loc = construct_pet_loc(stmt->getSourceRange(), false);
+	scop = pet_scop_update_start_end_from_loc(scop, loc);
+	pet_loc_free(loc);
 
 	return scop;
 }
@@ -3170,6 +3172,7 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *arg;
+	pet_loc *loc;
 
 	if (!scop)
 		return NULL;
@@ -3188,7 +3191,8 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
 	kill = pet_expr_kill_from_access_and_index(access, index);
-	return pet_stmt_from_pet_expr(stmt->line, NULL, n_stmt++, kill);
+	loc = pet_loc_copy(stmt->loc);
+	return pet_stmt_from_pet_expr(loc, NULL, n_stmt++, kill);
 }
 
 /* Mark all arrays in "scop" as being exposed.

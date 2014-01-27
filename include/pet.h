@@ -31,6 +31,21 @@ int pet_options_get_detect_conditional_assignment(isl_ctx *ctx);
 int pet_options_set_signed_overflow(isl_ctx *ctx, int val);
 int pet_options_get_signed_overflow(isl_ctx *ctx);
 
+struct pet_loc;
+typedef struct pet_loc pet_loc;
+
+/* Return an additional reference to "loc". */
+__isl_give pet_loc *pet_loc_copy(__isl_keep pet_loc *loc);
+/* Free a reference to "loc". */
+pet_loc *pet_loc_free(__isl_take pet_loc *loc);
+
+/* Return the offset in the input file of the start of "loc". */
+unsigned pet_loc_get_start(__isl_keep pet_loc *loc);
+/* Return the offset in the input file of the character after "loc". */
+unsigned pet_loc_get_end(__isl_keep pet_loc *loc);
+/* Return the line number of a line within the "loc" region. */
+int pet_loc_get_line(__isl_keep pet_loc *loc);
+
 enum pet_expr_type {
 	pet_expr_error = -1,
 	pet_expr_access,
@@ -200,7 +215,10 @@ int pet_expr_foreach_call_expr(__isl_keep pet_expr *expr,
 
 void pet_expr_dump(__isl_keep pet_expr *expr);
 
-/* If the statement has arguments, i.e., n_arg != 0, then
+/* "loc" represents the region of the source code that is represented
+ * by this statement.
+ *
+ * If the statement has arguments, i.e., n_arg != 0, then
  * "domain" is a wrapped map, mapping the iteration domain
  * to the values of the arguments for which this statement
  * is executed.
@@ -212,7 +230,7 @@ void pet_expr_dump(__isl_keep pet_expr *expr);
  * for all of those accessed elements.
  */
 struct pet_stmt {
-	int line;
+	pet_loc *loc;
 	isl_set *domain;
 	isl_map *schedule;
 	pet_expr *body;
@@ -312,12 +330,10 @@ struct pet_implication {
 	isl_map *extension;
 };
 
-/* The start and end fields contain the offsets in the input file
- * of the scop, where end points to the first character after the scop.
+/* "loc" represents the region of the source code that is represented
+ * by this scop.
  * If the scop was detected based on scop and endscop pragmas, then
- * the lines containing these pragmas are included in this range.
- * Internally, end may be zero to indicate that no offset information is
- * available (yet).
+ * the lines containing these pragmas are included in this region.
  * The context describes the set of parameter values for which
  * the scop can be executed.
  * context_value describes assignments to the parameters (if any)
@@ -328,8 +344,7 @@ struct pet_implication {
  * The n_implication implications describe implications on boolean filters.
  */
 struct pet_scop {
-	unsigned start;
-	unsigned end;
+	pet_loc *loc;
 
 	isl_set *context;
 	isl_set *context_value;

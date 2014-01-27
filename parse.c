@@ -36,6 +36,7 @@
 #include <yaml.h>
 
 #include "expr.h"
+#include "loc.h"
 #include "scop.h"
 #include "scop_yaml.h"
 
@@ -617,6 +618,8 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 {
 	struct pet_stmt *stmt;
 	yaml_node_pair_t * pair;
+	int line = -1;
+	unsigned start = 0, end = 0;
 
 	if (node->type != YAML_MAPPING_NODE)
 		isl_die(ctx, isl_error_invalid, "expecting mapping",
@@ -625,6 +628,8 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 	stmt = isl_calloc_type(ctx, struct pet_stmt);
 	if (!stmt)
 		return NULL;
+
+	stmt->loc = &pet_loc_dummy;
 
 	for (pair = node->data.mapping.pairs.start;
 	     pair < node->data.mapping.pairs.top; ++pair) {
@@ -638,7 +643,11 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 				return pet_stmt_free(stmt));
 
 		if (!strcmp((char *) key->data.scalar.value, "line"))
-			stmt->line = extract_int(ctx, document, value);
+			line = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "start"))
+			start = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "end"))
+			end = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "domain"))
 			stmt->domain = extract_set(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "schedule"))
@@ -652,6 +661,10 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 		if (!stmt)
 			return NULL;
 	}
+
+	stmt->loc = pet_loc_alloc(ctx, start, end, line);
+	if (!stmt->loc)
+		return pet_stmt_free(stmt);
 
 	return stmt;
 }

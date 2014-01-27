@@ -38,6 +38,7 @@
 
 #include "expr.h"
 #include "filter.h"
+#include "loc.h"
 #include "nest.h"
 #include "scop.h"
 #include "print.h"
@@ -70,7 +71,7 @@ struct pet_scop_ext {
 	FILE *input;
 };
 
-/* Construct a pet_stmt with given line number and statement
+/* Construct a pet_stmt with given location and statement
  * number from a pet_expr.
  * The initial iteration domain is the zero-dimensional universe.
  * The name of the domain is given by "label" if it is non-NULL.
@@ -78,8 +79,8 @@ struct pet_scop_ext {
  * The domains of all access relations are modified to refer
  * to the statement iteration domain.
  */
-struct pet_stmt *pet_stmt_from_pet_expr(int line, __isl_take isl_id *label,
-	int id, __isl_take pet_expr *expr)
+struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
+	__isl_take isl_id *label, int id, __isl_take pet_expr *expr)
 {
 	struct pet_stmt *stmt;
 	isl_ctx *ctx;
@@ -89,7 +90,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(int line, __isl_take isl_id *label,
 	isl_multi_pw_aff *add_name;
 	char name[50];
 
-	if (!expr)
+	if (!loc || !expr)
 		goto error;
 
 	ctx = pet_expr_get_ctx(expr);
@@ -111,7 +112,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(int line, __isl_take isl_id *label,
 	add_name = isl_multi_pw_aff_zero(dim);
 	expr = pet_expr_update_domain(expr, add_name);
 
-	stmt->line = line;
+	stmt->loc = loc;
 	stmt->domain = dom;
 	stmt->schedule = sched;
 	stmt->body = expr;
@@ -122,6 +123,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(int line, __isl_take isl_id *label,
 	return stmt;
 error:
 	isl_id_free(label);
+	pet_loc_free(loc);
 	pet_expr_free(expr);
 	return NULL;
 }
@@ -133,6 +135,7 @@ void *pet_stmt_free(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 
+	pet_loc_free(stmt->loc);
 	isl_set_free(stmt->domain);
 	isl_map_free(stmt->schedule);
 	pet_expr_free(stmt->body);
@@ -173,7 +176,7 @@ static void stmt_dump(struct pet_stmt *stmt, int indent)
 	if (!stmt)
 		return;
 
-	fprintf(stderr, "%*s%d\n", indent, "", stmt->line);
+	fprintf(stderr, "%*s%d\n", indent, "", pet_loc_get_line(stmt->loc));
 	fprintf(stderr, "%*s", indent, "");
 	isl_set_dump(stmt->domain);
 	fprintf(stderr, "%*s", indent, "");
@@ -258,6 +261,9 @@ struct pet_scop *pet_scop_alloc(isl_ctx *ctx)
 }
 
 /* Construct a pet_scop with room for n statements.
+ *
+ * Since no information on the location is known at this point,
+ * scop->loc is initialized with pet_loc_dummy.
  */
 static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 {
@@ -275,6 +281,7 @@ static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 	if (!scop->context || !scop->stmts)
 		return pet_scop_free(scop);
 
+	scop->loc = &pet_loc_dummy;
 	scop->n_stmt = n;
 
 	return scop;
@@ -402,6 +409,10 @@ struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt)
 		goto error;
 
 	scop->stmts[0] = stmt;
+	scop->loc = pet_loc_copy(stmt->loc);
+
+	if (!scop->loc)
+		return pet_scop_free(scop);
 
 	return scop;
 error:
@@ -523,28 +534,55 @@ static struct pet_scop *scop_combine_skips(struct pet_scop *scop,
 	return &ext->scop;
 }
 
-/* Update scop->start and scop->end to include the region from "start"
- * to "end".  In particular, if scop->end == 0, then "scop" does not
- * have any offset information yet and we simply take the information
- * from "start" and "end".  Otherwise, we update the fields if the
- * region from "start" to "end" is not already included.
+/* Update start and end of scop->loc to include the region from "start"
+ * to "end".  In particular, if scop->loc == &pet_loc_dummy, then "scop"
+ * does not have any offset information yet and we simply take the information
+ * from "start" and "end".  Otherwise, we update loc using "start" and "end".
  */
 struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 	unsigned start, unsigned end)
 {
 	if (!scop)
 		return NULL;
-	if (scop->end == 0) {
-		scop->start = start;
-		scop->end = end;
-	} else {
-		if (start < scop->start)
-			scop->start = start;
-		if (end > scop->end)
-			scop->end = end;
-	}
+
+	if (scop->loc == &pet_loc_dummy)
+		scop->loc = pet_loc_alloc(isl_set_get_ctx(scop->context),
+					    start, end, -1);
+	else
+		scop->loc = pet_loc_update_start_end(scop->loc, start, end);
+
+	if (!scop->loc)
+		return pet_scop_free(scop);
 
 	return scop;
+}
+
+/* Update start and end of scop->loc to include the region identified
+ * by "loc".
+ */
+struct pet_scop *pet_scop_update_start_end_from_loc(struct pet_scop *scop,
+	__isl_keep pet_loc *loc)
+{
+	return pet_scop_update_start_end(scop, pet_loc_get_start(loc),
+						pet_loc_get_end(loc));
+}
+
+/* Replace the location of "scop" by "loc".
+ */
+struct pet_scop *pet_scop_set_loc(struct pet_scop *scop,
+	__isl_take pet_loc *loc)
+{
+	if (!scop || !loc)
+		goto error;
+
+	pet_loc_free(scop->loc);
+	scop->loc = loc;
+
+	return scop;
+error:
+	pet_loc_free(loc);
+	pet_scop_free(scop);
+	return NULL;
 }
 
 /* Does "implication" appear in the list of implications of "scop"?
@@ -631,12 +669,10 @@ static struct pet_scop *scop_collect_implications(isl_ctx *ctx,
 static struct pet_scop *scop_combine_start_end(struct pet_scop *scop,
 	struct pet_scop *scop1, struct pet_scop *scop2)
 {
-	if (scop1->end)
-		scop = pet_scop_update_start_end(scop,
-						scop1->start, scop1->end);
-	if (scop2->end)
-		scop = pet_scop_update_start_end(scop,
-						scop2->start, scop2->end);
+	if (scop1->loc != &pet_loc_dummy)
+		scop = pet_scop_update_start_end_from_loc(scop, scop1->loc);
+	if (scop2->loc != &pet_loc_dummy)
+		scop = pet_scop_update_start_end_from_loc(scop, scop2->loc);
 	return scop;
 }
 
@@ -790,6 +826,7 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop)
 
 	if (!scop)
 		return NULL;
+	pet_loc_free(scop->loc);
 	isl_set_free(scop->context);
 	isl_set_free(scop->context_value);
 	if (scop->types)
@@ -900,7 +937,7 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 	if (!stmt1 || !stmt2)
 		return 0;
 	
-	if (stmt1->line != stmt2->line)
+	if (pet_loc_get_line(stmt1->loc) != pet_loc_get_line(stmt2->loc))
 		return 0;
 	if (!isl_set_is_equal(stmt1->domain, stmt2->domain))
 		return 0;
@@ -3300,6 +3337,7 @@ __isl_give isl_printer *pet_scop_print_original(struct pet_scop *scop,
 {
 	struct pet_scop_ext *ext = (struct pet_scop_ext *) scop;
 	FILE *output;
+	unsigned start, end;
 
 	if (!scop || !p)
 		return isl_printer_free(p);
@@ -3313,7 +3351,9 @@ __isl_give isl_printer *pet_scop_print_original(struct pet_scop *scop,
 	if (!output)
 		return isl_printer_free(p);
 
-	if (copy(ext->input, output, scop->start, scop->end) < 0)
+	start = pet_loc_get_start(scop->loc);
+	end = pet_loc_get_end(scop->loc);
+	if (copy(ext->input, output, start, end) < 0)
 		return isl_printer_free(p);
 
 	return p;

@@ -10,6 +10,7 @@
 #include <isl/val.h>
 
 #include "context.h"
+#include "loc.h"
 #include "scop.h"
 
 /* The location of the scop, as delimited by scop and endscop
@@ -129,8 +130,8 @@ private:
 	struct pet_scop *extract(clang::DeclStmt *expr,
 		__isl_keep pet_context *pc);
 
-	struct pet_scop *update_scop_start_end(struct pet_scop *scop,
-		clang::SourceRange range, bool skip_semi);
+	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,
+		bool skip_semi);
 	struct pet_scop *extract(__isl_take pet_expr *expr,
 		clang::SourceRange range, bool skip_semi,
 		__isl_keep pet_context *pc, __isl_take isl_id *label = NULL);

@@ -15,8 +15,8 @@ extern "C" {
  */
 enum pet_skip { pet_skip_now = 0, pet_skip_later = 1 };
 
-struct pet_stmt *pet_stmt_from_pet_expr(int line, __isl_take isl_id *label,
-	int id, __isl_take pet_expr *expr);
+struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
+	__isl_take isl_id *label, int id, __isl_take pet_expr *expr);
 void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
@@ -92,6 +92,10 @@ struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
 
 struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 	unsigned start, unsigned end);
+struct pet_scop *pet_scop_update_start_end_from_loc(struct pet_scop *scop,
+	__isl_keep pet_loc *loc);
+struct pet_scop *pet_scop_set_loc(struct pet_scop *scop,
+	__isl_take pet_loc *loc);
 struct pet_scop *pet_scop_set_input_file(struct pet_scop *scop, FILE *input);
 
 #if defined(__cplusplus)

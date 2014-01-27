@@ -48,6 +48,8 @@ libpet_la_SOURCES = \
 	expr_arg.c \
 	filter.h \
 	filter.c \
+	loc.h \
+	loc.c \
 	nest.h \
 	nest.c \
 	options.h \

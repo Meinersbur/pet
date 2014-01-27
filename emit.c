@@ -1,6 +1,6 @@
 /*
- * Copyright 2011 Leiden University. All rights reserved.
- * Copyright 2013 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2011      Leiden University. All rights reserved.
+ * Copyright 2013-2014 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +35,7 @@
 #include <yaml.h>
 
 #include "expr.h"
+#include "loc.h"
 #include "scop.h"
 #include "scop_yaml.h"
 
@@ -506,7 +507,7 @@ static int emit_stmt(yaml_emitter_t *emitter, struct pet_stmt *stmt)
 
 	if (emit_string(emitter, "line") < 0)
 		return -1;
-	if (emit_int(emitter, stmt->line) < 0)
+	if (emit_int(emitter, pet_loc_get_line(stmt->loc)) < 0)
 		return -1;
 
 	if (emit_string(emitter, "domain") < 0)
@@ -647,9 +648,10 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 	if (!yaml_emitter_emit(emitter, &event))
 		return -1;
 
-	if (emit_named_unsigned(emitter, "start", scop->start) < 0)
+	if (emit_named_unsigned(emitter,
+				"start", pet_loc_get_start(scop->loc)) < 0)
 		return -1;
-	if (emit_named_unsigned(emitter, "end", scop->end) < 0)
+	if (emit_named_unsigned(emitter, "end", pet_loc_get_end(scop->loc)) < 0)
 		return -1;
 	if (emit_string(emitter, "context") < 0)
 		return -1;

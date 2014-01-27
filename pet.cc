@@ -1003,10 +1003,12 @@ struct pet_transform_data {
 static int pet_transform(struct pet_scop *scop, void *user)
 {
 	struct pet_transform_data *data = (struct pet_transform_data *) user;
+	unsigned start;
 
-	if (copy(data->in, data->out, data->end, scop->start) < 0)
+	start = pet_loc_get_start(scop->loc);
+	if (copy(data->in, data->out, data->end, start) < 0)
 		goto error;
-	data->end = scop->end;
+	data->end = pet_loc_get_end(scop->loc);
 	scop = pet_scop_set_input_file(scop, data->in);
 	data->p = data->transform(data->p, scop, data->user);
 	if (!data->p)
