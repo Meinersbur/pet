@@ -39,6 +39,7 @@
 #include "expr.h"
 #include "expr_arg.h"
 #include "nest.h"
+#include "tree.h"
 
 /* A pet_context represents the context in which a pet_expr
  * in converted to an affine expression.
@@ -521,6 +522,26 @@ __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	expr = pet_expr_insert_domain(expr, pet_context_get_space(pc));
 	expr = plug_in_affine_read(expr, pc);
 	return pet_expr_plug_in_args(expr, pc);
+}
+
+/* Wrapper around pet_context_evaluate_expr
+ * for use as a callback to pet_tree_map_expr.
+ */
+static __isl_give pet_expr *evaluate_expr(__isl_take pet_expr *expr,
+	void *user)
+{
+	pet_context *pc = user;
+
+	return pet_context_evaluate_expr(pc, expr);
+}
+
+/* Evaluate "tree" in the context of "pc".
+ * That is, evaluate all the expressions of "tree" in the context of "pc".
+ */
+__isl_give pet_tree *pet_context_evaluate_tree(__isl_keep pet_context *pc,
+	__isl_take pet_tree *tree)
+{
+	return pet_tree_map_expr(tree, &evaluate_expr, pc);
 }
 
 /* Add an unbounded inner dimension "id" to pc->domain.

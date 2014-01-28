@@ -740,6 +740,25 @@ error:
 	return pet_expr_free(expr);
 }
 
+/* Wrapper around pet_expr_resolve_nested
+ * for use as a callback to pet_tree_map_expr.
+ */
+static __isl_give pet_expr *resolve_nested(__isl_take pet_expr *expr,
+	void *user)
+{
+	isl_space *space = user;
+
+	return pet_expr_resolve_nested(expr, space);
+}
+
+/* Call pet_expr_resolve_nested on each of the expressions in "tree".
+ */
+__isl_give pet_tree *pet_tree_resolve_nested(__isl_take pet_tree *tree,
+	__isl_keep isl_space *space)
+{
+	return pet_tree_map_expr(tree, &resolve_nested, space);
+}
+
 /* For each nested access parameter in the domain of "stmt",
  * construct a corresponding pet_expr, place it before the original
  * elements in stmt->args and record its position in "param2pos".

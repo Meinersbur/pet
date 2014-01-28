@@ -39,6 +39,8 @@ __isl_give pet_context *pet_context_add_parameters(__isl_take pet_context *pc,
 
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr);
+__isl_give pet_tree *pet_context_evaluate_tree(__isl_keep pet_context *pc,
+	__isl_take pet_tree *tree);
 
 __isl_give pet_context *pet_context_add_inner_iterator(
 	__isl_take pet_context *pc, __isl_take isl_id *id);

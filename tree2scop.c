@@ -68,52 +68,100 @@ static __isl_give pet_context *scop_handle_writes(struct pet_scop *scop,
 	return pc;
 }
 
-/* Convert a top-level pet_expr to a pet_scop with one statement
- * within the context "pc".
- * "expr" has already been evaluated in the context of "pc".
+/* Wrapper around pet_expr_resolve_assume
+ * for use as a callback to pet_tree_map_expr.
+ */
+static __isl_give pet_expr *resolve_assume(__isl_take pet_expr *expr,
+	void *user)
+{
+	pet_context *pc = user;
+
+	return pet_expr_resolve_assume(expr, pc);
+}
+
+/* Check if any expression inside "tree" is an assume expression and
+ * if its single argument can be converted to an affine expression
+ * in the context of "pc".
+ * If so, replace the argument by the affine expression.
+ */
+__isl_give pet_tree *pet_tree_resolve_assume(__isl_take pet_tree *tree,
+	__isl_keep pet_context *pc)
+{
+	return pet_tree_map_expr(tree, &resolve_assume, pc);
+}
+
+/* Convert a pet_tree to a pet_scop with one statement within the context "pc".
+ * "tree" has already been evaluated in the context of "pc".
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
- * The name is given by "label" if it is non-NULL.  Otherwise,
+ * The name is given by tree->label if it is non-NULL.  Otherwise,
  * it is of the form S_<stmt_nr>.
- * The location of the statement is set to "loc".
  */
-static struct pet_scop *scop_from_evaluated_expr(__isl_take pet_expr *expr,
-	__isl_take isl_id *label, int stmt_nr, __isl_take pet_loc *loc,
-	__isl_keep pet_context *pc)
+static struct pet_scop *scop_from_evaluated_tree(__isl_take pet_tree *tree,
+	int stmt_nr, __isl_keep pet_context *pc)
 {
 	isl_space *space;
 	isl_set *domain;
-	pet_tree *tree;
 	struct pet_stmt *ps;
 
 	space = pet_context_get_space(pc);
 
-	expr = pet_expr_resolve_nested(expr, space);
-	expr = pet_expr_resolve_assume(expr, pc);
-	tree = pet_tree_new_expr(expr);
-	tree = pet_tree_set_loc(tree, loc);
-	if (label)
-		tree = pet_tree_set_label(tree, label);
+	tree = pet_tree_resolve_nested(tree, space);
+	tree = pet_tree_resolve_assume(tree, pc);
+
 	domain = pet_context_get_domain(pc);
 	ps = pet_stmt_from_pet_tree(domain, stmt_nr, tree);
 	return pet_scop_from_pet_stmt(space, ps);
 }
 
 /* Convert a top-level pet_expr to a pet_scop with one statement
+ * within the context "pc".
+ * "expr" has already been evaluated in the context of "pc".
+ * We construct a pet_tree from "expr" and continue with
+ * scop_from_evaluated_tree.
+ * The name is of the form S_<stmt_nr>.
+ * The location of the statement is set to "loc".
+ */
+static struct pet_scop *scop_from_evaluated_expr(__isl_take pet_expr *expr,
+	int stmt_nr, __isl_take pet_loc *loc, __isl_keep pet_context *pc)
+{
+	pet_tree *tree;
+
+	tree = pet_tree_new_expr(expr);
+	tree = pet_tree_set_loc(tree, loc);
+	return scop_from_evaluated_tree(tree, stmt_nr, pc);
+}
+
+/* Convert a pet_tree to a pet_scop with one statement within the context "pc".
+ * "tree" has not yet been evaluated in the context of "pc".
+ * We evaluate "tree" in the context of "pc" and continue with
+ * scop_from_evaluated_tree.
+ * The statement name is given by tree->label if it is non-NULL.  Otherwise,
+ * it is of the form S_<stmt_nr>.
+ */
+static struct pet_scop *scop_from_unevaluated_tree(__isl_take pet_tree *tree,
+	int stmt_nr, __isl_keep pet_context *pc)
+{
+	tree = pet_context_evaluate_tree(pc, tree);
+	return scop_from_evaluated_tree(tree, stmt_nr, pc);
+}
+
+/* Convert a top-level pet_expr to a pet_scop with one statement
  * within the context "pc", where "expr" has not yet been evaluated
  * in the context of "pc".
- * We evaluate "expr" in the context of "pc" and continue with
- * scop_from_evaluated_expr.
- * The statement name is given by "label" if it is non-NULL.  Otherwise,
- * it is of the form S_<stmt_nr>.
+ * We construct a pet_tree from "expr" and continue with
+ * scop_from_unevaluated_tree.
+ * The statement name is of the form S_<stmt_nr>.
  * The location of the statement is set to "loc".
  */
 static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
-	__isl_take isl_id *label, int stmt_nr, __isl_take pet_loc *loc,
-	__isl_keep pet_context *pc)
+	int stmt_nr, __isl_take pet_loc *loc, __isl_keep pet_context *pc)
 {
-	expr = pet_context_evaluate_expr(pc, expr);
-	return scop_from_evaluated_expr(expr, label, stmt_nr, loc, pc);
+	pet_tree *tree;
+
+	tree = pet_tree_new_expr(expr);
+	tree = pet_tree_set_loc(tree, loc);
+	return scop_from_unevaluated_tree(tree, stmt_nr, pc);
 }
 
 /* Construct a pet_scop with a single statement killing the entire
@@ -140,7 +188,7 @@ static struct pet_scop *kill(__isl_take pet_loc *loc, struct pet_array *array,
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 	index = isl_multi_pw_aff_zero(space);
 	expr = pet_expr_kill_from_access_and_index(access, index);
-	return scop_from_expr(expr, NULL, state->n_stmt++, loc, pc);
+	return scop_from_expr(expr, state->n_stmt++, loc, pc);
 error:
 	pet_loc_free(loc);
 	return NULL;
@@ -186,8 +234,7 @@ static struct pet_scop *scop_from_decl(__isl_keep pet_tree *tree,
 	rhs = pet_expr_copy(tree->u.d.init);
 	type_size = pet_expr_get_type_size(lhs);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
-	scop = scop_from_expr(pe, NULL, state->n_stmt++,
-				pet_tree_get_loc(tree), pc);
+	scop = scop_from_expr(pe, state->n_stmt++, pet_tree_get_loc(tree), pc);
 
 	scop_decl = pet_scop_prefix(scop_decl, 0);
 	scop = pet_scop_prefix(scop, 1);
@@ -543,7 +590,7 @@ static struct pet_scop *scop_from_non_affine_condition(
 	write = pet_expr_access_set_read(write, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, write, cond);
 
-	return scop_from_evaluated_expr(expr, NULL, stmt_nr, loc, pc);
+	return scop_from_evaluated_expr(expr, stmt_nr, loc, pc);
 }
 
 /* Construct a generic while scop, with iteration domain
@@ -625,8 +672,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	scop_body = pet_scop_prefix(scop_body, 1);
 	if (expr_inc) {
 		struct pet_scop *scop_inc;
-		scop_inc = scop_from_expr(expr_inc, NULL, state->n_stmt++,
-					loc, pc);
+		scop_inc = scop_from_expr(expr_inc, state->n_stmt++, loc, pc);
 		scop_inc = pet_scop_prefix(scop_inc, 2);
 		if (pet_scop_has_skip(scop_body, pet_skip_later)) {
 			isl_multi_pw_aff *skip;
@@ -988,7 +1034,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	type_size = pet_expr_get_type_size(expr_iv);
 	init = pet_expr_copy(tree->u.l.init);
 	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
-	scop_init = scop_from_expr(init, NULL, state->n_stmt++,
+	scop_init = scop_from_expr(init, state->n_stmt++,
 					pet_tree_get_loc(tree), init_pc);
 	scop_init = pet_scop_prefix(scop_init, declared);
 
@@ -1533,7 +1579,7 @@ static struct pet_scop *scop_from_conditional_assignment(
 	type_size = pet_expr_get_type_size(pe_write);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, pe_write, pe);
 
-	scop = scop_from_evaluated_expr(pe, NULL, state->n_stmt++,
+	scop = scop_from_evaluated_expr(pe, state->n_stmt++,
 				pet_tree_get_loc(tree), pc);
 
 	pet_context_free(pc);
@@ -2050,10 +2096,8 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 	case pet_tree_decl_init:
 		return scop_from_decl(tree, pc, state);
 	case pet_tree_expr:
-		return scop_from_expr(pet_expr_copy(tree->u.e.expr),
-					isl_id_copy(tree->label),
-					state->n_stmt++,
-					pet_tree_get_loc(tree), pc);
+		return scop_from_unevaluated_tree(pet_tree_copy(tree),
+					state->n_stmt++, pc);
 	case pet_tree_if:
 	case pet_tree_if_else:
 		return scop_from_if(tree, pc, state);

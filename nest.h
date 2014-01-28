@@ -34,6 +34,8 @@ int pet_extract_nested_from_space(__isl_keep isl_space *space,
 
 __isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr,
 	__isl_keep isl_space *domain);
+__isl_give pet_tree *pet_tree_resolve_nested(__isl_take pet_tree *tree,
+	__isl_keep isl_space *space);
 struct pet_scop *pet_scop_resolve_nested(struct pet_scop *scop);
 
 #if defined(__cplusplus)
