@@ -2073,16 +2073,133 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 	return scop;
 }
 
+/* Internal data structure for extract_declared_arrays.
+ *
+ * "pc" and "state" are used to create pet_array objects and kill statements.
+ * "any" is initialized to 0 by the caller and set to 1 as soon as we have
+ * found any declared array.
+ * "scop" has been initialized by the caller and is used to attach
+ * the created pet_array objects.
+ * "kill_before" and "kill_after" are created and updated by
+ * extract_declared_arrays to collect the kills of the arrays.
+ */
+struct pet_tree_extract_declared_arrays_data {
+	pet_context *pc;
+	struct pet_state *state;
+
+	isl_ctx *ctx;
+
+	int any;
+	struct pet_scop *scop;
+	struct pet_scop *kill_before;
+	struct pet_scop *kill_after;
+};
+
+/* Check if the node "node" declares any array or scalar.
+ * If so, create the corresponding pet_array and attach it to data->scop.
+ * Additionally, create two kill statements for the array and add them
+ * to data->kill_before and data->kill_after.
+ */
+static int extract_declared_arrays(__isl_keep pet_tree *node, void *user)
+{
+	enum pet_tree_type type;
+	struct pet_tree_extract_declared_arrays_data *data = user;
+	struct pet_array *array;
+	struct pet_scop *scop_kill;
+	pet_expr *var;
+
+	type = pet_tree_get_type(node);
+	if (type == pet_tree_decl || type == pet_tree_decl_init)
+		var = node->u.d.var;
+	else if (type == pet_tree_for && node->u.l.declared)
+		var = node->u.l.iv;
+	else
+		return 0;
+
+	array = extract_array(var, data->pc, data->state);
+	if (array)
+		array->declared = 1;
+	data->scop = pet_scop_add_array(data->scop, array);
+
+	scop_kill = kill(pet_tree_get_loc(node), array, data->pc, data->state);
+	if (!data->any)
+		data->kill_before = scop_kill;
+	else
+		data->kill_before = pet_scop_add_par(data->ctx,
+						data->kill_before, scop_kill);
+
+	scop_kill = kill(pet_tree_get_loc(node), array, data->pc, data->state);
+	if (!data->any)
+		data->kill_after = scop_kill;
+	else
+		data->kill_after = pet_scop_add_par(data->ctx,
+						data->kill_after, scop_kill);
+
+	data->any = 1;
+
+	return 0;
+}
+
+/* Convert a pet_tree that consists of more than a single leaf
+ * to a pet_scop with a single statement encapsulating the entire pet_tree.
+ * Do so within the context of "pc".
+ *
+ * After constructing the core scop, we also look for any arrays (or scalars)
+ * that are declared inside "tree".  Each of those arrays is marked as
+ * having been declared and kill statements for these arrays
+ * are introduced before and after the core scop.
+ * Note that the input tree is not a leaf so that the declaration
+ * cannot occur at the outer level.
+ */
+static struct pet_scop *scop_from_tree_macro(__isl_take pet_tree *tree,
+	__isl_take isl_id *label, __isl_keep pet_context *pc,
+	struct pet_state *state)
+{
+	struct pet_tree_extract_declared_arrays_data data = { pc, state };
+
+	data.scop = scop_from_unevaluated_tree(pet_tree_copy(tree),
+						state->n_stmt++, pc);
+
+	data.any = 0;
+	data.ctx = pet_context_get_ctx(pc);
+	if (pet_tree_foreach_sub_tree(tree, &extract_declared_arrays,
+					&data) < 0)
+		data.scop = pet_scop_free(data.scop);
+	pet_tree_free(tree);
+
+	if (!data.any)
+		return data.scop;
+
+	data.kill_before = pet_scop_prefix(data.kill_before, 0);
+	data.scop = pet_scop_prefix(data.scop, 1);
+	data.kill_after = pet_scop_prefix(data.kill_after, 2);
+
+	data.scop = pet_scop_add_seq(data.ctx, data.kill_before, data.scop);
+	data.scop = pet_scop_add_seq(data.ctx, data.scop, data.kill_after);
+
+	return data.scop;
+}
+
 /* Construct a pet_scop that corresponds to the pet_tree "tree"
  * within the context "pc" by calling the appropriate function
  * based on the type of "tree".
+ *
+ * If the initially constructed pet_scop turns out to involve
+ * dynamic control and if the user has requested an encapsulation
+ * of all dynamic control, then this pet_scop is discarded and
+ * a new pet_scop is created with a single statement representing
+ * the entire "tree".
  */
 static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 	__isl_keep pet_context *pc, struct pet_state *state)
 {
+	isl_ctx *ctx;
+	struct pet_scop *scop = NULL;
+
 	if (!tree)
 		return NULL;
 
+	ctx = pet_tree_get_ctx(tree);
 	switch (tree->type) {
 	case pet_tree_error:
 		return NULL;
@@ -2100,17 +2217,29 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 					state->n_stmt++, pc);
 	case pet_tree_if:
 	case pet_tree_if_else:
-		return scop_from_if(tree, pc, state);
+		scop = scop_from_if(tree, pc, state);
+		break;
 	case pet_tree_for:
-		return scop_from_for(tree, pc, state);
+		scop = scop_from_for(tree, pc, state);
+		break;
 	case pet_tree_while:
-		return scop_from_while(tree, pc, state);
+		scop = scop_from_while(tree, pc, state);
+		break;
 	case pet_tree_infinite_loop:
-		return scop_from_infinite_for(tree, pc, state);
+		scop = scop_from_infinite_for(tree, pc, state);
+		break;
 	}
 
-	isl_die(tree->ctx, isl_error_internal, "unhandled type",
-		return NULL);
+	if (!scop)
+		return NULL;
+
+	if (!pet_options_get_encapsulate_dynamic_control(ctx) ||
+	    !pet_scop_has_data_dependent_conditions(scop))
+		return scop;
+
+	pet_scop_free(scop);
+	return scop_from_tree_macro(pet_tree_copy(tree),
+					isl_id_copy(tree->label), pc, state);
 }
 
 /* Construct a pet_scop that corresponds to the pet_tree "tree".

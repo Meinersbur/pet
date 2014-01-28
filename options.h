@@ -11,6 +11,12 @@ struct pet_options {
 	 */
 	int	autodetect;
 	int	detect_conditional_assignment;
+	/* If encapsulate_dynamic_control is set, then any dynamic control
+	 * in the input program will be encapsulated in macro statements.
+	 * This means in particular that no statements with arguments
+	 * will be created.
+	 */
+	int	encapsulate_dynamic_control;
 	int	n_path;
 	const char **paths;
 	int	n_define;

@@ -46,6 +46,9 @@ ISL_ARGS_START(struct pet_options, pet_options_args)
 ISL_ARG_BOOL(struct pet_options, autodetect, 0, "autodetect", 0, NULL)
 ISL_ARG_BOOL(struct pet_options, detect_conditional_assignment,
 	0, "detect-conditional-assignment", 1, NULL)
+ISL_ARG_BOOL(struct pet_options, encapsulate_dynamic_control,
+	0, "encapsulate-dynamic-control", 0,
+	"encapsulate all dynamic control in macro statements")
 ISL_ARG_CHOICE(struct pet_options, signed_overflow, 0,
 	"signed-overflow", pet_signed_overflow, PET_OVERFLOW_AVOID,
 	"how to handle signed overflows")
@@ -68,6 +71,11 @@ ISL_CTX_SET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
 	detect_conditional_assignment)
 ISL_CTX_GET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
 	detect_conditional_assignment)
+
+ISL_CTX_SET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
+	encapsulate_dynamic_control)
+ISL_CTX_GET_BOOL_DEF(pet_options, struct pet_options, pet_options_args,
+	encapsulate_dynamic_control)
 
 ISL_CTX_SET_CHOICE_DEF(pet_options, struct pet_options, pet_options_args,
 	signed_overflow)

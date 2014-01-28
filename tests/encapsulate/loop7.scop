@@ -1,0 +1,80 @@
+start: 40
+end: 114
+indent: "\t"
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 9
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> i[] }'
+        index: '{ S_0[] -> i[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
+- line: 10
+  domain: '{ S_5[] }'
+  schedule: '{ S_5[] -> [1] }'
+  body:
+    type: for
+    declared: 0
+    variable:
+      type: access
+      relation: '{ S_5[] -> i[] }'
+      index: '{ S_5[] -> i[] }'
+      reference: __pet_ref_1
+      read: 0
+      write: 1
+    initialization:
+      type: access
+      relation: '{ S_5[] -> i[] }'
+      index: '{ S_5[] -> i[] }'
+      reference: __pet_ref_2
+      read: 1
+      write: 0
+    condition:
+      type: op
+      operation: <
+      arguments:
+      - type: access
+        relation: '{ S_5[] -> i[] }'
+        index: '{ S_5[] -> i[] }'
+        reference: __pet_ref_3
+        read: 1
+        write: 0
+      - type: int
+        value: 10
+    increment:
+      type: int
+      value: 1
+    body:
+      type: expression
+      expr:
+        type: op
+        operation: =
+        arguments:
+        - type: access
+          relation: '{ S_5[] -> a[] }'
+          index: '{ S_5[] -> a[] }'
+          reference: __pet_ref_4
+          read: 0
+          write: 1
+        - type: int
+          value: 5

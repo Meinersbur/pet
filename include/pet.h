@@ -27,6 +27,14 @@ int pet_options_get_autodetect(isl_ctx *ctx);
 int pet_options_set_detect_conditional_assignment(isl_ctx *ctx, int val);
 int pet_options_get_detect_conditional_assignment(isl_ctx *ctx);
 
+/* If encapsulate-dynamic-control is set, then any dynamic control
+ * in the input program will be encapsulated in macro statements.
+ * This means in particular that no statements with arguments
+ * will be created.
+ */
+int pet_options_set_encapsulate_dynamic_control(isl_ctx *ctx, int val);
+int pet_options_get_encapsulate_dynamic_control(isl_ctx *ctx);
+
 #define	PET_OVERFLOW_AVOID	0
 #define	PET_OVERFLOW_IGNORE	1
 int pet_options_set_signed_overflow(isl_ctx *ctx, int val);
