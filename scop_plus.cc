@@ -36,6 +36,7 @@
 #include <vector>
 
 #include "clang.h"
+#include "expr.h"
 #include "scop_plus.h"
 
 using namespace std;

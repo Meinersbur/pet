@@ -36,6 +36,8 @@ AM_LDFLAGS = $(CLANG_LDFLAGS)
 libpet_la_SOURCES = \
 	clang.h \
 	clang.cc \
+	expr.h \
+	expr.c \
 	filter.h \
 	filter.c \
 	options.h \

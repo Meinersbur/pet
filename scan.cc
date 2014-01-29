@@ -48,6 +48,7 @@
 #include <isl/set.h>
 
 #include "clang.h"
+#include "expr.h"
 #include "options.h"
 #include "scan.h"
 #include "scop.h"

@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <yaml.h>
 
+#include "expr.h"
 #include "scop.h"
 #include "scop_yaml.h"
 

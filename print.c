@@ -36,6 +36,7 @@
 #include <isl/ast.h>
 #include <isl/ast_build.h>
 #include <pet.h>
+#include "expr.h"
 #include "print.h"
 #include "scop.h"
 
