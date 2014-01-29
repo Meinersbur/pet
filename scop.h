@@ -86,6 +86,8 @@ void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);
 
 struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 	struct pet_array *array);
+struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
+	__isl_take isl_multi_pw_aff *index, int int_size);
 
 struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 	unsigned start, unsigned end);

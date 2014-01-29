@@ -2546,43 +2546,10 @@ static __isl_give isl_multi_pw_aff *create_test_index(isl_ctx *ctx, int test_nr)
 static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	__isl_keep isl_multi_pw_aff *index, clang::ASTContext &ast_ctx)
 {
-	isl_ctx *ctx = isl_multi_pw_aff_get_ctx(index);
-	isl_space *space;
-	struct pet_array *array;
-	isl_map *access;
+	int int_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
 
-	if (!scop)
-		return NULL;
-	if (!ctx)
-		goto error;
-
-	array = isl_calloc_type(ctx, struct pet_array);
-	if (!array)
-		goto error;
-
-	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
-	array->extent = isl_map_range(access);
-	space = isl_space_params_alloc(ctx, 0);
-	array->context = isl_set_universe(space);
-	space = isl_space_set_alloc(ctx, 0, 1);
-	array->value_bounds = isl_set_universe(space);
-	array->value_bounds = isl_set_lower_bound_si(array->value_bounds,
-						isl_dim_set, 0, 0);
-	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
-						isl_dim_set, 0, 1);
-	array->element_type = strdup("int");
-	array->element_size = ast_ctx.getTypeInfo(ast_ctx.IntTy).first / 8;
-	array->uniquely_defined = 1;
-
-	if (!array->extent || !array->context)
-		array = pet_array_free(array);
-
-	scop = pet_scop_add_array(scop, array);
-
-	return scop;
-error:
-	pet_scop_free(scop);
-	return NULL;
+	return pet_scop_add_boolean_array(scop, isl_multi_pw_aff_copy(index),
+						int_size);
 }
 
 /* Construct a pet_scop for a while loop of the form

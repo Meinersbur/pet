@@ -3097,6 +3097,53 @@ error:
 	return pet_scop_free(scop);
 }
 
+/* Add an array with the given extent (range of "index") to the list
+ * of arrays in "scop" and return the extended pet_scop.
+ * "int_size" is the number of bytes needed to represent values of type "int".
+ * The array is marked as attaining values 0 and 1 only and
+ * as each element being assigned at most once.
+ */
+struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
+	__isl_take isl_multi_pw_aff *index, int int_size)
+{
+	isl_ctx *ctx;
+	isl_space *space;
+	struct pet_array *array;
+	isl_map *access;
+
+	if (!scop || !index)
+		goto error;
+
+	ctx = isl_multi_pw_aff_get_ctx(index);
+	array = isl_calloc_type(ctx, struct pet_array);
+	if (!array)
+		goto error;
+
+	access = isl_map_from_multi_pw_aff(index);
+	array->extent = isl_map_range(access);
+	space = isl_space_params_alloc(ctx, 0);
+	array->context = isl_set_universe(space);
+	space = isl_space_set_alloc(ctx, 0, 1);
+	array->value_bounds = isl_set_universe(space);
+	array->value_bounds = isl_set_lower_bound_si(array->value_bounds,
+						isl_dim_set, 0, 0);
+	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
+						isl_dim_set, 0, 1);
+	array->element_type = strdup("int");
+	array->element_size = int_size;
+	array->uniquely_defined = 1;
+
+	if (!array->extent || !array->context)
+		array = pet_array_free(array);
+
+	scop = pet_scop_add_array(scop, array);
+
+	return scop;
+error:
+	isl_multi_pw_aff_free(index);
+	return pet_scop_free(scop);
+}
+
 /* Create and return an implication on filter values equal to "satisfied"
  * with extension "map".
  */
