@@ -190,6 +190,9 @@ __isl_give char *pet_expr_double_get_str(struct pet_expr *expr);
 /* Call "fn" on each of the subexpressions of "expr" of type pet_expr_access. */
 int pet_expr_foreach_access_expr(struct pet_expr *expr,
 	int (*fn)(struct pet_expr *expr, void *user), void *user);
+/* Call "fn" on each of the subexpressions of "expr" of type pet_expr_call. */
+int pet_expr_foreach_call_expr(struct pet_expr *expr,
+	int (*fn)(struct pet_expr *expr, void *user), void *user);
 
 void pet_expr_dump(struct pet_expr *expr);
 
