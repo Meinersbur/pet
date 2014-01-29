@@ -1255,6 +1255,31 @@ __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
 	return access;
 }
 
+/* Return a relation mapping domain iterations to definitely
+ * accessed data elements, assuming the statement containing
+ * the expression is executed.
+ *
+ * If there are no arguments, then all elements are accessed.
+ * Otherwise, we conservatively return an empty relation.
+ */
+__isl_give isl_map *pet_expr_access_get_must_access(struct pet_expr *expr)
+{
+	isl_space *space;
+
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return NULL;
+
+	if (expr->n_arg == 0)
+		return isl_map_copy(expr->acc.access);
+
+	space = isl_map_get_space(expr->acc.access);
+	space = isl_space_domain_factor_domain(space);
+
+	return isl_map_empty(space);
+}
+
 /* Return the relation mapping domain iterations to all possibly
  * accessed data elements, with its domain tagged with the reference
  * identifier.
