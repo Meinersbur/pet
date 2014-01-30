@@ -49,6 +49,7 @@
 
 #include "clang.h"
 #include "expr.h"
+#include "nest.h"
 #include "options.h"
 #include "scan.h"
 #include "scop.h"
@@ -837,7 +838,7 @@ isl_pw_aff *PetScan::nested_access(Expr *expr)
 	}
 	isl_multi_pw_aff_free(index);
 
-	id = isl_id_alloc(ctx, NULL, expr);
+	id = pet_nested_clang_expr(ctx, expr);
 	dim = isl_space_params_alloc(ctx, 1);
 
 	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
@@ -2955,57 +2956,6 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	return enforce_subset(dom, cond);
 }
 
-/* Does "id" refer to a nested access?
- */
-static bool is_nested_parameter(__isl_keep isl_id *id)
-{
-	return id && isl_id_get_user(id) && !isl_id_get_name(id);
-}
-
-/* Does parameter "pos" of "space" refer to a nested access?
- */
-static bool is_nested_parameter(__isl_keep isl_space *space, int pos)
-{
-	bool nested;
-	isl_id *id;
-
-	id = isl_space_get_dim_id(space, isl_dim_param, pos);
-	nested = is_nested_parameter(id);
-	isl_id_free(id);
-
-	return nested;
-}
-
-/* Does "space" involve any parameters that refer to nested
- * accesses, i.e., parameters with no name?
- */
-static bool has_nested(__isl_keep isl_space *space)
-{
-	int nparam;
-
-	nparam = isl_space_dim(space, isl_dim_param);
-	for (int i = 0; i < nparam; ++i)
-		if (is_nested_parameter(space, i))
-			return true;
-
-	return false;
-}
-
-/* Does "pa" involve any parameters that refer to nested
- * accesses, i.e., parameters with no name?
- */
-static bool has_nested(__isl_keep isl_pw_aff *pa)
-{
-	isl_space *space;
-	bool nested;
-
-	space = isl_pw_aff_get_space(pa);
-	nested = has_nested(space);
-	isl_space_free(space);
-
-	return nested;
-}
-
 /* Construct a pet_scop for a for statement.
  * The for loop is required to be of the form
  *
@@ -3179,7 +3129,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	}
 
 	pa = try_extract_nested_condition(stmt->getCond());
-	if (allow_nested && (!pa || has_nested(pa)))
+	if (allow_nested && (!pa || pet_nested_any_in_pw_aff(pa)))
 		stmt_id = n_stmt++;
 
 	scop = extract(stmt->getBody());
@@ -3332,49 +3282,6 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 	return extract(stmt->children(), !skip_declarations, skip_declarations);
 }
 
-/* Does parameter "pos" of "map" refer to a nested access?
- */
-static bool is_nested_parameter(__isl_keep isl_map *map, int pos)
-{
-	bool nested;
-	isl_id *id;
-
-	id = isl_map_get_dim_id(map, isl_dim_param, pos);
-	nested = is_nested_parameter(id);
-	isl_id_free(id);
-
-	return nested;
-}
-
-/* How many parameters of "space" refer to nested accesses, i.e., have no name?
- */
-static int n_nested_parameter(__isl_keep isl_space *space)
-{
-	int n = 0;
-	int nparam;
-
-	nparam = isl_space_dim(space, isl_dim_param);
-	for (int i = 0; i < nparam; ++i)
-		if (is_nested_parameter(space, i))
-			++n;
-
-	return n;
-}
-
-/* How many parameters of "map" refer to nested accesses, i.e., have no name?
- */
-static int n_nested_parameter(__isl_keep isl_map *map)
-{
-	isl_space *space;
-	int n;
-
-	space = isl_map_get_space(map);
-	n = n_nested_parameter(space);
-	isl_space_free(space);
-
-	return n;
-}
-
 /* For each nested access parameter in "space",
  * construct a corresponding pet_expr, place it in args and
  * record its position in "param2pos".
@@ -3397,7 +3304,7 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 		isl_id *id = isl_space_get_dim_id(space, isl_dim_param, i);
 		Expr *nested;
 
-		if (!is_nested_parameter(id)) {
+		if (!pet_nested_in_id(id)) {
 			isl_id_free(id);
 			continue;
 		}
@@ -3498,7 +3405,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 		return expr;
 
 	space = pet_expr_access_get_parameter_space(expr);
-	n = n_nested_parameter(space);
+	n = pet_nested_n_in_space(space);
 	isl_space_free(space);
 	if (n == 0)
 		return expr;
@@ -3516,7 +3423,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	nparam = isl_space_dim(space, isl_dim_param);
 	for (int i = nparam - 1; i >= 0; --i) {
 		isl_id *id = isl_space_get_dim_id(space, isl_dim_param, i);
-		if (!is_nested_parameter(id)) {
+		if (!pet_nested_in_id(id)) {
 			isl_id_free(id);
 			continue;
 		}
@@ -3905,111 +3812,6 @@ static struct pet_expr *embed(struct pet_expr *expr,
 	return pet_expr_map_access(expr, &embed_access, ma);
 }
 
-/* How many parameters of "set" refer to nested accesses, i.e., have no name?
- */
-static int n_nested_parameter(__isl_keep isl_set *set)
-{
-	isl_space *space;
-	int n;
-
-	space = isl_set_get_space(set);
-	n = n_nested_parameter(space);
-	isl_space_free(space);
-
-	return n;
-}
-
-/* Remove all parameters from "map" that refer to nested accesses.
- */
-static __isl_give isl_map *remove_nested_parameters(__isl_take isl_map *map)
-{
-	int nparam;
-	isl_space *space;
-
-	space = isl_map_get_space(map);
-	nparam = isl_space_dim(space, isl_dim_param);
-	for (int i = nparam - 1; i >= 0; --i)
-		if (is_nested_parameter(space, i))
-			map = isl_map_project_out(map, isl_dim_param, i, 1);
-	isl_space_free(space);
-
-	return map;
-}
-
-/* Remove all parameters from "mpa" that refer to nested accesses.
- */
-static __isl_give isl_multi_pw_aff *remove_nested_parameters(
-	__isl_take isl_multi_pw_aff *mpa)
-{
-	int nparam;
-	isl_space *space;
-
-	space = isl_multi_pw_aff_get_space(mpa);
-	nparam = isl_space_dim(space, isl_dim_param);
-	for (int i = nparam - 1; i >= 0; --i) {
-		if (!is_nested_parameter(space, i))
-			continue;
-		mpa = isl_multi_pw_aff_drop_dims(mpa, isl_dim_param, i, 1);
-	}
-	isl_space_free(space);
-
-	return mpa;
-}
-
-/* Remove all parameters from the index expression and access relation of "expr"
- * that refer to nested accesses.
- */
-static struct pet_expr *remove_nested_parameters(struct pet_expr *expr)
-{
-	expr->acc.access = remove_nested_parameters(expr->acc.access);
-	expr->acc.index = remove_nested_parameters(expr->acc.index);
-	if (!expr->acc.access || !expr->acc.index)
-		goto error;
-
-	return expr;
-error:
-	pet_expr_free(expr);
-	return NULL;
-}
-
-extern "C" {
-	static struct pet_expr *expr_remove_nested_parameters(
-		struct pet_expr *expr, void *user);
-}
-
-static struct pet_expr *expr_remove_nested_parameters(
-	struct pet_expr *expr, void *user)
-{
-	return remove_nested_parameters(expr);
-}
-
-/* Remove all nested access parameters from the schedule and all
- * accesses of "stmt".
- * There is no need to remove them from the domain as these parameters
- * have already been removed from the domain when this function is called.
- */
-static struct pet_stmt *remove_nested_parameters(struct pet_stmt *stmt)
-{
-	if (!stmt)
-		return NULL;
-	stmt->schedule = remove_nested_parameters(stmt->schedule);
-	stmt->body = pet_expr_map_access(stmt->body,
-			    &expr_remove_nested_parameters, NULL);
-	if (!stmt->schedule || !stmt->body)
-		goto error;
-	for (int i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_map_access(stmt->args[i],
-			    &expr_remove_nested_parameters, NULL);
-		if (!stmt->args[i])
-			goto error;
-	}
-
-	return stmt;
-error:
-	pet_stmt_free(stmt);
-	return NULL;
-}
-
 /* For each nested access parameter in the domain of "stmt",
  * construct a corresponding pet_expr, place it before the original
  * elements in stmt->args and record its position in "param2pos".
@@ -4128,7 +3930,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 
-	n = n_nested_parameter(stmt->domain);
+	n = pet_nested_n_in_set(stmt->domain);
 	if (n == 0)
 		return stmt;
 
@@ -4148,7 +3950,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 	for (int i = nparam - 1; i >= 0; --i) {
 		isl_id *id;
 
-		if (!is_nested_parameter(map, i))
+		if (!pet_nested_in_map(map, i))
 			continue;
 
 		id = pet_expr_access_get_id(stmt->args[param2pos[i]]);
@@ -4167,7 +3969,7 @@ struct pet_stmt *PetScan::resolve_nested(struct pet_stmt *stmt)
 		stmt->args[pos] = embed(stmt->args[pos], ma);
 	isl_multi_aff_free(ma);
 
-	stmt = remove_nested_parameters(stmt);
+	stmt = pet_stmt_remove_nested_parameters(stmt);
 	stmt = remove_duplicate_arguments(stmt, n);
 
 	return stmt;
@@ -4225,7 +4027,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 	if (!scop)
 		return true;
 
-	if (!has_nested(pa))
+	if (!pet_nested_any_in_pw_aff(pa))
 		return true;
 
 	if (pet_scop_has_skip(scop, pet_skip_now))
@@ -4238,7 +4040,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 		pet_expr *expr;
 		bool allowed;
 
-		if (!is_nested_parameter(id)) {
+		if (!pet_nested_in_id(id)) {
 			isl_id_free(id);
 			continue;
 		}
@@ -4692,7 +4494,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 		return scop;
 
 	cond = try_extract_nested_condition(stmt->getCond());
-	if (allow_nested && (!cond || has_nested(cond)))
+	if (allow_nested && (!cond || pet_nested_any_in_pw_aff(cond)))
 		stmt_id = n_stmt++;
 
 	{
@@ -5625,7 +5427,7 @@ static struct pet_scop *add_parameter_bounds(struct pet_scop *scop)
 		ValueDecl *decl;
 
 		id = isl_set_get_dim_id(scop->context, isl_dim_param, i);
-		if (is_nested_parameter(id)) {
+		if (pet_nested_in_id(id)) {
 			isl_id_free(id);
 			isl_die(isl_set_get_ctx(scop->context),
 				isl_error_internal,

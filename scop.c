@@ -38,6 +38,7 @@
 
 #include "expr.h"
 #include "filter.h"
+#include "nest.h"
 #include "scop.h"
 #include "print.h"
 #include "value_bounds.h"
@@ -1468,23 +1469,6 @@ error:
 	return NULL;
 }
 
-/* Project out all unnamed parameters from "set" and return the result.
- */
-static __isl_give isl_set *set_project_out_unnamed_params(
-	__isl_take isl_set *set)
-{
-	int i, n;
-
-	n = isl_set_dim(set, isl_dim_param);
-	for (i = n - 1; i >= 0; --i) {
-		if (isl_set_has_dim_name(set, isl_dim_param, i))
-			continue;
-		set = isl_set_project_out(set, isl_dim_param, i, 1);
-	}
-
-	return set;
-}
-
 /* Update the context with respect to an embedding into a loop
  * with iteration domain "dom" and induction variable "id".
  * "iv_map" expresses the real iterator (parameter "id") in terms
@@ -1535,7 +1519,7 @@ static __isl_give isl_set *context_embed(__isl_take isl_set *context,
 	context = isl_set_subtract(isl_set_copy(dom), context);
 	context = isl_set_params(context);
 	context = isl_set_complement(context);
-	context = set_project_out_unnamed_params(context);
+	context = pet_nested_remove_from_set(context);
 	return context;
 }
 
@@ -1718,7 +1702,7 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	scop->context = isl_set_union(scop->context,
 				isl_set_complement(isl_set_copy(cond)));
 	scop->context = isl_set_coalesce(scop->context);
-	scop->context = set_project_out_unnamed_params(scop->context);
+	scop->context = pet_nested_remove_from_set(scop->context);
 	if (!scop->context)
 		goto error;
 
@@ -3054,7 +3038,7 @@ struct pet_scop *pet_scop_restrict_context(struct pet_scop *scop,
 	if (!scop)
 		goto error;
 
-	context = set_project_out_unnamed_params(context);
+	context = pet_nested_remove_from_set(context);
 	scop->context = isl_set_intersect(scop->context, context);
 	if (!scop->context)
 		return pet_scop_free(scop);

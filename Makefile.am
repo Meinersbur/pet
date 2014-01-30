@@ -40,6 +40,8 @@ libpet_la_SOURCES = \
 	expr.c \
 	filter.h \
 	filter.c \
+	nest.h \
+	nest.c \
 	options.h \
 	options.c \
 	print.c \
