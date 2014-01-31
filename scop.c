@@ -3096,39 +3096,32 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 	return space;
 }
 
+/* Add all parameters in "space" to the access relation and index expression
+ * of "expr".
+ */
+static struct pet_expr *propagate_params(struct pet_expr *expr, void *user)
+{
+	isl_space *space = user;
+
+	expr->acc.access = isl_map_align_params(expr->acc.access,
+						isl_space_copy(space));
+	expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
+						isl_space_copy(space));
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
 /* Add all parameters in "space" to all access relations and index expressions
  * in "expr".
  */
 static struct pet_expr *expr_propagate_params(struct pet_expr *expr,
 	__isl_take isl_space *space)
 {
-	int i;
-
-	if (!expr)
-		goto error;
-
-	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] =
-			expr_propagate_params(expr->args[i],
-						isl_space_copy(space));
-		if (!expr->args[i])
-			goto error;
-	}
-
-	if (expr->type == pet_expr_access) {
-		expr->acc.access = isl_map_align_params(expr->acc.access,
-							isl_space_copy(space));
-		expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
-							isl_space_copy(space));
-		if (!expr->acc.access || !expr->acc.index)
-			goto error;
-	}
-
+	expr = pet_expr_map_access(expr, &propagate_params, space);
 	isl_space_free(space);
 	return expr;
-error:
-	isl_space_free(space);
-	return pet_expr_free(expr);
 }
 
 /* Add all parameters in "space" to the domain, schedule and
