@@ -3319,39 +3319,33 @@ static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
 	return access;
 }
 
+/* If "expr" accesses a (0D) array that corresponds to one of the parameters
+ * in "space" then replace it by a value equal to the corresponding parameter.
+ */
+static struct pet_expr *detect_parameter_accesses(struct pet_expr *expr,
+	void *user)
+{
+	isl_space *space = user;
+
+	expr->acc.access = access_detect_parameter(expr->acc.access,
+						isl_space_copy(space));
+	expr->acc.index = index_detect_parameter(expr->acc.index,
+						isl_space_copy(space));
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
 /* Replace all accesses to (0D) arrays that correspond to one of the parameters
  * in "space" by a value equal to the corresponding parameter.
  */
 static struct pet_expr *expr_detect_parameter_accesses(struct pet_expr *expr,
 	__isl_take isl_space *space)
 {
-	int i;
-
-	if (!expr)
-		goto error;
-
-	for (i = 0; i < expr->n_arg; ++i) {
-		expr->args[i] =
-			expr_detect_parameter_accesses(expr->args[i],
-						isl_space_copy(space));
-		if (!expr->args[i])
-			goto error;
-	}
-
-	if (expr->type == pet_expr_access) {
-		expr->acc.access = access_detect_parameter(expr->acc.access,
-							isl_space_copy(space));
-		expr->acc.index = index_detect_parameter(expr->acc.index,
-							isl_space_copy(space));
-		if (!expr->acc.access || !expr->acc.index)
-			goto error;
-	}
-
+	expr = pet_expr_map_access(expr, &detect_parameter_accesses, space);
 	isl_space_free(space);
 	return expr;
-error:
-	isl_space_free(space);
-	return pet_expr_free(expr);
 }
 
 /* Replace all accesses to (0D) arrays that correspond to one of the parameters
