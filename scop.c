@@ -40,6 +40,7 @@
 #include "filter.h"
 #include "scop.h"
 #include "print.h"
+#include "value_bounds.h"
 
 /* pet_scop with extra information that is used during parsing and printing.
  *
@@ -2944,61 +2945,6 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 	return scop;
 }
 
-/* If "value_bounds" contains any bounds on the variable accessed by "arg",
- * then intersect the range of "map" with the valid set of values.
- */
-static __isl_give isl_map *access_apply_value_bounds(__isl_take isl_map *map,
-	struct pet_expr *arg, __isl_keep isl_union_map *value_bounds)
-{
-	isl_id *id;
-	isl_map *vb;
-	isl_space *space;
-	isl_ctx *ctx = isl_map_get_ctx(map);
-
-	id = pet_expr_access_get_id(arg);
-	space = isl_space_alloc(ctx, 0, 0, 1);
-	space = isl_space_set_tuple_id(space, isl_dim_in, id);
-	vb = isl_union_map_extract_map(value_bounds, space);
-	if (!isl_map_plain_is_empty(vb))
-		map = isl_map_intersect_range(map, isl_map_range(vb));
-	else
-		isl_map_free(vb);
-
-	return map;
-}
-
-/* Given a set "domain", return a wrapped relation with the given set
- * as domain and a range of dimension "n_arg", where each coordinate
- * is either unbounded or, if the corresponding element of args is of
- * type pet_expr_access, bounded by the bounds specified by "value_bounds".
- */
-static __isl_give isl_set *apply_value_bounds(__isl_take isl_set *domain,
-	unsigned n_arg, struct pet_expr **args,
-	__isl_keep isl_union_map *value_bounds)
-{
-	int i;
-	isl_map *map;
-	isl_space *space;
-
-	map = isl_map_from_domain(domain);
-	space = isl_map_get_space(map);
-	space = isl_space_add_dims(space, isl_dim_out, 1);
-
-	for (i = 0; i < n_arg; ++i) {
-		isl_map *map_i;
-		struct pet_expr *arg = args[i];
-
-		map_i = isl_map_universe(isl_space_copy(space));
-		if (arg->type == pet_expr_access)
-			map_i = access_apply_value_bounds(map_i, arg,
-							value_bounds);
-		map = isl_map_flat_range_product(map, map_i);
-	}
-	isl_space_free(space);
-
-	return isl_map_wrap(map);
-}
-
 /* Data used in access_gist() callback.
  */
 struct pet_access_gist_data {
@@ -3018,7 +2964,7 @@ static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
 
 	domain = isl_set_copy(data->domain);
 	if (expr->n_arg > 0)
-		domain = apply_value_bounds(domain, expr->n_arg, expr->args,
+		domain = pet_value_bounds_apply(domain, expr->n_arg, expr->args,
 						data->value_bounds);
 
 	expr->acc.access = isl_map_gist_domain(expr->acc.access,
@@ -3069,7 +3015,7 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 	domain = isl_set_universe(pet_stmt_get_space(stmt));
 	domain = isl_set_intersect_params(domain, isl_set_copy(context));
 	if (stmt->n_arg > 0)
-		domain = apply_value_bounds(domain, stmt->n_arg, stmt->args,
+		domain = pet_value_bounds_apply(domain, stmt->n_arg, stmt->args,
 						value_bounds);
 	stmt->domain = isl_set_gist(stmt->domain, domain);
 	if (!stmt->domain)

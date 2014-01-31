@@ -50,6 +50,8 @@ libpet_la_SOURCES = \
 	scop.c \
 	scop_plus.h \
 	scop_plus.cc \
+	value_bounds.h \
+	value_bounds.c \
 	version.h \
 	version.cc \
 	pet.cc
