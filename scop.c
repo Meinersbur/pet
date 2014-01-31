@@ -3242,7 +3242,7 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 }
 
 /* Check if the given index expression accesses a (0D) array that corresponds
- * to one of the parameters in "dim".  If so, replace the array access
+ * to one of the parameters in "space".  If so, replace the array access
  * by an access to the set of integers with as index (and value)
  * that parameter.
  */
@@ -3284,21 +3284,21 @@ static __isl_give isl_multi_pw_aff *index_detect_parameter(
 }
 
 /* Check if the given access relation accesses a (0D) array that corresponds
- * to one of the parameters in "dim".  If so, replace the array access
+ * to one of the parameters in "space".  If so, replace the array access
  * by an access to the set of integers with as index (and value)
  * that parameter.
  */
 static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	isl_id *array_id = NULL;
 	int pos = -1;
 
 	if (isl_map_has_tuple_id(access, isl_dim_out)) {
 		array_id = isl_map_get_tuple_id(access, isl_dim_out);
-		pos = isl_space_find_dim_by_id(dim, isl_dim_param, array_id);
+		pos = isl_space_find_dim_by_id(space, isl_dim_param, array_id);
 	}
-	isl_space_free(dim);
+	isl_space_free(space);
 
 	if (pos < 0) {
 		isl_id_free(array_id);
@@ -3320,10 +3320,10 @@ static __isl_give isl_map *access_detect_parameter(__isl_take isl_map *access,
 }
 
 /* Replace all accesses to (0D) arrays that correspond to one of the parameters
- * in "dim" by a value equal to the corresponding parameter.
+ * in "space" by a value equal to the corresponding parameter.
  */
 static struct pet_expr *expr_detect_parameter_accesses(struct pet_expr *expr,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	int i;
 
@@ -3333,54 +3333,54 @@ static struct pet_expr *expr_detect_parameter_accesses(struct pet_expr *expr,
 	for (i = 0; i < expr->n_arg; ++i) {
 		expr->args[i] =
 			expr_detect_parameter_accesses(expr->args[i],
-						isl_space_copy(dim));
+						isl_space_copy(space));
 		if (!expr->args[i])
 			goto error;
 	}
 
 	if (expr->type == pet_expr_access) {
 		expr->acc.access = access_detect_parameter(expr->acc.access,
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		expr->acc.index = index_detect_parameter(expr->acc.index,
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		if (!expr->acc.access || !expr->acc.index)
 			goto error;
 	}
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return expr;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_expr_free(expr);
 }
 
 /* Replace all accesses to (0D) arrays that correspond to one of the parameters
- * in "dim" by a value equal to the corresponding parameter.
+ * in "space" by a value equal to the corresponding parameter.
  */
 static struct pet_stmt *stmt_detect_parameter_accesses(struct pet_stmt *stmt,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	if (!stmt)
 		goto error;
 
 	stmt->body = expr_detect_parameter_accesses(stmt->body,
-							isl_space_copy(dim));
+							isl_space_copy(space));
 
 	if (!stmt->domain || !stmt->schedule || !stmt->body)
 		goto error;
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return stmt;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_stmt_free(stmt);
 }
 
 /* Replace all accesses to (0D) arrays that correspond to one of the parameters
- * in "dim" by a value equal to the corresponding parameter.
+ * in "space" by a value equal to the corresponding parameter.
  */
 static struct pet_scop *scop_detect_parameter_accesses(struct pet_scop *scop,
-	__isl_take isl_space *dim)
+	__isl_take isl_space *space)
 {
 	int i;
 
@@ -3389,15 +3389,15 @@ static struct pet_scop *scop_detect_parameter_accesses(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		scop->stmts[i] = stmt_detect_parameter_accesses(scop->stmts[i],
-							isl_space_copy(dim));
+							isl_space_copy(space));
 		if (!scop->stmts[i])
 			goto error;
 	}
 
-	isl_space_free(dim);
+	isl_space_free(space);
 	return scop;
 error:
-	isl_space_free(dim);
+	isl_space_free(space);
 	return pet_scop_free(scop);
 }
 
@@ -3407,15 +3407,15 @@ error:
  */
 struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop)
 {
-	isl_space *dim;
+	isl_space *space;
 
 	if (!scop)
 		return NULL;
 
-	dim = isl_set_get_space(scop->context);
-	dim = scop_collect_params(scop, dim);
+	space = isl_set_get_space(scop->context);
+	space = scop_collect_params(scop, space);
 
-	scop = scop_detect_parameter_accesses(scop, dim);
+	scop = scop_detect_parameter_accesses(scop, space);
 
 	return scop;
 }
