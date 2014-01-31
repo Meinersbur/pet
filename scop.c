@@ -36,6 +36,7 @@
 #include <isl/constraint.h>
 #include <isl/union_set.h>
 
+#include "filter.h"
 #include "scop.h"
 #include "print.h"
 
@@ -2521,58 +2522,6 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Construct a function that (upon precomposition) inserts
- * a filter value with name "id" and value "satisfied"
- * in the list of filter values embedded in the set space "space".
- *
- * If "space" does not contain any filter values yet, we first create
- * a function that inserts 0 filter values, i.e.,
- *
- *	[space -> []] -> space
- *
- * We can now assume that space is of the form [dom -> [filters]]
- * We construct an identity mapping on dom and a mapping on filters
- * that (upon precomposition) inserts the new filter
- *
- *	dom -> dom
- *	[satisfied, filters] -> [filters]
- *
- * and then compute the cross product
- *
- *	[dom -> [satisfied, filters]] -> [dom -> [filters]]
- */
-static __isl_give isl_pw_multi_aff *insert_filter_pma(
-	__isl_take isl_space *space, __isl_take isl_id *id, int satisfied)
-{
-	isl_space *space2;
-	isl_multi_aff *ma;
-	isl_pw_multi_aff *pma0, *pma, *pma_dom, *pma_ran;
-	isl_set *dom;
-
-	if (isl_space_is_wrapping(space)) {
-		space2 = isl_space_map_from_set(isl_space_copy(space));
-		ma = isl_multi_aff_identity(space2);
-		space = isl_space_unwrap(space);
-	} else {
-		space = isl_space_from_domain(space);
-		ma = isl_multi_aff_domain_map(isl_space_copy(space));
-	}
-
-	space2 = isl_space_domain(isl_space_copy(space));
-	pma_dom = isl_pw_multi_aff_identity(isl_space_map_from_set(space2));
-	space = isl_space_range(space);
-	space = isl_space_insert_dims(space, isl_dim_set, 0, 1);
-	pma_ran = isl_pw_multi_aff_project_out_map(space, isl_dim_set, 0, 1);
-	pma_ran = isl_pw_multi_aff_set_dim_id(pma_ran, isl_dim_in, 0, id);
-	pma_ran = isl_pw_multi_aff_fix_si(pma_ran, isl_dim_in, 0, satisfied);
-	pma = isl_pw_multi_aff_product(pma_dom, pma_ran);
-
-	pma0 = isl_pw_multi_aff_from_multi_aff(ma);
-	pma = isl_pw_multi_aff_pullback_pw_multi_aff(pma0, pma);
-
-	return pma;
-}
-
 /* Insert an argument expression corresponding to "test" in front
  * of the list of arguments described by *n_arg and *args.
  */
@@ -2648,7 +2597,7 @@ struct pet_expr *pet_expr_filter(struct pet_expr *expr,
 
 	space = isl_space_domain(isl_map_get_space(expr->acc.access));
 	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
-	pma = insert_filter_pma(space, id, satisfied);
+	pma = pet_filter_insert_pma(space, id, satisfied);
 
 	expr->acc.access = isl_map_preimage_domain_pw_multi_aff(
 						expr->acc.access,
@@ -2840,7 +2789,8 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	}
 
 	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
-	pma = insert_filter_pma(isl_set_get_space(stmt->domain), id, satisfied);
+	pma = pet_filter_insert_pma(isl_set_get_space(stmt->domain),
+					id, satisfied);
 	stmt->domain = isl_set_preimage_pw_multi_aff(stmt->domain, pma);
 
 	if (args_insert_access(&stmt->n_arg, &stmt->args, test) < 0)
