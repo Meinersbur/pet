@@ -540,6 +540,14 @@ struct PetASTConsumer : public ASTConsumer {
 		PP.AddPragmaHandler(vb_handler);
 	}
 
+	/* Add all pragma handlers to this->PP.
+	 */
+	void add_pragma_handlers(Sema *sema) {
+		PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
+								context_value));
+		handle_value_bounds(sema);
+	}
+
 	__isl_give isl_union_map *get_value_bounds() {
 		return isl_union_map_copy(vb_handler->value_bounds);
 	}
@@ -888,9 +896,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 							consumer.live_out));
 	}
 
-	PP.AddPragmaHandler(new PragmaParameterHandler(*sema, consumer.context,
-						consumer.context_value));
-	consumer.handle_value_bounds(sema);
+	consumer.add_pragma_handlers(sema);
 
 	Diags.getClient()->BeginSourceFile(Clang->getLangOpts(), &PP);
 	ParseAST(*sema);
