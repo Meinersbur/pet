@@ -1210,8 +1210,11 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	ValueDecl *iv;
 	pet_tree *tree;
 	struct pet_scop *scop;
+	int independent;
 	int declared;
 	pet_expr *pe_init, *pe_inc, *pe_iv, *pe_cond;
+
+	independent = is_current_stmt_marked_independent();
 
 	if (!stmt->getInit() && !stmt->getCond() && !stmt->getInc()) {
 		tree = extract(stmt->getBody());
@@ -1256,7 +1259,7 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	else
 		pe_cond = extract_expr(stmt->getCond());
 	pe_inc = extract_increment(stmt, iv);
-	tree = pet_tree_new_for(declared, pe_iv, pe_init, pe_cond,
+	tree = pet_tree_new_for(independent, declared, pe_iv, pe_init, pe_cond,
 				pe_inc, tree);
 	return tree;
 }
@@ -2261,4 +2264,22 @@ void PetScan::set_current_stmt(Stmt *stmt)
 
 	last_line = current_line;
 	current_line = SM.getExpansionLineNumber(loc);
+}
+
+/* Is the current statement marked by an independent pragma?
+ * That is, is there an independent pragma on a line between
+ * the line of the current statement and the line of the previous statement.
+ * The search is not implemented very efficiently.  We currently
+ * assume that there are only a few independent pragmas, if any.
+ */
+bool PetScan::is_current_stmt_marked_independent()
+{
+	for (int i = 0; i < independent.size(); ++i) {
+		unsigned line = independent[i].line;
+
+		if (last_line < line && line < current_line)
+			return true;
+	}
+
+	return false;
 }

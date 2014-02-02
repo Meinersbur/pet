@@ -35,6 +35,7 @@ extern "C" {
  " "declared" is set if this induction variable is declared by the loop.
  * "init" is the initial value of the induction variable.
  * "inc" is the increment to the induction variable.
+ * "independent" is set if the for loop is marked independent.
  *
  * The "i" field of the union is used for types pet_tree_if
  * and pet_tree_if_else.
@@ -67,6 +68,7 @@ struct pet_tree {
 			pet_expr *expr;
 		} e;
 		struct {
+			int independent;
 			int declared;
 			pet_expr *iv;
 			pet_expr *init;
@@ -114,7 +116,7 @@ __isl_give pet_tree *pet_tree_new_continue(isl_ctx *ctx);
 __isl_give pet_tree *pet_tree_new_infinite_loop(__isl_take pet_tree *body);
 __isl_give pet_tree *pet_tree_new_while(__isl_take pet_expr *cond,
 	__isl_take pet_tree *body);
-__isl_give pet_tree *pet_tree_new_for(int declared,
+__isl_give pet_tree *pet_tree_new_for(int independent, int declared,
 	__isl_take pet_expr *iv, __isl_take pet_expr *init,
 	__isl_take pet_expr *cond, __isl_take pet_expr *inc,
 	__isl_take pet_tree *body);

@@ -216,6 +216,68 @@ static int emit_named_map(yaml_emitter_t *emitter, const char *name,
 	return 0;
 }
 
+/* Print the union set "uset" to "emitter".
+ */
+static int emit_union_set(yaml_emitter_t *emitter,
+	__isl_keep isl_union_set *uset)
+{
+	isl_ctx *ctx = isl_union_set_get_ctx(uset);
+	isl_printer *p;
+	char *str;
+	int r;
+
+	p = isl_printer_to_str(ctx);
+	p = isl_printer_print_union_set(p, uset);
+	str = isl_printer_get_str(p);
+	isl_printer_free(p);
+	r = emit_string(emitter, str);
+	free(str);
+	return r;
+}
+
+/* Print the union map "umap" to "emitter".
+ */
+static int emit_union_map(yaml_emitter_t *emitter,
+	__isl_keep isl_union_map *umap)
+{
+	isl_ctx *ctx = isl_union_map_get_ctx(umap);
+	isl_printer *p;
+	char *str;
+	int r;
+
+	p = isl_printer_to_str(ctx);
+	p = isl_printer_print_union_map(p, umap);
+	str = isl_printer_get_str(p);
+	isl_printer_free(p);
+	r = emit_string(emitter, str);
+	free(str);
+	return r;
+}
+
+/* Print the string "name" and the union set "uset" to "emitter".
+ */
+static int emit_named_union_set(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_union_set *uset)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_union_set(emitter, uset) < 0)
+		return -1;
+	return 0;
+}
+
+/* Print the string "name" and the union map "umap" to "emitter".
+ */
+static int emit_named_union_map(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_union_map *umap)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_union_map(emitter, umap) < 0)
+		return -1;
+	return 0;
+}
+
 /* Print the isl_multi_pw_aff "mpa" to "emitter".
  */
 static int emit_multi_pw_aff(yaml_emitter_t *emitter,
@@ -592,6 +654,9 @@ static int emit_tree(yaml_emitter_t *emitter, __isl_keep pet_tree *tree)
 			return -1;
 		break;
 	case pet_tree_for:
+		if (tree->u.l.independent)
+			if (emit_named_int(emitter, "independent", 1) < 0)
+				return -1;
 		if (emit_named_int(emitter, "declared", tree->u.l.declared) < 0)
 			return -1;
 		if (emit_named_expr(emitter, "variable", tree->u.l.iv) < 0)
@@ -795,6 +860,64 @@ static int emit_implications(yaml_emitter_t *emitter, int n_implication,
 	return 0;
 }
 
+/* Print "independence" to "emitter".
+ */
+static int emit_independence(yaml_emitter_t *emitter,
+	struct pet_independence *independence)
+{
+	yaml_event_t event;
+
+	if (!yaml_mapping_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_MAPPING_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	if (emit_named_union_map(emitter, "filter", independence->filter) < 0)
+		return -1;
+
+	if (emit_named_union_set(emitter, "local", independence->local) < 0)
+		return -1;
+
+	if (!yaml_mapping_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
+/* Print the list of "n_independence" "independences", if any, to "emitter".
+ */
+static int emit_independences(yaml_emitter_t *emitter, int n_independence,
+	struct pet_independence **independences)
+{
+	int i;
+	yaml_event_t event;
+
+	if (n_independence == 0)
+		return 0;
+
+	if (emit_string(emitter, "independences") < 0)
+		return -1;
+	if (!yaml_sequence_start_event_initialize(&event, NULL, NULL, 1,
+						YAML_BLOCK_SEQUENCE_STYLE))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	for (i = 0; i < n_independence; ++i)
+		if (emit_independence(emitter, independences[i]) < 0)
+			return -1;
+
+	if (!yaml_sequence_end_event_initialize(&event))
+		return -1;
+	if (!yaml_emitter_emit(emitter, &event))
+		return -1;
+
+	return 0;
+}
+
 static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 {
 	yaml_event_t event;
@@ -831,6 +954,10 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 
 	if (emit_implications(emitter, scop->n_implication,
 				scop->implications) < 0)
+		return -1;
+
+	if (emit_independences(emitter, scop->n_independence,
+				scop->independences) < 0)
 		return -1;
 
 	if (!yaml_mapping_end_event_initialize(&event))

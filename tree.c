@@ -207,11 +207,12 @@ __isl_give pet_tree *pet_tree_new_continue(isl_ctx *ctx)
  * with induction variable "iv", initial value for the induction
  * variable "init", loop condition "cond", induction variable increment "inc"
  * and loop body "body".  "declared" indicates whether the induction variable
- * is declared by the loop.
+ * is declared by the loop.  "independent" is set if the for loop is marked
+ * independent.
  *
  * The location of the loop is initialized to that of the body.
  */
-__isl_give pet_tree *pet_tree_new_for(int declared,
+__isl_give pet_tree *pet_tree_new_for(int independent, int declared,
 	__isl_take pet_expr *iv, __isl_take pet_expr *init,
 	__isl_take pet_expr *cond, __isl_take pet_expr *inc,
 	__isl_take pet_tree *body)
@@ -226,6 +227,7 @@ __isl_give pet_tree *pet_tree_new_for(int declared,
 	if (!tree)
 		goto error;
 
+	tree->u.l.independent = independent;
 	tree->u.l.declared = declared;
 	tree->u.l.iv = iv;
 	tree->u.l.init = init;
@@ -406,7 +408,8 @@ static __isl_give pet_tree *pet_tree_dup(__isl_keep pet_tree *tree)
 		dup = pet_tree_new_expr(pet_expr_copy(tree->u.e.expr));
 		break;
 	case pet_tree_for:
-		dup = pet_tree_new_for(tree->u.l.declared,
+		dup = pet_tree_new_for(tree->u.l.independent,
+		    tree->u.l.declared,
 		    pet_expr_copy(tree->u.l.iv), pet_expr_copy(tree->u.l.init),
 		    pet_expr_copy(tree->u.l.cond), pet_expr_copy(tree->u.l.inc),
 		    pet_tree_copy(tree->u.l.body));

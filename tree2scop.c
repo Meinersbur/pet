@@ -1133,6 +1133,126 @@ static int is_nested_allowed(__isl_keep isl_pw_aff *pa,
 	return 1;
 }
 
+/* Internal data structure for collect_local.
+ * "pc" and "state" are needed to extract pet_arrays for the local variables.
+ * "local" collects the results.
+ */
+struct pet_tree_collect_local_data {
+	pet_context *pc;
+	struct pet_state *state;
+	isl_union_set *local;
+};
+
+/* Add the variable accessed by "var" to data->local.
+ * We extract a representation of the variable from
+ * the pet_array constructed using extract_array
+ * to ensure consistency with the rest of the scop.
+ */
+static int add_local(struct pet_tree_collect_local_data *data,
+	__isl_keep pet_expr *var)
+{
+	struct pet_array *array;
+	isl_set *universe;
+
+	array = extract_array(var, data->pc, data->state);
+	if (!array)
+		return -1;
+
+	universe = isl_set_universe(isl_set_get_space(array->extent));
+	data->local = isl_union_set_add_set(data->local, universe);
+	pet_array_free(array);
+
+	return 0;
+}
+
+/* If the node "tree" declares a variable, then add it to
+ * data->local.
+ */
+static int extract_local_var(__isl_keep pet_tree *tree, void *user)
+{
+	enum pet_tree_type type;
+	struct pet_tree_collect_local_data *data = user;
+
+	type = pet_tree_get_type(tree);
+	if (type == pet_tree_decl || type == pet_tree_decl_init)
+		return add_local(data, tree->u.d.var);
+
+	return 0;
+}
+
+/* If the node "tree" is a for loop that declares its induction variable,
+ * then add it this induction variable to data->local.
+ */
+static int extract_local_iterator(__isl_keep pet_tree *tree, void *user)
+{
+	struct pet_tree_collect_local_data *data = user;
+
+	if (pet_tree_get_type(tree) == pet_tree_for && tree->u.l.declared)
+		return add_local(data, tree->u.l.iv);
+
+	return 0;
+}
+
+/* Collect and return all local variables of the for loop represented
+ * by "tree", with "scop" the corresponding pet_scop.
+ * "pc" and "state" are needed to extract pet_arrays for the local variables.
+ *
+ * We collect not only the variables that are declared inside "tree",
+ * but also the loop iterators that are declared anywhere inside
+ * any possible macro statements in "scop".
+ * The latter also appear as declared variable in the scop,
+ * whereas other declared loop iterators only appear implicitly
+ * in the iteration domains.
+ */
+static __isl_give isl_union_set *collect_local(struct pet_scop *scop,
+	__isl_keep pet_tree *tree, __isl_keep pet_context *pc,
+	struct pet_state *state)
+{
+	int i;
+	isl_ctx *ctx;
+	struct pet_tree_collect_local_data data = { pc, state };
+
+	ctx = pet_tree_get_ctx(tree);
+	data.local = isl_union_set_empty(isl_space_params_alloc(ctx, 0));
+
+	if (pet_tree_foreach_sub_tree(tree, &extract_local_var, &data) < 0)
+		return isl_union_set_free(data.local);
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		pet_tree *body = scop->stmts[i]->body;
+		if (pet_tree_foreach_sub_tree(body, &extract_local_iterator,
+						&data) < 0)
+			return isl_union_set_free(data.local);
+	}
+
+	return data.local;
+}
+
+/* Add an independence to "scop" if the for node "tree" was marked
+ * independent.
+ * "domain" is the set of loop iterators, with the current for loop
+ * innermost.  If "sign" is positive, then the inner iterator increases.
+ * Otherwise it decreases.
+ * "pc" and "state" are needed to extract pet_arrays for the local variables.
+ *
+ * If the tree was marked, then collect all local variables and
+ * add an independence.
+ */
+static struct pet_scop *set_independence(struct pet_scop *scop,
+	__isl_keep pet_tree *tree, __isl_keep isl_set *domain, int sign,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	isl_union_set *local;
+
+	if (!tree->u.l.independent)
+		return scop;
+
+	local = collect_local(scop, tree, pc, state);
+	scop = pet_scop_set_independent(scop, domain, local, sign);
+
+	return scop;
+}
+
 /* Construct a pet_scop for a for tree with static affine initialization
  * and constant increment within the context "pc".
  * The domain of "pc" has already been extended with an (at this point
@@ -1375,6 +1495,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		valid_inc = isl_set_intersect(valid_inc, valid_cond_init);
 		valid_inc = isl_set_project_out(valid_inc, isl_dim_set, pos, 1);
 		scop = pet_scop_restrict_context(scop, valid_inc);
+		scop = set_independence(scop, tree, domain, isl_val_sgn(inc),
+					pc, state);
 		isl_set_free(domain);
 	}
 

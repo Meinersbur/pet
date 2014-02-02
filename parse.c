@@ -121,6 +121,32 @@ static __isl_give isl_map *extract_map(isl_ctx *ctx, yaml_document_t *document,
 	return isl_map_read_from_str(ctx, (char *) node->data.scalar.value);
 }
 
+/* Extract an isl_union_set from "node".
+ */
+static __isl_give isl_union_set *extract_union_set(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return NULL);
+
+	return isl_union_set_read_from_str(ctx,
+					    (char *) node->data.scalar.value);
+}
+
+/* Extract an isl_union_map from "node".
+ */
+static __isl_give isl_union_map *extract_union_map(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return NULL);
+
+	return isl_union_map_read_from_str(ctx,
+					    (char *) node->data.scalar.value);
+}
+
 /* Extract an isl_val from "node".
  */
 static __isl_give isl_val *extract_val(isl_ctx *ctx, yaml_document_t *document,
@@ -953,6 +979,7 @@ static __isl_give pet_tree *extract_tree_for(isl_ctx *ctx,
 {
 	yaml_node_pair_t *pair;
 	int declared = 0;
+	int independent = 0;
 	pet_expr *iv = NULL;
 	pet_expr *init = NULL;
 	pet_expr *cond = NULL;
@@ -972,6 +999,8 @@ static __isl_give pet_tree *extract_tree_for(isl_ctx *ctx,
 
 		if (!strcmp((char *) key->data.scalar.value, "declared"))
 			declared = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "independent"))
+			independent = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "variable")) {
 			iv = extract_expr(ctx, document, value);
 			if (!iv)
@@ -1016,7 +1045,8 @@ static __isl_give pet_tree *extract_tree_for(isl_ctx *ctx,
 		isl_die(ctx, isl_error_invalid,
 			"no body field", goto error);
 
-	return pet_tree_new_for(declared, iv, init, cond, inc, body);
+	return pet_tree_new_for(independent, declared, iv, init, cond, inc,
+				body);
 error:
 	pet_expr_free(iv);
 	pet_expr_free(init);
@@ -1293,6 +1323,84 @@ static struct pet_scop *extract_implications(isl_ctx *ctx,
 	return scop;
 }
 
+/* Extract a pet_independence from "node".
+ */
+static struct pet_independence *extract_independence(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	struct pet_independence *independence;
+	yaml_node_pair_t * pair;
+
+	if (node->type != YAML_MAPPING_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting mapping",
+			return NULL);
+
+	independence = isl_calloc_type(ctx, struct pet_independence);
+	if (!independence)
+		return NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_independence_free(independence));
+
+		if (!strcmp((char *) key->data.scalar.value, "filter"))
+			independence->filter =
+					extract_union_map(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "local"))
+			independence->local =
+					extract_union_set(ctx, document, value);
+	}
+
+	if (!independence->filter)
+		isl_die(ctx, isl_error_invalid, "no filter field",
+			return pet_independence_free(independence));
+	if (!independence->local)
+		isl_die(ctx, isl_error_invalid, "no local field",
+			return pet_independence_free(independence));
+
+	return independence;
+}
+
+/* Extract a sequence of independences from "node" and
+ * store them in scop->independences.
+ */
+static struct pet_scop *extract_independences(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node, struct pet_scop *scop)
+{
+	int i;
+	yaml_node_item_t *item;
+
+	if (node->type != YAML_SEQUENCE_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting sequence",
+			return NULL);
+
+	scop->n_independence = node->data.sequence.items.top
+				- node->data.sequence.items.start;
+	scop->independences = isl_calloc_array(ctx, struct pet_independence *,
+						scop->n_independence);
+	if (!scop->independences)
+		return pet_scop_free(scop);
+
+	for (item = node->data.sequence.items.start, i = 0;
+	     item < node->data.sequence.items.top; ++item, ++i) {
+		yaml_node_t *n;
+
+		n = yaml_document_get_node(document, *item);
+		scop->independences[i] = extract_independence(ctx, document, n);
+		if (!scop->independences[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
+}
+
 static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 	yaml_node_t *node)
 {
@@ -1332,6 +1440,9 @@ static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 			scop = extract_statements(ctx, document, value, scop);
 		if (!strcmp((char *) key->data.scalar.value, "implications"))
 			scop = extract_implications(ctx, document, value, scop);
+		if (!strcmp((char *) key->data.scalar.value, "independences"))
+			scop = extract_independences(ctx,
+							document, value, scop);
 		if (!scop)
 			return NULL;
 	}

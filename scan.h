@@ -26,6 +26,16 @@ struct ScopLoc {
 	unsigned end;
 };
 
+/* The information extracted from a pragma pencil independent.
+ * We currently only keep track of the line number where
+ * the pragma appears.
+ */
+struct Independent {
+	Independent(unsigned line) : line(line) {}
+
+	unsigned line;
+};
+
 /* Compare two RecordDecl pointers based on their names.
  */
 struct less_name {
@@ -68,14 +78,18 @@ struct PetScan {
 	unsigned last_line;
 	/* The line number of the Stmt currently being considered. */
 	unsigned current_line;
+	/* Information about the independent pragmas in the source code. */
+	std::vector<Independent> &independent;
 
 	PetScan(clang::Preprocessor &PP,
 		clang::ASTContext &ast_context, ScopLoc &loc,
-		pet_options *options, __isl_take isl_union_map *value_bounds) :
+		pet_options *options, __isl_take isl_union_map *value_bounds,
+		std::vector<Independent> &independent) :
 		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
 		ast_context(ast_context), loc(loc),
 		options(options), value_bounds(value_bounds),
-		partial(false), last_line(0), current_line(0) { }
+		partial(false), last_line(0), current_line(0),
+		independent(independent) { }
 
 	~PetScan();
 
@@ -88,6 +102,7 @@ struct PetScan {
 		lex_recorddecl_set *types, __isl_keep pet_context *pc);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
+	bool is_current_stmt_marked_independent();
 
 	struct pet_scop *scan(clang::Stmt *stmt);
 

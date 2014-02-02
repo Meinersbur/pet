@@ -1,6 +1,6 @@
 /*
- * Copyright 2011 Leiden University. All rights reserved.
- * Copyright 2012 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2011      Leiden University. All rights reserved.
+ * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -305,6 +305,43 @@ struct PragmaParameterHandler : public PragmaHandler {
 	}
 };
 
+/* Handle pragmas of the form
+ *
+ *	#pragma pencil independent
+ *
+ * For each such pragma, add an entry to the "independent" vector.
+ */
+struct PragmaPencilHandler : public PragmaHandler {
+	std::vector<Independent> &independent;
+
+	PragmaPencilHandler(std::vector<Independent> &independent) :
+		PragmaHandler("pencil"), independent(independent) {}
+
+	virtual void HandlePragma(Preprocessor &PP,
+				  PragmaIntroducerKind Introducer,
+				  Token &PencilTok) {
+		Token token;
+		IdentifierInfo *info;
+
+		PP.Lex(token);
+		if (token.isNot(tok::identifier))
+			return;
+
+		info = token.getIdentifierInfo();
+		if (!info->isStr("independent"))
+			return;
+
+		PP.Lex(token);
+		if (token.isNot(tok::eod))
+			return;
+
+		SourceManager &SM = PP.getSourceManager();
+		SourceLocation sloc = PencilTok.getLocation();
+		unsigned line = SM.getExpansionLineNumber(sloc);
+		independent.push_back(Independent(line));
+	}
+};
+
 #ifdef HAVE_TRANSLATELINECOL
 
 /* Return a SourceLocation for line "line", column "col" of file "FID".
@@ -506,6 +543,7 @@ struct PetASTConsumer : public ASTConsumer {
 	ASTContext &ast_context;
 	DiagnosticsEngine &diags;
 	ScopLocList &scops;
+	std::vector<Independent> independent;
 	const char *function;
 	pet_options *options;
 	isl_ctx *ctx;
@@ -546,6 +584,7 @@ struct PetASTConsumer : public ASTConsumer {
 	void add_pragma_handlers(Sema *sema) {
 		PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
 								context_value));
+		PP.AddPragmaHandler(new PragmaPencilHandler(independent));
 		handle_value_bounds(sema);
 	}
 
@@ -604,7 +643,7 @@ struct PetASTConsumer : public ASTConsumer {
 			if (end < loc.start)
 				continue;
 			PetScan ps(PP, ast_context, loc, options,
-				    isl_union_map_copy(vb));
+				    isl_union_map_copy(vb), independent);
 			scop = ps.scan(fd);
 			call_fn(scop);
 		}
@@ -630,7 +669,8 @@ struct PetASTConsumer : public ASTConsumer {
 				ScopLoc loc;
 				pet_scop *scop;
 				PetScan ps(PP, ast_context, loc, options,
-					    isl_union_map_copy(vb));
+					    isl_union_map_copy(vb),
+					    independent);
 				scop = ps.scan(fd);
 				call_fn(scop);
 				continue;

@@ -747,6 +747,110 @@ static struct pet_scop *scop_combine_start_end(struct pet_scop *scop,
 	return scop;
 }
 
+/* Create and return an independence that filters out the dependences
+ * in "filter" with local variables "local".
+ */
+static struct pet_independence *new_independence(
+	__isl_take isl_union_map *filter, __isl_take isl_union_set *local)
+{
+	isl_ctx *ctx;
+	struct pet_independence *independence;
+
+	if (!filter || !local)
+		goto error;
+	ctx = isl_union_map_get_ctx(filter);
+	independence = isl_alloc_type(ctx, struct pet_independence);
+	if (!independence)
+		goto error;
+
+	independence->filter = filter;
+	independence->local = local;
+
+	return independence;
+error:
+	isl_union_map_free(filter);
+	isl_union_set_free(local);
+	return NULL;
+}
+
+/* Add an independence that filters out the dependences
+ * in "filter" with local variables "local" to "scop".
+ */
+struct pet_scop *pet_scop_add_independence(struct pet_scop *scop,
+	__isl_take isl_union_map *filter, __isl_take isl_union_set *local)
+{
+	isl_ctx *ctx;
+	struct pet_independence *independence;
+	struct pet_independence **independences;
+
+	ctx = isl_union_map_get_ctx(filter);
+	independence = new_independence(filter, local);
+	if (!scop || !independence)
+		goto error;
+
+	independences = isl_realloc_array(ctx, scop->independences,
+					    struct pet_independence *,
+					    scop->n_independence + 1);
+	if (!independences)
+		goto error;
+	scop->independences = independences;
+	scop->independences[scop->n_independence] = independence;
+	scop->n_independence++;
+
+	return scop;
+error:
+	pet_independence_free(independence);
+	pet_scop_free(scop);
+	return NULL;
+}
+
+/* Store the concatenation of the independences of "scop1" and "scop2"
+ * in "scop".
+ */
+static struct pet_scop *scop_collect_independences(isl_ctx *ctx,
+	struct pet_scop *scop, struct pet_scop *scop1, struct pet_scop *scop2)
+{
+	int i, off;
+
+	if (!scop)
+		return NULL;
+
+	if (scop2->n_independence == 0) {
+		scop->n_independence = scop1->n_independence;
+		scop->independences = scop1->independences;
+		scop1->n_independence = 0;
+		scop1->independences = NULL;
+		return scop;
+	}
+
+	if (scop1->n_independence == 0) {
+		scop->n_independence = scop2->n_independence;
+		scop->independences = scop2->independences;
+		scop2->n_independence = 0;
+		scop2->independences = NULL;
+		return scop;
+	}
+
+	scop->independences = isl_calloc_array(ctx, struct pet_independence *,
+				scop1->n_independence + scop2->n_independence);
+	if (!scop->independences)
+		return pet_scop_free(scop);
+
+	for (i = 0; i < scop1->n_independence; ++i) {
+		scop->independences[i] = scop1->independences[i];
+		scop1->independences[i] = NULL;
+	}
+
+	off = scop1->n_independence;
+	for (i = 0; i < scop2->n_independence; ++i) {
+		scop->independences[off + i] = scop2->independences[i];
+		scop2->independences[i] = NULL;
+	}
+	scop->n_independence = scop1->n_independence + scop2->n_independence;
+
+	return scop;
+}
+
 /* Construct a pet_scop that contains the offset information,
  * arrays, statements and skip information in "scop1" and "scop2".
  */
@@ -808,6 +912,7 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	scop = pet_scop_restrict_context(scop, isl_set_copy(scop2->context));
 	scop = scop_combine_skips(scop, scop1, scop2);
 	scop = scop_combine_start_end(scop, scop1, scop2);
+	scop = scop_collect_independences(ctx, scop, scop1, scop2);
 
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);
@@ -892,6 +997,18 @@ void *pet_implication_free(struct pet_implication *implication)
 	return NULL;
 }
 
+void *pet_independence_free(struct pet_independence *independence)
+{
+	if (!independence)
+		return NULL;
+
+	isl_union_map_free(independence->filter);
+	isl_union_set_free(independence->local);
+
+	free(independence);
+	return NULL;
+}
+
 struct pet_scop *pet_scop_free(struct pet_scop *scop)
 {
 	int i;
@@ -918,6 +1035,10 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop)
 		for (i = 0; i < scop->n_implication; ++i)
 			pet_implication_free(scop->implications[i]);
 	free(scop->implications);
+	if (scop->independences)
+		for (i = 0; i < scop->n_independence; ++i)
+			pet_independence_free(scop->independences[i]);
+	free(scop->independences);
 	isl_multi_pw_aff_free(ext->skip[pet_skip_now]);
 	isl_multi_pw_aff_free(ext->skip[pet_skip_later]);
 	free(scop);
@@ -1060,6 +1181,23 @@ int pet_implication_is_equal(struct pet_implication *implication1,
 	return 1;
 }
 
+/* Return 1 if the two pet_independences are equivalent.
+ */
+int pet_independence_is_equal(struct pet_independence *independence1,
+	struct pet_independence *independence2)
+{
+	if (!independence1 || !independence2)
+		return 0;
+
+	if (!isl_union_map_is_equal(independence1->filter,
+					independence2->filter))
+		return 0;
+	if (!isl_union_set_is_equal(independence1->local, independence2->local))
+		return 0;
+
+	return 1;
+}
+
 /* Return 1 if the two pet_scops are equivalent.
  */
 int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
@@ -1097,6 +1235,13 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 	for (i = 0; i < scop1->n_implication; ++i)
 		if (!pet_implication_is_equal(scop1->implications[i],
 						scop2->implications[i]))
+			return 0;
+
+	if (scop1->n_independence != scop2->n_independence)
+		return 0;
+	for (i = 0; i < scop1->n_independence; ++i)
+		if (!pet_independence_is_equal(scop1->independences[i],
+						scop2->independences[i]))
 			return 0;
 
 	return 1;
@@ -2004,6 +2149,22 @@ static __isl_give isl_space *array_collect_params(struct pet_array *array,
 	return space;
 }
 
+/* Add all parameters in "independence" to "space" and return the result.
+ */
+static __isl_give isl_space *independence_collect_params(
+	struct pet_independence *independence, __isl_take isl_space *space)
+{
+	if (!independence)
+		return isl_space_free(space);
+
+	space = isl_space_align_params(space,
+				isl_union_map_get_space(independence->filter));
+	space = isl_space_align_params(space,
+				isl_union_set_get_space(independence->local));
+
+	return space;
+}
+
 /* Add all parameters in "scop" to "space" and return the result.
  */
 static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
@@ -2019,6 +2180,10 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_stmt; ++i)
 		space = stmt_collect_params(scop->stmts[i], space);
+
+	for (i = 0; i < scop->n_independence; ++i)
+		space = independence_collect_params(scop->independences[i],
+							space);
 
 	return space;
 }
@@ -2086,6 +2251,28 @@ error:
 	return pet_array_free(array);
 }
 
+/* Add all parameters in "space" to "independence".
+ */
+static struct pet_independence *independence_propagate_params(
+	struct pet_independence *independence, __isl_take isl_space *space)
+{
+	if (!independence)
+		goto error;
+
+	independence->filter = isl_union_map_align_params(independence->filter,
+						isl_space_copy(space));
+	independence->local = isl_union_set_align_params(independence->local,
+						isl_space_copy(space));
+	if (!independence->filter || !independence->local)
+		goto error;
+
+	isl_space_free(space);
+	return independence;
+error:
+	isl_space_free(space);
+	return pet_independence_free(independence);
+}
+
 /* Add all parameters in "space" to "scop".
  */
 static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
@@ -2107,6 +2294,13 @@ static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
 		scop->stmts[i] = stmt_propagate_params(scop->stmts[i],
 							isl_space_copy(space));
 		if (!scop->stmts[i])
+			goto error;
+	}
+
+	for (i = 0; i < scop->n_independence; ++i) {
+		scop->independences[i] = independence_propagate_params(
+				scop->independences[i], isl_space_copy(space));
+		if (!scop->independences[i])
 			goto error;
 	}
 
@@ -2618,6 +2812,23 @@ static struct pet_implication *implication_anonymize(
 	return implication;
 }
 
+/* Reset the user pointer on the tuple ids and all parameter ids
+ * in "independence".
+ */
+static struct pet_independence *independence_anonymize(
+	struct pet_independence *independence)
+{
+	if (!independence)
+		return NULL;
+
+	independence->filter = isl_union_map_reset_user(independence->filter);
+	independence->local = isl_union_set_reset_user(independence->local);
+	if (!independence->filter || !independence->local)
+		return pet_independence_free(independence);
+
+	return independence;
+}
+
 /* Reset the user pointer on all parameter and tuple ids in "scop".
  */
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
@@ -2648,6 +2859,13 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 		scop->implications[i] =
 				implication_anonymize(scop->implications[i]);
 		if (!scop->implications[i])
+			return pet_scop_free(scop);
+	}
+
+	for (i = 0; i < scop->n_independence; ++i) {
+		scop->independences[i] =
+				independence_anonymize(scop->independences[i]);
+		if (!scop->independences[i])
 			return pet_scop_free(scop);
 	}
 
@@ -2944,6 +3162,88 @@ struct pet_scop *pet_scop_add_implication(struct pet_scop *scop,
 	return scop;
 error:
 	pet_implication_free(implication);
+	return pet_scop_free(scop);
+}
+
+/* Create and return a function that maps the iteration domains
+ * of the statements in "scop" onto their outer "n" dimensions.
+ * "space" is the parameters space of the created function.
+ */
+static __isl_give isl_union_pw_multi_aff *outer_projection(
+	struct pet_scop *scop, __isl_take isl_space *space, int n)
+{
+	int i;
+	isl_union_pw_multi_aff *res;
+
+	res = isl_union_pw_multi_aff_empty(space);
+
+	if (!scop)
+		return isl_union_pw_multi_aff_free(res);
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		struct pet_stmt *stmt = scop->stmts[i];
+		isl_space *space;
+		isl_multi_aff *ma;
+		isl_pw_multi_aff *pma;
+
+		space = pet_stmt_get_space(stmt);
+		ma = pet_prefix_projection(space, n);
+		pma = isl_pw_multi_aff_from_multi_aff(ma);
+		res = isl_union_pw_multi_aff_add_pw_multi_aff(res, pma);
+	}
+
+	return res;
+}
+
+/* Add an independence to "scop" for the inner iterator of "domain"
+ * with local variables "local", where "domain" represents the outer
+ * loop iterators of all statements in "scop".
+ * If "sign" is positive, then the inner iterator increases.
+ * Otherwise it decreases.
+ *
+ * The independence is supposed to filter out any dependence of
+ * an iteration of domain on a previous iteration along the inner dimension.
+ * We therefore create a mapping from an iteration to later iterations and
+ * then plug in the projection of the iterations domains of "scop"
+ * onto the outer loop iterators.
+ */
+struct pet_scop *pet_scop_set_independent(struct pet_scop *scop,
+	__isl_keep isl_set *domain, __isl_take isl_union_set *local, int sign)
+{
+	int i, dim;
+	isl_space *space;
+	isl_map *map;
+	isl_union_map *independence;
+	isl_union_pw_multi_aff *proj;
+
+	if (!scop || !domain || !local)
+		goto error;
+
+	dim = isl_set_dim(domain, isl_dim_set);
+	space = isl_space_map_from_set(isl_set_get_space(domain));
+	map = isl_map_universe(space);
+	for (i = 0; i + 1 < dim; ++i)
+		map = isl_map_equate(map, isl_dim_in, i, isl_dim_out, i);
+	if (sign > 0)
+		map = isl_map_order_lt(map,
+				    isl_dim_in, dim - 1, isl_dim_out, dim - 1);
+	else
+		map = isl_map_order_gt(map,
+				    isl_dim_in, dim - 1, isl_dim_out, dim - 1);
+
+	independence = isl_union_map_from_map(map);
+	space = isl_space_params(isl_set_get_space(domain));
+	proj = outer_projection(scop, space, dim);
+	independence = isl_union_map_preimage_domain_union_pw_multi_aff(
+			    independence, isl_union_pw_multi_aff_copy(proj));
+	independence = isl_union_map_preimage_range_union_pw_multi_aff(
+			    independence, proj);
+
+	scop = pet_scop_add_independence(scop, independence, local);
+
+	return scop;
+error:
+	isl_union_set_free(local);
 	return pet_scop_free(scop);
 }
 

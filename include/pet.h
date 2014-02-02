@@ -437,6 +437,20 @@ struct pet_implication {
 	isl_map *extension;
 };
 
+/* This structure represents an independence implied by a for loop
+ * that is marked as independent in the source code.
+ * "filter" contains pairs of statement instances that are guaranteed
+ * not to be dependent on each other based on the independent for loop,
+ * assuming that no dependences carried by this loop are implied
+ * by the variables in "local".
+ * "local" contains the variables that are local to the loop that was
+ * marked independent.
+ */
+struct pet_independence {
+	isl_union_map *filter;
+	isl_union_set *local;
+};
+
 /* "loc" represents the region of the source code that is represented
  * by this scop.
  * If the scop was detected based on scop and endscop pragmas, then
@@ -451,6 +465,9 @@ struct pet_implication {
  * The n_type types define types that may be referenced from by the arrays.
  *
  * The n_implication implications describe implications on boolean filters.
+ *
+ * The n_independence independences describe independences implied
+ * by for loops that are marked independent in the source code.
  */
 struct pet_scop {
 	pet_loc *loc;
@@ -469,6 +486,9 @@ struct pet_scop {
 
 	int n_implication;
 	struct pet_implication **implications;
+
+	int n_independence;
+	struct pet_independence **independences;
 };
 
 /* Return a textual representation of the operator. */
