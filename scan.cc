@@ -1501,16 +1501,9 @@ __isl_give isl_pw_aff *PetScan::extract_condition(UnaryOperator *expr)
 __isl_give isl_pw_aff *PetScan::extract_implicit_condition(Expr *expr)
 {
 	isl_pw_aff *res;
-	isl_set *set, *dom;
 
 	res = extract_affine(expr);
-
-	dom = isl_pw_aff_domain(isl_pw_aff_copy(res));
-	set = isl_pw_aff_non_zero_set(res);
-
-	res = indicator_function(set, dom);
-
-	return res;
+	return pet_to_bool(res);
 }
 
 /* Extract an affine expression from a boolean expression.

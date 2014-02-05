@@ -73,6 +73,21 @@ __isl_give isl_pw_aff *pet_not(__isl_take isl_pw_aff *pa)
 	return pa;
 }
 
+/* Return "!!pa", i.e., a function that is equal to 1 when "pa"
+ * is non-zero and equal to 0 when "pa" is equal to zero,
+ * on the domain of "pa".
+ */
+__isl_give isl_pw_aff *pet_to_bool(__isl_take isl_pw_aff *pa)
+{
+	isl_set *cond, *dom;
+
+	dom = isl_pw_aff_domain(isl_pw_aff_copy(pa));
+	cond = isl_pw_aff_non_zero_set(pa);
+	pa = indicator_function(cond, dom);
+
+	return pa;
+}
+
 /* Return the result of applying the comparison operator "type"
  * to "pa1" and "pa2".
  *
