@@ -60,6 +60,82 @@
 using namespace std;
 using namespace clang;
 
+static enum pet_op_type UnaryOperatorKind2pet_op_type(UnaryOperatorKind kind)
+{
+	switch (kind) {
+	case UO_Minus:
+		return pet_op_minus;
+	case UO_Not:
+		return pet_op_not;
+	case UO_LNot:
+		return pet_op_lnot;
+	case UO_PostInc:
+		return pet_op_post_inc;
+	case UO_PostDec:
+		return pet_op_post_dec;
+	case UO_PreInc:
+		return pet_op_pre_inc;
+	case UO_PreDec:
+		return pet_op_pre_dec;
+	default:
+		return pet_op_last;
+	}
+}
+
+static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
+{
+	switch (kind) {
+	case BO_AddAssign:
+		return pet_op_add_assign;
+	case BO_SubAssign:
+		return pet_op_sub_assign;
+	case BO_MulAssign:
+		return pet_op_mul_assign;
+	case BO_DivAssign:
+		return pet_op_div_assign;
+	case BO_Assign:
+		return pet_op_assign;
+	case BO_Add:
+		return pet_op_add;
+	case BO_Sub:
+		return pet_op_sub;
+	case BO_Mul:
+		return pet_op_mul;
+	case BO_Div:
+		return pet_op_div;
+	case BO_Rem:
+		return pet_op_mod;
+	case BO_Shl:
+		return pet_op_shl;
+	case BO_Shr:
+		return pet_op_shr;
+	case BO_EQ:
+		return pet_op_eq;
+	case BO_NE:
+		return pet_op_ne;
+	case BO_LE:
+		return pet_op_le;
+	case BO_GE:
+		return pet_op_ge;
+	case BO_LT:
+		return pet_op_lt;
+	case BO_GT:
+		return pet_op_gt;
+	case BO_And:
+		return pet_op_and;
+	case BO_Xor:
+		return pet_op_xor;
+	case BO_Or:
+		return pet_op_or;
+	case BO_LAnd:
+		return pet_op_land;
+	case BO_LOr:
+		return pet_op_lor;
+	default:
+		return pet_op_last;
+	}
+}
+
 #if defined(DECLREFEXPR_CREATE_REQUIRES_BOOL)
 static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
 {
@@ -1496,82 +1572,6 @@ __isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 		return extract_boolean(comp);
 	default:
 		return extract_implicit_condition(expr);
-	}
-}
-
-static enum pet_op_type UnaryOperatorKind2pet_op_type(UnaryOperatorKind kind)
-{
-	switch (kind) {
-	case UO_Minus:
-		return pet_op_minus;
-	case UO_Not:
-		return pet_op_not;
-	case UO_LNot:
-		return pet_op_lnot;
-	case UO_PostInc:
-		return pet_op_post_inc;
-	case UO_PostDec:
-		return pet_op_post_dec;
-	case UO_PreInc:
-		return pet_op_pre_inc;
-	case UO_PreDec:
-		return pet_op_pre_dec;
-	default:
-		return pet_op_last;
-	}
-}
-
-static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
-{
-	switch (kind) {
-	case BO_AddAssign:
-		return pet_op_add_assign;
-	case BO_SubAssign:
-		return pet_op_sub_assign;
-	case BO_MulAssign:
-		return pet_op_mul_assign;
-	case BO_DivAssign:
-		return pet_op_div_assign;
-	case BO_Assign:
-		return pet_op_assign;
-	case BO_Add:
-		return pet_op_add;
-	case BO_Sub:
-		return pet_op_sub;
-	case BO_Mul:
-		return pet_op_mul;
-	case BO_Div:
-		return pet_op_div;
-	case BO_Rem:
-		return pet_op_mod;
-	case BO_Shl:
-		return pet_op_shl;
-	case BO_Shr:
-		return pet_op_shr;
-	case BO_EQ:
-		return pet_op_eq;
-	case BO_NE:
-		return pet_op_ne;
-	case BO_LE:
-		return pet_op_le;
-	case BO_GE:
-		return pet_op_ge;
-	case BO_LT:
-		return pet_op_lt;
-	case BO_GT:
-		return pet_op_gt;
-	case BO_And:
-		return pet_op_and;
-	case BO_Xor:
-		return pet_op_xor;
-	case BO_Or:
-		return pet_op_or;
-	case BO_LAnd:
-		return pet_op_land;
-	case BO_LOr:
-		return pet_op_lor;
-	default:
-		return pet_op_last;
 	}
 }
 
