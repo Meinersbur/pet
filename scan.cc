@@ -3367,6 +3367,7 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 
 		nested = (Expr *) isl_id_get_user(id);
 		args[n_arg] = extract_expr(nested);
+		isl_id_free(id);
 		if (!args[n_arg])
 			return -1;
 
@@ -3380,8 +3381,6 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 			param2pos[i] = j;
 		} else
 			param2pos[i] = n_arg++;
-
-		isl_id_free(id);
 	}
 
 	return n_arg;
