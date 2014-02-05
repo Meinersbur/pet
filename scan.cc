@@ -1455,18 +1455,10 @@ __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperator *comp)
  */
 __isl_give isl_pw_aff *PetScan::extract_boolean(UnaryOperator *op)
 {
-	isl_set *set_cond, *dom;
-	isl_pw_aff *cond, *res;
+	isl_pw_aff *cond;
 
 	cond = extract_condition(op->getSubExpr());
-
-	dom = isl_pw_aff_domain(isl_pw_aff_copy(cond));
-
-	set_cond = isl_pw_aff_zero_set(cond);
-
-	res = indicator_function(set_cond, dom);
-
-	return res;
+	return pet_not(cond);
 }
 
 /* Extract an affine expression representing the disjunction (logical or)

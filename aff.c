@@ -60,6 +60,19 @@ __isl_give isl_pw_aff *pet_and(__isl_take isl_pw_aff *lhs,
 	return indicator_function(cond, dom);
 }
 
+/* Return "!pa", defined on the domain of "pa".
+ */
+__isl_give isl_pw_aff *pet_not(__isl_take isl_pw_aff *pa)
+{
+	isl_set *cond, *dom;
+
+	dom = isl_pw_aff_domain(isl_pw_aff_copy(pa));
+	cond = isl_pw_aff_zero_set(pa);
+	pa = indicator_function(cond, dom);
+
+	return pa;
+}
+
 /* Return the result of applying the comparison operator "type"
  * to "pa1" and "pa2".
  *
