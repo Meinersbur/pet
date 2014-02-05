@@ -136,3 +136,45 @@ __isl_give isl_pw_aff *pet_comparison(enum pet_op_type type,
 
 	return res;
 }
+
+/* Return "lhs && rhs", with shortcut semantics.
+ * That is, if lhs is false, then the result is defined even if rhs is not.
+ * In practice, we compute lhs ? rhs : lhs.
+ */
+static __isl_give isl_pw_aff *pw_aff_and_then(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	return isl_pw_aff_cond(isl_pw_aff_copy(lhs), rhs, lhs);
+}
+
+/* Return "lhs || rhs", with shortcut semantics.
+ * That is, if lhs is true, then the result is defined even if rhs is not.
+ * In practice, we compute lhs ? lhs : rhs.
+ */
+static __isl_give isl_pw_aff *pw_aff_or_else(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	return isl_pw_aff_cond(isl_pw_aff_copy(lhs), lhs, rhs);
+}
+
+/* Return the result of applying the boolean operator "type"
+ * to "pa1" and "pa2".
+ */
+__isl_give isl_pw_aff *pet_boolean(enum pet_op_type type,
+	__isl_take isl_pw_aff *pa1, __isl_take isl_pw_aff *pa2)
+{
+	isl_ctx *ctx;
+
+	switch (type) {
+	case pet_op_land:
+		return pw_aff_and_then(pa1, pa2);
+	case pet_op_lor:
+		return pw_aff_or_else(pa1, pa2);
+	default:
+		ctx = isl_pw_aff_get_ctx(pa1);
+		isl_pw_aff_free(pa1);
+		isl_pw_aff_free(pa2);
+		isl_die(ctx, isl_error_internal,
+			"not a boolean operator", return NULL);
+	}
+}

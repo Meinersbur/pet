@@ -1369,26 +1369,6 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
 	return is_minmax(expr, "max", lhs, rhs);
 }
 
-/* Return "lhs && rhs", with shortcut semantics.
- * That is, if lhs is false, then the result is defined even if rhs is not.
- * In practice, we compute lhs ? rhs : lhs.
- */
-static __isl_give isl_pw_aff *pw_aff_and_then(__isl_take isl_pw_aff *lhs,
-	__isl_take isl_pw_aff *rhs)
-{
-	return isl_pw_aff_cond(isl_pw_aff_copy(lhs), rhs, lhs);
-}
-
-/* Return "lhs || rhs", with shortcut semantics.
- * That is, if lhs is true, then the result is defined even if rhs is not.
- * In practice, we compute lhs ? lhs : rhs.
- */
-static __isl_give isl_pw_aff *pw_aff_or_else(__isl_take isl_pw_aff *lhs,
-	__isl_take isl_pw_aff *rhs)
-{
-	return isl_pw_aff_cond(isl_pw_aff_copy(lhs), lhs, rhs);
-}
-
 /* Extract an affine expressions representing the comparison "LHS op RHS"
  * "comp" is the original statement that "LHS op RHS" is derived from
  * and is used for diagnostics.
@@ -1473,9 +1453,9 @@ __isl_give isl_pw_aff *PetScan::extract_boolean(BinaryOperator *comp)
 
 	switch (comp->getOpcode()) {
 	case BO_LAnd:
-		return pw_aff_and_then(lhs, rhs);
+		return pet_boolean(pet_op_land, lhs, rhs);
 	case BO_LOr:
-		return pw_aff_or_else(lhs, rhs);
+		return pet_boolean(pet_op_lor, lhs, rhs);
 	default:
 		isl_pw_aff_free(lhs);
 		isl_pw_aff_free(rhs);
