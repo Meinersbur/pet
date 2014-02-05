@@ -1369,21 +1369,6 @@ static bool is_max(Expr *expr, Expr *&lhs, Expr *&rhs)
 	return is_minmax(expr, "max", lhs, rhs);
 }
 
-/* Return "lhs && rhs", defined on the shared definition domain.
- */
-static __isl_give isl_pw_aff *pw_aff_and(__isl_take isl_pw_aff *lhs,
-	__isl_take isl_pw_aff *rhs)
-{
-	isl_set *cond;
-	isl_set *dom;
-
-	dom = isl_set_intersect(isl_pw_aff_domain(isl_pw_aff_copy(lhs)),
-				 isl_pw_aff_domain(isl_pw_aff_copy(rhs)));
-	cond = isl_set_intersect(isl_pw_aff_non_zero_set(lhs),
-				 isl_pw_aff_non_zero_set(rhs));
-	return indicator_function(cond, dom);
-}
-
 /* Return "lhs && rhs", with shortcut semantics.
  * That is, if lhs is false, then the result is defined even if rhs is not.
  * In practice, we compute lhs ? rhs : lhs.
@@ -1443,12 +1428,12 @@ __isl_give isl_pw_aff *PetScan::extract_comparison(BinaryOperatorKind op,
 		if (is_min(RHS, expr1, expr2)) {
 			lhs = extract_comparison(op, LHS, expr1, comp);
 			rhs = extract_comparison(op, LHS, expr2, comp);
-			return pw_aff_and(lhs, rhs);
+			return pet_and(lhs, rhs);
 		}
 		if (is_max(LHS, expr1, expr2)) {
 			lhs = extract_comparison(op, expr1, RHS, comp);
 			rhs = extract_comparison(op, expr2, RHS, comp);
-			return pw_aff_and(lhs, rhs);
+			return pet_and(lhs, rhs);
 		}
 	}
 

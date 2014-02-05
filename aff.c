@@ -45,6 +45,21 @@ static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
 	return pa;
 }
 
+/* Return "lhs && rhs", defined on the shared definition domain.
+ */
+__isl_give isl_pw_aff *pet_and(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs)
+{
+	isl_set *cond;
+	isl_set *dom;
+
+	dom = isl_set_intersect(isl_pw_aff_domain(isl_pw_aff_copy(lhs)),
+				 isl_pw_aff_domain(isl_pw_aff_copy(rhs)));
+	cond = isl_set_intersect(isl_pw_aff_non_zero_set(lhs),
+				 isl_pw_aff_non_zero_set(rhs));
+	return indicator_function(cond, dom);
+}
+
 /* Return the result of applying the comparison operator "type"
  * to "pa1" and "pa2".
  *

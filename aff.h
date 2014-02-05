@@ -9,6 +9,8 @@
 extern "C" {
 #endif
 
+__isl_give isl_pw_aff *pet_and(__isl_take isl_pw_aff *lhs,
+	__isl_take isl_pw_aff *rhs);
 __isl_give isl_pw_aff *pet_comparison(enum pet_op_type type,
 	__isl_take isl_pw_aff *pa1, __isl_take isl_pw_aff *pa2);
 
