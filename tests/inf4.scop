@@ -1,0 +1,47 @@
+start: 74
+end: 216
+context: '[N] -> {  : N >= 8 and N <= 16 }'
+arrays:
+- context: '[N] -> {  : N >= 0 }'
+  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '[N] -> {  : N >= 0 }'
+  extent: '[N] -> { b[i0] : i0 <= -1 + N and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 12
+  domain: '[N] -> { S_0[i, j] : j >= 0 and i >= 0 and j <= -1 + N }'
+  schedule: '[N] -> { S_0[i, j] -> [0, i, 0, j] }'
+  body:
+    type: op
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_0[i, j] -> a[j] }'
+      index: '[N] -> { S_0[i, j] -> a[(j)] }'
+      reference: __pet_ref_0
+      read: 0
+      write: 1
+    - type: int
+      value: 0
+- line: 14
+  domain: '[N] -> { S_1[i, j] : j >= 0 and i >= 0 and j <= -1 + N }'
+  schedule: '[N] -> { S_1[i, j] -> [0, i, 1, j] }'
+  body:
+    type: op
+    operation: =
+    arguments:
+    - type: access
+      relation: '[N] -> { S_1[i, j] -> b[j] }'
+      index: '[N] -> { S_1[i, j] -> b[(j)] }'
+      reference: __pet_ref_1
+      read: 0
+      write: 1
+    - type: access
+      relation: '[N] -> { S_1[i, j] -> a[j] }'
+      index: '[N] -> { S_1[i, j] -> a[(j)] }'
+      reference: __pet_ref_2
+      read: 1
+      write: 0
