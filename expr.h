@@ -14,6 +14,14 @@ extern "C" {
  * type is valid when type == pet_expr_cast
  * op is valid otherwise
  *
+ * If type_size is not zero, then the expression is of an integer type
+ * and type_size represents the size of the type in bits.
+ * If type_size is greater than zero, then the type is unsigned
+ * and the number of bits is equal to type_size.
+ * If type_size is less than zero, then the type is signed
+ * and the number of bits is equal to -type_size.
+ * type_size may also be zero if the size is (still) unknown.
+ *
  * For each access expression inside the body of a statement, acc.ref_id
  * is a unique reference identifier.
  * acc.index represents the index expression, while acc.access
@@ -50,6 +58,8 @@ struct pet_expr {
 
 	enum pet_expr_type type;
 
+	int type_size;
+
 	unsigned n_arg;
 	pet_expr **args;
 
@@ -78,7 +88,7 @@ enum pet_expr_type pet_str_type(const char *str);
 enum pet_op_type pet_str_op(const char *str);
 
 __isl_give pet_expr *pet_expr_alloc(isl_ctx *ctx, enum pet_expr_type type);
-__isl_give pet_expr *pet_expr_from_index_and_depth(
+__isl_give pet_expr *pet_expr_from_index_and_depth(int type_size,
 	__isl_take isl_multi_pw_aff *index, int depth);
 __isl_give pet_expr *pet_expr_from_access_and_index(__isl_take isl_map *access,
 	__isl_take isl_multi_pw_aff *index);
@@ -86,7 +96,7 @@ __isl_give pet_expr *pet_expr_kill_from_access_and_index(
 	__isl_take isl_map *access, __isl_take isl_multi_pw_aff *index);
 __isl_give pet_expr *pet_expr_new_unary(enum pet_op_type op,
 	__isl_take pet_expr *arg);
-__isl_give pet_expr *pet_expr_new_binary(enum pet_op_type op,
+__isl_give pet_expr *pet_expr_new_binary(int type_size, enum pet_op_type op,
 	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs);
 __isl_give pet_expr *pet_expr_new_ternary(__isl_take pet_expr *cond,
 	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs);
@@ -144,6 +154,10 @@ __isl_give pet_expr *pet_expr_gist(__isl_take pet_expr *expr,
 
 __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 	__isl_take isl_map *access);
+
+int pet_expr_get_type_size(__isl_keep pet_expr *expr);
+__isl_give pet_expr *pet_expr_set_type_size(__isl_take pet_expr *expr,
+	int type_size);
 
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 

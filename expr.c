@@ -209,7 +209,9 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 	return access;
 }
 
-/* Construct an access pet_expr from an index expression and
+/* Construct an access pet_expr from the number of bits needed to
+ * represent the type of the expression (may be zero if unknown or
+ * if the type is not an integer) an index expression and
  * the depth of the accessed array.
  * By default, the access is considered to be a read access.
  *
@@ -217,11 +219,12 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
  * then we assume that all elements of the remaining dimensions
  * are accessed.
  */
-__isl_give pet_expr *pet_expr_from_index_and_depth(
+__isl_give pet_expr *pet_expr_from_index_and_depth(int type_size,
 	__isl_take isl_multi_pw_aff *index, int depth)
 {
 	isl_map *access;
 	int dim;
+	pet_expr *expr;
 
 	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
 	if (!access)
@@ -231,12 +234,17 @@ __isl_give pet_expr *pet_expr_from_index_and_depth(
 		isl_die(isl_map_get_ctx(access), isl_error_internal,
 			"number of indices greater than depth",
 			access = isl_map_free(access));
-	if (dim == depth)
-		return pet_expr_from_access_and_index(access, index);
 
-	access = extend_range(access, depth - dim);
+	if (dim != depth)
+		access = extend_range(access, depth - dim);
 
-	return pet_expr_from_access_and_index(access, index);
+	expr = pet_expr_from_access_and_index(access, index);
+	if (!expr)
+		return NULL;
+
+	expr->type_size = type_size;
+
+	return expr;
 error:
 	isl_multi_pw_aff_free(index);
 	return NULL;
@@ -287,9 +295,11 @@ error:
 	return NULL;
 }
 
-/* Construct a binary pet_expr that performs "op" on "lhs" and "rhs".
+/* Construct a binary pet_expr that performs "op" on "lhs" and "rhs",
+ * where the result is represented using a type of "type_size" bits
+ * (may be zero if unknown or if the type is not an integer).
  */
-__isl_give pet_expr *pet_expr_new_binary(enum pet_op_type op,
+__isl_give pet_expr *pet_expr_new_binary(int type_size, enum pet_op_type op,
 	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs)
 {
 	isl_ctx *ctx;
@@ -304,6 +314,7 @@ __isl_give pet_expr *pet_expr_new_binary(enum pet_op_type op,
 		goto error;
 
 	expr->op = op;
+	expr->type_size = type_size;
 	expr->args[pet_bin_lhs] = lhs;
 	expr->args[pet_bin_rhs] = rhs;
 
@@ -444,6 +455,7 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 		return NULL;
 
 	dup = pet_expr_alloc(expr->ctx, expr->type);
+	dup = pet_expr_set_type_size(dup, expr->type_size);
 	dup = pet_expr_set_n_arg(dup, expr->n_arg);
 	for (i = 0; i < expr->n_arg; ++i)
 		dup = pet_expr_set_arg(dup, i, pet_expr_copy(expr->args[i]));
@@ -1904,6 +1916,30 @@ __isl_give char *pet_expr_double_get_str(__isl_keep pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not a double expression", return NULL);
 	return strdup(expr->d.s);
+}
+
+/* Return the number of bits needed to represent the type of "expr".
+ * See the description of the type_size field of pet_expr.
+ */
+int pet_expr_get_type_size(__isl_keep pet_expr *expr)
+{
+	return expr ? expr->type_size : 0;
+}
+
+/* Replace the number of bits needed to represent the type of "expr"
+ * by "type_size".
+ * See the description of the type_size field of pet_expr.
+ */
+__isl_give pet_expr *pet_expr_set_type_size(__isl_take pet_expr *expr,
+	int type_size)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+
+	expr->type_size = type_size;
+
+	return expr;
 }
 
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)

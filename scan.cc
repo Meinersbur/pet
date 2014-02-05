@@ -490,9 +490,31 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ImplicitCastExpr *expr)
 	return extract_affine(expr->getSubExpr());
 }
 
-static unsigned get_type_size(ValueDecl *decl)
+/* Return the number of bits needed to represent the type "qt",
+ * if it is an integer type.  Otherwise return 0.
+ * If qt is signed then return the opposite of the number of bits.
+ */
+static int get_type_size(QualType qt, ASTContext &ast_context)
 {
-	return decl->getASTContext().getIntWidth(decl->getType());
+	int size;
+
+	if (!qt->isIntegerType())
+		return 0;
+
+	size = ast_context.getIntWidth(qt);
+	if (!qt->isUnsignedIntegerType())
+		size = -size;
+
+	return size;
+}
+
+/* Return the number of bits needed to represent the type of "decl",
+ * if it is an integer type.  Otherwise return 0.
+ * If qt is signed then return the opposite of the number of bits.
+ */
+static int get_type_size(ValueDecl *decl)
+{
+	return get_type_size(decl->getType(), decl->getASTContext());
 }
 
 /* Bound parameter "pos" of "set" to the possible values of "decl".
@@ -500,20 +522,23 @@ static unsigned get_type_size(ValueDecl *decl)
 static __isl_give isl_set *set_parameter_bounds(__isl_take isl_set *set,
 	unsigned pos, ValueDecl *decl)
 {
-	unsigned width;
+	int type_size;
 	isl_ctx *ctx;
 	isl_val *bound;
 
 	ctx = isl_set_get_ctx(set);
-	width = get_type_size(decl);
-	if (decl->getType()->isUnsignedIntegerType()) {
+	type_size = get_type_size(decl);
+	if (type_size == 0)
+		isl_die(ctx, isl_error_invalid, "not an integer type",
+			return isl_set_free(set));
+	if (type_size > 0) {
 		set = isl_set_lower_bound_si(set, isl_dim_param, pos, 0);
-		bound = isl_val_int_from_ui(ctx, width);
+		bound = isl_val_int_from_ui(ctx, type_size);
 		bound = isl_val_2exp(bound);
 		bound = isl_val_sub_ui(bound, 1);
 		set = isl_set_upper_bound_val(set, isl_dim_param, pos, bound);
 	} else {
-		bound = isl_val_int_from_ui(ctx, width - 1);
+		bound = isl_val_int_from_ui(ctx, -type_size - 1);
 		bound = isl_val_2exp(bound);
 		bound = isl_val_sub_ui(bound, 1);
 		set = isl_set_upper_bound_val(set, isl_dim_param, pos,
@@ -1641,6 +1666,7 @@ void PetScan::assign(__isl_keep pet_expr *lhs, Expr *rhs)
  */
 __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 {
+	int type_size;
 	pet_expr *lhs, *rhs;
 	enum pet_op_type op;
 
@@ -1663,7 +1689,8 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	if (expr->getOpcode() == BO_Assign)
 		assign(lhs, expr->getRHS());
 
-	return pet_expr_new_binary(op, lhs, rhs);
+	type_size = get_type_size(expr->getType(), ast_context);
+	return pet_expr_new_binary(type_size, op, lhs, rhs);
 }
 
 /* Construct a pet_scop with a single statement killing the entire
@@ -1698,6 +1725,7 @@ struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
  */
 struct pet_scop *PetScan::extract(DeclStmt *stmt)
 {
+	int type_size;
 	Decl *decl;
 	VarDecl *vd;
 	pet_expr *lhs, *rhs, *pe;
@@ -1727,7 +1755,8 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 	lhs = mark_write(lhs);
 	assign(lhs, vd->getInit());
 
-	pe = pet_expr_new_binary(pet_op_assign, lhs, rhs);
+	type_size = get_type_size(vd->getType(), ast_context);
+	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
 	scop = extract(stmt, pe);
 
 	scop_decl = pet_scop_prefix(scop_decl, 0);
@@ -1793,16 +1822,19 @@ __isl_give pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 	return pet_expr_new_double(ctx, d, s.c_str());
 }
 
-/* Convert the index expression "index" into an access pet_expr.
+/* Convert the index expression "index" into an access pet_expr of type "qt".
  */
-__isl_give pet_expr *PetScan::extract_access_expr(
+__isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
 	__isl_take isl_multi_pw_aff *index)
 {
 	pet_expr *pe;
 	int depth;
+	int type_size;
 
 	depth = extract_depth(index);
-	pe = pet_expr_from_index_and_depth(index, depth);
+	type_size = get_type_size(qt, ast_context);
+
+	pe = pet_expr_from_index_and_depth(type_size, index, depth);
 
 	return pe;
 }
@@ -1812,7 +1844,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(
  */
 __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
-	return extract_access_expr(extract_index(expr));
+	return extract_access_expr(expr->getType(), extract_index(expr));
 }
 
 /* Extract an index expression from "decl" and then convert it into
@@ -1820,7 +1852,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
  */
 __isl_give pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
-	return extract_access_expr(extract_index(decl));
+	return extract_access_expr(decl->getType(), extract_index(decl));
 }
 
 __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
@@ -3683,6 +3715,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	isl_multi_pw_aff *index;
 	isl_pw_aff *pa;
 	int equal;
+	int type_size;
 	pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
 	bool save_nesting = nesting_enabled;
 
@@ -3723,11 +3756,12 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	pe_else = pet_expr_restrict(pe_else, comp);
 
 	pe = pet_expr_new_ternary(pe_cond, pe_then, pe_else);
-	pe_write = pet_expr_from_index_and_depth(write_then,
+	type_size = get_type_size(ass_then->getType(), ast_context);
+	pe_write = pet_expr_from_index_and_depth(type_size, write_then,
 						extract_depth(write_then));
 	pe_write = pet_expr_access_set_write(pe_write, 1);
 	pe_write = pet_expr_access_set_read(pe_write, 0);
-	pe = pet_expr_new_binary(pet_op_assign, pe_write, pe);
+	pe = pet_expr_new_binary(type_size, pet_op_assign, pe_write, pe);
 	return extract(stmt, pe);
 }
 
@@ -3748,7 +3782,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	write = pet_expr_access_set_read(write, 0);
 	expr = extract_expr(cond);
 	expr = resolve_nested(expr);
-	expr = pet_expr_new_binary(pet_op_assign, write, expr);
+	expr = pet_expr_new_binary(1, pet_op_assign, write, expr);
 	ps = pet_stmt_from_pet_expr(line, NULL, stmt_nr, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
@@ -4161,7 +4195,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
-	expr = pet_expr_new_binary(pet_op_assign, expr_skip, expr);
+	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
 	stmt = pet_stmt_from_pet_expr(-1, NULL, scan->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
@@ -4725,7 +4759,7 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
-	expr = pet_expr_new_binary(pet_op_assign, expr_skip, expr);
+	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
 	stmt = pet_stmt_from_pet_expr(-1, NULL, ps->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
