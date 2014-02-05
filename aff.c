@@ -34,6 +34,46 @@
 
 #include "aff.h"
 
+/* If the isl_pw_aff on which isl_pw_aff_foreach_piece is called
+ * has a constant expression on its only domain, then replace
+ * the isl_val in *user by this constant.
+ * The caller is assumed to have checked that this function will
+ * be called exactly once.
+ */
+static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
+	void *user)
+{
+	isl_val **inc = (isl_val **)user;
+
+	if (isl_aff_is_cst(aff)) {
+		isl_val_free(*inc);
+		*inc = isl_aff_get_constant_val(aff);
+	}
+
+	isl_set_free(set);
+	isl_aff_free(aff);
+
+	return 0;
+}
+
+/* If "pa" represents a constant value over a single domain,
+ * then return this constant.
+ * Otherwise return NaN.
+ */
+__isl_give isl_val *pet_extract_cst(__isl_keep isl_pw_aff *pa)
+{
+	isl_val *v;
+
+	if (!pa)
+		return NULL;
+	v = isl_val_nan(isl_pw_aff_get_ctx(pa));
+	if (isl_pw_aff_n_piece(pa) != 1)
+		return v;
+	if (isl_pw_aff_foreach_piece(pa, &extract_cst, &v) < 0)
+		v = isl_val_free(v);
+	return v;
+}
+
 /* Return the piecewise affine expression "set ? 1 : 0" defined on "dom".
  */
 static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,

@@ -2107,28 +2107,6 @@ __isl_give isl_pw_aff *PetScan::extract_unary_increment(
 	return isl_pw_aff_from_aff(aff);
 }
 
-/* If the isl_pw_aff on which isl_pw_aff_foreach_piece is called
- * has a single constant expression, then put this constant in *user.
- * The caller is assumed to have checked that this function will
- * be called exactly once.
- */
-static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
-	void *user)
-{
-	isl_val **inc = (isl_val **)user;
-	int res = 0;
-
-	if (isl_aff_is_cst(aff))
-		*inc = isl_aff_get_constant_val(aff);
-	else
-		res = -1;
-
-	isl_set_free(set);
-	isl_aff_free(aff);
-
-	return res;
-}
-
 /* Check if op is of the form
  *
  *	iv = iv + inc
@@ -3015,9 +2993,8 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		return NULL;
 	}
 
-	inc = NULL;
-	if (isl_pw_aff_n_piece(pa_inc) != 1 ||
-	    isl_pw_aff_foreach_piece(pa_inc, &extract_cst, &inc) < 0) {
+	inc = pet_extract_cst(pa_inc);
+	if (!inc || isl_val_is_nan(inc)) {
 		isl_pw_aff_free(init_val);
 		isl_pw_aff_free(pa_inc);
 		unsupported(stmt->getInc());
