@@ -3156,6 +3156,14 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 	return extract(stmt->children(), !skip_declarations, skip_declarations);
 }
 
+/* Extract a pet_expr from an isl_id created by pet_nested_clang_expr.
+ * The user pointer of such an isl_id points to a clang::Expr object.
+ */
+__isl_give pet_expr *PetScan::extract_expr(__isl_keep isl_id *id)
+{
+	return extract_expr((Expr *) isl_id_get_user(id));
+}
+
 /* For each nested access parameter in "space",
  * construct a corresponding pet_expr, place it in args and
  * record its position in "param2pos".
@@ -3176,15 +3184,13 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 	for (int i = 0; i < nparam; ++i) {
 		int j;
 		isl_id *id = isl_space_get_dim_id(space, isl_dim_param, i);
-		Expr *nested;
 
 		if (!pet_nested_in_id(id)) {
 			isl_id_free(id);
 			continue;
 		}
 
-		nested = (Expr *) isl_id_get_user(id);
-		args[n_arg] = extract_expr(nested);
+		args[n_arg] = extract_expr(id);
 		isl_id_free(id);
 		if (!args[n_arg])
 			return -1;
@@ -3912,7 +3918,6 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 
 	nparam = isl_pw_aff_dim(pa, isl_dim_param);
 	for (int i = 0; i < nparam; ++i) {
-		Expr *nested;
 		isl_id *id = isl_pw_aff_get_dim_id(pa, isl_dim_param, i);
 		pet_expr *expr;
 		bool allowed;
@@ -3922,8 +3927,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 			continue;
 		}
 
-		nested = (Expr *) isl_id_get_user(id);
-		expr = extract_expr(nested);
+		expr = extract_expr(id);
 		allowed = pet_expr_get_type(expr) == pet_expr_access &&
 			    !is_assigned(expr, scop);
 
