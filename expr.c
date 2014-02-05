@@ -663,6 +663,75 @@ error:
 	return NULL;
 }
 
+/* Does "expr" perform a comparison operation?
+ */
+int pet_expr_is_comparison(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_op)
+		return 0;
+	switch (expr->op) {
+	case pet_op_eq:
+	case pet_op_ne:
+	case pet_op_le:
+	case pet_op_ge:
+	case pet_op_lt:
+	case pet_op_gt:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+/* Does "expr" perform a boolean operation?
+ */
+int pet_expr_is_boolean(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_op)
+		return 0;
+	switch (expr->op) {
+	case pet_op_land:
+	case pet_op_lor:
+	case pet_op_lnot:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+/* Does "expr" perform a min operation?
+ */
+int pet_expr_is_min(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_call)
+		return 0;
+	if (expr->n_arg != 2)
+		return 0;
+	if (strcmp(expr->name, "min") != 0)
+		return 0;
+	return 1;
+}
+
+/* Does "expr" perform a max operation?
+ */
+int pet_expr_is_max(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_call)
+		return 0;
+	if (expr->n_arg != 2)
+		return 0;
+	if (strcmp(expr->name, "max") != 0)
+		return 0;
+	return 1;
+}
+
 /* Does "expr" represent an access to an unnamed space, i.e.,
  * does it represent an affine expression?
  */

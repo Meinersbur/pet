@@ -109,6 +109,10 @@ __isl_give pet_expr *pet_expr_new_int(__isl_take isl_val *v);
 
 __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr);
 
+int pet_expr_is_boolean(__isl_keep pet_expr *expr);
+int pet_expr_is_comparison(__isl_keep pet_expr *expr);
+int pet_expr_is_min(__isl_keep pet_expr *expr);
+int pet_expr_is_max(__isl_keep pet_expr *expr);
 int pet_expr_is_scalar_access(__isl_keep pet_expr *expr);
 int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2);
 
