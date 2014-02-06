@@ -751,13 +751,16 @@ int pet_expr_is_affine(__isl_keep pet_expr *expr)
 	return !has_id;
 }
 
-/* Does "expr" represent an access to a scalar, i.e., zero-dimensional array?
+/* Does "expr" represent an access to a scalar, i.e., a zero-dimensional array,
+ * not part of any struct?
  */
 int pet_expr_is_scalar_access(__isl_keep pet_expr *expr)
 {
 	if (!expr)
 		return -1;
 	if (expr->type != pet_expr_access)
+		return 0;
+	if (isl_map_range_is_wrapping(expr->acc.access))
 		return 0;
 
 	return isl_map_dim(expr->acc.access, isl_dim_out) == 0;
