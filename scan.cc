@@ -273,21 +273,39 @@ PetScan::~PetScan()
 	isl_union_map_free(value_bounds);
 }
 
-/* Called if we found something we (currently) cannot handle.
- * We'll provide more informative warnings later.
- *
- * We only actually complain if autodetect is false.
+/* Report a diagnostic, unless autodetect is set.
  */
-void PetScan::unsupported(Stmt *stmt, const char *msg)
+void PetScan::report(Stmt *stmt, unsigned id)
 {
 	if (options->autodetect)
 		return;
 
 	SourceLocation loc = stmt->getLocStart();
 	DiagnosticsEngine &diag = PP.getDiagnostics();
-	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
-					   msg ? msg : "unsupported");
 	DiagnosticBuilder B = diag.Report(loc, id) << stmt->getSourceRange();
+}
+
+/* Called if we found something we (currently) cannot handle.
+ * We'll provide more informative warnings later.
+ *
+ * We only actually complain if autodetect is false.
+ */
+void PetScan::unsupported(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "unsupported");
+	report(stmt, id);
+}
+
+/* Report a missing prototype, unless autodetect is set.
+ */
+void PetScan::report_prototype_required(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "prototype required");
+	report(stmt, id);
 }
 
 /* Extract an integer from "expr".
@@ -1868,7 +1886,7 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	if (is_addr && main_arg->type == pet_expr_access) {
 		ParmVarDecl *parm;
 		if (!fd->hasPrototype()) {
-			unsupported(expr, "prototype required");
+			report_prototype_required(expr);
 			return pet_expr_free(res);
 		}
 		parm = fd->getParamDecl(pos);

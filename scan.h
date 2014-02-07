@@ -239,5 +239,7 @@ private:
 	__isl_give isl_pw_aff *extract_boolean(clang::BinaryOperator *expr);
 	__isl_give isl_pw_aff *extract_boolean(clang::UnaryOperator *expr);
 
-	void unsupported(clang::Stmt *stmt, const char *msg = NULL);
+	void report(clang::Stmt *stmt, unsigned id);
+	void unsupported(clang::Stmt *stmt);
+	void report_prototype_required(clang::Stmt *stmt);
 };
