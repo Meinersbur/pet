@@ -2041,7 +2041,6 @@ static __isl_give isl_map *embed_access_relation(__isl_take isl_map *access,
  */
 static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
-	int dim;
 	struct pet_embed_access *data = user;
 
 	expr = update_domain(expr, data->extend);
