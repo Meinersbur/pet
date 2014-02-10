@@ -2660,7 +2660,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	}
 
 	test_index = create_test_index(ctx, n_test++);
-	scop = extract_non_affine_condition(cond,
+	scop = extract_non_affine_condition(cond, n_stmt++,
 					    isl_multi_pw_aff_copy(test_index));
 	scop = scop_add_array(scop, test_index, ast_context);
 	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
@@ -3166,7 +3166,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 		test_index = create_test_index(ctx, n_test++);
 		n_stmt = stmt_id;
 		scop_cond = extract_non_affine_condition(stmt->getCond(),
-					    isl_multi_pw_aff_copy(test_index));
+				n_stmt++, isl_multi_pw_aff_copy(test_index));
 		n_stmt = save_n_stmt;
 		scop_cond = scop_add_array(scop_cond, test_index, ast_context);
 		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
@@ -3801,11 +3801,11 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	return extract(stmt, pe);
 }
 
-/* Create a pet_scop with a single statement evaluating "cond"
- * and writing the result to a virtual scalar, as expressed by
- * "index".
+/* Create a pet_scop with a single statement with name S_<stmt_nr>,
+ * evaluating "cond" and writing the result to a virtual scalar,
+ * as expressed by "index".
  */
-struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
+struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	__isl_take isl_multi_pw_aff *index)
 {
 	struct pet_expr *expr, *write;
@@ -3822,7 +3822,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond,
 	expr = extract_expr(cond);
 	expr = resolve_nested(expr);
 	expr = pet_expr_new_binary(ctx, pet_op_assign, write, expr);
-	ps = pet_stmt_from_pet_expr(ctx, line, NULL, n_stmt++, expr);
+	ps = pet_stmt_from_pet_expr(ctx, line, NULL, stmt_nr, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 	scop = resolve_nested(scop);
 
@@ -4573,7 +4573,7 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 
 	test_index = create_test_index(ctx, n_test++);
 	n_stmt = stmt_id;
-	scop = extract_non_affine_condition(cond,
+	scop = extract_non_affine_condition(cond, n_stmt++,
 					isl_multi_pw_aff_copy(test_index));
 	n_stmt = save_n_stmt;
 	scop = scop_add_array(scop, test_index, ast_context);
