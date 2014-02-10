@@ -257,13 +257,12 @@ static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 	return isl_val_int_from_chunks(ctx, n, sizeof(uint64_t), data);
 }
 
-/* Extract an integer from "expr".
+/* Extract an integer from "val".  If "is_signed" is set, then "val"
+ * is signed.  Otherwise it it unsigned.
  */
-__isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
+static __isl_give isl_val *extract_int(isl_ctx *ctx, bool is_signed,
+	llvm::APInt val)
 {
-	const Type *type = expr->getType().getTypePtr();
-	int is_signed = type->hasSignedIntegerRepresentation();
-	llvm::APInt val = expr->getValue();
 	int is_negative = is_signed && val.isNegative();
 	isl_val *v;
 
@@ -275,6 +274,16 @@ __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
 	if (is_negative)
 		v = isl_val_neg(v);
 	return v;
+}
+
+/* Extract an integer from "expr".
+ */
+__isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
+{
+	const Type *type = expr->getType().getTypePtr();
+	bool is_signed = type->hasSignedIntegerRepresentation();
+
+	return ::extract_int(ctx, is_signed, expr->getValue());
 }
 
 /* Extract an integer from "expr".
