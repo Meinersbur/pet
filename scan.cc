@@ -246,7 +246,7 @@ void PetScan::report_missing_increment(Stmt *stmt)
 
 /* Extract an integer from "val", which is assumed to be non-negative.
  */
-__isl_give isl_val *PetScan::extract_unsigned(isl_ctx *ctx,
+static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 	const llvm::APInt &val)
 {
 	unsigned n;
