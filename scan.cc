@@ -244,6 +244,19 @@ void PetScan::report_missing_increment(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Extract an integer from "val", which is assumed to be non-negative.
+ */
+__isl_give isl_val *PetScan::extract_unsigned(isl_ctx *ctx,
+	const llvm::APInt &val)
+{
+	unsigned n;
+	const uint64_t *data;
+
+	data = val.getRawData();
+	n = val.getNumWords();
+	return isl_val_int_from_chunks(ctx, n, sizeof(uint64_t), data);
+}
+
 /* Extract an integer from "expr".
  */
 __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
@@ -262,19 +275,6 @@ __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
 	if (is_negative)
 		v = isl_val_neg(v);
 	return v;
-}
-
-/* Extract an integer from "val", which is assumed to be non-negative.
- */
-__isl_give isl_val *PetScan::extract_unsigned(isl_ctx *ctx,
-	const llvm::APInt &val)
-{
-	unsigned n;
-	const uint64_t *data;
-
-	data = val.getRawData();
-	n = val.getNumWords();
-	return isl_val_int_from_chunks(ctx, n, sizeof(uint64_t), data);
 }
 
 /* Extract an integer from "expr".
