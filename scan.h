@@ -138,6 +138,7 @@ private:
 	__isl_give pet_expr *extract_expr(clang::BinaryOperator *expr);
 	__isl_give pet_expr *extract_expr(clang::ImplicitCastExpr *expr);
 	__isl_give pet_expr *extract_expr(clang::IntegerLiteral *expr);
+	__isl_give pet_expr *extract_expr(clang::EnumConstantDecl *expr);
 	__isl_give pet_expr *extract_expr(clang::FloatingLiteral *expr);
 	__isl_give pet_expr *extract_expr(clang::ParenExpr *expr);
 	__isl_give pet_expr *extract_expr(clang::ConditionalOperator *expr);

@@ -456,6 +456,9 @@ static int extract_depth(__isl_keep pet_expr *expr)
 
 /* Construct a pet_expr representing an index expression for an access
  * to the variable referenced by "expr".
+ *
+ * If "expr" references an enum constant, then return an integer expression
+ * instead, representing the value of the enum constant.
  */
 __isl_give pet_expr *PetScan::extract_index_expr(DeclRefExpr *expr)
 {
@@ -464,12 +467,20 @@ __isl_give pet_expr *PetScan::extract_index_expr(DeclRefExpr *expr)
 
 /* Construct a pet_expr representing an index expression for an access
  * to the variable "decl".
+ *
+ * If "decl" is an enum constant, then we return an integer expression
+ * instead, representing the value of the enum constant.
  */
 __isl_give pet_expr *PetScan::extract_index_expr(ValueDecl *decl)
 {
-	isl_id *id = create_decl_id(ctx, decl);
-	isl_space *space = isl_space_alloc(ctx, 0, 0, 0);
+	isl_id *id;
+	isl_space *space;
 
+	if (isa<EnumConstantDecl>(decl))
+		return extract_expr(cast<EnumConstantDecl>(decl));
+
+	id = create_decl_id(ctx, decl);
+	space = isl_space_alloc(ctx, 0, 0, 0);
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 
 	return pet_expr_from_index(isl_multi_pw_aff_zero(space));
@@ -477,6 +488,9 @@ __isl_give pet_expr *PetScan::extract_index_expr(ValueDecl *decl)
 
 /* Construct a pet_expr representing the index expression "expr"
  * Return NULL on error.
+ *
+ * If "expr" is a reference to an enum constant, then return
+ * an integer expression instead, representing the value of the enum constant.
  */
 __isl_give pet_expr *PetScan::extract_index_expr(Expr *expr)
 {
@@ -726,10 +740,20 @@ __isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
 
 /* Extract an index expression from "expr" and then convert it into
  * an access pet_expr.
+ *
+ * If "expr" is a reference to an enum constant, then return
+ * an integer expression instead, representing the value of the enum constant.
  */
 __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
-	return extract_access_expr(expr->getType(), extract_index_expr(expr));
+	pet_expr *index;
+
+	index = extract_index_expr(expr);
+
+	if (pet_expr_get_type(index) == pet_expr_int)
+		return index;
+
+	return extract_access_expr(expr->getType(), index);
 }
 
 /* Extract an index expression from "decl" and then convert it into
@@ -864,6 +888,16 @@ __isl_give pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
 __isl_give pet_expr *PetScan::extract_expr(IntegerLiteral *expr)
 {
 	return pet_expr_new_int(extract_int(expr));
+}
+
+/* Construct a pet_expr representing the integer enum constant "ecd".
+ */
+__isl_give pet_expr *PetScan::extract_expr(EnumConstantDecl *ecd)
+{
+	isl_val *v;
+	const llvm::APSInt &init = ecd->getInitVal();
+	v = ::extract_int(ctx, init.isSigned(), init);
+	return pet_expr_new_int(v);
 }
 
 /* Try and construct a pet_expr representing "expr".
