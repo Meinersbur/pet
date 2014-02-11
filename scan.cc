@@ -2547,7 +2547,7 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 	__isl_keep isl_multi_pw_aff *index, clang::ASTContext &ast_ctx)
 {
 	isl_ctx *ctx = isl_multi_pw_aff_get_ctx(index);
-	isl_space *dim;
+	isl_space *space;
 	struct pet_array *array;
 	isl_map *access;
 
@@ -2562,10 +2562,10 @@ static struct pet_scop *scop_add_array(struct pet_scop *scop,
 
 	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
 	array->extent = isl_map_range(access);
-	dim = isl_space_params_alloc(ctx, 0);
-	array->context = isl_set_universe(dim);
-	dim = isl_space_set_alloc(ctx, 0, 1);
-	array->value_bounds = isl_set_universe(dim);
+	space = isl_space_params_alloc(ctx, 0);
+	array->context = isl_set_universe(space);
+	space = isl_space_set_alloc(ctx, 0, 1);
+	array->value_bounds = isl_set_universe(space);
 	array->value_bounds = isl_set_lower_bound_si(array->value_bounds,
 						isl_dim_set, 0, 0);
 	array->value_bounds = isl_set_upper_bound_si(array->value_bounds,
