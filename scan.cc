@@ -328,7 +328,7 @@ __isl_give isl_val *PetScan::extract_int(isl_ctx *ctx, IntegerLiteral *expr)
 	return v;
 }
 
-/* Extract an integer from "val", which assumed to be non-negative.
+/* Extract an integer from "val", which is assumed to be non-negative.
  */
 __isl_give isl_val *PetScan::extract_unsigned(isl_ctx *ctx,
 	const llvm::APInt &val)
@@ -1953,7 +1953,7 @@ struct pet_expr *PetScan::extract_expr(CStyleCastExpr *expr)
 	return pet_expr_new_cast(ctx, type.getAsString().c_str(), arg);
 }
 
-/* Try and onstruct a pet_expr representing "expr".
+/* Try and construct a pet_expr representing "expr".
  */
 struct pet_expr *PetScan::extract_expr(Expr *expr)
 {
@@ -2367,7 +2367,7 @@ static __isl_give isl_multi_pw_aff *map_to_previous(__isl_take isl_id *id_test,
 /* Add an implication to "scop" expressing that if an element of
  * virtual array "id_test" has value "satisfied" then all previous elements
  * of this array also have that value.  The set of previous elements
- * is bounded by "domain".  If "sign" is negative then iterator
+ * is bounded by "domain".  If "sign" is negative then the iterator
  * is decreasing and we express that all subsequent array elements
  * (but still defined previously) have the same value.
  */
@@ -2627,7 +2627,7 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
  * The schedule is adjusted to reflect that the condition is evaluated
  * before the body is executed and the body is filtered to depend
  * on the result of the condition evaluating to true on all iterations
- * up to the current iteration, while the evaluation the condition itself
+ * up to the current iteration, while the evaluation of the condition itself
  * is filtered to depend on the result of the condition evaluating to true
  * on all previous iterations.
  * The context of the scop representing the body is dropped
@@ -3428,10 +3428,10 @@ error:
  * We first extract the arguments in extract_nested.
  * param2pos maps the original parameter position to the position
  * of the argument.
- * Then we move these parameters to input dimension.
+ * Then we move these parameters to input dimensions.
  * t2pos maps the positions of these temporary input dimensions
  * to the positions of the corresponding arguments.
- * Finally, we express there temporary dimensions in term of the domain
+ * Finally, we express these temporary dimensions in terms of the domain
  * [[] -> [t_1,...,t_n]] and precompose index expression and access
  * relations with this function.
  */
@@ -4629,13 +4629,13 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
  * scalars or array elements that may be written to outside
  * of the given if statement.  These nested accesses are then represented
  * as output dimensions in the wrapping iteration domain.
- * If it also written _inside_ the then or else branch, then
+ * If it is also written _inside_ the then or else branch, then
  * we treat the condition as non-affine.
  * As explained in extract_non_affine_if, this will introduce
  * an extra statement.
  * For aesthetic reasons, we want this statement to have a statement
  * number that is lower than those of the then and else branches.
- * In order to evaluate if will need such a statement, however, we
+ * In order to evaluate if we will need such a statement, however, we
  * first construct scops for the then and else branches.
  * We therefore reserve a statement number if we might have to
  * introduce such an extra statement.
@@ -4817,8 +4817,9 @@ struct pet_scop *PetScan::extract(BreakStmt *stmt)
  *
  * If the constructed pet_scop is not a (possibly) partial representation
  * of "stmt", we update start and end of the pet_scop to those of "stmt".
- * In particular, if skip_declarations, then we may have skipped declarations
- * inside "stmt" and so the pet_scop may not represent the entire "stmt".
+ * In particular, if skip_declarations is set, then we may have skipped
+ * declarations inside "stmt" and so the pet_scop may not represent
+ * the entire "stmt".
  * Note that this function may be called with "stmt" referring to the entire
  * body of the function, including the outer braces.  In such cases,
  * skip_declarations will be set and the braces will not be taken into
