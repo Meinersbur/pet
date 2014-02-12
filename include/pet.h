@@ -189,6 +189,8 @@ struct pet_stmt {
 	struct pet_expr **args;
 };
 
+/* Is "stmt" an assignment statement? */
+int pet_stmt_is_assign(struct pet_stmt *stmt);
 /* Is "stmt" a kill statement? */
 int pet_stmt_is_kill(struct pet_stmt *stmt);
 

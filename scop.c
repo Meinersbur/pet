@@ -3577,6 +3577,17 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	return accesses;
 }
 
+/* Is "stmt" an assignment statement?
+ */
+int pet_stmt_is_assign(struct pet_stmt *stmt)
+{
+	if (!stmt)
+		return 0;
+	if (stmt->body->type != pet_expr_binary)
+		return 0;
+	return stmt->body->op == pet_op_assign;
+}
+
 /* Is "stmt" a kill statement?
  */
 int pet_stmt_is_kill(struct pet_stmt *stmt)

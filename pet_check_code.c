@@ -377,7 +377,7 @@ static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
 		struct pet_stmt *stmt;
 
 		stmt = scop->stmts[i];
-		if (stmt->body->type == pet_expr_binary) {
+		if (pet_stmt_is_assign(stmt)) {
 			assignments = add_assignment(assignments, stmt);
 			continue;
 		}
