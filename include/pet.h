@@ -182,6 +182,8 @@ __isl_give isl_map *pet_expr_access_get_tagged_may_access(
 int pet_expr_foreach_access_expr(struct pet_expr *expr,
 	int (*fn)(struct pet_expr *expr, void *user), void *user);
 
+void pet_expr_dump(struct pet_expr *expr);
+
 /* If the statement has arguments, i.e., n_arg != 0, then
  * "domain" is a wrapped map, mapping the iteration domain
  * to the values of the arguments for which this statement
