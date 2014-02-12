@@ -1,6 +1,6 @@
 start: 274
 end: 498
-context: '[N, M] -> {  : M >= 10 and M <= 1000 and N >= 10 and N <= 1000 }'
+context: '[N, M] -> {  : N >= 10 and N <= 1000 and M >= 10 and M <= 1000 }'
 arrays:
 - context: '[M, N] -> {  : N >= 0 and M >= 0 }'
   extent: '[N, M] -> { in1[i0, i1] : i1 <= -1 + M and i1 >= 0 and i0 <= -1 + N and
