@@ -36,6 +36,7 @@
 
 #include "expr.h"
 #include "filter.h"
+#include "value_bounds.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
 
@@ -1074,6 +1075,45 @@ static struct pet_expr *access_anonymize(struct pet_expr *expr, void *user)
 struct pet_expr *pet_expr_anonymize(struct pet_expr *expr)
 {
 	return pet_expr_map_access(expr, &access_anonymize, NULL);
+}
+
+/* Data used in access_gist() callback.
+ */
+struct pet_access_gist_data {
+	isl_set *domain;
+	isl_union_map *value_bounds;
+};
+
+/* Given an expression "expr" of type pet_expr_access, compute
+ * the gist of the associated access relation and index expression
+ * with respect to data->domain and the bounds on the values of the arguments
+ * of the expression.
+ */
+static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
+{
+	struct pet_access_gist_data *data = user;
+	isl_set *domain;
+
+	domain = isl_set_copy(data->domain);
+	if (expr->n_arg > 0)
+		domain = pet_value_bounds_apply(domain, expr->n_arg, expr->args,
+						data->value_bounds);
+
+	expr->acc.access = isl_map_gist_domain(expr->acc.access,
+						isl_set_copy(domain));
+	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, domain);
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
+struct pet_expr *pet_expr_gist(struct pet_expr *expr,
+	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds)
+{
+	struct pet_access_gist_data data = { context, value_bounds };
+
+	return pet_expr_map_access(expr, &access_gist, &data);
 }
 
 /* Tag the access relation "access" with "id".

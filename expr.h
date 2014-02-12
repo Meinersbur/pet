@@ -61,6 +61,8 @@ struct pet_expr *pet_expr_detect_parameter_accesses(struct pet_expr *expr,
 	__isl_take isl_space *space);
 struct pet_expr *pet_expr_add_ref_ids(struct pet_expr *expr, int *n_ref);
 struct pet_expr *pet_expr_anonymize(struct pet_expr *expr);
+struct pet_expr *pet_expr_gist(struct pet_expr *expr,
+	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds);
 
 __isl_give isl_map *pet_expr_tag_access(struct pet_expr *expr,
 	__isl_take isl_map *access);

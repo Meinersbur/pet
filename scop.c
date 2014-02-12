@@ -2945,37 +2945,6 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 	return scop;
 }
 
-/* Data used in access_gist() callback.
- */
-struct pet_access_gist_data {
-	isl_set *domain;
-	isl_union_map *value_bounds;
-};
-
-/* Given an expression "expr" of type pet_expr_access, compute
- * the gist of the associated access relation and index expression
- * with respect to data->domain and the bounds on the values of the arguments
- * of the expression.
- */
-static struct pet_expr *access_gist(struct pet_expr *expr, void *user)
-{
-	struct pet_access_gist_data *data = user;
-	isl_set *domain;
-
-	domain = isl_set_copy(data->domain);
-	if (expr->n_arg > 0)
-		domain = pet_value_bounds_apply(domain, expr->n_arg, expr->args,
-						data->value_bounds);
-
-	expr->acc.access = isl_map_gist_domain(expr->acc.access,
-						isl_set_copy(domain));
-	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, domain);
-	if (!expr->acc.access || !expr->acc.index)
-		return pet_expr_free(expr);
-
-	return expr;
-}
-
 /* Compute the gist of the iteration domain and all access relations
  * of "stmt" based on the constraints on the parameters specified by "context"
  * and the constraints on the values of nested accesses specified
@@ -2986,31 +2955,28 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 {
 	int i;
 	isl_set *domain;
-	struct pet_access_gist_data data;
 
 	if (!stmt)
 		return NULL;
 
-	data.domain = isl_set_copy(stmt->domain);
-	data.value_bounds = value_bounds;
+	domain = isl_set_copy(stmt->domain);
 	if (stmt->n_arg > 0)
-		data.domain = isl_map_domain(isl_set_unwrap(data.domain));
+		domain = isl_map_domain(isl_set_unwrap(domain));
 
-	data.domain = isl_set_intersect_params(data.domain,
-						isl_set_copy(context));
+	domain = isl_set_intersect_params(domain, isl_set_copy(context));
 
 	for (i = 0; i < stmt->n_arg; ++i) {
-		stmt->args[i] = pet_expr_map_access(stmt->args[i],
-							&access_gist, &data);
+		stmt->args[i] = pet_expr_gist(stmt->args[i],
+							domain, value_bounds);
 		if (!stmt->args[i])
 			goto error;
 	}
 
-	stmt->body = pet_expr_map_access(stmt->body, &access_gist, &data);
+	stmt->body = pet_expr_gist(stmt->body, domain, value_bounds);
 	if (!stmt->body)
 		goto error;
 
-	isl_set_free(data.domain);
+	isl_set_free(domain);
 
 	domain = isl_set_universe(pet_stmt_get_space(stmt));
 	domain = isl_set_intersect_params(domain, isl_set_copy(context));
@@ -3023,7 +2989,7 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 
 	return stmt;
 error:
-	isl_set_free(data.domain);
+	isl_set_free(domain);
 	return pet_stmt_free(stmt);
 }
 
