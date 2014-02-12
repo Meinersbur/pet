@@ -906,6 +906,27 @@ void *pet_stmt_free(struct pet_stmt *stmt)
 	return NULL;
 }
 
+/* Return the iteration space of "stmt".
+ *
+ * If the statement has arguments, then stmt->domain is a wrapped map
+ * mapping the iteration domain to the values of the arguments
+ * for which this statement is executed.
+ * In this case, we need to extract the domain space of this wrapped map.
+ */
+__isl_give isl_space *pet_stmt_get_space(struct pet_stmt *stmt)
+{
+	isl_space *space;
+
+	if (!stmt)
+		return NULL;
+
+	space = isl_set_get_space(stmt->domain);
+	if (isl_space_is_wrapping(space))
+		space = isl_space_domain(isl_space_unwrap(space));
+
+	return space;
+}
+
 static void stmt_dump(struct pet_stmt *stmt, int indent)
 {
 	int i;
@@ -2774,9 +2795,7 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	if (!stmt || !test)
 		goto error;
 
-	space = isl_set_get_space(stmt->domain);
-	if (isl_space_is_wrapping(space))
-		space = isl_space_domain(isl_space_unwrap(space));
+	space = pet_stmt_get_space(stmt);
 	n_test_dom = isl_multi_pw_aff_dim(test, isl_dim_in);
 	space = isl_space_from_domain(space);
 	space = isl_space_add_dims(space, isl_dim_out, n_test_dom);
@@ -4159,7 +4178,6 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds)
 {
 	int i;
-	isl_space *space;
 	isl_set *domain;
 	struct pet_access_gist_data data;
 
@@ -4187,10 +4205,7 @@ static struct pet_stmt *stmt_gist(struct pet_stmt *stmt,
 
 	isl_set_free(data.domain);
 
-	space = isl_set_get_space(stmt->domain);
-	if (isl_space_is_wrapping(space))
-		space = isl_space_domain(isl_space_unwrap(space));
-	domain = isl_set_universe(space);
+	domain = isl_set_universe(pet_stmt_get_space(stmt));
 	domain = isl_set_intersect_params(domain, isl_set_copy(context));
 	if (stmt->n_arg > 0)
 		domain = apply_value_bounds(domain, stmt->n_arg, stmt->args,

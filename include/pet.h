@@ -194,6 +194,9 @@ struct pet_stmt {
 	struct pet_expr **args;
 };
 
+/* Return the iteration space of "stmt". */
+__isl_give isl_space *pet_stmt_get_space(struct pet_stmt *stmt);
+
 /* Is "stmt" an assignment statement? */
 int pet_stmt_is_assign(struct pet_stmt *stmt);
 /* Is "stmt" a kill statement? */
