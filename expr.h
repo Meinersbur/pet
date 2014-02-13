@@ -37,6 +37,8 @@ int pet_expr_is_scalar_access(struct pet_expr *expr);
 int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2);
 
 __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr);
+__isl_give isl_space *pet_expr_access_get_parameter_space(
+	struct pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_data_space(struct pet_expr *expr);
 
 int pet_expr_foreach_access_expr(struct pet_expr *expr,

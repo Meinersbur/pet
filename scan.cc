@@ -3438,7 +3438,7 @@ struct pet_expr *PetScan::extract_nested(struct pet_expr *expr, int n,
 	if (!expr->args)
 		goto error;
 
-	space = isl_map_get_space(expr->acc.access);
+	space = pet_expr_access_get_parameter_space(expr);
 	n = extract_nested(space, 0, expr->args, param2pos);
 	isl_space_free(space);
 
@@ -3497,7 +3497,9 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	if (expr->type != pet_expr_access)
 		return expr;
 
-	n = n_nested_parameter(expr->acc.access);
+	space = pet_expr_access_get_parameter_space(expr);
+	n = n_nested_parameter(space);
+	isl_space_free(space);
 	if (n == 0)
 		return expr;
 
@@ -3508,12 +3510,12 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	expr = pet_expr_access_align_params(expr);
 	if (!expr)
 		return NULL;
-	nparam = isl_map_dim(expr->acc.access, isl_dim_param);
 
 	n = 0;
+	space = pet_expr_access_get_parameter_space(expr);
+	nparam = isl_space_dim(space, isl_dim_param);
 	for (int i = nparam - 1; i >= 0; --i) {
-		isl_id *id = isl_map_get_dim_id(expr->acc.access,
-						isl_dim_param, i);
+		isl_id *id = isl_space_get_dim_id(space, isl_dim_param, i);
 		if (!is_nested_parameter(id)) {
 			isl_id_free(id);
 			continue;
@@ -3528,9 +3530,10 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 
 		isl_id_free(id);
 	}
+	isl_space_free(space);
 
-	space = isl_multi_pw_aff_get_space(expr->acc.index);
-	space = isl_space_set_from_params(isl_space_params(space));
+	space = pet_expr_access_get_parameter_space(expr);
+	space = isl_space_set_from_params(space);
 	space = isl_space_add_dims(space, isl_dim_set, expr->n_arg);
 	space = isl_space_wrap(isl_space_from_range(space));
 	ls = isl_local_space_from_space(isl_space_copy(space));
