@@ -589,6 +589,23 @@ __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr)
 	return isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
 }
 
+/* Return the space of the data accessed by "expr".
+ */
+__isl_give isl_space *pet_expr_access_get_data_space(struct pet_expr *expr)
+{
+	isl_space *space;
+
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return NULL;
+
+	space = isl_multi_pw_aff_get_space(expr->acc.index);
+	space = isl_space_range(space);
+
+	return space;
+}
+
 /* Modify all expressions of type pet_expr_access in "expr"
  * by calling "fn" on them.
  */

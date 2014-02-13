@@ -104,8 +104,7 @@ static void access_collect_arrays(struct pet_expr *expr,
 	if (pet_expr_is_affine(expr))
 		return;
 
-	space = isl_map_get_space(expr->acc.access);
-	space = isl_space_range(space);
+	space = pet_expr_access_get_data_space(expr);
 
 	while (space && isl_space_is_wrapping(space))
 		space = isl_space_domain(isl_space_unwrap(space));
