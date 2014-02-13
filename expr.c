@@ -720,6 +720,29 @@ int pet_expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
 	return data.found;
 }
 
+/* Move the "n" dimensions of "src_type" starting at "src_pos" of
+ * index expression and access relation of "expr"
+ * to dimensions of "dst_type" at "dst_pos".
+ */
+struct pet_expr *pet_expr_access_move_dims(struct pet_expr *expr,
+	enum isl_dim_type dst_type, unsigned dst_pos,
+	enum isl_dim_type src_type, unsigned src_pos, unsigned n)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return pet_expr_free(expr);
+
+	expr->acc.access = isl_map_move_dims(expr->acc.access,
+				dst_type, dst_pos, src_type, src_pos, n);
+	expr->acc.index = isl_multi_pw_aff_move_dims(expr->acc.index,
+				dst_type, dst_pos, src_type, src_pos, n);
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+}
+
 /* Align the parameters of expr->acc.index and expr->acc.access.
  */
 struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr)

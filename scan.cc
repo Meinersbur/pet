@@ -3521,9 +3521,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 			continue;
 		}
 
-		expr->acc.access = isl_map_move_dims(expr->acc.access,
-					isl_dim_in, n, isl_dim_param, i, 1);
-		expr->acc.index = isl_multi_pw_aff_move_dims(expr->acc.index,
+		expr = pet_expr_access_move_dims(expr,
 					isl_dim_in, n, isl_dim_param, i, 1);
 		t2pos[n] = param2pos[i];
 		n++;

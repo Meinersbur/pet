@@ -49,6 +49,9 @@ struct pet_expr *pet_expr_map_access(struct pet_expr *expr,
 
 int pet_expr_writes(struct pet_expr *expr, __isl_keep isl_id *id);
 
+struct pet_expr *pet_expr_access_move_dims(struct pet_expr *expr,
+	enum isl_dim_type dst_type, unsigned dst_pos,
+	enum isl_dim_type src_type, unsigned src_pos, unsigned n);
 struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr);
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
 	__isl_take isl_set *cond);
