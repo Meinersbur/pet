@@ -743,6 +743,31 @@ struct pet_expr *pet_expr_access_move_dims(struct pet_expr *expr,
 	return expr;
 }
 
+/* Replace the index expression and access relation of "expr"
+ * by their preimages under the function represented by "ma".
+ */
+struct pet_expr *pet_expr_access_pullback_multi_aff(
+	struct pet_expr *expr, __isl_take isl_multi_aff *ma)
+{
+	if (!expr || !ma)
+		goto error;
+	if (expr->type != pet_expr_access)
+		goto error;
+
+	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
+						isl_multi_aff_copy(ma));
+	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
+						ma);
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
+	return expr;
+error:
+	isl_multi_aff_free(ma);
+	pet_expr_free(expr);
+	return NULL;
+}
+
 /* Align the parameters of expr->acc.index and expr->acc.access.
  */
 struct pet_expr *pet_expr_access_align_params(struct pet_expr *expr)

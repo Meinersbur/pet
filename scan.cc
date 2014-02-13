@@ -3546,10 +3546,7 @@ struct pet_expr *PetScan::resolve_nested(struct pet_expr *expr)
 	}
 	isl_local_space_free(ls);
 
-	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
-							isl_multi_aff_copy(ma));
-	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
-								ma);
+	expr = pet_expr_access_pullback_multi_aff(expr, ma);
 
 	return expr;
 }
@@ -3896,17 +3893,7 @@ static struct pet_expr *embed_access(struct pet_expr *expr, void *user)
 {
 	isl_multi_aff *ma = (isl_multi_aff *) user;
 
-	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
-						isl_multi_aff_copy(ma));
-	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
-						isl_multi_aff_copy(ma));
-	if (!expr->acc.access || !expr->acc.index)
-		goto error;
-
-	return expr;
-error:
-	pet_expr_free(expr);
-	return NULL;
+	return pet_expr_access_pullback_multi_aff(expr, isl_multi_aff_copy(ma));
 }
 
 /* Precompose all access relations in "expr" with "ma", thereby
