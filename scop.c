@@ -3097,6 +3097,26 @@ error:
 	return pet_scop_free(scop);
 }
 
+/* Create an index expression for an access to a virtual array
+ * representing the result of a condition.
+ * Unlike other accessed data, the id of the array is NULL as
+ * there is no ValueDecl in the program corresponding to the virtual
+ * array.
+ * The array starts out as a scalar, but grows along with the
+ * statement writing to the array in pet_scop_embed.
+ */
+__isl_give isl_multi_pw_aff *pet_create_test_index(isl_ctx *ctx, int test_nr)
+{
+	isl_space *dim = isl_space_alloc(ctx, 0, 0, 0);
+	isl_id *id;
+	char name[50];
+
+	snprintf(name, sizeof(name), "__pet_test_%d", test_nr);
+	id = isl_id_alloc(ctx, name, NULL);
+	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
+	return isl_multi_pw_aff_zero(dim);
+}
+
 /* Add an array with the given extent (range of "index") to the list
  * of arrays in "scop" and return the extended pet_scop.
  * "int_size" is the number of bytes needed to represent values of type "int".

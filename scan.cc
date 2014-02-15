@@ -2518,26 +2518,6 @@ struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 	return extract_infinite_loop(stmt->getBody());
 }
 
-/* Create an index expression for an access to a virtual array
- * representing the result of a condition.
- * Unlike other accessed data, the id of the array is NULL as
- * there is no ValueDecl in the program corresponding to the virtual
- * array.
- * The array starts out as a scalar, but grows along with the
- * statement writing to the array in pet_scop_embed.
- */
-static __isl_give isl_multi_pw_aff *create_test_index(isl_ctx *ctx, int test_nr)
-{
-	isl_space *dim = isl_space_alloc(ctx, 0, 0, 0);
-	isl_id *id;
-	char name[50];
-
-	snprintf(name, sizeof(name), "__pet_test_%d", test_nr);
-	id = isl_id_alloc(ctx, name, NULL);
-	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
-	return isl_multi_pw_aff_zero(dim);
-}
-
 /* Add an array with the given extent (range of "index") to the list
  * of arrays in "scop" and return the extended pet_scop.
  * The array is marked as attaining values 0 and 1 only and
@@ -2685,7 +2665,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	if (partial)
 		return scop_body;
 
-	test_index = create_test_index(ctx, test_nr);
+	test_index = pet_create_test_index(ctx, test_nr);
 	scop = extract_non_affine_condition(cond, stmt_nr,
 					    isl_multi_pw_aff_copy(test_index));
 	scop = scop_add_array(scop, test_index, ast_context);
@@ -3133,7 +3113,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	if (allow_nested && !cond) {
 		isl_multi_pw_aff *test_index;
 		int save_n_stmt = n_stmt;
-		test_index = create_test_index(ctx, n_test++);
+		test_index = pet_create_test_index(ctx, n_test++);
 		n_stmt = stmt_id;
 		scop_cond = extract_non_affine_condition(stmt->getCond(),
 				n_stmt++, isl_multi_pw_aff_copy(test_index));
@@ -4287,7 +4267,7 @@ void pet_skip_info_if::extract(PetScan *scan,
 		return;
 
 	ctx = isl_multi_pw_aff_get_ctx(mpa);
-	index[type] = create_test_index(ctx, scan->n_test++);
+	index[type] = pet_create_test_index(ctx, scan->n_test++);
 	scop[type] = extract_skip(scan, isl_multi_pw_aff_copy(mpa),
 				isl_multi_pw_aff_copy(index[type]),
 				scop_then, scop_else, have_else, type);
@@ -4381,7 +4361,7 @@ struct pet_scop *PetScan::extract_non_affine_if(Expr *cond,
 	isl_multi_pw_aff *test_index;
 	int save_n_stmt = n_stmt;
 
-	test_index = create_test_index(ctx, n_test++);
+	test_index = pet_create_test_index(ctx, n_test++);
 	n_stmt = stmt_id;
 	scop = extract_non_affine_condition(cond, n_stmt++,
 					isl_multi_pw_aff_copy(test_index));
@@ -4777,7 +4757,7 @@ void pet_skip_info_seq::extract(PetScan *scan, enum pet_skip type)
 	if (!skip[type])
 		return;
 
-	index[type] = create_test_index(ctx, scan->n_test++);
+	index[type] = pet_create_test_index(ctx, scan->n_test++);
 	scop[type] = extract_skip_seq(scan, isl_multi_pw_aff_copy(index[type]),
 				    scop1, scop2, type);
 }
