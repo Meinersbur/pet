@@ -294,84 +294,6 @@ __isl_give pet_context *pet_context_mark_unknown(__isl_take pet_context *pc,
 	return pc;
 }
 
-/* Internal data structure used inside clear_assigned_parameter.
- *
- * "pc" is the context that is updated by clear_assigned_parameter.
- * "id" is the identifier that was assigned an unknown value.
- */
-struct pet_context_mark_assigned_parameter_data {
-	pet_context *pc;
-	isl_id *id;
-};
-
-/* This function is called for each assignment in a pet_context
- * when data->id is assigned an unknown value where it was not
- * assigned any value before.
- * Since it was not assigned any value before, it may have been
- * treated as a parameter.
- *
- * If the value "value" does indeed refer to data->id as a parameter,
- * then it is marked as unknown in data->pc since data->id can no
- * longer be treated as a parameter and the current value has
- * therefore been invalidated.
- */
-static int mark_assigned_parameter(__isl_take isl_id *id,
-	__isl_take isl_pw_aff *value, void *user)
-{
-	struct pet_context_mark_assigned_parameter_data *data;
-	isl_space *space;
-
-	data = (struct pet_context_mark_assigned_parameter_data *) user;
-
-	space = isl_pw_aff_get_space(value);
-	if (isl_space_find_dim_by_id(space, isl_dim_param, data->id) >= 0)
-		data->pc = pet_context_mark_unknown(data->pc, id);
-	else
-		isl_id_free(id);
-
-	isl_space_free(space);
-	isl_pw_aff_free(value);
-
-	return 0;
-}
-
-/* This function is called when "id" may have been assigned some value.
- *
- * Mark "id" as having an unknown value in "pc".
- *
- * Furthermore, if no (known or unknown) value was assigned to "id" before,
- * then it may have been treated as a parameter before and may
- * therefore appear in a value assigned to another variable.
- * If so, this assignment needs to be turned into an unknown value too.
- */
-__isl_give pet_context *pet_context_mark_assigned(__isl_take pet_context *pc,
-	__isl_take isl_id *id)
-{
-	int was_assigned;
-	isl_id_to_pw_aff *assignments;
-	struct pet_context_mark_assigned_parameter_data data;
-
-	was_assigned = pet_context_is_assigned(pc, id);
-
-	pc = pet_context_mark_unknown(pc, isl_id_copy(id));
-
-	if (was_assigned) {
-		isl_id_free(id);
-		return pc;
-	}
-
-	assignments = pet_context_get_assignments(pc);
-	data.pc = pc;
-	data.id = id;
-	if (isl_id_to_pw_aff_foreach(assignments,
-				    &mark_assigned_parameter, &data) < 0)
-		data.pc = pet_context_free(data.pc);
-	isl_id_to_pw_aff_free(assignments);
-
-	isl_id_free(id);
-	return data.pc;
-}
-
 /* Are affine expressions created in this context allowed to involve
  * parameters that encode a pet_expr?
  */
@@ -414,7 +336,7 @@ static int clear_write(__isl_keep pet_expr *expr, void *user)
 
 	id = pet_expr_access_get_id(expr);
 	if (isl_id_get_user(id))
-		*pc = pet_context_mark_assigned(*pc, id);
+		*pc = pet_context_mark_unknown(*pc, id);
 	else
 		isl_id_free(id);
 

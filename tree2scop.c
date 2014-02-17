@@ -947,7 +947,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	struct pet_scop *scop_kill;
 
 	iv = pet_expr_access_get_id(tree->u.l.iv);
-	pc = pet_context_mark_assigned(pc, iv);
+	pc = pet_context_mark_unknown(pc, iv);
 
 	declared = tree->u.l.declared;
 
