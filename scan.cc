@@ -1588,8 +1588,30 @@ static QualType get_array_type(ValueDecl *decl)
 }
 
 extern "C" {
+	static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
+		void *user);
 	static struct pet_array *extract_array(__isl_keep pet_expr *access,
 		__isl_keep pet_context *pc, void *user);
+}
+
+/* Construct a pet_expr that holds the sizes of the array accessed
+ * by "access".
+ * This function is used as a callback to pet_context_add_parameters,
+ * which is also passed a pointer to the PetScan object.
+ */
+static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
+	void *user)
+{
+	PetScan *ps = (PetScan *) user;
+	isl_id *id;
+	ValueDecl *decl;
+	const Type *type;
+
+	id = pet_expr_access_get_id(access);
+	decl = (ValueDecl *) isl_id_get_user(id);
+	isl_id_free(id);
+	type = get_array_type(decl).getTypePtr();
+	return ps->get_array_size(type);
 }
 
 /* Construct and return a pet_array corresponding to the variable
@@ -1616,6 +1638,9 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
  *
  * We simply call pet_scop_from_pet_tree with the appropriate arguments and
  * then add pet_arrays for all accessed arrays.
+ * We populate the pet_context with assignments for all parameters used
+ * inside "tree" or any of the size expressions for the arrays accessed
+ * by "tree" so that they can be used in affine expressions.
  */
 struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 {
@@ -1628,7 +1653,7 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 
 	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 	pc = pet_context_alloc(domain);
-	pc = pet_context_clear_writes_in_tree(pc, tree);
+	pc = pet_context_add_parameters(pc, tree, &::get_array_size, this);
 	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, this, pc);
 	scop = scan_arrays(scop, pc);

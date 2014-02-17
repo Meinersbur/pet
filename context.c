@@ -402,6 +402,100 @@ __isl_give pet_context *pet_context_clear_writes_in_tree(
 	return pc;
 }
 
+/* Internal data structure for pet_context_add_parameters.
+ *
+ * "pc" is the context that is being updated.
+ * "get_array_size" is a callback function that can be used to determine
+ * the size of the array that is accessed by a given access expression.
+ * "user" is the user data for this callback.
+ */
+struct pet_context_add_parameter_data {
+	pet_context *pc;
+	__isl_give pet_expr *(*get_array_size)(__isl_keep pet_expr *access,
+		void *user);
+	void *user;
+};
+
+/* Given an access expression "expr", add a parameter assignment to data->pc
+ * to the variable being accessed, provided it is a read from an integer
+ * scalar variable.
+ * If an array is being accesed, then recursively call the function
+ * on each of the access expressions in the size expression of the array.
+ */
+static int add_parameter(__isl_keep pet_expr *expr, void *user)
+{
+	struct pet_context_add_parameter_data *data = user;
+	int pos;
+	isl_id *id;
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+	isl_pw_aff *pa;
+
+	if (!pet_expr_is_scalar_access(expr)) {
+		pet_expr *size = data->get_array_size(expr, data->user);
+		if (pet_expr_foreach_access_expr(size,
+						&add_parameter, data) < 0)
+			data->pc = pet_context_free(data->pc);
+		pet_expr_free(size);
+		return 0;
+	}
+	if (!pet_expr_access_is_read(expr))
+		return 0;
+	if (pet_expr_get_type_size(expr) == 0)
+		return 0;
+
+	id = pet_expr_access_get_id(expr);
+	if (pet_context_is_assigned(data->pc, id)) {
+		isl_id_free(id);
+		return 0;
+	}
+
+	space = pet_context_get_space(data->pc);
+	pos = isl_space_find_dim_by_id(space, isl_dim_param, id);
+	if (pos < 0) {
+		pos = isl_space_dim(space, isl_dim_param);
+		space = isl_space_add_dims(space, isl_dim_param, 1);
+		space = isl_space_set_dim_id(space, isl_dim_param, pos,
+						isl_id_copy(id));
+	}
+
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_var_on_domain(ls, isl_dim_param, pos);
+	pa = isl_pw_aff_from_aff(aff);
+	data->pc = pet_context_set_value(data->pc, id, pa);
+
+	return 0;
+}
+
+/* Add an assignment to "pc" for each parameter in "tree".
+ * "get_array_size" is a callback function that can be used to determine
+ * the size of the array that is accessed by a given access expression.
+ *
+ * We initially treat as parameters any integer variable that is read
+ * anywhere in "tree" or in any of the size expressions for any of
+ * the arrays accessed in "tree".
+ * Then we remove from those variables that are written anywhere
+ * inside "tree".
+ */
+__isl_give pet_context *pet_context_add_parameters(__isl_take pet_context *pc,
+	__isl_keep pet_tree *tree,
+	__isl_give pet_expr *(*get_array_size)(__isl_keep pet_expr *access,
+		void *user), void *user)
+{
+	struct pet_context_add_parameter_data data;
+
+	data.pc = pc;
+	data.get_array_size = get_array_size;
+	data.user = user;
+	if (pet_tree_foreach_access_expr(tree, &add_parameter, &data) < 0)
+		data.pc = pet_context_free(data.pc);
+
+	data.pc = pet_context_clear_writes_in_tree(data.pc, tree);
+
+	return data.pc;
+}
+
 /* Given an access expression, check if it reads a scalar variable
  * that has a known value in "pc".
  * If so, then replace the access by an access to that value.
