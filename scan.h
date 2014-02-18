@@ -194,6 +194,8 @@ private:
 	__isl_give pet_expr *extract_access_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
+	__isl_give pet_expr *resolve_assume(__isl_take pet_expr *expr);
+
 	__isl_give pet_expr *extract_index_expr(
 		clang::ArraySubscriptExpr *expr);
 	__isl_give pet_expr *extract_index_expr(clang::Expr *expr);

@@ -118,6 +118,8 @@ __isl_give isl_pw_aff *pet_expr_extract_affine_condition(
 __isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,
 	__isl_keep pet_expr *lhs, __isl_keep pet_expr *rhs,
 	__isl_keep pet_context *pc);
+__isl_give pet_expr *pet_expr_resolve_assume(__isl_take pet_expr *expr,
+	__isl_keep pet_context *pc);
 
 int pet_expr_is_assume(__isl_keep pet_expr *expr);
 int pet_expr_is_boolean(__isl_keep pet_expr *expr);

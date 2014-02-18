@@ -1255,18 +1255,7 @@ __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
  */
 __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 {
-	isl_pw_aff *cond;
-	pet_expr *res;
-
-	cond = try_extract_affine_condition(expr);
-	if (!cond) {
-		res = extract_expr(expr);
-	} else {
-		isl_multi_pw_aff *index;
-		index = isl_multi_pw_aff_from_pw_aff(cond);
-		res = pet_expr_from_index(index);
-	}
-	return pet_expr_new_unary(pet_op_assume, res);
+	return pet_expr_new_unary(pet_op_assume, extract_expr(expr));
 }
 
 /* Construct a pet_expr corresponding to the function call argument "expr".
@@ -3127,6 +3116,25 @@ static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
 		return loc;
 }
 
+/* If "expr" is an assume expression, then try and convert
+ * its single argument to an affine expression.
+ */
+__isl_give pet_expr *PetScan::resolve_assume(__isl_take pet_expr *expr)
+{
+	pet_context *pc;
+
+	if (!expr)
+		return NULL;
+	if (!pet_expr_is_assume(expr))
+		return expr;
+
+	pc = convert_assignments(ctx, assigned_value);
+	expr = pet_expr_resolve_assume(expr, pc);
+	pet_context_free(pc);
+
+	return expr;
+}
+
 /* Update start and end of "scop" to include the region covered by "range".
  * If "skip_semi" is set, then we assume "range" is followed by
  * a semicolon and also include this semicolon.
@@ -3175,6 +3183,7 @@ struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
 	pet_context_free(pc);
 
 	expr = resolve_nested(expr);
+	expr = resolve_assume(expr);
 	ps = pet_stmt_from_pet_expr(line, label, n_stmt++, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 

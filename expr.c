@@ -2714,6 +2714,38 @@ __isl_give isl_pw_aff *pet_expr_extract_affine_condition(
 	return extract_implicit_condition(expr, pc);
 }
 
+/* Check if "expr" is an assume expression and if its single argument
+ * can be converted to an affine expression in the context of "pc".
+ * If so, replace the argument by the affine expression.
+ */
+__isl_give pet_expr *pet_expr_resolve_assume(__isl_take pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	isl_pw_aff *cond;
+	isl_multi_pw_aff *index;
+
+	if (!expr)
+		return NULL;
+	if (!pet_expr_is_assume(expr))
+		return expr;
+	if (expr->n_arg != 1)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"expecting one argument", return pet_expr_free(expr));
+
+	cond = pet_expr_extract_affine_condition(expr->args[0], pc);
+	if (!cond)
+		return pet_expr_free(expr);
+	if (isl_pw_aff_involves_nan(cond)) {
+		isl_pw_aff_free(cond);
+		return expr;
+	}
+
+	index = isl_multi_pw_aff_from_pw_aff(cond);
+	expr = pet_expr_set_arg(expr, 0, pet_expr_from_index(index));
+
+	return expr;
+}
+
 /* Return the number of bits needed to represent the type of "expr".
  * See the description of the type_size field of pet_expr.
  */
