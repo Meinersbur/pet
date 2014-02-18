@@ -2542,9 +2542,9 @@ int pet_stmt_is_kill(struct pet_stmt *stmt)
  */
 int pet_stmt_is_assume(struct pet_stmt *stmt)
 {
-	if (stmt->body->type != pet_expr_op)
+	if (!stmt)
 		return 0;
-	return stmt->body->op == pet_op_assume;
+	return pet_expr_is_assume(stmt->body);
 }
 
 /* Compute a mapping from all arrays (of structs) in scop
