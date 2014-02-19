@@ -2471,6 +2471,9 @@ struct pet_scop *PetScan::extract_infinite_loop(Stmt *body)
  */
 struct pet_scop *PetScan::extract_infinite_for(ForStmt *stmt)
 {
+	clear_assignments clear(assigned_value);
+	clear.TraverseStmt(stmt->getBody());
+
 	return extract_infinite_loop(stmt->getBody());
 }
 
