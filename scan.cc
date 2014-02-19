@@ -3667,18 +3667,6 @@ __isl_give isl_pw_aff *PetScan::try_extract_affine(Expr *expr)
 	return pwaff;
 }
 
-/* Check whether "expr" is an affine expression.
- */
-bool PetScan::is_affine(Expr *expr)
-{
-	isl_pw_aff *pwaff;
-
-	pwaff = try_extract_affine(expr);
-	isl_pw_aff_free(pwaff);
-
-	return pwaff != NULL;
-}
-
 /* Check if we can extract an affine constraint from "expr".
  * Return the constraint as an isl_set if we can and NULL otherwise.
  * We turn on autodetection so that we won't generate any warnings

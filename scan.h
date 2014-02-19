@@ -212,7 +212,6 @@ private:
 	isl_pw_aff *nested_access(clang::Expr *expr);
 
 	__isl_give isl_pw_aff *try_extract_affine(clang::Expr *expr);
-	bool is_affine(clang::Expr *expr);
 	__isl_give isl_pw_aff *try_extract_affine_condition(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
 	__isl_give isl_pw_aff *try_extract_nested_condition(clang::Expr *expr);
