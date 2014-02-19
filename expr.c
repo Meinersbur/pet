@@ -2067,11 +2067,6 @@ static __isl_give isl_pw_aff *nested_access(__isl_keep pet_expr *expr,
  * Otherwise, we require that "expr" is of an integral type.
  * If not, we return NaN.
  *
- * If we are accessing a scalar (i.e., not an array and not a member)
- * and if that scalar can be treated as a parameter (because it is
- * not assigned a known or unknown value in the relevant part of the AST),
- * then we return an affine expression equal to that parameter.
- *
  * If the variable has been assigned a known affine expression,
  * then we return that expression.
  *
@@ -2083,9 +2078,6 @@ static __isl_give isl_pw_aff *extract_affine_from_access(
 {
 	int pos;
 	isl_id *id;
-	isl_space *space;
-	isl_local_space *ls;
-	isl_aff *aff;
 
 	if (pet_expr_is_affine(expr)) {
 		isl_pw_aff *pa;
@@ -2116,21 +2108,8 @@ static __isl_give isl_pw_aff *extract_affine_from_access(
 		return nested_access(expr, pc);
 	}
 
-	space = pet_context_get_space(pc);
-
-	pos = isl_space_find_dim_by_id(space, isl_dim_param, id);
-	if (pos >= 0) {
-		isl_id_free(id);
-	} else {
-		pos = isl_space_dim(space, isl_dim_param);
-		space = isl_space_add_dims(space, isl_dim_param, 1);
-		space = isl_space_set_dim_id(space, isl_dim_param, pos, id);
-	}
-
-	ls = isl_local_space_from_space(space);
-	aff = isl_aff_var_on_domain(ls, isl_dim_param, pos);
-
-	return isl_pw_aff_from_aff(aff);
+	isl_id_free(id);
+	return NULL;
 }
 
 /* Construct an affine expression from the integer constant "expr".
