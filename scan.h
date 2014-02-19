@@ -106,8 +106,10 @@ private:
 	struct pet_array *extract_array(isl_ctx *ctx,
 		std::vector<clang::ValueDecl *> decls,
 		lex_recorddecl_set *types);
-	struct pet_array *set_upper_bounds(struct pet_array *array,
+	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		const clang::Type *type, int pos);
+	struct pet_array *set_upper_bounds(struct pet_array *array,
+		const clang::Type *type);
 
 	struct pet_scop *extract_non_affine_condition(clang::Expr *cond,
 		int stmt_nr, __isl_take isl_multi_pw_aff *index);
@@ -213,7 +215,6 @@ private:
 	__isl_give isl_pw_aff *try_extract_nested_condition(clang::Expr *expr);
 	bool is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop);
 
-	__isl_give isl_pw_aff *extract_affine(const llvm::APInt &val);
 	__isl_give isl_pw_aff *extract_affine(clang::Expr *expr);
 
 	__isl_give isl_pw_aff *extract_condition(clang::Expr *expr);

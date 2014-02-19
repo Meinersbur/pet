@@ -499,28 +499,6 @@ __isl_give pet_expr *PetScan::extract_expr(const llvm::APInt &val)
 	return pet_expr_new_int(extract_unsigned(ctx, val));
 }
 
-/* Extract an affine expression from the APInt "val", which is assumed
- * to be non-negative.
- * If the value of "val" is "v", then the returned expression
- * is
- *
- *	{ [] -> [v] }
- */
-__isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
-{
-	pet_context *pc;
-	pet_expr *expr;
-	isl_pw_aff *pa;
-
-	expr = extract_expr(val);
-	pc = pet_context_alloc(isl_space_set_alloc(ctx, 0, 0));
-	pa = pet_expr_extract_affine(expr, pc);
-	pet_context_free(pc);
-	pet_expr_free(expr);
-
-	return pa;
-}
-
 /* Return the number of bits needed to represent the type "qt",
  * if it is an integer type.  Otherwise return 0.
  * If qt is signed then return the opposite of the number of bits.
@@ -4221,40 +4199,111 @@ error:
 }
 
 /* Figure out the size of the array at position "pos" and all
- * subsequent positions from "type" and update "array" accordingly.
+ * subsequent positions from "type" and update the corresponding
+ * argument of "expr" accordingly.
  */
-struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
+__isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 	const Type *type, int pos)
 {
 	const ArrayType *atype;
-	isl_pw_aff *size;
+	pet_expr *size;
 
-	if (!array)
+	if (!expr)
 		return NULL;
 
 	if (type->isPointerType()) {
 		type = type->getPointeeType().getTypePtr();
-		return set_upper_bounds(array, type, pos + 1);
+		return set_upper_bounds(expr, type, pos + 1);
 	}
 	if (!type->isArrayType())
-		return array;
+		return expr;
 
 	type = type->getCanonicalTypeInternal().getTypePtr();
 	atype = cast<ArrayType>(type);
 
 	if (type->isConstantArrayType()) {
 		const ConstantArrayType *ca = cast<ConstantArrayType>(atype);
-		size = extract_affine(ca->getSize());
-		array = update_size(array, pos, size);
+		size = extract_expr(ca->getSize());
+		expr = pet_expr_set_arg(expr, pos, size);
 	} else if (type->isVariableArrayType()) {
 		const VariableArrayType *vla = cast<VariableArrayType>(atype);
-		size = extract_affine(vla->getSizeExpr());
-		array = update_size(array, pos, size);
+		size = extract_expr(vla->getSizeExpr());
+		expr = pet_expr_set_arg(expr, pos, size);
 	}
 
 	type = atype->getElementType().getTypePtr();
 
-	return set_upper_bounds(array, type, pos + 1);
+	return set_upper_bounds(expr, type, pos + 1);
+}
+
+/* Does "expr" represent the "integer" infinity?
+ */
+static int is_infty(__isl_keep pet_expr *expr)
+{
+	isl_val *v;
+	int res;
+
+	if (pet_expr_get_type(expr) != pet_expr_int)
+		return 0;
+	v = pet_expr_int_get_val(expr);
+	res = isl_val_is_infty(v);
+	isl_val_free(v);
+
+	return res;
+}
+
+/* Figure out the dimensions of an array "array" based on its type
+ * "type" and update "array" accordingly.
+ *
+ * We first construct a pet_expr that holds the sizes of the array
+ * in each dimension.  The expression is initialized to infinity
+ * and updated from the type.
+ *
+ * The arguments of the size expression that have been updated
+ * are then converted to an affine expression and incorporated
+ * into the size of "array".  If we are unable to convert
+ * a size expression to an affine expression, then we leave
+ * the corresponding size of "array" untouched.
+ */
+struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
+	const Type *type)
+{
+	int depth = array_depth(type);
+	pet_expr *expr, *inf;
+	pet_context *pc;
+
+	if (!array)
+		return NULL;
+
+	inf = pet_expr_new_int(isl_val_infty(ctx));
+	expr = pet_expr_new_call(ctx, "bounds", depth);
+	for (int i = 0; i < depth; ++i)
+		expr = pet_expr_set_arg(expr, i, pet_expr_copy(inf));
+	pet_expr_free(inf);
+
+	expr = set_upper_bounds(expr, type, 0);
+
+	pc = convert_assignments(ctx, assigned_value);
+	for (int i = 0; i < depth; ++i) {
+		pet_expr *arg;
+		isl_pw_aff *size;
+
+		arg = pet_expr_get_arg(expr, i);
+		if (!is_infty(arg)) {
+			size = pet_expr_extract_affine(arg, pc);
+			if (!size)
+				array = pet_array_free(array);
+			else if (isl_pw_aff_involves_nan(size))
+				isl_pw_aff_free(size);
+			else
+				array = update_size(array, i, size);
+		}
+		pet_expr_free(arg);
+	}
+	pet_expr_free(expr);
+	pet_context_free(pc);
+
+	return array;
 }
 
 /* Is "T" the type of a variable length array with static size?
@@ -4340,7 +4389,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 	dim = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(dim);
 
-	array = set_upper_bounds(array, type, 0);
+	array = set_upper_bounds(array, type);
 	if (!array)
 		return NULL;
 
