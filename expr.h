@@ -1,8 +1,6 @@
 #ifndef PET_EXPR_H
 #define PET_EXPR_H
 
-#include <isl/id_to_pw_aff.h>
-
 #include <pet.h>
 
 #include "context.h"
@@ -111,8 +109,6 @@ __isl_give pet_expr *pet_expr_new_int(__isl_take isl_val *v);
 
 __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr);
 
-__isl_give isl_pw_aff *pet_expr_extract_affine(__isl_keep pet_expr *expr,
-	__isl_keep pet_context *pc);
 __isl_give isl_pw_aff *pet_expr_extract_affine_condition(
 	__isl_keep pet_expr *expr, __isl_keep pet_context *pc);
 __isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,

@@ -9,6 +9,7 @@
 #include <isl/union_map.h>
 #include <isl/printer.h>
 #include <isl/id_to_ast_expr.h>
+#include <isl/id_to_pw_aff.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -212,6 +213,25 @@ int pet_expr_foreach_access_expr(__isl_keep pet_expr *expr,
 /* Call "fn" on each of the subexpressions of "expr" of type pet_expr_call. */
 int pet_expr_foreach_call_expr(__isl_keep pet_expr *expr,
 	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user);
+
+struct pet_context;
+typedef struct pet_context pet_context;
+
+/* Create a context with the given domain. */
+__isl_give pet_context *pet_context_alloc(__isl_take isl_set *domain);
+/* Return an additional reference to "pc". */
+__isl_give pet_context *pet_context_copy(__isl_keep pet_context *pc);
+/* Free a reference to "pc". */
+__isl_null pet_context *pet_context_free(__isl_take pet_context *pc);
+
+/* Return the isl_ctx in which "pc" was created. */
+isl_ctx *pet_context_get_ctx(__isl_keep pet_context *pc);
+
+/* Extract an affine expression defined over the domain of "pc" from "expr"
+ * or return NaN.
+ */
+__isl_give isl_pw_aff *pet_expr_extract_affine(__isl_keep pet_expr *expr,
+	__isl_keep pet_context *pc);
 
 void pet_expr_dump(__isl_keep pet_expr *expr);
 

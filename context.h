@@ -11,15 +11,6 @@
 extern "C" {
 #endif
 
-struct pet_context;
-typedef struct pet_context pet_context;
-
-isl_ctx *pet_context_get_ctx(__isl_keep pet_context *pc);
-
-__isl_give pet_context *pet_context_alloc(__isl_take isl_set *domain);
-__isl_give pet_context *pet_context_copy(__isl_keep pet_context *pc);
-__isl_null pet_context *pet_context_free(__isl_take pet_context *pc);
-
 __isl_give isl_set *pet_context_get_domain(__isl_keep pet_context *pc);
 __isl_give isl_set *pet_context_get_gist_domain(__isl_keep pet_context *pc);
 __isl_give isl_space *pet_context_get_space(__isl_keep pet_context *pc);
