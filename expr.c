@@ -780,6 +780,26 @@ int pet_expr_is_scalar_access(__isl_keep pet_expr *expr)
 	return isl_map_dim(expr->acc.access, isl_dim_out) == 0;
 }
 
+/* Are "mpa1" and "mpa2" obviously equal to each other, up to reordering
+ * of parameters.
+ */
+static int multi_pw_aff_is_equal(__isl_keep isl_multi_pw_aff *mpa1,
+	__isl_keep isl_multi_pw_aff *mpa2)
+{
+	int equal;
+
+	equal = isl_multi_pw_aff_plain_is_equal(mpa1, mpa2);
+	if (equal < 0 || equal)
+		return equal;
+	mpa2 = isl_multi_pw_aff_copy(mpa2);
+	mpa2 = isl_multi_pw_aff_align_params(mpa2,
+					isl_multi_pw_aff_get_space(mpa1));
+	equal = isl_multi_pw_aff_plain_is_equal(mpa1, mpa2);
+	isl_multi_pw_aff_free(mpa2);
+
+	return equal;
+}
+
 /* Return 1 if the two pet_exprs are equivalent.
  */
 int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
@@ -822,8 +842,7 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 			return 0;
 		if (!expr1->acc.index || !expr2->acc.index)
 			return 0;
-		if (!isl_multi_pw_aff_plain_is_equal(expr1->acc.index,
-							expr2->acc.index))
+		if (!multi_pw_aff_is_equal(expr1->acc.index, expr2->acc.index))
 			return 0;
 		break;
 	case pet_expr_op:
