@@ -31,8 +31,6 @@ __isl_give pet_context *pet_context_set_value(__isl_take pet_context *pc,
 	__isl_take isl_id *id, isl_pw_aff *value);
 __isl_give isl_pw_aff *pet_context_get_value(__isl_keep pet_context *pc,
 	__isl_take isl_id *id);
-__isl_give pet_context *pet_context_mark_unknown(__isl_take pet_context *pc,
-	__isl_take isl_id *id);
 __isl_give pet_context *pet_context_clear_value(__isl_keep pet_context *pc,
 	__isl_take isl_id *id);
 __isl_give pet_context *pet_context_set_allow_nested(__isl_take pet_context *pc,

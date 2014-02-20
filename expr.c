@@ -2096,20 +2096,11 @@ static __isl_give isl_pw_aff *extract_affine_from_access(
 		return nested_access(expr, pc);
 
 	id = pet_expr_access_get_id(expr);
-	if (pet_context_is_assigned(pc, id)) {
-		isl_pw_aff *pa;
-
-		pa = pet_context_get_value(pc, id);
-		if (!pa)
-			return NULL;
-		if (!isl_pw_aff_involves_nan(pa))
-			return pa;
-		isl_pw_aff_free(pa);
-		return nested_access(expr, pc);
-	}
+	if (pet_context_is_assigned(pc, id))
+		return pet_context_get_value(pc, id);
 
 	isl_id_free(id);
-	return NULL;
+	return nested_access(expr, pc);
 }
 
 /* Construct an affine expression from the integer constant "expr".

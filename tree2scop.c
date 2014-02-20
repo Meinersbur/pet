@@ -44,8 +44,8 @@
 #include "tree2scop.h"
 
 /* Update "pc" by taking into account the writes in "stmt".
- * That is, mark all scalar variables that are written by "stmt"
- * as having an unknown value.
+ * That is, clear any previously assigned values to variables
+ * that are written by "stmt".
  */
 static __isl_give pet_context *handle_writes(struct pet_stmt *stmt,
 	__isl_take pet_context *pc)
@@ -975,7 +975,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	struct pet_scop *scop_kill;
 
 	iv = pet_expr_access_get_id(tree->u.l.iv);
-	pc = pet_context_mark_unknown(pc, iv);
+	pc = pet_context_clear_value(pc, iv);
 
 	declared = tree->u.l.declared;
 
@@ -1372,7 +1372,7 @@ static struct pet_scop *scop_from_for(__isl_keep pet_tree *tree,
 	pc = pet_context_clear_writes_in_tree(pc, tree->u.l.body);
 
 	pc_init_val = pet_context_copy(pc);
-	pc_init_val = pet_context_mark_unknown(pc_init_val, isl_id_copy(iv));
+	pc_init_val = pet_context_clear_value(pc_init_val, isl_id_copy(iv));
 	init_val = pet_expr_extract_affine(tree->u.l.init, pc_init_val);
 	pet_context_free(pc_init_val);
 	pa_inc = pet_expr_extract_affine(tree->u.l.inc, pc);
@@ -1857,8 +1857,8 @@ static int is_assignment(__isl_keep pet_tree *tree)
  * if the rhs is an affine expression, then keep track of this value in "pc"
  * so that we can plug it in when we later come across the same variable.
  *
- * The variable has already been marked as having been assigned
- * an unknown value by scop_handle_writes.
+ * Any previously assigned value to the variable has already been removed
+ * by scop_handle_writes.
  */
 static __isl_give pet_context *handle_assignment(__isl_take pet_context *pc,
 	__isl_keep pet_tree *tree)

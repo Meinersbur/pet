@@ -49,10 +49,6 @@
  * Internally, the domains of the values may be equal to some prefix
  * of the space of "domain", but the domains are updated to be
  * equal to the space of "domain" before passing them to the user.
- * If a variable has been assigned an unknown value (possibly because
- * it may be assigned a different expression in each iteration) or a value
- * that is not an affine expression, then the corresponding isl_pw_aff
- * is set to NaN.
  *
  * If "allow_nested" is set, then the affine expression created
  * in this context may involve new parameters that encode a pet_expr.
@@ -307,28 +303,6 @@ error:
 	return NULL;
 }
 
-/* Return a piecewise affine expression defined on the specified domain
- * that represents NaN.
- */
-static __isl_give isl_pw_aff *nan_on_domain(__isl_take isl_space *space)
-{
-	return isl_pw_aff_nan_on_domain(isl_local_space_from_space(space));
-}
-
-/* Assign the value NaN to "id" in "pc", marked it as having an unknown
- * value.
- */
-__isl_give pet_context *pet_context_mark_unknown(__isl_take pet_context *pc,
-	__isl_take isl_id *id)
-{
-	isl_pw_aff *pa;
-
-	pa = nan_on_domain(pet_context_get_space(pc));
-	pc = pet_context_set_value(pc, id, pa);
-
-	return pc;
-}
-
 /* Are affine expressions created in this context allowed to involve
  * parameters that encode a pet_expr?
  */
@@ -357,7 +331,7 @@ __isl_give pet_context *pet_context_set_allow_nested(__isl_take pet_context *pc,
 }
 
 /* If the access expression "expr" writes to a (non-virtual) scalar,
- * then mark the scalar as having an unknown value in "pc".
+ * then remove any assignment to the scalar in "pc".
  */
 static int clear_write(__isl_keep pet_expr *expr, void *user)
 {
@@ -371,7 +345,7 @@ static int clear_write(__isl_keep pet_expr *expr, void *user)
 
 	id = pet_expr_access_get_id(expr);
 	if (isl_id_get_user(id))
-		*pc = pet_context_mark_unknown(*pc, id);
+		*pc = pet_context_clear_value(*pc, id);
 	else
 		isl_id_free(id);
 
@@ -379,7 +353,7 @@ static int clear_write(__isl_keep pet_expr *expr, void *user)
 }
 
 /* Look for any writes to scalar variables in "expr" and
- * mark them as having an unknown value in "pc".
+ * remove any assignment to them in "pc".
  */
 __isl_give pet_context *pet_context_clear_writes_in_expr(
 	__isl_take pet_context *pc, __isl_keep pet_expr *expr)
@@ -391,7 +365,7 @@ __isl_give pet_context *pet_context_clear_writes_in_expr(
 }
 
 /* Look for any writes to scalar variables in "tree" and
- * mark them as having an unknown value in "pc".
+ * remove any assignment to them in "pc".
  */
 __isl_give pet_context *pet_context_clear_writes_in_tree(
 	__isl_take pet_context *pc, __isl_keep pet_tree *tree)
