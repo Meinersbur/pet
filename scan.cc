@@ -39,6 +39,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/ASTDiagnostic.h>
+#include <clang/AST/Attr.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 
@@ -244,6 +245,26 @@ void PetScan::report_missing_increment(Stmt *stmt)
 	DiagnosticsEngine &diag = PP.getDiagnostics();
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
 					   "missing increment");
+	report(stmt, id);
+}
+
+/* Report a missing summary function, unless autodetect is set.
+ */
+void PetScan::report_missing_summary_function(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "missing summary function");
+	report(stmt, id);
+}
+
+/* Report a missing summary function body, unless autodetect is set.
+ */
+void PetScan::report_missing_summary_function_body(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "missing summary function body");
 	report(stmt, id);
 }
 
@@ -835,6 +856,68 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	return res;
 }
 
+/* Find the first FunctionDecl with the given name.
+ * "call" is the corresponding call expression and is only used
+ * for reporting errors.
+ *
+ * Return NULL on error.
+ */
+FunctionDecl *PetScan::find_decl_from_name(CallExpr *call, string name)
+{
+	TranslationUnitDecl *tu = ast_context.getTranslationUnitDecl();
+	DeclContext::decl_iterator begin = tu->decls_begin();
+	DeclContext::decl_iterator end = tu->decls_end();
+	for (DeclContext::decl_iterator i = begin; i != end; ++i) {
+		FunctionDecl *fd = dyn_cast<FunctionDecl>(*i);
+		if (!fd)
+			continue;
+		if (fd->getName().str().compare(name) != 0)
+			continue;
+		if (fd->hasBody())
+			return fd;
+		report_missing_summary_function_body(call);
+		return NULL;
+	}
+	report_missing_summary_function(call);
+	return NULL;
+}
+
+/* Return the FunctionDecl for the summary function associated to the
+ * function called by "call".
+ *
+ * In particular, search for an annotate attribute formatted as
+ * "pencil_access(name)", where "name" is the name of the summary function.
+ *
+ * If no summary function was specified, then return the FunctionDecl
+ * that is actually being called.
+ *
+ * Return NULL on error.
+ */
+FunctionDecl *PetScan::get_summary_function(CallExpr *call)
+{
+	FunctionDecl *decl = call->getDirectCallee();
+	if (!decl)
+		return NULL;
+
+	specific_attr_iterator<AnnotateAttr> begin, end, i;
+	begin = decl->specific_attr_begin<AnnotateAttr>();
+	end = decl->specific_attr_end<AnnotateAttr>();
+	for (i = begin; i != end; ++i) {
+		string attr = (*i)->getAnnotation().str();
+
+		const char prefix[] = "pencil_access(";
+		size_t start = attr.find(prefix);
+		if (start == string::npos)
+			continue;
+		start += strlen(prefix);
+		string name = attr.substr(start, attr.find(')') - start);
+
+		return find_decl_from_name(call, name);
+	}
+
+	return decl;
+}
+
 /* Construct a pet_expr representing a function call.
  *
  * In the special case of a "call" to __pencil_assume,
@@ -868,6 +951,10 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 		res = pet_expr_set_arg(res, i,
 					PetScan::extract_argument(fd, i, arg));
 	}
+
+	fd = get_summary_function(expr);
+	if (!fd)
+		return pet_expr_free(res);
 
 	res = set_summary(res, fd);
 

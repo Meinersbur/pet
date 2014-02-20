@@ -1,0 +1,34 @@
+start: 357
+end: 435
+indent: "\t"
+context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
+arrays:
+- context: '[n] -> {  : n >= 0 }'
+  extent: '[n] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + n and i1 <= -1 + n and i1 >=
+    0 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 24
+  domain: '[n] -> { S_0[i] : i <= -1 + n and i >= 0 }'
+  schedule: '[n] -> { S_0[i] -> [0, i] }'
+  body:
+    type: expression
+    expr:
+      type: call
+      name: set_odd
+      arguments:
+      - type: access
+        index: '[n] -> { S_0[i] -> [(n)] }'
+        reference: __pet_ref_0
+        read: 1
+        write: 0
+      - type: access
+        may_write: '[n] -> { S_0[i] -> A[i, o1] : exists (e0 = floor((-1 + o1)/2):
+          2e0 = -1 + o1 and o1 >= 1 and o1 <= -1 + n) }'
+        must_write: '[n] -> {  }'
+        index: '[n] -> { S_0[i] -> A[(i)] }'
+        depth: 2
+        reference: __pet_ref_1
+        read: 0
+        write: 1

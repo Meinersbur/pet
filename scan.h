@@ -194,8 +194,14 @@ private:
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
 
+	clang::FunctionDecl *find_decl_from_name(clang::CallExpr *call,
+		std::string name);
+	clang::FunctionDecl *get_summary_function(clang::CallExpr *call);
+
 	void report(clang::Stmt *stmt, unsigned id);
 	void unsupported(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
+	void report_missing_summary_function(clang::Stmt *stmt);
+	void report_missing_summary_function_body(clang::Stmt *stmt);
 };
