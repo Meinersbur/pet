@@ -260,7 +260,6 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 		return;
 
 	test = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_copy(cond));
-	test = isl_multi_pw_aff_from_range(test);
 	pet_skip_info_if_extract_index(skip, test, int_size, n_stmt, n_test);
 	isl_multi_pw_aff_free(test);
 }

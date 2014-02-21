@@ -454,10 +454,14 @@ __isl_give isl_val *PetScan::extract_int(clang::Expr *expr)
 }
 
 /* Extract an affine expression from the IntegerLiteral "expr".
+ * If the value of "expr" is "v", then the returned expression
+ * is
+ *
+ *	{ [] -> [v] }
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 {
-	isl_space *space = isl_space_params_alloc(ctx, 0);
+	isl_space *space = isl_space_set_alloc(ctx, 0, 0);
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(space));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(space);
@@ -471,10 +475,14 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
 
 /* Extract an affine expression from the APInt "val", which is assumed
  * to be non-negative.
+ * If the value of "val" is "v", then the returned expression
+ * is
+ *
+ *	{ [] -> [v] }
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
-	isl_space *space = isl_space_params_alloc(ctx, 0);
+	isl_space *space = isl_space_set_alloc(ctx, 0, 0);
 	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(space));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
 	isl_set *dom = isl_set_universe(space);
@@ -584,7 +592,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	}
 
 	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	space = isl_space_params_alloc(ctx, 1);
+	space = isl_space_set_alloc(ctx, 1, 0);
 
 	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
 
@@ -942,7 +950,7 @@ isl_pw_aff *PetScan::nested_access(Expr *expr)
 	isl_multi_pw_aff_free(index);
 
 	id = pet_nested_clang_expr(ctx, expr);
-	space = isl_space_params_alloc(ctx, 1);
+	space = isl_space_set_alloc(ctx, 1, 0);
 
 	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
 
@@ -986,6 +994,8 @@ __isl_give isl_pw_aff *PetScan::extract_affine(ConditionalOperator *expr)
 
 /* Extract an affine expression, if possible, from "expr".
  * Otherwise return NULL.
+ *
+ * The result has an anonymous zero-dimensional domain.
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 {
@@ -1117,7 +1127,6 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(IntegerLiteral *expr)
 	isl_multi_pw_aff *mpa;
 
 	mpa = isl_multi_pw_aff_from_pw_aff(extract_affine(expr));
-	mpa = isl_multi_pw_aff_from_range(mpa);
 	return mpa;
 }
 
@@ -1148,6 +1157,9 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
  * Additionally, add the constraints that the extra index is non-negative.
  * If "index" represent a member access, i.e., if its range is a wrapped
  * relation, then we recursively extend the range of this nested relation.
+ *
+ * The inputs "base" and "index", as well as the result, all have
+ * an anonymous zero-dimensional domain.
  */
 static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
 	__isl_take isl_pw_aff *index)
@@ -1175,7 +1187,6 @@ static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
 	}
 
 	id = isl_multi_pw_aff_get_tuple_id(base, isl_dim_set);
-	index = isl_pw_aff_from_range(index);
 	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
 	index = isl_pw_aff_intersect_domain(index, domain);
 	access = isl_multi_pw_aff_from_pw_aff(index);
@@ -1304,7 +1315,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(MemberExpr *expr)
 	base_access = extract_index(base);
 
 	if (expr->isArrow()) {
-		isl_space *space = isl_space_params_alloc(ctx, 0);
+		isl_space *space = isl_space_set_alloc(ctx, 0, 0);
 		isl_local_space *ls = isl_local_space_from_space(space);
 		isl_aff *aff = isl_aff_zero_on_domain(ls);
 		isl_pw_aff *index = isl_pw_aff_from_aff(aff);
@@ -1497,7 +1508,7 @@ __isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 	BinaryOperator *comp;
 
 	if (!expr) {
-		isl_set *u = isl_set_universe(isl_space_params_alloc(ctx, 0));
+		isl_set *u = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 		return indicator_function(u, isl_set_copy(u));
 	}
 
@@ -1731,7 +1742,6 @@ __isl_give pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 	pa = try_extract_affine(expr->getCond());
 	if (pa) {
 		isl_multi_pw_aff *test = isl_multi_pw_aff_from_pw_aff(pa);
-		test = isl_multi_pw_aff_from_range(test);
 		cond = pet_expr_from_index(test);
 	} else
 		cond = extract_expr(expr->getCond());
@@ -1825,7 +1835,6 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 	} else {
 		isl_multi_pw_aff *index;
 		index = isl_multi_pw_aff_from_pw_aff(cond);
-		index = isl_multi_pw_aff_from_range(index);
 		res = pet_expr_from_index(index);
 	}
 	return pet_expr_new_unary(pet_op_assume, res);
@@ -2096,7 +2105,7 @@ __isl_give isl_pw_aff *PetScan::extract_unary_increment(
 		return NULL;
 	}
 
-	space = isl_space_params_alloc(ctx, 0);
+	space = isl_space_set_alloc(ctx, 0, 0);
 	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
 
 	if (op->isIncrementOp())
@@ -2147,7 +2156,7 @@ __isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
-	space = isl_space_params_alloc(ctx, 1);
+	space = isl_space_set_alloc(ctx, 1, 0);
 	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
 	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
@@ -2480,8 +2489,8 @@ struct pet_scop *PetScan::extract_affine_while(__isl_take isl_pw_aff *pa,
 	valid = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	dom = isl_pw_aff_non_zero_set(pa);
 	scop = extract_infinite_loop(body);
-	scop = pet_scop_restrict(scop, dom);
-	scop = pet_scop_restrict_context(scop, valid);
+	scop = pet_scop_restrict(scop, isl_set_params(dom));
+	scop = pet_scop_restrict_context(scop, isl_set_params(valid));
 
 	return scop;
 }
@@ -3065,7 +3074,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 
 	valid_cond_init = enforce_subset(
-		isl_set_from_pw_aff(isl_pw_aff_copy(init_val)),
+		isl_map_range(isl_map_from_pw_aff(isl_pw_aff_copy(init_val))),
 		isl_set_copy(valid_cond));
 	if (is_one && !is_virtual) {
 		isl_pw_aff_free(init_val);
@@ -3139,7 +3148,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	isl_val_free(inc);
 
-	scop = pet_scop_restrict_context(scop, valid_init);
+	scop = pet_scop_restrict_context(scop, isl_set_params(valid_init));
 
 	return scop;
 }
@@ -3634,7 +3643,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	nesting_enabled = save_nesting;
 	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(pa));
 	comp = isl_pw_aff_zero_set(isl_pw_aff_copy(pa));
-	index = isl_multi_pw_aff_from_range(isl_multi_pw_aff_from_pw_aff(pa));
+	index = isl_multi_pw_aff_from_pw_aff(pa);
 
 	pe_cond = pet_expr_from_index(index);
 
@@ -4105,16 +4114,16 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 
 	valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
 	set = isl_pw_aff_non_zero_set(cond);
-	scop = pet_scop_restrict(scop_then, isl_set_copy(set));
+	scop = pet_scop_restrict(scop_then, isl_set_params(isl_set_copy(set)));
 
 	if (stmt->getElse()) {
 		set = isl_set_subtract(isl_set_copy(valid), set);
-		scop_else = pet_scop_restrict(scop_else, set);
+		scop_else = pet_scop_restrict(scop_else, isl_set_params(set));
 		scop = pet_scop_add_par(ctx, scop, scop_else);
 	} else
 		isl_set_free(set);
 	scop = resolve_nested(scop);
-	scop = pet_scop_restrict_context(scop, valid);
+	scop = pet_scop_restrict_context(scop, isl_set_params(valid));
 
 	if (pet_skip_info_has_skip(&skip))
 		scop = pet_scop_prefix(scop, 0);
@@ -4480,7 +4489,7 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	isl_pw_aff *index;
 	isl_id *id;
 
-	valid = isl_pw_aff_nonneg_set(isl_pw_aff_copy(size));
+	valid = isl_set_params(isl_pw_aff_nonneg_set(isl_pw_aff_copy(size)));
 	array->context = isl_set_intersect(array->context, valid);
 
 	dim = isl_set_get_space(array->extent);
