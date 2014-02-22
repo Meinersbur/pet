@@ -922,7 +922,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(CallExpr *expr)
 isl_pw_aff *PetScan::nested_access(Expr *expr)
 {
 	isl_id *id;
-	isl_space *dim;
+	isl_space *space;
 	isl_aff *aff;
 	isl_set *dom;
 	isl_multi_pw_aff *index;
@@ -942,12 +942,12 @@ isl_pw_aff *PetScan::nested_access(Expr *expr)
 	isl_multi_pw_aff_free(index);
 
 	id = pet_nested_clang_expr(ctx, expr);
-	dim = isl_space_params_alloc(ctx, 1);
+	space = isl_space_params_alloc(ctx, 1);
 
-	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
+	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
 
-	dom = isl_set_universe(isl_space_copy(dim));
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
+	dom = isl_set_universe(isl_space_copy(space));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	return isl_pw_aff_alloc(dom, aff);
