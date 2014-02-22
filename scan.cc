@@ -2122,7 +2122,7 @@ __isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
 	Expr *lhs;
 	DeclRefExpr *ref;
 	isl_id *id;
-	isl_space *dim;
+	isl_space *space;
 	isl_aff *aff;
 	isl_pw_aff *val;
 
@@ -2147,9 +2147,9 @@ __isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
 
 	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
 
-	dim = isl_space_params_alloc(ctx, 1);
-	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
+	space = isl_space_params_alloc(ctx, 1);
+	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	val = isl_pw_aff_sub(val, isl_pw_aff_from_aff(aff));
