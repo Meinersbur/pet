@@ -567,7 +567,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	ValueDecl *decl = expr->getDecl();
 	const Type *type = decl->getType().getTypePtr();
 	isl_id *id;
-	isl_space *dim;
+	isl_space *space;
 	isl_aff *aff;
 	isl_set *dom;
 
@@ -584,12 +584,12 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 	}
 
 	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-	dim = isl_space_params_alloc(ctx, 1);
+	space = isl_space_params_alloc(ctx, 1);
 
-	dim = isl_space_set_dim_id(dim, isl_dim_param, 0, id);
+	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
 
-	dom = isl_set_universe(isl_space_copy(dim));
-	aff = isl_aff_zero_on_domain(isl_local_space_from_space(dim));
+	dom = isl_set_universe(isl_space_copy(space));
+	aff = isl_aff_zero_on_domain(isl_local_space_from_space(space));
 	aff = isl_aff_add_coefficient_si(aff, isl_dim_param, 0, 1);
 
 	return isl_pw_aff_alloc(dom, aff);
