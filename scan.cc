@@ -474,10 +474,10 @@ __isl_give isl_pw_aff *PetScan::extract_affine(IntegerLiteral *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
-	isl_space *dim = isl_space_params_alloc(ctx, 0);
-	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(dim));
+	isl_space *space = isl_space_params_alloc(ctx, 0);
+	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(space));
 	isl_aff *aff = isl_aff_zero_on_domain(ls);
-	isl_set *dom = isl_set_universe(dim);
+	isl_set *dom = isl_set_universe(space);
 	isl_val *v;
 
 	v = extract_unsigned(ctx, val);
