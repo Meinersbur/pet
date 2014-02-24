@@ -4191,6 +4191,9 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	isl_pw_aff *index;
 	isl_id *id;
 
+	if (!array)
+		goto error;
+
 	valid = isl_set_params(isl_pw_aff_nonneg_set(isl_pw_aff_copy(size)));
 	array->context = isl_set_intersect(array->context, valid);
 
@@ -4209,11 +4212,11 @@ static struct pet_array *update_size(struct pet_array *array, int pos,
 	array->extent = isl_set_intersect(array->extent, bound);
 
 	if (!array->context || !array->extent)
-		goto error;
+		return pet_array_free(array);
 
 	return array;
 error:
-	pet_array_free(array);
+	isl_pw_aff_free(size);
 	return NULL;
 }
 
