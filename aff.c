@@ -101,10 +101,21 @@ __isl_give isl_pw_aff *pet_and(__isl_take isl_pw_aff *lhs,
 }
 
 /* Return "!pa", defined on the domain of "pa".
+ *
+ * If "pa" involves any NaN, then return NaN.
  */
 __isl_give isl_pw_aff *pet_not(__isl_take isl_pw_aff *pa)
 {
 	isl_set *cond, *dom;
+
+	if (!pa)
+		return NULL;
+	if (isl_pw_aff_involves_nan(pa)) {
+		isl_space *space = isl_pw_aff_get_domain_space(pa);
+		isl_local_space *ls = isl_local_space_from_space(space);
+		isl_pw_aff_free(pa);
+		return isl_pw_aff_nan_on_domain(ls);
+	}
 
 	dom = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_zero_set(pa);
