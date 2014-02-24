@@ -156,6 +156,8 @@ __isl_give isl_pw_aff *pet_to_bool(__isl_take isl_pw_aff *pa)
  * In particular, construct an isl_pw_aff that is equal to 1
  * on the subset of the shared domain of "pa1" and "pa2" where
  * the comparison holds and 0 on the other part of the shared domain.
+ *
+ * If "pa1" or "pa2" involve any NaN, then return NaN.
  */
 __isl_give isl_pw_aff *pet_comparison(enum pet_op_type type,
 	__isl_take isl_pw_aff *pa1, __isl_take isl_pw_aff *pa2)
@@ -163,6 +165,16 @@ __isl_give isl_pw_aff *pet_comparison(enum pet_op_type type,
 	isl_set *dom;
 	isl_set *cond;
 	isl_pw_aff *res;
+
+	if (!pa1 || !pa2)
+		goto error;
+	if (isl_pw_aff_involves_nan(pa1) || isl_pw_aff_involves_nan(pa2)) {
+		isl_space *space = isl_pw_aff_get_domain_space(pa1);
+		isl_local_space *ls = isl_local_space_from_space(space);
+		isl_pw_aff_free(pa1);
+		isl_pw_aff_free(pa2);
+		return isl_pw_aff_nan_on_domain(ls);
+	}
 
 	dom = isl_pw_aff_domain(isl_pw_aff_copy(pa1));
 	dom = isl_set_intersect(dom, isl_pw_aff_domain(isl_pw_aff_copy(pa2)));
@@ -197,6 +209,10 @@ __isl_give isl_pw_aff *pet_comparison(enum pet_op_type type,
 	res = indicator_function(cond, dom);
 
 	return res;
+error:
+	isl_pw_aff_free(pa1);
+	isl_pw_aff_free(pa2);
+	return NULL;
 }
 
 /* Return "lhs && rhs", with shortcut semantics.
