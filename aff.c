@@ -127,10 +127,21 @@ __isl_give isl_pw_aff *pet_not(__isl_take isl_pw_aff *pa)
 /* Return "!!pa", i.e., a function that is equal to 1 when "pa"
  * is non-zero and equal to 0 when "pa" is equal to zero,
  * on the domain of "pa".
+ *
+ * If "pa" involves any NaN, then return NaN.
  */
 __isl_give isl_pw_aff *pet_to_bool(__isl_take isl_pw_aff *pa)
 {
 	isl_set *cond, *dom;
+
+	if (!pa)
+		return NULL;
+	if (isl_pw_aff_involves_nan(pa)) {
+		isl_space *space = isl_pw_aff_get_domain_space(pa);
+		isl_local_space *ls = isl_local_space_from_space(space);
+		isl_pw_aff_free(pa);
+		return isl_pw_aff_nan_on_domain(ls);
+	}
 
 	dom = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
