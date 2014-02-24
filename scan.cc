@@ -2515,23 +2515,8 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
  *
  * If so, call extract_affine_while to construct a scop.
  *
- * Otherwise, construct a generic while scop, with iteration domain
- * { [t] : t >= 0 }.  The scop consists of two parts, one for
- * evaluating the condition and one for the body.
- * The schedule is adjusted to reflect that the condition is evaluated
- * before the body is executed and the body is filtered to depend
- * on the result of the condition evaluating to true on all iterations
- * up to the current iteration, while the evaluation of the condition itself
- * is filtered to depend on the result of the condition evaluating to true
- * on all previous iterations.
- * The context of the scop representing the body is dropped
- * because we don't know how many times the body will be executed,
- * if at all.
- *
- * If the body contains any break, then it is taken into
- * account in infinite_domain (if the skip condition is affine)
- * or in scop_add_break (if the skip condition is not affine).
- *
+ * Otherwise, extract the body and pass control to extract_while
+ * to extend the iteration domain with an infinite loop.
  * If we were only able to extract part of the body, then simply
  * return that part.
  */
@@ -2539,13 +2524,8 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 {
 	Expr *cond;
 	int test_nr, stmt_nr;
-	isl_id *id, *id_test, *id_break_test;
-	isl_multi_pw_aff *test_index;
-	isl_set *domain;
-	isl_aff *ident;
 	isl_pw_aff *pa;
-	struct pet_scop *scop, *scop_body;
-	bool has_var_break;
+	struct pet_scop *scop_body;
 
 	cond = stmt->getCond();
 	if (!cond) {
@@ -2570,6 +2550,39 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	scop_body = extract(stmt->getBody());
 	if (partial)
 		return scop_body;
+
+	return extract_while(cond, test_nr, stmt_nr, scop_body);
+}
+
+/* Construct a generic while scop, with iteration domain
+ * { [t] : t >= 0 } around "scop_body".  The scop consists of two parts,
+ * one for evaluating the condition "cond" and one for the body.
+ * "test_nr" is the sequence number of the virtual test variable that contains
+ * the result of the condition and "stmt_nr" is the sequence number
+ * of the statement that evaluates the condition.
+ * The schedule is adjusted to reflect that the condition is evaluated
+ * before the body is executed and the body is filtered to depend
+ * on the result of the condition evaluating to true on all iterations
+ * up to the current iteration, while the evaluation of the condition itself
+ * is filtered to depend on the result of the condition evaluating to true
+ * on all previous iterations.
+ * The context of the scop representing the body is dropped
+ * because we don't know how many times the body will be executed,
+ * if at all.
+ *
+ * If the body contains any break, then it is taken into
+ * account in infinite_domain (if the skip condition is affine)
+ * or in scop_add_break (if the skip condition is not affine).
+ */
+struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
+	struct pet_scop *scop_body)
+{
+	isl_id *id, *id_test, *id_break_test;
+	isl_set *domain;
+	isl_aff *ident;
+	isl_multi_pw_aff *test_index;
+	struct pet_scop *scop;
+	bool has_var_break;
 
 	test_index = pet_create_test_index(ctx, test_nr);
 	scop = extract_non_affine_condition(cond, stmt_nr,

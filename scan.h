@@ -162,6 +162,8 @@ private:
 	struct pet_scop *extract_infinite_for(clang::ForStmt *stmt);
 	struct pet_scop *extract_affine_while(__isl_take isl_pw_aff *pa,
 				clang::Stmt *body);
+	struct pet_scop *extract_while(clang::Expr *cond, int test_nr,
+		int stmt_nr, struct pet_scop *scop_body);
 
 	__isl_give pet_expr *mark_write(__isl_take pet_expr *access);
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
