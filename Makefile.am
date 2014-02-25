@@ -36,6 +36,8 @@ AM_LDFLAGS = $(CLANG_LDFLAGS)
 libpet_la_SOURCES = \
 	aff.h \
 	aff.c \
+	array.h \
+	array.c \
 	clang.h \
 	clang.cc \
 	context.h \

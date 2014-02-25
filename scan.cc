@@ -48,6 +48,7 @@
 #include <isl/set.h>
 
 #include "aff.h"
+#include "array.h"
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
@@ -733,54 +734,6 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(Expr *expr)
 	return NULL;
 }
 
-/* Given a partial index expression "base" and an extra index "index",
- * append the extra index to "base" and return the result.
- * Additionally, add the constraints that the extra index is non-negative.
- * If "index" represent a member access, i.e., if its range is a wrapped
- * relation, then we recursively extend the range of this nested relation.
- *
- * The inputs "base" and "index", as well as the result, all have
- * an anonymous zero-dimensional domain.
- */
-static __isl_give isl_multi_pw_aff *subscript(__isl_take isl_multi_pw_aff *base,
-	__isl_take isl_pw_aff *index)
-{
-	isl_id *id;
-	isl_set *domain;
-	isl_multi_pw_aff *access;
-	int member_access;
-
-	member_access = isl_multi_pw_aff_range_is_wrapping(base);
-	if (member_access < 0)
-		goto error;
-	if (member_access) {
-		isl_multi_pw_aff *domain, *range;
-		isl_id *id;
-
-		id = isl_multi_pw_aff_get_tuple_id(base, isl_dim_out);
-		domain = isl_multi_pw_aff_copy(base);
-		domain = isl_multi_pw_aff_range_factor_domain(domain);
-		range = isl_multi_pw_aff_range_factor_range(base);
-		range = subscript(range, index);
-		access = isl_multi_pw_aff_range_product(domain, range);
-		access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_out, id);
-		return access;
-	}
-
-	id = isl_multi_pw_aff_get_tuple_id(base, isl_dim_set);
-	domain = isl_pw_aff_nonneg_set(isl_pw_aff_copy(index));
-	index = isl_pw_aff_intersect_domain(index, domain);
-	access = isl_multi_pw_aff_from_pw_aff(index);
-	access = isl_multi_pw_aff_flat_range_product(base, access);
-	access = isl_multi_pw_aff_set_tuple_id(access, isl_dim_set, id);
-
-	return access;
-error:
-	isl_multi_pw_aff_free(base);
-	isl_pw_aff_free(index);
-	return NULL;
-}
-
 /* Extract an index expression from the given array subscript expression.
  * If nesting is allowed in general, then we turn it on while
  * examining the index expression.
@@ -808,55 +761,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(ArraySubscriptExpr *expr)
 
 	nesting_enabled = save_nesting;
 
-	access = subscript(base_access, index);
-
-	return access;
-}
-
-/* Construct a name for a member access by concatenating the name
- * of the array of structures and the member, separated by an underscore.
- *
- * The caller is responsible for freeing the result.
- */
-static char *member_access_name(isl_ctx *ctx, const char *base,
-	const char *field)
-{
-	int len;
-	char *name;
-
-	len = strlen(base) + 1 + strlen(field);
-	name = isl_alloc_array(ctx, char, len + 1);
-	if (!name)
-		return NULL;
-	snprintf(name, len + 1, "%s_%s", base, field);
-
-	return name;
-}
-
-/* Given an index expression "base" for an element of an array of structures
- * and an expression "field" for the field member being accessed, construct
- * an index expression for an access to that member of the given structure.
- * In particular, take the range product of "base" and "field" and
- * attach a name to the result.
- */
-static __isl_give isl_multi_pw_aff *member(__isl_take isl_multi_pw_aff *base,
-	__isl_take isl_multi_pw_aff *field)
-{
-	isl_ctx *ctx;
-	isl_multi_pw_aff *access;
-	const char *base_name, *field_name;
-	char *name;
-
-	ctx = isl_multi_pw_aff_get_ctx(base);
-
-	base_name = isl_multi_pw_aff_get_tuple_name(base, isl_dim_out);
-	field_name = isl_multi_pw_aff_get_tuple_name(field, isl_dim_out);
-	name = member_access_name(ctx, base_name, field_name);
-
-	access = isl_multi_pw_aff_range_product(base, field);
-
-	access = isl_multi_pw_aff_set_tuple_name(access, isl_dim_out, name);
-	free(name);
+	access = pet_array_subscript(base_access, index);
 
 	return access;
 }
@@ -900,7 +805,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(MemberExpr *expr)
 		isl_local_space *ls = isl_local_space_from_space(space);
 		isl_aff *aff = isl_aff_zero_on_domain(ls);
 		isl_pw_aff *index = isl_pw_aff_from_aff(aff);
-		base_access = subscript(base_access, index);
+		base_access = pet_array_subscript(base_access, index);
 	}
 
 	if (field->isAnonymousStructOrUnion())
@@ -912,7 +817,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(MemberExpr *expr)
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 	field_access = isl_multi_pw_aff_zero(space);
 
-	return member(base_access, field_access);
+	return pet_array_member(base_access, field_access);
 }
 
 /* Check if "expr" calls function "minmax" with two arguments and if so
@@ -4315,7 +4220,8 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 
 		base_name = isl_set_get_tuple_name(parent->extent);
 		field_name = isl_set_get_tuple_name(array->extent);
-		product_name = member_access_name(ctx, base_name, field_name);
+		product_name = pet_array_member_access_name(ctx,
+							base_name, field_name);
 
 		array->extent = isl_set_product(isl_set_copy(parent->extent),
 						array->extent);
