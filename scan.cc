@@ -3228,13 +3228,13 @@ static BinaryOperator *top_assignment_or_null(Stmt *stmt)
 struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 {
 	BinaryOperator *ass_then, *ass_else;
-	isl_multi_pw_aff *write_then, *write_else;
+	pet_expr *write_then, *write_else;
 	isl_set *cond, *comp;
 	isl_multi_pw_aff *index;
 	isl_pw_aff *pa;
 	int equal;
 	int type_size;
-	pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
+	pet_expr *pe_cond, *pe_then, *pe_else, *pe;
 	bool save_nesting = nesting_enabled;
 
 	if (!options->detect_conditional_assignment)
@@ -3249,13 +3249,13 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	if (is_affine_condition(stmt->getCond()))
 		return NULL;
 
-	write_then = extract_index(ass_then->getLHS());
-	write_else = extract_index(ass_else->getLHS());
+	write_then = extract_access_expr(ass_then->getLHS());
+	write_else = extract_access_expr(ass_else->getLHS());
 
-	equal = isl_multi_pw_aff_plain_is_equal(write_then, write_else);
-	isl_multi_pw_aff_free(write_else);
+	equal = pet_expr_is_equal(write_then, write_else);
+	pet_expr_free(write_else);
 	if (equal < 0 || !equal) {
-		isl_multi_pw_aff_free(write_then);
+		pet_expr_free(write_then);
 		return NULL;
 	}
 
@@ -3274,12 +3274,10 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	pe_else = pet_expr_restrict(pe_else, comp);
 
 	pe = pet_expr_new_ternary(pe_cond, pe_then, pe_else);
+	write_then = pet_expr_access_set_write(write_then, 1);
+	write_then = pet_expr_access_set_read(write_then, 0);
 	type_size = get_type_size(ass_then->getType(), ast_context);
-	pe_write = pet_expr_from_index_and_depth(type_size, write_then,
-						extract_depth(write_then));
-	pe_write = pet_expr_access_set_write(pe_write, 1);
-	pe_write = pet_expr_access_set_read(pe_write, 0);
-	pe = pet_expr_new_binary(type_size, pet_op_assign, pe_write, pe);
+	pe = pet_expr_new_binary(type_size, pet_op_assign, write_then, pe);
 	return extract(pe, stmt->getSourceRange(), false);
 }
 
