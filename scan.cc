@@ -2777,21 +2777,23 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 }
 
 /* For each nested access parameter in the access relations in "expr",
- * construct a corresponding pet_expr, place it in the arguments of "expr"
- * and record its position in "param2pos".
+ * construct a corresponding pet_expr, append it to the arguments of "expr"
+ * and record its position in "param2pos" (relative to the initial
+ * number of arguments).
  * n is the number of nested access parameters.
  */
 __isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
 	std::map<int,int> &param2pos)
 {
 	isl_space *space;
-	int i;
+	int i, n_arg;
 	pet_expr **args;
 
 	args = isl_calloc_array(ctx, pet_expr *, n);
 	if (!args)
 		return pet_expr_free(expr);
 
+	n_arg = pet_expr_get_n_arg(expr);
 	space = pet_expr_access_get_parameter_space(expr);
 	n = extract_nested(space, 0, args, param2pos);
 	isl_space_free(space);
@@ -2799,10 +2801,10 @@ __isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
 	if (n < 0)
 		expr = pet_expr_free(expr);
 	else
-		expr = pet_expr_set_n_arg(expr, n);
+		expr = pet_expr_set_n_arg(expr, n_arg + n);
 
 	for (i = 0; i < n; ++i)
-		expr = pet_expr_set_arg(expr, i, args[i]);
+		expr = pet_expr_set_arg(expr, n_arg + i, args[i]);
 	free(args);
 
 	return expr;
@@ -2813,24 +2815,26 @@ __isl_give pet_expr *PetScan::extract_nested(__isl_take pet_expr *expr, int n,
  * parameters with name "__pet_expr".
  *
  * If there are any such parameters, then the domain of the index
- * expression and the access relation, which is still [] at this point,
- * is replaced by [[] -> [t_1,...,t_n]], with n the number of these parameters
+ * expression and the access relation, which is either [] or
+ * [[] -> [a_1,...,a_m]] at this point, is replaced by [[] -> [t_1,...,t_n]] or
+ * [[] -> [a_1,...,a_m,t_1,...,t_n]], with m the original number of arguments
+ * (n_arg) and n the number of these parameters
  * (after identifying identical nested accesses).
  *
  * This transformation is performed in several steps.
  * We first extract the arguments in extract_nested.
  * param2pos maps the original parameter position to the position
- * of the argument.
+ * of the argument beyond the initial (n_arg) number of arguments.
  * Then we move these parameters to input dimensions.
  * t2pos maps the positions of these temporary input dimensions
  * to the positions of the corresponding arguments.
  * Finally, we express these temporary dimensions in terms of the domain
- * [[] -> [t_1,...,t_n]] and precompose index expression and access
+ * [[] -> [a_1,...,a_m,t_1,...,t_n]] and precompose index expression and access
  * relations with this function.
  */
 __isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 {
-	int n;
+	int n, n_arg;
 	int nparam;
 	isl_space *space;
 	isl_local_space *ls;
@@ -2842,8 +2846,8 @@ __isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 	if (!expr)
 		return expr;
 
-	n = pet_expr_get_n_arg(expr);
-	for (int i = 0; i < n; ++i) {
+	n_arg = pet_expr_get_n_arg(expr);
+	for (int i = 0; i < n_arg; ++i) {
 		pet_expr *arg;
 		arg = pet_expr_get_arg(expr, i);
 		arg = resolve_nested(arg);
@@ -2878,8 +2882,8 @@ __isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 		}
 
 		expr = pet_expr_access_move_dims(expr,
-					isl_dim_in, n, isl_dim_param, i, 1);
-		t2pos[n] = param2pos[i];
+				    isl_dim_in, n_arg + n, isl_dim_param, i, 1);
+		t2pos[n] = n_arg + param2pos[i];
 		n++;
 
 		isl_id_free(id);
@@ -2893,13 +2897,18 @@ __isl_give pet_expr *PetScan::resolve_nested(__isl_take pet_expr *expr)
 	space = isl_space_wrap(isl_space_from_range(space));
 	ls = isl_local_space_from_space(isl_space_copy(space));
 	space = isl_space_from_domain(space);
-	space = isl_space_add_dims(space, isl_dim_out, n);
+	space = isl_space_add_dims(space, isl_dim_out, n_arg + n);
 	ma = isl_multi_aff_zero(space);
 
+	for (int i = 0; i < n_arg; ++i) {
+		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
+					    isl_dim_set, i);
+		ma = isl_multi_aff_set_aff(ma, i, aff);
+	}
 	for (int i = 0; i < n; ++i) {
 		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
 					    isl_dim_set, t2pos[i]);
-		ma = isl_multi_aff_set_aff(ma, i, aff);
+		ma = isl_multi_aff_set_aff(ma, n_arg + i, aff);
 	}
 	isl_local_space_free(ls);
 
