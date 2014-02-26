@@ -1227,6 +1227,19 @@ __isl_give isl_map *pet_expr_tag_access(struct pet_expr *expr,
 	return access;
 }
 
+/* Return the relation mapping pairs of domain iterations and argument
+ * values to the corresponding accessed data elements.
+ */
+__isl_give isl_map *pet_expr_access_get_dependent_access(struct pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		return NULL;
+
+	return isl_map_copy(expr->acc.access);
+}
+
 /* Return the relation mapping domain iterations to all possibly
  * accessed data elements.
  * In particular, take the access relation and project out the values
@@ -1243,7 +1256,7 @@ __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr)
 	if (expr->type != pet_expr_access)
 		return NULL;
 
-	access = isl_map_copy(expr->acc.access);
+	access = pet_expr_access_get_dependent_access(expr);
 	if (expr->n_arg == 0)
 		return access;
 
@@ -1272,7 +1285,7 @@ __isl_give isl_map *pet_expr_access_get_must_access(struct pet_expr *expr)
 		return NULL;
 
 	if (expr->n_arg == 0)
-		return isl_map_copy(expr->acc.access);
+		return pet_expr_access_get_dependent_access(expr);
 
 	space = isl_map_get_space(expr->acc.access);
 	space = isl_space_domain_factor_domain(space);

@@ -178,6 +178,8 @@ __isl_give isl_id *pet_expr_access_get_id(struct pet_expr *expr);
 __isl_give isl_map *pet_expr_access_get_may_access(struct pet_expr *expr);
 /* Return the definite access relation of access expression "expr". */
 __isl_give isl_map *pet_expr_access_get_must_access(struct pet_expr *expr);
+/* Return the argument dependent access relation of access expression "expr". */
+__isl_give isl_map *pet_expr_access_get_dependent_access(struct pet_expr *expr);
 /* Return the tagged potential read access relation of access "expr". */
 __isl_give isl_map *pet_expr_access_get_tagged_may_access(
 	struct pet_expr *expr);
