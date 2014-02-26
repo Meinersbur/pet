@@ -1793,21 +1793,26 @@ __isl_give pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 	return pet_expr_new_double(ctx, d, s.c_str());
 }
 
+/* Convert the index expression "index" into an access pet_expr.
+ */
+__isl_give pet_expr *PetScan::extract_access_expr(
+	__isl_take isl_multi_pw_aff *index)
+{
+	pet_expr *pe;
+	int depth;
+
+	depth = extract_depth(index);
+	pe = pet_expr_from_index_and_depth(index, depth);
+
+	return pe;
+}
+
 /* Extract an index expression from "expr" and then convert it into
  * an access pet_expr.
  */
 __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 {
-	isl_multi_pw_aff *index;
-	pet_expr *pe;
-	int depth;
-
-	index = extract_index(expr);
-	depth = extract_depth(index);
-
-	pe = pet_expr_from_index_and_depth(index, depth);
-
-	return pe;
+	return extract_access_expr(extract_index(expr));
 }
 
 /* Extract an index expression from "decl" and then convert it into
@@ -1815,16 +1820,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
  */
 __isl_give pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
-	isl_multi_pw_aff *index;
-	pet_expr *pe;
-	int depth;
-
-	index = extract_index(decl);
-	depth = extract_depth(index);
-
-	pe = pet_expr_from_index_and_depth(index, depth);
-
-	return pe;
+	return extract_access_expr(extract_index(decl));
 }
 
 __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)

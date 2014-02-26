@@ -187,6 +187,8 @@ private:
 	__isl_give pet_expr *resolve_nested(__isl_take pet_expr *expr);
 	struct pet_scop *resolve_nested(struct pet_scop *scop);
 	struct pet_stmt *resolve_nested(struct pet_stmt *stmt);
+	__isl_give pet_expr *extract_access_expr(
+		__isl_take isl_multi_pw_aff *index);
 	__isl_give pet_expr *extract_access_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
