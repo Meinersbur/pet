@@ -40,6 +40,66 @@
 #include "print.h"
 #include "scop.h"
 
+/* Given an access expression, check if any of its arguments
+ * are not themselves access expressions.
+ * If so, set *found and abort the search.
+ */
+static int depends_on_expressions(__isl_keep pet_expr *expr, void *user)
+{
+	int i;
+	int *found = user;
+
+	for (i = 0; i < expr->n_arg; ++i)
+		if (expr->args[i]->type != pet_expr_access) {
+			*found = 1;
+			return -1;
+		}
+
+	return 0;
+}
+
+/* pet_stmt_build_ast_exprs is currently limited to only handle
+ * some forms of data dependent accesses.
+ * If pet_stmt_can_build_ast_exprs returns 1, then pet_stmt_build_ast_exprs
+ * can safely be called on "stmt".
+ */
+int pet_stmt_can_build_ast_exprs(struct pet_stmt *stmt)
+{
+	int r;
+	int found = 0;
+
+	if (!stmt)
+		return -1;
+
+	r = pet_expr_foreach_access_expr(stmt->body,
+					&depends_on_expressions, &found);
+	if (r < 0 && !found)
+		return -1;
+
+	return !found;
+}
+
+/* pet_stmt_build_ast_exprs is currently limited to only handle
+ * some forms of data dependent accesses.
+ * If pet_scop_can_build_ast_exprs returns 1, then pet_stmt_build_ast_exprs
+ * can safely be called on all statements in the scop.
+ */
+int pet_scop_can_build_ast_exprs(struct pet_scop *scop)
+{
+	int i;
+
+	if (!scop)
+		return -1;
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		int ok = pet_stmt_can_build_ast_exprs(scop->stmts[i]);
+		if (ok < 0 || !ok)
+			return ok;
+	}
+
+	return 1;
+}
+
 /* Internal data structure for pet_stmt_build_ast_exprs.
  *
  * "build" is used to construct an AST expression from an index expression.

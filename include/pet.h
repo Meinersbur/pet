@@ -229,6 +229,12 @@ int pet_stmt_is_assign(struct pet_stmt *stmt);
 /* Is "stmt" a kill statement? */
 int pet_stmt_is_kill(struct pet_stmt *stmt);
 
+/* pet_stmt_build_ast_exprs is currently limited to only handle
+ * some forms of data dependent accesses.
+ * If pet_stmt_can_build_ast_exprs returns 1, then pet_stmt_build_ast_exprs
+ * can safely be called on "stmt".
+ */
+int pet_stmt_can_build_ast_exprs(struct pet_stmt *stmt);
 /* Construct an associative array from reference identifiers of
  * access expressions in "stmt" to the corresponding isl_ast_expr.
  * Each index expression is first transformed through "fn_index"
@@ -374,6 +380,12 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop);
 int pet_scop_has_data_dependent_accesses(struct pet_scop *scop);
 /* Does "scop" contain any data dependent conditions? */
 int pet_scop_has_data_dependent_conditions(struct pet_scop *scop);
+/* pet_stmt_build_ast_exprs is currently limited to only handle
+ * some forms of data dependent accesses.
+ * If pet_scop_can_build_ast_exprs returns 1, then pet_stmt_build_ast_exprs
+ * can safely be called on all statements in the scop.
+ */
+int pet_scop_can_build_ast_exprs(struct pet_scop *scop);
 
 void pet_scop_dump(struct pet_scop *scop);
 struct pet_scop *pet_scop_free(struct pet_scop *scop);
