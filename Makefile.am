@@ -38,6 +38,8 @@ libpet_la_SOURCES = \
 	aff.c \
 	clang.h \
 	clang.cc \
+	context.h \
+	context.c \
 	expr.h \
 	expr.c \
 	filter.h \
