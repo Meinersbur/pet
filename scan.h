@@ -210,7 +210,6 @@ private:
 	__isl_give isl_val *extract_int(clang::Expr *expr);
 	__isl_give isl_val *extract_int(clang::ParenExpr *expr);
 
-	__isl_give isl_pw_aff *try_extract_affine_condition(clang::Expr *expr);
 	bool is_affine_condition(clang::Expr *expr);
 	__isl_give isl_pw_aff *try_extract_nested_condition(clang::Expr *expr);
 	bool is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop);

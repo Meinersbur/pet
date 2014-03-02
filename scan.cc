@@ -1957,7 +1957,7 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt)
 	clear_assignments clear(assigned_value);
 	clear.TraverseStmt(stmt->getBody());
 
-	pa = try_extract_affine_condition(cond);
+	pa = extract_condition(cond);
 	if (pa)
 		return extract_affine_while(pa, stmt->getBody());
 
@@ -2564,7 +2564,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	}
 
 	if (!allow_nested && !pa)
-		pa = try_extract_affine_condition(stmt->getCond());
+		pa = extract_condition(stmt->getCond());
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
 	if (allow_nested && !cond) {
@@ -3178,35 +3178,13 @@ struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
 	return scop;
 }
 
-/* Check if we can extract an affine constraint from "expr".
- * Return the constraint as an isl_set if we can and NULL otherwise.
- * We turn on autodetection so that we won't generate any warnings
- * and turn off nesting, so that we won't accept any non-affine constructs.
- */
-__isl_give isl_pw_aff *PetScan::try_extract_affine_condition(Expr *expr)
-{
-	isl_pw_aff *cond;
-	int save_autodetect = options->autodetect;
-	bool save_nesting = nesting_enabled;
-
-	options->autodetect = 1;
-	nesting_enabled = false;
-
-	cond = extract_condition(expr);
-
-	options->autodetect = save_autodetect;
-	nesting_enabled = save_nesting;
-
-	return cond;
-}
-
 /* Check whether "expr" is an affine constraint.
  */
 bool PetScan::is_affine_condition(Expr *expr)
 {
 	isl_pw_aff *cond;
 
-	cond = try_extract_affine_condition(expr);
+	cond = extract_condition(expr);
 	isl_pw_aff_free(cond);
 
 	return cond != NULL;
