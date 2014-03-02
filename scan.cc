@@ -491,6 +491,14 @@ __isl_give isl_val *PetScan::extract_int(clang::Expr *expr)
 	return NULL;
 }
 
+/* Extract a pet_expr from the APInt "val", which is assumed
+ * to be non-negative.
+ */
+__isl_give pet_expr *PetScan::extract_expr(const llvm::APInt &val)
+{
+	return pet_expr_new_int(extract_unsigned(ctx, val));
+}
+
 /* Extract an affine expression from the APInt "val", which is assumed
  * to be non-negative.
  * If the value of "val" is "v", then the returned expression
@@ -500,16 +508,17 @@ __isl_give isl_val *PetScan::extract_int(clang::Expr *expr)
  */
 __isl_give isl_pw_aff *PetScan::extract_affine(const llvm::APInt &val)
 {
-	isl_space *space = isl_space_set_alloc(ctx, 0, 0);
-	isl_local_space *ls = isl_local_space_from_space(isl_space_copy(space));
-	isl_aff *aff = isl_aff_zero_on_domain(ls);
-	isl_set *dom = isl_set_universe(space);
-	isl_val *v;
+	pet_context *pc;
+	pet_expr *expr;
+	isl_pw_aff *pa;
 
-	v = extract_unsigned(ctx, val);
-	aff = isl_aff_add_constant_val(aff, v);
+	expr = extract_expr(val);
+	pc = pet_context_alloc(isl_space_set_alloc(ctx, 0, 0));
+	pa = pet_expr_extract_affine(expr, pc);
+	pet_context_free(pc);
+	pet_expr_free(expr);
 
-	return isl_pw_aff_alloc(dom, aff);
+	return pa;
 }
 
 /* Return the number of bits needed to represent the type "qt",

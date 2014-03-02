@@ -169,6 +169,7 @@ private:
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
 	__isl_give pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
 		clang::Expr *expr);
+	__isl_give pet_expr *extract_expr(const llvm::APInt &val);
 	__isl_give pet_expr *extract_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_expr(clang::UnaryOperator *expr);
 	__isl_give pet_expr *extract_expr(clang::BinaryOperator *expr);
