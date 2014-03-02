@@ -179,6 +179,13 @@ static bool const_base(QualType qt)
 	return qt.isConstQualified();
 }
 
+/* Create an isl_id that refers to the named declarator "decl".
+ */
+static __isl_give isl_id *create_decl_id(isl_ctx *ctx, NamedDecl *decl)
+{
+	return isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
+}
+
 /* Mark "decl" as having an unknown value in "assigned_value".
  *
  * If no (known or unknown) value was assigned to "decl" before,
@@ -591,7 +598,7 @@ __isl_give isl_pw_aff *PetScan::extract_affine(DeclRefExpr *expr)
 			return nested_access(expr);
 	}
 
-	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
+	id = create_decl_id(ctx, decl);
 	space = isl_space_set_alloc(ctx, 1, 0);
 
 	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
@@ -1108,7 +1115,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(DeclRefExpr *expr)
  */
 __isl_give isl_multi_pw_aff *PetScan::extract_index(ValueDecl *decl)
 {
-	isl_id *id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
+	isl_id *id = create_decl_id(ctx, decl);
 	isl_space *space = isl_space_alloc(ctx, 0, 0, 0);
 
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
@@ -1325,7 +1332,7 @@ __isl_give isl_multi_pw_aff *PetScan::extract_index(MemberExpr *expr)
 	if (field->isAnonymousStructOrUnion())
 		return base_access;
 
-	id = isl_id_alloc(ctx, field->getName().str().c_str(), field);
+	id = create_decl_id(ctx, field);
 	space = isl_multi_pw_aff_get_domain_space(base_access);
 	space = isl_space_from_domain(space);
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
@@ -2154,7 +2161,7 @@ __isl_give isl_pw_aff *PetScan::extract_binary_increment(BinaryOperator *op,
 
 	val = extract_affine(op->getRHS());
 
-	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
+	id = create_decl_id(ctx, iv);
 
 	space = isl_space_set_alloc(ctx, 1, 0);
 	space = isl_space_set_dim_id(space, isl_dim_param, 0, id);
@@ -3028,7 +3035,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 
 	is_unsigned = iv->getType()->isUnsignedIntegerType();
 
-	id = isl_id_alloc(ctx, iv->getName().str().c_str(), iv);
+	id = create_decl_id(ctx, iv);
 
 	has_affine_break = scop &&
 				pet_scop_has_affine_skip(scop, pet_skip_later);
@@ -4626,7 +4633,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 	if (!array)
 		return NULL;
 
-	id = isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
+	id = create_decl_id(ctx, decl);
 	dim = isl_space_set_alloc(ctx, 0, depth);
 	dim = isl_space_set_tuple_id(dim, isl_dim_set, id);
 
