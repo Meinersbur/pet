@@ -597,7 +597,6 @@ __isl_give isl_pw_aff *PetScan::extract_affine(Expr *expr)
 	if (!pe)
 		return NULL;
 	pc = convert_assignments(ctx, assigned_value);
-	pc = pet_context_set_allow_nested(pc, nesting_enabled);
 	pa = pet_expr_extract_affine(pe, pc);
 	if (isl_pw_aff_involves_nan(pa)) {
 		unsupported(expr);
