@@ -1,0 +1,89 @@
+start: 25
+end: 53
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ c[] }'
+  element_type: int
+  element_size: 4
+  declared: 1
+  exposed: 1
+- context: '{  :  }'
+  extent: '{ a[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ b[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 5
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> a[] }'
+      index: '{ S_0[] -> a[] }'
+      reference: __pet_ref_0
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_0[] -> [3] }'
+      index: '{ S_0[] -> [(3)] }'
+      reference: __pet_ref_1
+      read: 1
+      write: 0
+- line: 6
+  domain: '{ S_1[] }'
+  schedule: '{ S_1[] -> [2, 0] }'
+  body:
+    type: unary
+    operation: kill
+    arguments:
+    - type: access
+      relation: '{ S_1[] -> c[] }'
+      index: '{ S_1[] -> c[] }'
+      reference: __pet_ref_2
+      read: 0
+      write: 0
+- line: 6
+  domain: '{ S_2[] }'
+  schedule: '{ S_2[] -> [2, 1] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_2[] -> c[] }'
+      index: '{ S_2[] -> c[] }'
+      reference: __pet_ref_3
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_2[] -> [5] }'
+      index: '{ S_2[] -> [(5)] }'
+      reference: __pet_ref_4
+      read: 1
+      write: 0
+- line: 7
+  domain: '{ S_3[] }'
+  schedule: '{ S_3[] -> [3] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_3[] -> b[] }'
+      index: '{ S_3[] -> b[] }'
+      reference: __pet_ref_5
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ S_3[] -> c[] }'
+      index: '{ S_3[] -> c[] }'
+      reference: __pet_ref_6
+      read: 1
+      write: 0

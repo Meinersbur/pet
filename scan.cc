@@ -3303,9 +3303,16 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	return scop;
 }
 
+/* Try and construct a pet_scop corresponding to a compound statement.
+ *
+ * "skip_declarations" is set if we should skip initial declarations
+ * in the children of the compound statements.  This then implies
+ * that this sequence of children should not be treated as a block
+ * since the initial statements may be skipped.
+ */
 struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 {
-	return extract(stmt->children(), true, skip_declarations);
+	return extract(stmt->children(), !skip_declarations, skip_declarations);
 }
 
 /* Does parameter "pos" of "map" refer to a nested access?
@@ -5139,7 +5146,7 @@ struct pet_scop *PetScan::extract(StmtRange stmt_range, bool block,
 		Stmt *child = *i;
 		struct pet_scop *scop_i;
 
-		if (skip_declarations &&
+		if (scop->n_stmt == 0 && skip_declarations &&
 		    child->getStmtClass() == Stmt::DeclStmtClass)
 			continue;
 
