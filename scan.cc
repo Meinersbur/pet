@@ -1642,7 +1642,7 @@ struct pet_scop *PetScan::kill(Stmt *stmt, struct pet_array *array)
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 	index = isl_multi_pw_aff_zero(space);
 	expr = pet_expr_kill_from_access_and_index(access, index);
-	return extract(stmt, expr);
+	return extract(expr, stmt->getSourceRange(), false);
 }
 
 /* Construct a pet_scop for a (single) variable declaration.
@@ -1687,7 +1687,7 @@ struct pet_scop *PetScan::extract(DeclStmt *stmt)
 
 	type_size = get_type_size(vd->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, lhs, rhs);
-	scop = extract(stmt, pe);
+	scop = extract(pe, stmt->getSourceRange(), false);
 
 	scop_decl = pet_scop_prefix(scop_decl, 0);
 	scop = pet_scop_prefix(scop, 1);
@@ -3446,25 +3446,23 @@ struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
  * and setting the name of the iteration space.
  * The name is given by "label" if it is non-NULL.  Otherwise,
  * it is of the form S_<n_stmt>.
- * start and end of the pet_scop are derived from those of "stmt".
- * If "stmt" is an expression statement, then its range does not
- * include the semicolon, while it should be included in the pet_scop.
+ * start and end of the pet_scop are derived from "range" and "skip_semi".
+ * In particular, if "skip_semi" is set then the semicolon following "range"
+ * is also included.
  */
-struct pet_scop *PetScan::extract(Stmt *stmt, __isl_take pet_expr *expr,
-	__isl_take isl_id *label)
+struct pet_scop *PetScan::extract(__isl_take pet_expr *expr, SourceRange range,
+	bool skip_semi, __isl_take isl_id *label)
 {
 	struct pet_stmt *ps;
 	struct pet_scop *scop;
-	SourceLocation loc = stmt->getLocStart();
+	SourceLocation loc = range.getBegin();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
-	bool skip_semi;
 
 	expr = resolve_nested(expr);
 	ps = pet_stmt_from_pet_expr(line, label, n_stmt++, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 
-	skip_semi = isa<Expr>(stmt);
-	scop = update_scop_start_end(scop, stmt->getSourceRange(), skip_semi);
+	scop = update_scop_start_end(scop, range, skip_semi);
 	return scop;
 }
 
@@ -3640,7 +3638,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt)
 	pe_write = pet_expr_access_set_write(pe_write, 1);
 	pe_write = pet_expr_access_set_read(pe_write, 0);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, pe_write, pe);
-	return extract(stmt, pe);
+	return extract(pe, stmt->getSourceRange(), false);
 }
 
 /* Create a pet_scop with a single statement with name S_<stmt_nr>,
@@ -4129,7 +4127,8 @@ struct pet_scop *PetScan::extract(LabelStmt *stmt)
 
 	label = isl_id_alloc(ctx, stmt->getName(), NULL);
 
-	return extract(sub, extract_expr(cast<Expr>(sub)), label);
+	return extract(extract_expr(cast<Expr>(sub)), stmt->getSourceRange(),
+			true, label);
 }
 
 /* Return a one-dimensional multi piecewise affine expression that is equal
@@ -4215,7 +4214,8 @@ struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	struct pet_scop *scop;
 
 	if (isa<Expr>(stmt))
-		return extract(stmt, extract_expr(cast<Expr>(stmt)));
+		return extract(extract_expr(cast<Expr>(stmt)),
+				stmt->getSourceRange(), true);
 
 	switch (stmt->getStmtClass()) {
 	case Stmt::WhileStmtClass:
