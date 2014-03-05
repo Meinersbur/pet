@@ -3593,12 +3593,39 @@ static SourceLocation move_to_start_of_line_if_first_token(SourceLocation loc,
 		return loc;
 }
 
+/* Update start and end of "scop" to include the region covered by "range".
+ * If "skip_semi" is set, then we assume "range" is followed by
+ * a semicolon and also include this semicolon.
+ */
+struct pet_scop *PetScan::update_scop_start_end(struct pet_scop *scop,
+	SourceRange range, bool skip_semi)
+{
+	SourceLocation loc = range.getBegin();
+	SourceManager &SM = PP.getSourceManager();
+	const LangOptions &LO = PP.getLangOpts();
+	unsigned start, end;
+
+	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
+	start = getExpansionOffset(SM, loc);
+	loc = range.getEnd();
+	if (skip_semi)
+		loc = location_after_semi(loc, SM, LO);
+	else
+		loc = PP.getLocForEndOfToken(loc);
+	end = getExpansionOffset(SM, loc);
+
+	scop = pet_scop_update_start_end(scop, start, end);
+	return scop;
+}
+
 /* Convert a top-level pet_expr to a pet_scop with one statement.
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
  * The name is given by "label" if it is non-NULL.  Otherwise,
  * it is of the form S_<n_stmt>.
  * start and end of the pet_scop are derived from those of "stmt".
+ * If "stmt" is an expression statement, then its range does not
+ * include the semicolon, while it should be included in the pet_scop.
  */
 struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
 	__isl_take isl_id *label)
@@ -3606,22 +3633,15 @@ struct pet_scop *PetScan::extract(Stmt *stmt, struct pet_expr *expr,
 	struct pet_stmt *ps;
 	struct pet_scop *scop;
 	SourceLocation loc = stmt->getLocStart();
-	SourceManager &SM = PP.getSourceManager();
-	const LangOptions &LO = PP.getLangOpts();
 	int line = PP.getSourceManager().getExpansionLineNumber(loc);
-	unsigned start, end;
+	bool skip_semi;
 
 	expr = resolve_nested(expr);
 	ps = pet_stmt_from_pet_expr(ctx, line, label, n_stmt++, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 
-	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
-	start = getExpansionOffset(SM, loc);
-	loc = stmt->getLocEnd();
-	loc = location_after_semi(loc, SM, LO);
-	end = getExpansionOffset(SM, loc);
-
-	scop = pet_scop_update_start_end(scop, start, end);
+	skip_semi = isa<Expr>(stmt);
+	scop = update_scop_start_end(scop, stmt->getSourceRange(), skip_semi);
 	return scop;
 }
 
@@ -4822,10 +4842,6 @@ struct pet_scop *PetScan::extract(BreakStmt *stmt)
 struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 {
 	struct pet_scop *scop;
-	unsigned start, end;
-	SourceLocation loc;
-	SourceManager &SM = PP.getSourceManager();
-	const LangOptions &LO = PP.getLangOpts();
 
 	if (isa<Expr>(stmt))
 		return extract(stmt, extract_expr(cast<Expr>(stmt)));
@@ -4863,12 +4879,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	if (partial || skip_declarations)
 		return scop;
 
-	loc = stmt->getLocStart();
-	loc = move_to_start_of_line_if_first_token(loc, SM, LO);
-	start = getExpansionOffset(SM, loc);
-	loc = PP.getLocForEndOfToken(stmt->getLocEnd());
-	end = getExpansionOffset(SM, loc);
-	scop = pet_scop_update_start_end(scop, start, end);
+	scop = update_scop_start_end(scop, stmt->getSourceRange(), false);
 
 	return scop;
 }

@@ -136,6 +136,8 @@ private:
 	struct pet_scop *extract(clang::BreakStmt *stmt);
 	struct pet_scop *extract(clang::DeclStmt *expr);
 
+	struct pet_scop *update_scop_start_end(struct pet_scop *scop,
+		clang::SourceRange range, bool skip_semi);
 	struct pet_scop *extract(clang::Stmt *stmt, struct pet_expr *expr,
 				__isl_take isl_id *label = NULL);
 	struct pet_stmt *extract_kill(struct pet_scop *scop);
