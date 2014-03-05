@@ -78,10 +78,11 @@ struct pet_scop_ext {
  * The domains of all access relations are modified to refer
  * to the statement iteration domain.
  */
-struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
-	__isl_take isl_id *label, int id, __isl_take pet_expr *expr)
+struct pet_stmt *pet_stmt_from_pet_expr(int line, __isl_take isl_id *label,
+	int id, __isl_take pet_expr *expr)
 {
 	struct pet_stmt *stmt;
+	isl_ctx *ctx;
 	isl_space *dim;
 	isl_set *dom;
 	isl_map *sched;
@@ -91,6 +92,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(isl_ctx *ctx, int line,
 	if (!expr)
 		goto error;
 
+	ctx = pet_expr_get_ctx(expr);
 	stmt = isl_calloc_type(ctx, struct pet_stmt);
 	if (!stmt)
 		goto error;

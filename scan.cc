@@ -3578,7 +3578,7 @@ struct pet_scop *PetScan::extract(Stmt *stmt, __isl_take pet_expr *expr,
 	bool skip_semi;
 
 	expr = resolve_nested(expr);
-	ps = pet_stmt_from_pet_expr(ctx, line, label, n_stmt++, expr);
+	ps = pet_stmt_from_pet_expr(line, label, n_stmt++, expr);
 	scop = pet_scop_from_pet_stmt(ctx, ps);
 
 	skip_semi = isa<Expr>(stmt);
@@ -3777,7 +3777,7 @@ struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
 	expr = extract_expr(cond);
 	expr = resolve_nested(expr);
 	expr = pet_expr_new_binary(pet_op_assign, write, expr);
-	ps = pet_stmt_from_pet_expr(ctx, line, NULL, stmt_nr, expr);
+	ps = pet_stmt_from_pet_expr(line, NULL, stmt_nr, expr);
 	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
@@ -4190,7 +4190,7 @@ static struct pet_scop *extract_skip(PetScan *scan,
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, scan->n_stmt++, expr);
+	stmt = pet_stmt_from_pet_expr(-1, NULL, scan->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
 	scop = scop_add_array(scop, skip_index, scan->ast_context);
@@ -4754,7 +4754,7 @@ static struct pet_scop *extract_skip_seq(PetScan *ps,
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(ctx, -1, NULL, ps->n_stmt++, expr);
+	stmt = pet_stmt_from_pet_expr(-1, NULL, ps->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
 	scop = scop_add_array(scop, skip_index, ps->ast_context);
@@ -4888,7 +4888,7 @@ struct pet_stmt *PetScan::extract_kill(struct pet_scop *scop)
 	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
 	kill = pet_expr_kill_from_access_and_index(access, index);
-	return pet_stmt_from_pet_expr(ctx, stmt->line, NULL, n_stmt++, kill);
+	return pet_stmt_from_pet_expr(stmt->line, NULL, n_stmt++, kill);
 }
 
 /* Mark all arrays in "scop" as being exposed.
