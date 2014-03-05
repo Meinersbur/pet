@@ -296,7 +296,7 @@ static int is_postfix(enum pet_op_type op)
  * The access subexpressions are replaced by the isl_ast_expr
  * associated to its reference identifier in "ref2expr".
  */
-static __isl_take isl_printer *print_pet_expr(__isl_take isl_printer *p,
+static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
 	struct pet_expr *expr, int outer,
 	__isl_keep isl_id_to_ast_expr *ref2expr)
 {
