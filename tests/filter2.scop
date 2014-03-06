@@ -3,6 +3,12 @@ end: 97
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
+  extent: '{ __pet_test_0[] }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
   extent: '{ test[i0] : i0 >= 0 }'
   element_type: int
   element_size: 4
@@ -11,9 +17,35 @@ arrays:
   element_type: int
   element_size: 4
 statements:
+- line: 4
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0, 0] }'
+  body:
+    type: binary
+    operation: =
+    arguments:
+    - type: access
+      relation: '{ S_0[] -> __pet_test_0[] }'
+      index: '{ S_0[] -> __pet_test_0[] }'
+      reference: __pet_ref_0
+      read: 0
+      write: 1
+    - type: access
+      relation: '{ [S_0[] -> [i0]] -> test[i0] : i0 >= 0 }'
+      index: '{ [S_0[] -> [i0]] -> test[((i0) : i0 >= 0)] }'
+      reference: __pet_ref_2
+      read: 1
+      write: 0
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> index[] }'
+        index: '{ S_0[] -> index[] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0
 - line: 5
-  domain: '{ [S_1[] -> [test]] : test <= -1 or test >= 1 }'
-  schedule: '{ S_1[] -> [0] }'
+  domain: '{ [S_1[] -> [1]] }'
+  schedule: '{ S_1[] -> [0, 1] }'
   body:
     type: binary
     operation: =
@@ -21,19 +53,19 @@ statements:
     - type: access
       relation: '{ S_1[] -> index[] }'
       index: '{ S_1[] -> index[] }'
-      reference: __pet_ref_1
+      reference: __pet_ref_4
       read: 0
       write: 1
     - type: access
       relation: '{ S_1[] -> [5] }'
       index: '{ S_1[] -> [(5)] }'
-      reference: __pet_ref_2
+      reference: __pet_ref_5
       read: 1
       write: 0
   arguments:
   - type: access
-    relation: '[index] -> { S_1[] -> test[index] : index >= 0 }'
-    index: '[index] -> { S_1[] -> test[((index) : index >= 0)] }'
-    reference: __pet_ref_0
+    relation: '{ S_1[] -> __pet_test_0[] }'
+    index: '{ S_1[] -> __pet_test_0[] }'
+    reference: __pet_ref_3
     read: 1
     write: 0

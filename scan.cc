@@ -4653,6 +4653,11 @@ struct pet_scop *PetScan::extract(IfStmt *stmt)
 	isl_set *set;
 	isl_set *valid;
 
+	clear_assignments clear(assigned_value);
+	clear.TraverseStmt(stmt->getThen());
+	if (stmt->getElse())
+		clear.TraverseStmt(stmt->getElse());
+
 	scop = extract_conditional_assignment(stmt);
 	if (scop)
 		return scop;
