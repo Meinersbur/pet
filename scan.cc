@@ -2793,15 +2793,6 @@ struct pet_scop *PetScan::extract(CompoundStmt *stmt, bool skip_declarations)
 	return extract(stmt->children(), !skip_declarations, skip_declarations);
 }
 
-/* Extract a pet_expr from an isl_id created by pet_nested_pet_expr.
- * Such an isl_id has name "__pet_expr" and
- * the user pointer points to a pet_expr object.
- */
-__isl_give pet_expr *PetScan::extract_expr(__isl_keep isl_id *id)
-{
-	return pet_expr_copy((pet_expr *) isl_id_get_user(id));
-}
-
 /* For each nested access parameter in "space",
  * construct a corresponding pet_expr, place it in args and
  * record its position in "param2pos".
@@ -2828,7 +2819,7 @@ int PetScan::extract_nested(__isl_keep isl_space *space,
 			continue;
 		}
 
-		args[n_arg] = extract_expr(id);
+		args[n_arg] = pet_nested_extract_expr(id);
 		isl_id_free(id);
 		if (!args[n_arg])
 			return -1;
@@ -3563,7 +3554,7 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 			continue;
 		}
 
-		expr = extract_expr(id);
+		expr = pet_nested_extract_expr(id);
 		allowed = pet_expr_get_type(expr) == pet_expr_access &&
 			    !is_assigned(expr, scop);
 

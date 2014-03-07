@@ -57,6 +57,15 @@ __isl_give isl_id *pet_nested_pet_expr(__isl_take pet_expr *expr)
 	return id;
 }
 
+/* Extract a pet_expr from an isl_id created by pet_nested_pet_expr.
+ * Such an isl_id has name "__pet_expr" and
+ * the user pointer points to a pet_expr object.
+ */
+__isl_give pet_expr *pet_nested_extract_expr(__isl_keep isl_id *id)
+{
+	return pet_expr_copy((pet_expr *) isl_id_get_user(id));
+}
+
 /* Does "id" refer to a nested access created by pet_nested_pet_expr?
  */
 int pet_nested_in_id(__isl_keep isl_id *id)
