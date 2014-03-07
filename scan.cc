@@ -4200,6 +4200,12 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 	if (!scop)
 		return true;
 
+	if (!has_nested(pa))
+		return true;
+
+	if (pet_scop_has_skip(scop, pet_skip_now))
+		return false;
+
 	nparam = isl_pw_aff_dim(pa, isl_dim_param);
 	for (int i = 0; i < nparam; ++i) {
 		Expr *nested;
@@ -4210,11 +4216,6 @@ bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
 		if (!is_nested_parameter(id)) {
 			isl_id_free(id);
 			continue;
-		}
-
-		if (pet_scop_has_skip(scop, pet_skip_now)) {
-			isl_id_free(id);
-			return false;
 		}
 
 		nested = (Expr *) isl_id_get_user(id);
