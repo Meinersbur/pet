@@ -653,3 +653,219 @@ error:
 	free(param2pos);
 	return pet_expr_free(expr);
 }
+
+/* Precompose the access relation and the index expression associated
+ * to "expr" with the function pointed to by "user",
+ * thereby embedding the access relation in the domain of this function.
+ * The initial domain of the access relation and the index expression
+ * is the zero-dimensional domain.
+ */
+static __isl_give pet_expr *embed_access(__isl_take pet_expr *expr, void *user)
+{
+	isl_multi_aff *ma = (isl_multi_aff *) user;
+
+	return pet_expr_access_pullback_multi_aff(expr, isl_multi_aff_copy(ma));
+}
+
+/* Precompose all access relations in "expr" with "ma", thereby
+ * embedding them in the domain of "ma".
+ */
+static __isl_give pet_expr *embed(__isl_take pet_expr *expr,
+	__isl_keep isl_multi_aff *ma)
+{
+	return pet_expr_map_access(expr, &embed_access, ma);
+}
+
+/* For each nested access parameter in the domain of "stmt",
+ * construct a corresponding pet_expr, place it before the original
+ * elements in stmt->args and record its position in "param2pos".
+ * n is the number of nested access parameters.
+ */
+struct pet_stmt *pet_stmt_extract_nested(struct pet_stmt *stmt, int n,
+	int *param2pos)
+{
+	int i;
+	isl_ctx *ctx;
+	isl_space *space;
+	int n_arg;
+	pet_expr **args;
+
+	ctx = isl_set_get_ctx(stmt->domain);
+
+	n_arg = stmt->n_arg;
+	args = isl_calloc_array(ctx, pet_expr *, n + n_arg);
+	if (!args)
+		goto error;
+
+	space = isl_set_get_space(stmt->domain);
+	n_arg = pet_extract_nested_from_space(space, 0, args, param2pos);
+	isl_space_free(space);
+
+	if (n_arg < 0)
+		goto error;
+
+	for (i = 0; i < stmt->n_arg; ++i)
+		args[n_arg + i] = stmt->args[i];
+	free(stmt->args);
+	stmt->args = args;
+	stmt->n_arg += n_arg;
+
+	return stmt;
+error:
+	if (args) {
+		for (i = 0; i < n; ++i)
+			pet_expr_free(args[i]);
+		free(args);
+	}
+	pet_stmt_free(stmt);
+	return NULL;
+}
+
+/* Check whether any of the arguments i of "stmt" starting at position "n"
+ * is equal to one of the first "n" arguments j.
+ * If so, combine the constraints on arguments i and j and remove
+ * argument i.
+ */
+static struct pet_stmt *remove_duplicate_arguments(struct pet_stmt *stmt, int n)
+{
+	int i, j;
+	isl_map *map;
+
+	if (!stmt)
+		return NULL;
+	if (n == 0)
+		return stmt;
+	if (n == stmt->n_arg)
+		return stmt;
+
+	map = isl_set_unwrap(stmt->domain);
+
+	for (i = stmt->n_arg - 1; i >= n; --i) {
+		for (j = 0; j < n; ++j)
+			if (pet_expr_is_equal(stmt->args[i], stmt->args[j]))
+				break;
+		if (j >= n)
+			continue;
+
+		map = isl_map_equate(map, isl_dim_out, i, isl_dim_out, j);
+		map = isl_map_project_out(map, isl_dim_out, i, 1);
+
+		pet_expr_free(stmt->args[i]);
+		for (j = i; j + 1 < stmt->n_arg; ++j)
+			stmt->args[j] = stmt->args[j + 1];
+		stmt->n_arg--;
+	}
+
+	stmt->domain = isl_map_wrap(map);
+	if (!stmt->domain)
+		goto error;
+	return stmt;
+error:
+	pet_stmt_free(stmt);
+	return NULL;
+}
+
+/* Look for parameters in the iteration domain of "stmt" that
+ * refer to nested accesses.  In particular, these are
+ * parameters with name "__pet_expr".
+ *
+ * If there are any such parameters, then as many extra variables
+ * (after identifying identical nested accesses) are inserted in the
+ * range of the map wrapped inside the domain, before the original variables.
+ * If the original domain is not a wrapped map, then a new wrapped
+ * map is created with zero output dimensions.
+ * The parameters are then equated to the corresponding output dimensions
+ * and subsequently projected out, from the iteration domain,
+ * the schedule and the access relations.
+ * For each of the output dimensions, a corresponding argument
+ * expression is inserted.  Initially they are created with
+ * a zero-dimensional domain, so they have to be embedded
+ * in the current iteration domain.
+ * param2pos maps the position of the parameter to the position
+ * of the corresponding output dimension in the wrapped map.
+ */
+struct pet_stmt *pet_stmt_resolve_nested(struct pet_stmt *stmt)
+{
+	int i, n;
+	int pos;
+	int nparam;
+	unsigned n_arg;
+	isl_ctx *ctx;
+	isl_map *map;
+	isl_space *space;
+	isl_multi_aff *ma;
+	int *param2pos;
+
+	if (!stmt)
+		return NULL;
+
+	n = pet_nested_n_in_set(stmt->domain);
+	if (n == 0)
+		return stmt;
+
+	ctx = isl_set_get_ctx(stmt->domain);
+
+	n_arg = stmt->n_arg;
+	nparam = isl_set_dim(stmt->domain, isl_dim_param);
+	param2pos = isl_alloc_array(ctx, int, nparam);
+	stmt = pet_stmt_extract_nested(stmt, n, param2pos);
+	if (!stmt) {
+		free(param2pos);
+		return NULL;
+	}
+
+	n = stmt->n_arg - n_arg;
+	if (isl_set_is_wrapping(stmt->domain))
+		map = isl_set_unwrap(stmt->domain);
+	else
+		map = isl_map_from_domain(stmt->domain);
+	map = isl_map_insert_dims(map, isl_dim_out, 0, n);
+
+	for (i = nparam - 1; i >= 0; --i) {
+		isl_id *id;
+
+		if (!pet_nested_in_map(map, i))
+			continue;
+
+		id = pet_expr_access_get_id(stmt->args[param2pos[i]]);
+		map = isl_map_set_dim_id(map, isl_dim_out, param2pos[i], id);
+		map = isl_map_equate(map, isl_dim_param, i, isl_dim_out,
+					param2pos[i]);
+		map = isl_map_project_out(map, isl_dim_param, i, 1);
+	}
+
+	stmt->domain = isl_map_wrap(map);
+
+	space = isl_space_unwrap(isl_set_get_space(stmt->domain));
+	space = isl_space_from_domain(isl_space_domain(space));
+	ma = isl_multi_aff_zero(space);
+	for (pos = 0; pos < n; ++pos)
+		stmt->args[pos] = embed(stmt->args[pos], ma);
+	isl_multi_aff_free(ma);
+
+	stmt = pet_stmt_remove_nested_parameters(stmt);
+	stmt = remove_duplicate_arguments(stmt, n);
+
+	free(param2pos);
+	return stmt;
+}
+
+/* For each statement in "scop", move the parameters that correspond
+ * to nested access into the ranges of the domains and create
+ * corresponding argument expressions.
+ */
+struct pet_scop *pet_scop_resolve_nested(struct pet_scop *scop)
+{
+	int i;
+
+	if (!scop)
+		return NULL;
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = pet_stmt_resolve_nested(scop->stmts[i]);
+		if (!scop->stmts[i])
+			return pet_scop_free(scop);
+	}
+
+	return scop;
+}
