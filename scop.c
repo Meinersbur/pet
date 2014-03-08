@@ -36,6 +36,7 @@
 #include <isl/constraint.h>
 #include <isl/union_set.h>
 
+#include "aff.h"
 #include "expr.h"
 #include "filter.h"
 #include "loc.h"
@@ -1047,6 +1048,144 @@ static int extent_is_virtual_array(__isl_keep isl_set *extent)
 	isl_id_free(id);
 
 	return is_virtual;
+}
+
+/* Intersect the initial dimensions of "array" with "domain", provided
+ * that "array" represents a virtual array.
+ *
+ * If "array" is virtual, then We take the preimage of "domain"
+ * over the projection of the extent of "array" onto its initial dimensions
+ * and intersect this extent with the result.
+ */
+static struct pet_array *virtual_array_intersect_domain_prefix(
+	struct pet_array *array, __isl_take isl_set *domain)
+{
+	int n;
+	isl_space *space;
+	isl_multi_aff *ma;
+
+	if (!array || !extent_is_virtual_array(array->extent)) {
+		isl_set_free(domain);
+		return array;
+	}
+
+	space = isl_set_get_space(array->extent);
+	n = isl_set_dim(domain, isl_dim_set);
+	ma = pet_prefix_projection(space, n);
+	domain = isl_set_preimage_multi_aff(domain, ma);
+
+	array->extent = isl_set_intersect(array->extent, domain);
+	if (!array->extent)
+		return pet_array_free(array);
+
+	return array;
+}
+
+/* Intersect the initial dimensions of the domain of "stmt"
+ * with "domain".
+ *
+ * We take the preimage of "domain" over the projection of the
+ * domain of "stmt" onto its initial dimensions and intersect
+ * the domain of "stmt" with the result.
+ */
+static struct pet_stmt *stmt_intersect_domain_prefix(struct pet_stmt *stmt,
+	__isl_take isl_set *domain)
+{
+	int n;
+	isl_space *space;
+	isl_multi_aff *ma;
+
+	if (!stmt)
+		goto error;
+
+	space = isl_set_get_space(stmt->domain);
+	n = isl_set_dim(domain, isl_dim_set);
+	ma = pet_prefix_projection(space, n);
+	domain = isl_set_preimage_multi_aff(domain, ma);
+
+	stmt->domain = isl_set_intersect(stmt->domain, domain);
+	if (!stmt->domain)
+		return pet_stmt_free(stmt);
+
+	return stmt;
+error:
+	isl_set_free(domain);
+	return pet_stmt_free(stmt);
+}
+
+/* Intersect the initial dimensions of the domain of "implication"
+ * with "domain".
+ *
+ * We take the preimage of "domain" over the projection of the
+ * domain of "implication" onto its initial dimensions and intersect
+ * the domain of "implication" with the result.
+ */
+static struct pet_implication *implication_intersect_domain_prefix(
+	struct pet_implication *implication, __isl_take isl_set *domain)
+{
+	int n;
+	isl_space *space;
+	isl_multi_aff *ma;
+
+	if (!implication)
+		goto error;
+
+	space = isl_map_get_space(implication->extension);
+	n = isl_set_dim(domain, isl_dim_set);
+	ma = pet_prefix_projection(isl_space_domain(space), n);
+	domain = isl_set_preimage_multi_aff(domain, ma);
+
+	implication->extension =
+		isl_map_intersect_domain(implication->extension, domain);
+	if (!implication->extension)
+		return pet_implication_free(implication);
+
+	return implication;
+error:
+	isl_set_free(domain);
+	return pet_implication_free(implication);
+}
+
+/* Intersect the initial dimensions of the domains in "scop" with "domain".
+ *
+ * The extents of the virtual arrays match the iteration domains,
+ * so if the iteration domain changes, we need to change those extents too.
+ */
+struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
+	__isl_take isl_set *domain)
+{
+	int i;
+
+	if (!scop)
+		goto error;
+
+	for (i = 0; i < scop->n_array; ++i) {
+		scop->arrays[i] = virtual_array_intersect_domain_prefix(
+					scop->arrays[i], isl_set_copy(domain));
+		if (!scop->arrays[i])
+			goto error;
+	}
+
+	for (i = 0; i < scop->n_stmt; ++i) {
+		scop->stmts[i] = stmt_intersect_domain_prefix(scop->stmts[i],
+						    isl_set_copy(domain));
+		if (!scop->stmts[i])
+			goto error;
+	}
+
+	for (i = 0; i < scop->n_implication; ++i) {
+		scop->implications[i] =
+		    implication_intersect_domain_prefix(scop->implications[i],
+						    isl_set_copy(domain));
+		if (!scop->implications[i])
+			return pet_scop_free(scop);
+	}
+
+	isl_set_free(domain);
+	return scop;
+error:
+	isl_set_free(domain);
+	return pet_scop_free(scop);
 }
 
 /* Prefix the schedule of "stmt" with an extra dimension with constant

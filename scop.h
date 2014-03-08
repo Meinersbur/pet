@@ -43,6 +43,8 @@ struct pet_scop *pet_scop_add_par(isl_ctx *ctx, struct pet_scop *scop1,
 
 int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2);
 
+struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
+	__isl_take isl_set *domain);
 struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos);
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_aff *sched, __isl_take isl_aff *iv_map,
