@@ -1029,6 +1029,23 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 	return 1;
 }
 
+/* Does the set "extent" reference a virtual array, i.e.,
+ * one with user pointer equal to NULL?
+ */
+static int extent_is_virtual_array(__isl_keep isl_set *extent)
+{
+	isl_id *id;
+	int is_virtual;
+
+	if (!isl_set_has_tuple_id(extent))
+		return 0;
+	id = isl_set_get_tuple_id(extent);
+	is_virtual = !isl_id_get_user(id);
+	isl_id_free(id);
+
+	return is_virtual;
+}
+
 /* Prefix the schedule of "stmt" with an extra dimension with constant
  * value "pos".
  */
@@ -1489,19 +1506,16 @@ static struct pet_array *pet_array_embed(struct pet_array *array,
 
 	if (!array)
 		goto error;
-
-	if (isl_set_has_tuple_id(array->extent))
-		array_id = isl_set_get_tuple_id(array->extent);
-
-	if (array_id && !isl_id_get_user(array_id)) {
-		array->extent = isl_set_flat_product(dom, array->extent);
-		array->extent = isl_set_set_tuple_id(array->extent, array_id);
-		if (!array->extent)
-			return pet_array_free(array);
-	} else {
+	if (!extent_is_virtual_array(array->extent)) {
 		isl_set_free(dom);
-		isl_id_free(array_id);
+		return array;
 	}
+
+	array_id = isl_set_get_tuple_id(array->extent);
+	array->extent = isl_set_flat_product(dom, array->extent);
+	array->extent = isl_set_set_tuple_id(array->extent, array_id);
+	if (!array->extent)
+		return pet_array_free(array);
 
 	return array;
 error:
