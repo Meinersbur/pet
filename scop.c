@@ -3808,21 +3808,23 @@ __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop)
 	return schedule;
 }
 
-/* Does expression "expr" write to "id"?
+/* Internal data structure for expr_writes.
+ * "id" is the identifier that we are looking for.
+ * "found" is set if we have found the identifier being written to.
  */
-static int expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
+struct pet_expr_writes_data {
+	isl_id *id;
+	int found;
+};
+
+/* Given an access expression, check if it writes to data->id.
+ * If so, set data->found and abort the search.
+ */
+static int writes(struct pet_expr *expr, void *user)
 {
-	int i;
+	struct pet_expr_writes_data *data = user;
 	isl_id *write_id;
 
-	for (i = 0; i < expr->n_arg; ++i) {
-		int writes = expr_writes(expr->args[i], id);
-		if (writes < 0 || writes)
-			return writes;
-	}
-
-	if (expr->type != pet_expr_access)
-		return 0;
 	if (!expr->acc.write)
 		return 0;
 	if (pet_expr_is_affine(expr))
@@ -3834,7 +3836,26 @@ static int expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
 	if (!write_id)
 		return -1;
 
-	return write_id == id;
+	if (write_id != data->id)
+		return 0;
+
+	data->found = 1;
+	return -1;
+}
+
+/* Does expression "expr" write to "id"?
+ */
+static int expr_writes(struct pet_expr *expr, __isl_keep isl_id *id)
+{
+	struct pet_expr_writes_data data;
+
+	data.id = id;
+	data.found = 0;
+	if (pet_expr_foreach_access_expr(expr, &writes, &data) < 0 &&
+	    !data.found)
+		return -1;
+
+	return data.found;
 }
 
 /* Does statement "stmt" write to "id"?
