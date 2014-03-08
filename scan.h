@@ -54,10 +54,6 @@ struct PetScan {
 	 * represents part of the input tree.
 	 */
 	bool partial;
-	/* Set is nested accesses are allowed in general.
-	 * This currently defaults to true.
-	 */
-	bool allow_nested;
 	/* Set if nested accesses are allowed in that part of the tree
 	 * that is currently under investigation.
 	 */
@@ -74,8 +70,7 @@ struct PetScan {
 		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
 		ast_context(ast_context), loc(loc),
 		options(options), value_bounds(value_bounds),
-		n_stmt(0), n_test(0), partial(0), allow_nested(true),
-		nesting_enabled(false) { }
+		n_stmt(0), n_test(0), partial(0), nesting_enabled(false) { }
 
 	~PetScan();
 

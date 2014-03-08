@@ -1742,12 +1742,6 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt, __isl_keep pet_context *pc)
 	if (pa)
 		return extract_affine_while(pa, stmt->getBody(), pc);
 
-	if (!allow_nested) {
-		unsupported(stmt);
-		pet_context_free(pc);
-		return NULL;
-	}
-
 	test_nr = n_test++;
 	stmt_nr = n_stmt++;
 	scop_body = extract(stmt->getBody(), pc);
@@ -2080,12 +2074,6 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
 	struct pet_array *array;
 	struct pet_scop *scop_kill;
 
-	if (!allow_nested) {
-		unsupported(stmt);
-		pet_context_free(pc);
-		return NULL;
-	}
-
 	pc = pet_context_mark_assigned(pc, create_decl_id(ctx, iv));
 
 	declared = !initialization_assignment(stmt->getInit());
@@ -2325,7 +2313,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 	pet_expr_free(pe_inc);
 
 	pa = try_extract_nested_condition(stmt->getCond(), pc);
-	if (allow_nested && (!pa || pet_nested_any_in_pw_aff(pa)))
+	if (!pa || pet_nested_any_in_pw_aff(pa))
 		stmt_id = n_stmt++;
 
 	scop = extract(stmt->getBody(), pc);
@@ -2357,11 +2345,9 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt, __isl_keep pet_context *pc)
 		pa = NULL;
 	}
 
-	if (!allow_nested && !pa)
-		pa = extract_condition(stmt->getCond(), pc);
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
-	if (allow_nested && !cond) {
+	if (!cond) {
 		isl_multi_pw_aff *test_index;
 		int save_n_stmt = n_stmt;
 		test_index = pet_create_test_index(ctx, n_test++);
@@ -2630,8 +2616,7 @@ bool PetScan::is_affine_condition(Expr *expr, __isl_keep pet_context *pc)
 
 /* Check if we can extract a condition from "expr" within the context "pc".
  * Return the condition as an isl_pw_aff if we can and NULL otherwise.
- * If allow_nested is set, then the condition may involve parameters
- * corresponding to nested accesses.
+ * The condition may involve parameters corresponding to nested accesses.
  * We turn on autodetection so that we won't generate any warnings.
  */
 __isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr,
@@ -2642,7 +2627,7 @@ __isl_give isl_pw_aff *PetScan::try_extract_nested_condition(Expr *expr,
 	bool save_nesting = nesting_enabled;
 
 	options->autodetect = 1;
-	nesting_enabled = allow_nested;
+	nesting_enabled = true;
 	cond = extract_condition(expr, pc);
 
 	options->autodetect = save_autodetect;
@@ -2726,7 +2711,7 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt,
 		return NULL;
 	}
 
-	nesting_enabled = allow_nested;
+	nesting_enabled = true;
 	pa = extract_condition(stmt->getCond(), pc);
 	nesting_enabled = save_nesting;
 	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(pa));
@@ -2950,7 +2935,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt, __isl_keep pet_context *pc)
 	}
 
 	cond = try_extract_nested_condition(stmt->getCond(), pc);
-	if (allow_nested && (!cond || pet_nested_any_in_pw_aff(cond)))
+	if (!cond || pet_nested_any_in_pw_aff(cond))
 		stmt_id = n_stmt++;
 
 	scop_then = extract(stmt->getThen(), pc);
@@ -2979,7 +2964,7 @@ struct pet_scop *PetScan::extract(IfStmt *stmt, __isl_keep pet_context *pc)
 		isl_pw_aff_free(cond);
 		cond = NULL;
 	}
-	if (allow_nested && !cond)
+	if (!cond)
 		return extract_non_affine_if(stmt->getCond(), scop_then,
 				scop_else, stmt->getElse(), stmt_id, pc);
 
