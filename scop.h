@@ -66,8 +66,6 @@ struct pet_scop *pet_scop_gist(struct pet_scop *scop,
 struct pet_scop *pet_scop_add_ref_ids(struct pet_scop *scop);
 struct pet_scop *pet_scop_anonymize(struct pet_scop *scop);
 
-int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id);
-
 int pet_scop_has_skip(struct pet_scop *scop, enum pet_skip type);
 int pet_scop_has_affine_skip(struct pet_scop *scop, enum pet_skip type);
 int pet_scop_has_universal_skip(struct pet_scop *scop, enum pet_skip type);

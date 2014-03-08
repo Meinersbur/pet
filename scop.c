@@ -2804,31 +2804,6 @@ __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop)
 	return schedule;
 }
 
-/* Does statement "stmt" write to "id"?
- */
-static int stmt_writes(struct pet_stmt *stmt, __isl_keep isl_id *id)
-{
-	return pet_expr_writes(stmt->body, id);
-}
-
-/* Is there any write access in "scop" that accesses "id"?
- */
-int pet_scop_writes(struct pet_scop *scop, __isl_keep isl_id *id)
-{
-	int i;
-
-	if (!scop)
-		return -1;
-
-	for (i = 0; i < scop->n_stmt; ++i) {
-		int writes = stmt_writes(scop->stmts[i], id);
-		if (writes < 0 || writes)
-			return writes;
-	}
-
-	return 0;
-}
-
 /* Add a reference identifier to all access expressions in "stmt".
  * "n_ref" points to an integer that contains the sequence number
  * of the next reference.
