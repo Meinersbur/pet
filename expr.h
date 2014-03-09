@@ -165,8 +165,6 @@ __isl_give pet_expr *pet_expr_align_params(__isl_take pet_expr *expr,
 	__isl_take isl_space *space);
 __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *test, int satisfied);
-__isl_give pet_expr *pet_expr_detect_parameter_accesses(
-	__isl_take pet_expr *expr, __isl_take isl_space *space);
 __isl_give pet_expr *pet_expr_add_ref_ids(__isl_take pet_expr *expr,
 	int *n_ref);
 __isl_give pet_expr *pet_expr_anonymize(__isl_take pet_expr *expr);

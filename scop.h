@@ -62,8 +62,6 @@ struct pet_scop *pet_scop_merge_filters(struct pet_scop *scop);
 struct pet_scop *pet_scop_add_implication(struct pet_scop *scop,
 	__isl_take isl_map *map, int satisfied);
 
-struct pet_scop *pet_scop_detect_parameter_accesses(struct pet_scop *scop);
-
 struct pet_scop *pet_scop_gist(struct pet_scop *scop,
 	__isl_keep isl_union_map *value_bounds);
 
