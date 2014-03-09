@@ -36,14 +36,15 @@
 
 #include "context.h"
 #include "expr.h"
+#include "nest.h"
 
 /* A pet_context represents the context in which a pet_expr
  * in converted to an affine expression.
  *
- * "domain" prescribes the domain space of the affine expressions.
+ * "domain" prescribes the domain of the affine expressions.
  *
  * "assignments" maps variable names to their currently known values.
- * The domains of the values are equal to "domain".
+ * The domains of the values are equal to the space of "domain".
  * If a variable has been assigned an unknown value (possibly because
  * it may be assigned a different expression in each iteration) or a value
  * that is not an affine expression, then the corresponding isl_pw_aff
@@ -55,7 +56,7 @@
 struct pet_context {
 	int ref;
 
-	isl_space *domain;
+	isl_set *domain;
 	isl_id_to_pw_aff *assignments;
 	int allow_nested;
 };
@@ -63,7 +64,7 @@ struct pet_context {
 /* Create a pet_context with the given domain, assignments,
  * and value for allow_nested.
  */
-static __isl_give pet_context *context_alloc(__isl_take isl_space *domain,
+static __isl_give pet_context *context_alloc(__isl_take isl_set *domain,
 	__isl_take isl_id_to_pw_aff *assignments, int allow_nested)
 {
 	pet_context *pc;
@@ -71,7 +72,7 @@ static __isl_give pet_context *context_alloc(__isl_take isl_space *domain,
 	if (!domain || !assignments)
 		goto error;
 
-	pc = isl_calloc_type(isl_space_get_ctx(domain), struct pet_context);
+	pc = isl_calloc_type(isl_set_get_ctx(domain), struct pet_context);
 	if (!pc)
 		goto error;
 
@@ -82,7 +83,7 @@ static __isl_give pet_context *context_alloc(__isl_take isl_space *domain,
 
 	return pc;
 error:
-	isl_space_free(domain);
+	isl_set_free(domain);
 	isl_id_to_pw_aff_free(assignments);
 	return NULL;
 }
@@ -92,14 +93,14 @@ error:
  * Initially, there are no assigned values and parameters that
  * encode a pet_expr are not allowed.
  */
-__isl_give pet_context *pet_context_alloc(__isl_take isl_space *domain)
+__isl_give pet_context *pet_context_alloc(__isl_take isl_set *domain)
 {
 	isl_id_to_pw_aff *assignments;
 
 	if (!domain)
 		return NULL;
 
-	assignments = isl_id_to_pw_aff_alloc(isl_space_get_ctx(domain), 0);;
+	assignments = isl_id_to_pw_aff_alloc(isl_set_get_ctx(domain), 0);;
 	return context_alloc(domain, assignments, 0);
 }
 
@@ -112,7 +113,7 @@ static __isl_give pet_context *pet_context_dup(__isl_keep pet_context *pc)
 	if (!pc)
 		return NULL;
 
-	dup = context_alloc(isl_space_copy(pc->domain),
+	dup = context_alloc(isl_set_copy(pc->domain),
 			    isl_id_to_pw_aff_copy(pc->assignments),
 			    pc->allow_nested);
 
@@ -152,7 +153,7 @@ __isl_null pet_context *pet_context_free(__isl_take pet_context *pc)
 	if (--pc->ref > 0)
 		return NULL;
 
-	isl_space_free(pc->domain);
+	isl_set_free(pc->domain);
 	isl_id_to_pw_aff_free(pc->assignments);
 	free(pc);
 	return NULL;
@@ -162,16 +163,35 @@ __isl_null pet_context *pet_context_free(__isl_take pet_context *pc)
  */
 isl_ctx *pet_context_get_ctx(__isl_keep pet_context *pc)
 {
-	return pc ? isl_space_get_ctx(pc->domain) : NULL;
+	return pc ? isl_set_get_ctx(pc->domain) : NULL;
 }
 
-/* Return the domain space of "pc".
+/* Return the domain of "pc".
  */
-__isl_give isl_space *pet_context_get_space(__isl_keep pet_context *pc)
+__isl_give isl_set *pet_context_get_domain(__isl_keep pet_context *pc)
 {
 	if (!pc)
 		return NULL;
-	return isl_space_copy(pc->domain);
+	return isl_set_copy(pc->domain);
+}
+
+/* Return the domain space of "pc".
+ *
+ * The domain of "pc" may have constraints involving parameters
+ * that encode a pet_expr.  These parameters are not relevant
+ * outside this domain.  Furthermore, they need to be resolved
+ * from the final result, so we do not want to propagate them needlessly.
+ */
+__isl_give isl_space *pet_context_get_space(__isl_keep pet_context *pc)
+{
+	isl_space *space;
+
+	if (!pc)
+		return NULL;
+
+	space = isl_set_get_space(pc->domain);
+	space = pet_nested_remove_from_space(space);
+	return space;
 }
 
 /* Return the dimension of the domain space of "pc".
@@ -180,7 +200,7 @@ unsigned pet_context_dim(__isl_keep pet_context *pc)
 {
 	if (!pc)
 		return 0;
-	return isl_space_dim(pc->domain, isl_dim_set);
+	return isl_set_dim(pc->domain, isl_dim_set);
 }
 
 /* Return the assignments of "pc".
@@ -430,7 +450,7 @@ void pet_context_dump(__isl_keep pet_context *pc)
 	if (!pc)
 		return;
 	fprintf(stderr, "domain: ");
-	isl_space_dump(pc->domain);
+	isl_set_dump(pc->domain);
 	fprintf(stderr, "assignments: ");
 	isl_id_to_pw_aff_dump(pc->assignments);
 	fprintf(stderr, "nesting allowed: %d\n", pc->allow_nested);

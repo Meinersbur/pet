@@ -2117,11 +2117,13 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 {
 	pet_scop *scop;
 	Stmt *stmt;
+	isl_set *domain;
 	pet_context *pc;
 
 	stmt = fd->getBody();
 
-	pc = pet_context_alloc(isl_space_set_alloc(ctx, 0, 0));
+	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	pc = pet_context_alloc(domain);
 	if (options->autodetect) {
 		scop = extract_scop(extract(stmt, true), pc);
 	} else {
