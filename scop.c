@@ -1031,6 +1031,7 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 
 /* Does the set "extent" reference a virtual array, i.e.,
  * one with user pointer equal to NULL?
+ * A virtual array does not have any members.
  */
 static int extent_is_virtual_array(__isl_keep isl_set *extent)
 {
@@ -1038,6 +1039,8 @@ static int extent_is_virtual_array(__isl_keep isl_set *extent)
 	int is_virtual;
 
 	if (!isl_set_has_tuple_id(extent))
+		return 0;
+	if (isl_set_is_wrapping(extent))
 		return 0;
 	id = isl_set_get_tuple_id(extent);
 	is_virtual = !isl_id_get_user(id);
