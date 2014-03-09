@@ -264,6 +264,24 @@ static __isl_give isl_set *after(__isl_take isl_set *cond, int sign)
 	return cond;
 }
 
+/* Remove those iterations of "domain" that have an earlier iteration
+ * (based on "sign") where "skip" is satisfied.
+ * "domain" has an extra outer loop compared to "skip".
+ * The skip condition is first embedded in the same space as "domain".
+ * If "apply_skip_map" is set, then "skip_map" is first applied
+ * to the embedded skip condition before removing it from the domain.
+ */
+static __isl_give isl_set *apply_affine_break(__isl_take isl_set *domain,
+	__isl_take isl_set *skip, int sign,
+	int apply_skip_map, __isl_keep isl_map *skip_map)
+{
+	skip = embed(skip, isl_set_get_dim_id(domain, isl_dim_set, 0));
+	if (apply_skip_map)
+		skip = isl_set_apply(skip, isl_map_copy(skip_map));
+	skip = isl_set_intersect(skip , isl_set_copy(domain));
+	return isl_set_subtract(domain, after(skip, sign));
+}
+
 /* Create the infinite iteration domain
  *
  *	{ [id] : id >= 0 }
@@ -292,9 +310,7 @@ static __isl_give isl_set *infinite_domain(__isl_take isl_id *id,
 		return domain;
 
 	skip = pet_scop_get_affine_skip_domain(scop, pet_skip_later);
-	skip = embed(skip, isl_id_copy(id));
-	skip = isl_set_intersect(skip , isl_set_copy(domain));
-	domain = isl_set_subtract(domain, after(skip, 1));
+	domain = apply_affine_break(domain, skip, 1, 0, NULL);
 
 	return domain;
 }
@@ -1246,12 +1262,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched, wrap, id);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {
-		skip = embed(skip, isl_id_copy(id));
-		if (is_virtual)
-			skip = isl_set_apply(skip, isl_map_copy(rev_wrap));
-		skip = isl_set_intersect(skip , isl_set_copy(domain));
-		skip = after(skip, isl_val_sgn(inc));
-		domain = isl_set_subtract(domain, skip);
+		domain = apply_affine_break(domain, skip, isl_val_sgn(inc),
+					    is_virtual, rev_wrap);
 		scop = pet_scop_intersect_domain_prefix(scop,
 							isl_set_copy(domain));
 	}
