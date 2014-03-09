@@ -1122,6 +1122,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	int is_unsigned;
 	int is_simple;
 	int is_virtual;
+	int is_non_affine;
 	int has_affine_break;
 	int has_var_break;
 	isl_aff *wrap = NULL;
@@ -1161,13 +1162,14 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (has_var_break)
 		id_break_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
-	if (isl_pw_aff_involves_nan(pa) ||
-	    !is_nested_allowed(pa, tree->u.l.body))
+	is_non_affine = isl_pw_aff_involves_nan(pa) ||
+			!is_nested_allowed(pa, tree->u.l.body);
+	if (is_non_affine)
 		pa = isl_pw_aff_free(pa);
 
 	valid_cond = isl_pw_aff_domain(isl_pw_aff_copy(pa));
 	cond = isl_pw_aff_non_zero_set(pa);
-	if (!cond) {
+	if (is_non_affine) {
 		isl_multi_pw_aff *test_index;
 		int save_n_stmt = state->n_stmt;
 		test_index = pet_create_test_index(state->ctx, state->n_test++);
@@ -1260,7 +1262,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (has_var_break)
 		scop = scop_add_break(scop, id_break_test, isl_set_copy(domain),
 					isl_val_copy(inc));
-	if (id_test) {
+	if (is_non_affine) {
 		scop = scop_add_while(scop_cond, scop, id_test, domain,
 					isl_val_copy(inc));
 		isl_set_free(valid_inc);
