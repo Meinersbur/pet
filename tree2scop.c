@@ -1506,14 +1506,13 @@ static struct pet_scop *scop_from_conditional_assignment(
  * adds them in pet_skip_info_if_add.
  */
 static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
-	struct pet_scop *scop_then, struct pet_scop *scop_else, int stmt_id,
-	__isl_take pet_context *pc, struct pet_state *state)
+	int stmt_id, __isl_take pet_context *pc, struct pet_state *state)
 {
 	int has_else;
 	int save_n_stmt = state->n_stmt;
 	isl_multi_pw_aff *test_index;
 	struct pet_skip_info skip;
-	struct pet_scop *scop;
+	struct pet_scop *scop, *scop_then, *scop_else = NULL;
 
 	has_else = tree->type == pet_tree_if_else;
 
@@ -1525,6 +1524,10 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 	state->n_stmt = save_n_stmt;
 	scop = pet_scop_add_boolean_array(scop,
 		isl_multi_pw_aff_copy(test_index), state->int_size);
+
+	scop_then = scop_from_tree(tree->u.i.then_body, pc, state);
+	if (has_else)
+		scop_else = scop_from_tree(tree->u.i.else_body, pc, state);
 
 	pet_skip_info_if_init(&skip, state->ctx, scop_then, scop_else,
 					has_else, 0);
@@ -1563,8 +1566,7 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
  * adds them in pet_skip_info_if_add.
  */
 static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
-	__isl_take isl_pw_aff *cond,
-	struct pet_scop *scop_then, struct pet_scop *scop_else,
+	__isl_take isl_pw_aff *cond, __isl_take pet_context *pc,
 	struct pet_state *state)
 {
 	int has_else;
@@ -1572,11 +1574,15 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 	isl_set *set;
 	isl_set *valid;
 	struct pet_skip_info skip;
-	struct pet_scop *scop;
+	struct pet_scop *scop, *scop_then, *scop_else = NULL;
 
 	ctx = pet_tree_get_ctx(tree);
 
 	has_else = tree->type == pet_tree_if_else;
+
+	scop_then = scop_from_tree(tree->u.i.then_body, pc, state);
+	if (has_else)
+		scop_else = scop_from_tree(tree->u.i.else_body, pc, state);
 
 	pet_skip_info_if_init(&skip, ctx, scop_then, scop_else, has_else, 1);
 	pet_skip_info_if_extract_cond(&skip, cond, state);
@@ -1598,6 +1604,7 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 		scop = pet_scop_prefix(scop, 0);
 	scop = pet_skip_info_if_add(&skip, scop, 1);
 
+	pet_context_free(pc);
 	return scop;
 }
 
@@ -1632,7 +1639,6 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 	int stmt_id;
 	isl_pw_aff *cond;
 	pet_expr *cond_expr;
-	struct pet_scop *scop_then, *scop_else = NULL;
 	pet_context *pc_nested;
 
 	if (!tree)
@@ -1664,25 +1670,18 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 	if (isl_pw_aff_involves_nan(cond) || pet_nested_any_in_pw_aff(cond))
 		stmt_id = state->n_stmt++;
 
-	scop_then = scop_from_tree(tree->u.i.then_body, pc, state);
-	if (has_else)
-		scop_else = scop_from_tree(tree->u.i.else_body, pc, state);
-
 	if (isl_pw_aff_involves_nan(cond)) {
 		isl_pw_aff_free(cond);
-		return scop_from_non_affine_if(tree, scop_then, scop_else,
-					stmt_id, pc, state);
+		return scop_from_non_affine_if(tree, stmt_id, pc, state);
 	}
 
 	if ((!is_nested_allowed(cond, tree->u.i.then_body) ||
 	     (has_else && !is_nested_allowed(cond, tree->u.i.else_body)))) {
 		isl_pw_aff_free(cond);
-		return scop_from_non_affine_if(tree, scop_then, scop_else,
-					stmt_id, pc, state);
+		return scop_from_non_affine_if(tree, stmt_id, pc, state);
 	}
 
-	pet_context_free(pc);
-	return scop_from_affine_if(tree, cond, scop_then, scop_else, state);
+	return scop_from_affine_if(tree, cond, pc, state);
 }
 
 /* Return a one-dimensional multi piecewise affine expression that is equal
