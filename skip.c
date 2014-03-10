@@ -50,15 +50,17 @@ static int if_need_skip(struct pet_scop *scop_then, struct pet_scop *scop_else,
 }
 
 /* Construct an affine expression pet_expr that evaluates
- * to the constant "val".
+ * to the constant "val" on "space".
  */
-static __isl_give pet_expr *universally(isl_ctx *ctx, int val)
+static __isl_give pet_expr *universally(__isl_take isl_space *space, int val)
 {
+	isl_ctx *ctx;
 	isl_local_space *ls;
 	isl_aff *aff;
 	isl_multi_pw_aff *mpa;
 
-	ls = isl_local_space_from_space(isl_space_set_alloc(ctx, 0, 0));
+	ctx = isl_space_get_ctx(space);
+	ls = isl_local_space_from_space(space);
 	aff = isl_aff_val_on_domain(ls, isl_val_int_from_si(ctx, val));
 	mpa = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
 
@@ -66,25 +68,25 @@ static __isl_give pet_expr *universally(isl_ctx *ctx, int val)
 }
 
 /* Construct an affine expression pet_expr that evaluates
- * to the constant 1.
+ * to the constant 1 on "space".
  */
-static __isl_give pet_expr *universally_true(isl_ctx *ctx)
+static __isl_give pet_expr *universally_true(__isl_take isl_space *space)
 {
-	return universally(ctx, 1);
+	return universally(space, 1);
 }
 
 /* Construct an affine expression pet_expr that evaluates
- * to the constant 0.
+ * to the constant 0 on "space".
  */
-static __isl_give pet_expr *universally_false(isl_ctx *ctx)
+static __isl_give pet_expr *universally_false(__isl_take isl_space *space)
 {
-	return universally(ctx, 0);
+	return universally(space, 0);
 }
 
 /* Given an index expression "test_index" for the if condition,
  * an index expression "skip_index" for the skip condition and
  * scops for the then and else branches, construct a scop for
- * computing "skip_index".
+ * computing "skip_index" within the context "pc".
  *
  * The computed scop contains a single statement that essentially does
  *
@@ -100,13 +102,12 @@ static __isl_give pet_expr *universally_false(isl_ctx *ctx)
 static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop_then, struct pet_scop *scop_else, int have_else,
-	enum pet_skip type, struct pet_state *state)
+	enum pet_skip type, __isl_keep pet_context *pc, struct pet_state *state)
 {
 	pet_expr *expr_then, *expr_else, *expr, *expr_skip;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx;
-	isl_space *space;
 	isl_set *domain;
 
 	if (!scop_then)
@@ -123,7 +124,7 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 			expr_then = pet_expr_filter(expr_then,
 					isl_multi_pw_aff_copy(test_index), 1);
 	} else
-		expr_then = universally_false(ctx);
+		expr_then = universally_false(pet_context_get_space(pc));
 
 	if (have_else && pet_scop_has_skip(scop_else, type)) {
 		expr_else = pet_scop_get_skip_expr(scop_else, type);
@@ -132,7 +133,7 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 			expr_else = pet_expr_filter(expr_else,
 					isl_multi_pw_aff_copy(test_index), 0);
 	} else
-		expr_else = universally_false(ctx);
+		expr_else = universally_false(pet_context_get_space(pc));
 
 	expr = pet_expr_from_index(test_index);
 	expr = pet_expr_new_ternary(expr, expr_then, expr_else);
@@ -140,12 +141,11 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	space = isl_space_set_alloc(ctx, 0, 0);
-	domain = isl_set_universe(isl_space_copy(space));
+	domain = pet_context_get_domain(pc);
 	stmt = pet_stmt_from_pet_expr(domain, &pet_loc_dummy, NULL,
 					state->n_stmt++, expr);
 
-	scop = pet_scop_from_pet_stmt(space, stmt);
+	scop = pet_scop_from_pet_stmt(pet_context_get_space(pc), stmt);
 	scop = pet_scop_add_boolean_array(scop, skip_index, state->int_size);
 
 	return scop;
@@ -222,42 +222,47 @@ void pet_skip_info_if_init(struct pet_skip_info *skip, isl_ctx *ctx,
 }
 
 /* If we need to construct a skip condition of the given type,
- * then do so now.
+ * then do so now, within the context "pc".
  *
  * "mpa" represents the if condition.
  */
 static void pet_skip_info_if_extract_type(struct pet_skip_info *skip,
 	__isl_keep isl_multi_pw_aff *mpa, enum pet_skip type,
-	struct pet_state *state)
+	 __isl_keep pet_context *pc, struct pet_state *state)
 {
 	isl_space *space;
 
 	if (!skip->skip[type])
 		return;
 
-	space = isl_space_set_alloc(skip->ctx, 0, 0);
+	space = pet_context_get_space(pc);
 	skip->index[type] = pet_create_test_index(space, state->n_test++);
 	skip->scop[type] = extract_skip_if(isl_multi_pw_aff_copy(mpa),
 				isl_multi_pw_aff_copy(skip->index[type]),
 				skip->u.i.scop_then, skip->u.i.scop_else,
-				skip->type == pet_skip_if_else, type, state);
+				skip->type == pet_skip_if_else, type,
+				pc, state);
 }
 
-/* Construct the required skip conditions, given the if condition "index".
+/* Construct the required skip conditions within the context "pc",
+ * given the if condition "index".
  */
 void pet_skip_info_if_extract_index(struct pet_skip_info *skip,
-	__isl_keep isl_multi_pw_aff *index, struct pet_state *state)
+	__isl_keep isl_multi_pw_aff *index, __isl_keep pet_context *pc,
+	struct pet_state *state)
 {
-	pet_skip_info_if_extract_type(skip, index, pet_skip_now, state);
-	pet_skip_info_if_extract_type(skip, index, pet_skip_later, state);
+	pet_skip_info_if_extract_type(skip, index, pet_skip_now, pc, state);
+	pet_skip_info_if_extract_type(skip, index, pet_skip_later, pc, state);
 	if (skip->equal)
 		drop_skip_later(skip->u.i.scop_then, skip->u.i.scop_else);
 }
 
-/* Construct the required skip conditions, given the if condition "cond".
+/* Construct the required skip conditions within the context "pc",
+ * given the if condition "cond".
  */
 void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
-	__isl_keep isl_pw_aff *cond, struct pet_state *state)
+	__isl_keep isl_pw_aff *cond, __isl_keep pet_context *pc,
+	struct pet_state *state)
 {
 	isl_multi_pw_aff *test;
 
@@ -265,7 +270,7 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 		return;
 
 	test = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_copy(cond));
-	pet_skip_info_if_extract_index(skip, test, state);
+	pet_skip_info_if_extract_index(skip, test, pc, state);
 	isl_multi_pw_aff_free(test);
 }
 
@@ -333,7 +338,7 @@ static int seq_need_skip(struct pet_scop *scop1, struct pet_scop *scop2,
 
 /* Construct a scop for computing the skip condition of the given type and
  * with index expression "skip_index" for a sequence of two scops "scop1"
- * and "scop2".
+ * and "scop2".  Do so within the context "pc".
  *
  * The computed scop contains a single statement that essentially does
  *
@@ -349,13 +354,12 @@ static int seq_need_skip(struct pet_scop *scop1, struct pet_scop *scop2,
 static struct pet_scop *extract_skip_seq(
 	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop1, struct pet_scop *scop2, enum pet_skip type,
-	struct pet_state *state)
+	__isl_keep pet_context *pc, struct pet_state *state)
 {
 	pet_expr *expr1, *expr2, *expr, *expr_skip;
 	struct pet_stmt *stmt;
 	struct pet_scop *scop;
 	isl_ctx *ctx;
-	isl_space *space;
 	isl_set *domain;
 
 	if (!scop1 || !scop2)
@@ -369,18 +373,17 @@ static struct pet_scop *extract_skip_seq(
 
 	expr2 = pet_expr_filter(expr2, pet_expr_access_get_index(expr1), 0);
 
-	expr = universally_true(ctx);
+	expr = universally_true(pet_context_get_space(pc));
 	expr = pet_expr_new_ternary(expr1, expr, expr2);
 	expr_skip = pet_expr_from_index(isl_multi_pw_aff_copy(skip_index));
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	space = isl_space_set_alloc(ctx, 0, 0);
-	domain = isl_set_universe(isl_space_copy(space));
+	domain = pet_context_get_domain(pc);
 	stmt = pet_stmt_from_pet_expr(domain, &pet_loc_dummy, NULL,
 					state->n_stmt++, expr);
 
-	scop = pet_scop_from_pet_stmt(space, stmt);
+	scop = pet_scop_from_pet_stmt(pet_context_get_space(pc), stmt);
 	scop = pet_scop_add_boolean_array(scop, skip_index, state->int_size);
 
 	return scop;
@@ -408,30 +411,31 @@ void pet_skip_info_seq_init(struct pet_skip_info *skip, isl_ctx *ctx,
 }
 
 /* If we need to construct a skip condition of the given type,
- * then do so now.
+ * then do so now, within the context "pc".
  */
 static void pet_skip_info_seq_extract_type(struct pet_skip_info *skip,
-	enum pet_skip type, struct pet_state *state)
+	enum pet_skip type, __isl_keep pet_context *pc, struct pet_state *state)
 {
 	isl_space *space;
 
 	if (!skip->skip[type])
 		return;
 
-	space = isl_space_set_alloc(skip->ctx, 0, 0);
+	space = pet_context_get_space(pc);
 	skip->index[type] = pet_create_test_index(space, state->n_test++);
 	skip->scop[type] = extract_skip_seq(
 				isl_multi_pw_aff_copy(skip->index[type]),
-				skip->u.s.scop1, skip->u.s.scop2, type, state);
+				skip->u.s.scop1, skip->u.s.scop2, type,
+				pc, state);
 }
 
-/* Construct the required skip conditions.
+/* Construct the required skip conditions within the context "pc".
  */
 void pet_skip_info_seq_extract(struct pet_skip_info *skip,
-	struct pet_state *state)
+	__isl_keep pet_context *pc, struct pet_state *state)
 {
-	pet_skip_info_seq_extract_type(skip, pet_skip_now, state);
-	pet_skip_info_seq_extract_type(skip, pet_skip_later, state);
+	pet_skip_info_seq_extract_type(skip, pet_skip_now, pc, state);
+	pet_skip_info_seq_extract_type(skip, pet_skip_later, pc, state);
 	if (skip->equal)
 		drop_skip_later(skip->u.s.scop1, skip->u.s.scop2);
 }
