@@ -262,21 +262,27 @@ struct pet_scop *pet_scop_alloc(isl_ctx *ctx)
 	return &isl_calloc_type(ctx, struct pet_scop_ext)->scop;
 }
 
-/* Construct a pet_scop with room for n statements.
+/* Construct a pet_scop in the given space and with room for n statements.
+ *
+ * We currently only take into account the parameters in "space".
  *
  * Since no information on the location is known at this point,
  * scop->loc is initialized with pet_loc_dummy.
  */
-static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
+static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n)
 {
-	isl_space *space;
+	isl_ctx *ctx;
 	struct pet_scop *scop;
 
+	if (!space)
+		return NULL;
+
+	ctx = isl_space_get_ctx(space);
 	scop = pet_scop_alloc(ctx);
 	if (!scop)
 		return NULL;
 
-	space = isl_space_params_alloc(ctx, 0);
+	space = isl_space_params(space);
 	scop->context = isl_set_universe(isl_space_copy(space));
 	scop->context_value = isl_set_universe(space);
 	scop->stmts = isl_calloc_array(ctx, struct pet_stmt *, n);
@@ -289,9 +295,11 @@ static struct pet_scop *scop_alloc(isl_ctx *ctx, int n)
 	return scop;
 }
 
-struct pet_scop *pet_scop_empty(isl_ctx *ctx)
+/* Construct a pet_scop in the given space containing 0 statements.
+ */
+struct pet_scop *pet_scop_empty(__isl_take isl_space *space)
 {
-	return scop_alloc(ctx, 0);
+	return scop_alloc(space, 0);
 }
 
 /* Update "context" with respect to the valid parameter values for "access".
@@ -393,16 +401,17 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	return context;
 }
 
-/* Construct a pet_scop that contains the given pet_stmt.
+/* Construct a pet_scop in the given space that contains the given pet_stmt.
  */
-struct pet_scop *pet_scop_from_pet_stmt(isl_ctx *ctx, struct pet_stmt *stmt)
+struct pet_scop *pet_scop_from_pet_stmt(__isl_take isl_space *space,
+	struct pet_stmt *stmt)
 {
 	struct pet_scop *scop;
 
 	if (!stmt)
-		return NULL;
+		space = isl_space_free(space);
 
-	scop = scop_alloc(ctx, 1);
+	scop = scop_alloc(space, 1);
 	if (!scop)
 		goto error;
 
@@ -685,6 +694,7 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
 {
 	int i;
+	isl_space *space;
 	struct pet_scop *scop = NULL;
 
 	if (!scop1 || !scop2)
@@ -702,7 +712,8 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 		return scop1;
 	}
 
-	scop = scop_alloc(ctx, scop1->n_stmt + scop2->n_stmt);
+	space = isl_set_get_space(scop1->context);
+	scop = scop_alloc(space, scop1->n_stmt + scop2->n_stmt);
 	if (!scop)
 		goto error;
 
