@@ -1686,15 +1686,13 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 }
 
 /* Return a one-dimensional multi piecewise affine expression that is equal
- * to the constant 1 and is defined over a zero-dimensional domain.
+ * to the constant 1 and is defined over the given domain.
  */
-static __isl_give isl_multi_pw_aff *one_mpa(isl_ctx *ctx)
+static __isl_give isl_multi_pw_aff *one_mpa(__isl_take isl_space *space)
 {
-	isl_space *space;
 	isl_local_space *ls;
 	isl_aff *aff;
 
-	space = isl_space_set_alloc(ctx, 0, 0);
 	ls = isl_local_space_from_space(space);
 	aff = isl_aff_zero_on_domain(ls);
 	aff = isl_aff_set_constant_si(aff, 1);
@@ -1702,14 +1700,15 @@ static __isl_give isl_multi_pw_aff *one_mpa(isl_ctx *ctx)
 	return isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
 }
 
-/* Construct a pet_scop for a continue statement.
+/* Construct a pet_scop for a continue statement with the given domain space.
  *
  * We simply create an empty scop with a universal pet_skip_now
  * skip condition.  This skip condition will then be taken into
  * account by the enclosing loop construct, possibly after
  * being incorporated into outer skip conditions.
  */
-static struct pet_scop *scop_from_continue(__isl_keep pet_tree *tree)
+static struct pet_scop *scop_from_continue(__isl_keep pet_tree *tree,
+	__isl_take isl_space *space)
 {
 	struct pet_scop *scop;
 	isl_ctx *ctx;
@@ -1719,12 +1718,12 @@ static struct pet_scop *scop_from_continue(__isl_keep pet_tree *tree)
 	if (!scop)
 		return NULL;
 
-	scop = pet_scop_set_skip(scop, pet_skip_now, one_mpa(ctx));
+	scop = pet_scop_set_skip(scop, pet_skip_now, one_mpa(space));
 
 	return scop;
 }
 
-/* Construct a pet_scop for a break statement.
+/* Construct a pet_scop for a break statement with the given domain space.
  *
  * We simply create an empty scop with both a universal pet_skip_now
  * skip condition and a universal pet_skip_later skip condition.
@@ -1732,7 +1731,8 @@ static struct pet_scop *scop_from_continue(__isl_keep pet_tree *tree)
  * account by the enclosing loop construct, possibly after
  * being incorporated into outer skip conditions.
  */
-static struct pet_scop *scop_from_break(__isl_keep pet_tree *tree)
+static struct pet_scop *scop_from_break(__isl_keep pet_tree *tree,
+	__isl_take isl_space *space)
 {
 	struct pet_scop *scop;
 	isl_ctx *ctx;
@@ -1743,7 +1743,7 @@ static struct pet_scop *scop_from_break(__isl_keep pet_tree *tree)
 	if (!scop)
 		return NULL;
 
-	skip = one_mpa(ctx);
+	skip = one_mpa(space);
 	scop = pet_scop_set_skip(scop, pet_skip_now,
 				    isl_multi_pw_aff_copy(skip));
 	scop = pet_scop_set_skip(scop, pet_skip_later, skip);
@@ -1894,9 +1894,9 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 	case pet_tree_block:
 		return scop_from_block(tree, pc, state);
 	case pet_tree_break:
-		return scop_from_break(tree);
+		return scop_from_break(tree, pet_context_get_space(pc));
 	case pet_tree_continue:
-		return scop_from_continue(tree);
+		return scop_from_continue(tree, pet_context_get_space(pc));
 	case pet_tree_decl:
 	case pet_tree_decl_init:
 		return scop_from_decl(tree, pc, state);
