@@ -1715,8 +1715,6 @@ static struct pet_scop *scop_from_continue(__isl_keep pet_tree *tree,
 
 	ctx = pet_tree_get_ctx(tree);
 	scop = pet_scop_empty(ctx);
-	if (!scop)
-		return NULL;
 
 	scop = pet_scop_set_skip(scop, pet_skip_now, one_mpa(space));
 
@@ -1740,8 +1738,6 @@ static struct pet_scop *scop_from_break(__isl_keep pet_tree *tree,
 
 	ctx = pet_tree_get_ctx(tree);
 	scop = pet_scop_empty(ctx);
-	if (!scop)
-		return NULL;
 
 	skip = one_mpa(space);
 	scop = pet_scop_set_skip(scop, pet_skip_now,
