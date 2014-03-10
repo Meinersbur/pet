@@ -100,12 +100,11 @@ struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
 		goto error;
 
 	space = isl_space_set_alloc(ctx, 0, 0);
-	if (label)
-		space = isl_space_set_tuple_id(space, isl_dim_set, label);
-	else {
+	if (!label) {
 		snprintf(name, sizeof(name), "S_%d", id);
-		space = isl_space_set_tuple_name(space, isl_dim_set, name);
+		label = isl_id_alloc(ctx, name, NULL);
 	}
+	space = isl_space_set_tuple_id(space, isl_dim_set, label);
 	dom = isl_set_universe(isl_space_copy(space));
 	sched = isl_map_from_domain(isl_set_copy(dom));
 
