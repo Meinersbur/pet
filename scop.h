@@ -91,7 +91,8 @@ struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 __isl_give isl_multi_pw_aff *pet_create_test_index(__isl_take isl_space *space,
 	int test_nr);
 struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
-	__isl_take isl_multi_pw_aff *index, int int_size);
+	__isl_take isl_set *domain, __isl_take isl_multi_pw_aff *index,
+	int int_size);
 
 struct pet_scop *pet_scop_update_start_end(struct pet_scop *scop,
 	unsigned start, unsigned end);

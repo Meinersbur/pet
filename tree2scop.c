@@ -620,7 +620,9 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 				isl_multi_pw_aff_copy(test_index),
 				pet_loc_copy(loc), pc);
 	id_test = isl_multi_pw_aff_get_tuple_id(test_index, isl_dim_out);
-	scop = pet_scop_add_boolean_array(scop, test_index, state->int_size);
+	domain = pet_context_get_domain(pc);
+	scop = pet_scop_add_boolean_array(scop, domain,
+					test_index, state->int_size);
 
 	id = isl_id_alloc(ctx, "t", NULL);
 	domain = infinite_domain(isl_id_copy(id));
@@ -1255,7 +1257,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 				pet_tree_get_loc(tree), pc);
 		id_test = isl_multi_pw_aff_get_tuple_id(test_index,
 							isl_dim_out);
-		scop_cond = pet_scop_add_boolean_array(scop_cond, test_index,
+		scop_cond = pet_scop_add_boolean_array(scop_cond,
+				pet_context_get_domain(pc), test_index,
 				state->int_size);
 		scop_cond = pet_scop_prefix(scop_cond, 0);
 		scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
@@ -1513,6 +1516,7 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 {
 	int has_else;
 	isl_space *space;
+	isl_set *domain;
 	isl_multi_pw_aff *test_index;
 	struct pet_skip_info skip;
 	struct pet_scop *scop, *scop_then, *scop_else = NULL;
@@ -1524,7 +1528,8 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 	scop = scop_from_non_affine_condition(pet_expr_copy(tree->u.i.cond),
 		state->n_stmt++, isl_multi_pw_aff_copy(test_index),
 		pet_tree_get_loc(tree), pc);
-	scop = pet_scop_add_boolean_array(scop,
+	domain = pet_context_get_domain(pc);
+	scop = pet_scop_add_boolean_array(scop, domain,
 		isl_multi_pw_aff_copy(test_index), state->int_size);
 
 	scop_then = scop_from_tree(tree->u.i.then_body, pc, state);

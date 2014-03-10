@@ -3300,21 +3300,24 @@ __isl_give isl_multi_pw_aff *pet_create_test_index(__isl_take isl_space *space,
 	return isl_multi_pw_aff_identity(space);
 }
 
-/* Add an array with the given extent (range of "index") to the list
+/* Add an array with the given extent to the list
  * of arrays in "scop" and return the extended pet_scop.
+ * Specifically, the extent is determined by the image of "domain"
+ * under "index".
  * "int_size" is the number of bytes needed to represent values of type "int".
  * The array is marked as attaining values 0 and 1 only and
  * as each element being assigned at most once.
  */
 struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
-	__isl_take isl_multi_pw_aff *index, int int_size)
+	__isl_take isl_set *domain, __isl_take isl_multi_pw_aff *index,
+	int int_size)
 {
 	isl_ctx *ctx;
 	isl_space *space;
 	struct pet_array *array;
 	isl_map *access;
 
-	if (!scop || !index)
+	if (!scop || !domain || !index)
 		goto error;
 
 	ctx = isl_multi_pw_aff_get_ctx(index);
@@ -3323,6 +3326,7 @@ struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
 		goto error;
 
 	access = isl_map_from_multi_pw_aff(index);
+	access = isl_map_intersect_domain(access, domain);
 	array->extent = isl_map_range(access);
 	space = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(space);
@@ -3343,6 +3347,7 @@ struct pet_scop *pet_scop_add_boolean_array(struct pet_scop *scop,
 
 	return scop;
 error:
+	isl_set_free(domain);
 	isl_multi_pw_aff_free(index);
 	return pet_scop_free(scop);
 }

@@ -142,11 +142,12 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
 	domain = pet_context_get_domain(pc);
-	stmt = pet_stmt_from_pet_expr(domain, &pet_loc_dummy, NULL,
-					state->n_stmt++, expr);
+	stmt = pet_stmt_from_pet_expr(isl_set_copy(domain), &pet_loc_dummy,
+					NULL, state->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(pet_context_get_space(pc), stmt);
-	scop = pet_scop_add_boolean_array(scop, skip_index, state->int_size);
+	scop = pet_scop_add_boolean_array(scop, domain, skip_index,
+					state->int_size);
 
 	return scop;
 error:
@@ -380,11 +381,12 @@ static struct pet_scop *extract_skip_seq(
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
 	domain = pet_context_get_domain(pc);
-	stmt = pet_stmt_from_pet_expr(domain, &pet_loc_dummy, NULL,
-					state->n_stmt++, expr);
+	stmt = pet_stmt_from_pet_expr(isl_set_copy(domain), &pet_loc_dummy,
+					NULL, state->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(pet_context_get_space(pc), stmt);
-	scop = pet_scop_add_boolean_array(scop, skip_index, state->int_size);
+	scop = pet_scop_add_boolean_array(scop, domain, skip_index,
+					state->int_size);
 
 	return scop;
 error:
