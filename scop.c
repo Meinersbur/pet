@@ -85,7 +85,7 @@ struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
 {
 	struct pet_stmt *stmt;
 	isl_ctx *ctx;
-	isl_space *dim;
+	isl_space *space;
 	isl_set *dom;
 	isl_map *sched;
 	isl_multi_pw_aff *add_name;
@@ -99,18 +99,18 @@ struct pet_stmt *pet_stmt_from_pet_expr(__isl_take pet_loc *loc,
 	if (!stmt)
 		goto error;
 
-	dim = isl_space_set_alloc(ctx, 0, 0);
+	space = isl_space_set_alloc(ctx, 0, 0);
 	if (label)
-		dim = isl_space_set_tuple_id(dim, isl_dim_set, label);
+		space = isl_space_set_tuple_id(space, isl_dim_set, label);
 	else {
 		snprintf(name, sizeof(name), "S_%d", id);
-		dim = isl_space_set_tuple_name(dim, isl_dim_set, name);
+		space = isl_space_set_tuple_name(space, isl_dim_set, name);
 	}
-	dom = isl_set_universe(isl_space_copy(dim));
+	dom = isl_set_universe(isl_space_copy(space));
 	sched = isl_map_from_domain(isl_set_copy(dom));
 
-	dim = isl_space_from_domain(dim);
-	add_name = isl_multi_pw_aff_zero(dim);
+	space = isl_space_from_domain(space);
+	add_name = isl_multi_pw_aff_zero(space);
 	expr = pet_expr_update_domain(expr, add_name);
 
 	stmt->loc = loc;
