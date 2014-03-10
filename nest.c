@@ -196,6 +196,21 @@ int pet_nested_n_in_set(__isl_keep isl_set *set)
 	return n;
 }
 
+/* Remove all parameters from "space" that refer to nested accesses.
+ */
+__isl_give isl_space *pet_nested_remove_from_space(__isl_take isl_space *space)
+{
+	int i;
+	int nparam;
+
+	nparam = isl_space_dim(space, isl_dim_param);
+	for (i = nparam - 1; i >= 0; --i)
+		if (pet_nested_in_space(space, i))
+			space = isl_space_drop_dims(space, isl_dim_param, i, 1);
+
+	return space;
+}
+
 /* Remove all parameters from "set" that refer to nested accesses.
  */
 __isl_give isl_set *pet_nested_remove_from_set(__isl_take isl_set *set)
