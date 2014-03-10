@@ -1433,6 +1433,8 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 	expr->acc.access = isl_map_preimage_domain_pw_multi_aff(
 						expr->acc.access,
 						isl_pw_multi_aff_copy(pma));
+	pma = isl_pw_multi_aff_gist(pma,
+			isl_pw_multi_aff_domain(isl_pw_multi_aff_copy(pma)));
 	expr->acc.index = isl_multi_pw_aff_pullback_pw_multi_aff(
 							expr->acc.index, pma);
 	if (!expr->acc.access || !expr->acc.index)

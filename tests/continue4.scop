@@ -141,9 +141,8 @@ statements:
       - type: access
         relation: '{ [S_4[i] -> [0]] -> [0] : i >= 58 or i <= 56; [S_4[57] -> [0]]
           -> [1] }'
-        index: '{ [S_4[i] -> [__pet_test_0]] -> [((1) : i = 57 and __pet_test_0 =
-          0; (0) : (__pet_test_0 = 0 and i <= 56) or (__pet_test_0 = 0 and i >= 58))]
-          }'
+        index: '{ [S_4[i] -> [__pet_test_0]] -> [((1) : i = 57; (0) : i <= 56 or i
+          >= 58)] }'
         reference: __pet_ref_12
         read: 1
         write: 0
