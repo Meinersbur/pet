@@ -1506,10 +1506,9 @@ static struct pet_scop *scop_from_conditional_assignment(
  * adds them in pet_skip_info_if_add.
  */
 static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
-	int stmt_id, __isl_take pet_context *pc, struct pet_state *state)
+	__isl_take pet_context *pc, struct pet_state *state)
 {
 	int has_else;
-	int save_n_stmt = state->n_stmt;
 	isl_multi_pw_aff *test_index;
 	struct pet_skip_info skip;
 	struct pet_scop *scop, *scop_then, *scop_else = NULL;
@@ -1517,11 +1516,9 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 	has_else = tree->type == pet_tree_if_else;
 
 	test_index = pet_create_test_index(state->ctx, state->n_test++);
-	state->n_stmt = stmt_id;
 	scop = scop_from_non_affine_condition(pet_expr_copy(tree->u.i.cond),
 		state->n_stmt++, isl_multi_pw_aff_copy(test_index),
 		pet_tree_get_loc(tree), pc);
-	state->n_stmt = save_n_stmt;
 	scop = pet_scop_add_boolean_array(scop,
 		isl_multi_pw_aff_copy(test_index), state->int_size);
 
@@ -1636,7 +1633,6 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 	__isl_keep pet_context *pc, struct pet_state *state)
 {
 	int has_else;
-	int stmt_id;
 	isl_pw_aff *cond;
 	pet_expr *cond_expr;
 	pet_context *pc_nested;
@@ -1667,18 +1663,15 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 		return NULL;
 	}
 
-	if (isl_pw_aff_involves_nan(cond) || pet_nested_any_in_pw_aff(cond))
-		stmt_id = state->n_stmt++;
-
 	if (isl_pw_aff_involves_nan(cond)) {
 		isl_pw_aff_free(cond);
-		return scop_from_non_affine_if(tree, stmt_id, pc, state);
+		return scop_from_non_affine_if(tree, pc, state);
 	}
 
 	if ((!is_nested_allowed(cond, tree->u.i.then_body) ||
 	     (has_else && !is_nested_allowed(cond, tree->u.i.else_body)))) {
 		isl_pw_aff_free(cond);
-		return scop_from_non_affine_if(tree, stmt_id, pc, state);
+		return scop_from_non_affine_if(tree, pc, state);
 	}
 
 	return scop_from_affine_if(tree, cond, pc, state);

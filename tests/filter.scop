@@ -12,15 +12,15 @@ arrays:
   element_size: 4
 statements:
 - line: 7
-  domain: '{ [S_1[] -> [test]] : test <= -1 or test >= 1 }'
-  schedule: '{ S_1[] -> [0] }'
+  domain: '{ [S_0[] -> [test]] : test <= -1 or test >= 1 }'
+  schedule: '{ S_0[] -> [0] }'
   body:
     type: op
     operation: =
     arguments:
     - type: access
-      relation: '{ S_1[] -> a[] }'
-      index: '{ S_1[] -> a[] }'
+      relation: '{ S_0[] -> a[] }'
+      index: '{ S_0[] -> a[] }'
       reference: __pet_ref_1
       read: 0
       write: 1
@@ -28,8 +28,8 @@ statements:
       value: 5
   arguments:
   - type: access
-    relation: '[index] -> { S_1[] -> test[index] : index >= 0 }'
-    index: '[index] -> { S_1[] -> test[((index) : index >= 0)] }'
+    relation: '[index] -> { S_0[] -> test[index] : index >= 0 }'
+    index: '[index] -> { S_0[] -> test[((index) : index >= 0)] }'
     reference: __pet_ref_0
     read: 1
     write: 0
