@@ -3271,19 +3271,22 @@ error:
  * Unlike other accessed data, the id of the array is NULL as
  * there is no ValueDecl in the program corresponding to the virtual
  * array.
- * The array starts out as a scalar, but grows along with the
+ * The index expression is created as an identity mapping on "space".
+ * That is, the dimension of the array is the same as that of "space".
+ * Currently, the array starts out as a scalar, but grows along with the
  * statement writing to the array in pet_scop_embed.
  */
-__isl_give isl_multi_pw_aff *pet_create_test_index(isl_ctx *ctx, int test_nr)
+__isl_give isl_multi_pw_aff *pet_create_test_index(__isl_take isl_space *space,
+	int test_nr)
 {
-	isl_space *dim = isl_space_alloc(ctx, 0, 0, 0);
 	isl_id *id;
 	char name[50];
 
 	snprintf(name, sizeof(name), "__pet_test_%d", test_nr);
-	id = isl_id_alloc(ctx, name, NULL);
-	dim = isl_space_set_tuple_id(dim, isl_dim_out, id);
-	return isl_multi_pw_aff_zero(dim);
+	id = isl_id_alloc(isl_space_get_ctx(space), name, NULL);
+	space = isl_space_map_from_set(space);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
+	return isl_multi_pw_aff_identity(space);
 }
 
 /* Add an array with the given extent (range of "index") to the list

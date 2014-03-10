@@ -228,10 +228,13 @@ static void pet_skip_info_if_extract_type(struct pet_skip_info *skip,
 	__isl_keep isl_multi_pw_aff *mpa, enum pet_skip type,
 	struct pet_state *state)
 {
+	isl_space *space;
+
 	if (!skip->skip[type])
 		return;
 
-	skip->index[type] = pet_create_test_index(skip->ctx, state->n_test++);
+	space = isl_space_set_alloc(skip->ctx, 0, 0);
+	skip->index[type] = pet_create_test_index(space, state->n_test++);
 	skip->scop[type] = extract_skip_if(isl_multi_pw_aff_copy(mpa),
 				isl_multi_pw_aff_copy(skip->index[type]),
 				skip->u.i.scop_then, skip->u.i.scop_else,
@@ -406,10 +409,13 @@ void pet_skip_info_seq_init(struct pet_skip_info *skip, isl_ctx *ctx,
 static void pet_skip_info_seq_extract_type(struct pet_skip_info *skip,
 	enum pet_skip type, struct pet_state *state)
 {
+	isl_space *space;
+
 	if (!skip->skip[type])
 		return;
 
-	skip->index[type] = pet_create_test_index(skip->ctx, state->n_test++);
+	space = isl_space_set_alloc(skip->ctx, 0, 0);
+	skip->index[type] = pet_create_test_index(space, state->n_test++);
 	skip->scop[type] = extract_skip_seq(
 				isl_multi_pw_aff_copy(skip->index[type]),
 				skip->u.s.scop1, skip->u.s.scop2, type, state);

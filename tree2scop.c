@@ -607,6 +607,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 {
 	isl_ctx *ctx;
 	isl_id *id, *id_test, *id_break_test;
+	isl_space *space;
 	isl_multi_pw_aff *test_index;
 	isl_set *domain;
 	isl_set *skip;
@@ -616,7 +617,8 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	int has_var_break;
 
 	ctx = state->ctx;
-	test_index = pet_create_test_index(ctx, state->n_test++);
+	space = pet_context_get_space(pc);
+	test_index = pet_create_test_index(space, state->n_test++);
 	scop = scop_from_non_affine_condition(cond, state->n_stmt++,
 				isl_multi_pw_aff_copy(test_index),
 				pet_loc_copy(loc), pc);
@@ -1246,8 +1248,10 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		wrap = identity_aff(domain);
 
 	if (is_non_affine) {
+		isl_space *space;
 		isl_multi_pw_aff *test_index;
-		test_index = pet_create_test_index(state->ctx, state->n_test++);
+		space = pet_context_get_space(pc);
+		test_index = pet_create_test_index(space, state->n_test++);
 		scop_cond = scop_from_non_affine_condition(
 				pet_expr_copy(tree->u.l.cond), state->n_stmt++,
 				isl_multi_pw_aff_copy(test_index),
@@ -1511,13 +1515,15 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 	__isl_take pet_context *pc, struct pet_state *state)
 {
 	int has_else;
+	isl_space *space;
 	isl_multi_pw_aff *test_index;
 	struct pet_skip_info skip;
 	struct pet_scop *scop, *scop_then, *scop_else = NULL;
 
 	has_else = tree->type == pet_tree_if_else;
 
-	test_index = pet_create_test_index(state->ctx, state->n_test++);
+	space = pet_context_get_space(pc);
+	test_index = pet_create_test_index(space, state->n_test++);
 	scop = scop_from_non_affine_condition(pet_expr_copy(tree->u.i.cond),
 		state->n_stmt++, isl_multi_pw_aff_copy(test_index),
 		pet_tree_get_loc(tree), pc);
