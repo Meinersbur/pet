@@ -3,6 +3,8 @@
 
 #include <pet.h>
 
+#include "state.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -55,17 +57,16 @@ void pet_skip_info_if_init(struct pet_skip_info *skip, isl_ctx *ctx,
 	struct pet_scop *scop_then, struct pet_scop *scop_else,
 	int have_else, int affine);
 void pet_skip_info_if_extract_index(struct pet_skip_info *skip,
-	__isl_keep isl_multi_pw_aff *index,
-	int int_size, int *n_stmt, int *n_test);
+	__isl_keep isl_multi_pw_aff *index, struct pet_state *state);
 void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
-	__isl_keep isl_pw_aff *cond, int int_size, int *n_stmt, int *n_test);
+	__isl_keep isl_pw_aff *cond, struct pet_state *state);
 struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
 	struct pet_scop *scop, int offset);
 
 void pet_skip_info_seq_init(struct pet_skip_info *skip, isl_ctx *ctx,
 	struct pet_scop *scop1, struct pet_scop *scop2);
 void pet_skip_info_seq_extract(struct pet_skip_info *skip,
-	int int_size, int *n_stmt, int *n_test);
+	struct pet_state *state);
 struct pet_scop *pet_skip_info_seq_add(struct pet_skip_info *skip,
 	struct pet_scop *scop, int offset);
 

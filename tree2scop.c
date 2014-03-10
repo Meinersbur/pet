@@ -1499,8 +1499,7 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 
 	pet_skip_info_if_init(&skip, state->ctx, scop_then, scop_else,
 					has_else, 0);
-	pet_skip_info_if_extract_index(&skip, test_index, state->int_size,
-					&state->n_stmt, &state->n_test);
+	pet_skip_info_if_extract_index(&skip, test_index, state);
 
 	scop = pet_scop_prefix(scop, 0);
 	scop_then = pet_scop_prefix(scop_then, 1);
@@ -1551,8 +1550,7 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 	has_else = tree->type == pet_tree_if_else;
 
 	pet_skip_info_if_init(&skip, ctx, scop_then, scop_else, has_else, 1);
-	pet_skip_info_if_extract_cond(&skip, cond,
-			    state->int_size, &state->n_stmt, &state->n_test);
+	pet_skip_info_if_extract_cond(&skip, cond, state);
 
 	valid = isl_pw_aff_domain(isl_pw_aff_copy(cond));
 	set = isl_pw_aff_non_zero_set(cond);
@@ -1821,8 +1819,7 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		pc = scop_handle_writes(scop_i, pc);
 		struct pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
-		pet_skip_info_seq_extract(&skip, state->int_size,
-						&state->n_stmt, &state->n_test);
+		pet_skip_info_seq_extract(&skip, state);
 		if (pet_skip_info_has_skip(&skip))
 			scop_i = pet_scop_prefix(scop_i, 0);
 		if (scop_i && pet_tree_is_decl(tree->u.b.child[i])) {

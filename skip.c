@@ -100,7 +100,7 @@ static __isl_give pet_expr *universally_false(isl_ctx *ctx)
 static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop_then, struct pet_scop *scop_else, int have_else,
-	enum pet_skip type, int int_size, int *n_stmt)
+	enum pet_skip type, struct pet_state *state)
 {
 	pet_expr *expr_then, *expr_else, *expr, *expr_skip;
 	struct pet_stmt *stmt;
@@ -138,10 +138,11 @@ static struct pet_scop *extract_skip_if(__isl_take isl_multi_pw_aff *test_index,
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL, (*n_stmt)++, expr);
+	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL,
+					state->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
-	scop = pet_scop_add_boolean_array(scop, skip_index, int_size);
+	scop = pet_scop_add_boolean_array(scop, skip_index, state->int_size);
 
 	return scop;
 error:
@@ -223,29 +224,25 @@ void pet_skip_info_if_init(struct pet_skip_info *skip, isl_ctx *ctx,
  */
 static void pet_skip_info_if_extract_type(struct pet_skip_info *skip,
 	__isl_keep isl_multi_pw_aff *mpa, enum pet_skip type,
-	int int_size, int *n_stmt, int *n_test)
+	struct pet_state *state)
 {
 	if (!skip->skip[type])
 		return;
 
-	skip->index[type] = pet_create_test_index(skip->ctx, (*n_test)++);
+	skip->index[type] = pet_create_test_index(skip->ctx, state->n_test++);
 	skip->scop[type] = extract_skip_if(isl_multi_pw_aff_copy(mpa),
 				isl_multi_pw_aff_copy(skip->index[type]),
 				skip->u.i.scop_then, skip->u.i.scop_else,
-				skip->type == pet_skip_if_else, type,
-				int_size, n_stmt);
+				skip->type == pet_skip_if_else, type, state);
 }
 
 /* Construct the required skip conditions, given the if condition "index".
  */
 void pet_skip_info_if_extract_index(struct pet_skip_info *skip,
-	__isl_keep isl_multi_pw_aff *index,
-	int int_size, int *n_stmt, int *n_test)
+	__isl_keep isl_multi_pw_aff *index, struct pet_state *state)
 {
-	pet_skip_info_if_extract_type(skip, index, pet_skip_now,
-					int_size, n_stmt, n_test);
-	pet_skip_info_if_extract_type(skip, index, pet_skip_later,
-					int_size, n_stmt, n_test);
+	pet_skip_info_if_extract_type(skip, index, pet_skip_now, state);
+	pet_skip_info_if_extract_type(skip, index, pet_skip_later, state);
 	if (skip->equal)
 		drop_skip_later(skip->u.i.scop_then, skip->u.i.scop_else);
 }
@@ -253,7 +250,7 @@ void pet_skip_info_if_extract_index(struct pet_skip_info *skip,
 /* Construct the required skip conditions, given the if condition "cond".
  */
 void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
-	__isl_keep isl_pw_aff *cond, int int_size, int *n_stmt, int *n_test)
+	__isl_keep isl_pw_aff *cond, struct pet_state *state)
 {
 	isl_multi_pw_aff *test;
 
@@ -261,7 +258,7 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 		return;
 
 	test = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_copy(cond));
-	pet_skip_info_if_extract_index(skip, test, int_size, n_stmt, n_test);
+	pet_skip_info_if_extract_index(skip, test, state);
 	isl_multi_pw_aff_free(test);
 }
 
@@ -345,7 +342,7 @@ static int seq_need_skip(struct pet_scop *scop1, struct pet_scop *scop2,
 static struct pet_scop *extract_skip_seq(
 	__isl_take isl_multi_pw_aff *skip_index,
 	struct pet_scop *scop1, struct pet_scop *scop2, enum pet_skip type,
-	int int_size, int *n_stmt)
+	struct pet_state *state)
 {
 	pet_expr *expr1, *expr2, *expr, *expr_skip;
 	struct pet_stmt *stmt;
@@ -369,10 +366,11 @@ static struct pet_scop *extract_skip_seq(
 	expr_skip = pet_expr_access_set_write(expr_skip, 1);
 	expr_skip = pet_expr_access_set_read(expr_skip, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, expr_skip, expr);
-	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL, (*n_stmt)++, expr);
+	stmt = pet_stmt_from_pet_expr(&pet_loc_dummy, NULL,
+					state->n_stmt++, expr);
 
 	scop = pet_scop_from_pet_stmt(ctx, stmt);
-	scop = pet_scop_add_boolean_array(scop, skip_index, int_size);
+	scop = pet_scop_add_boolean_array(scop, skip_index, state->int_size);
 
 	return scop;
 error:
@@ -402,27 +400,24 @@ void pet_skip_info_seq_init(struct pet_skip_info *skip, isl_ctx *ctx,
  * then do so now.
  */
 static void pet_skip_info_seq_extract_type(struct pet_skip_info *skip,
-	enum pet_skip type, int int_size, int *n_stmt, int *n_test)
+	enum pet_skip type, struct pet_state *state)
 {
 	if (!skip->skip[type])
 		return;
 
-	skip->index[type] = pet_create_test_index(skip->ctx, (*n_test)++);
+	skip->index[type] = pet_create_test_index(skip->ctx, state->n_test++);
 	skip->scop[type] = extract_skip_seq(
 				isl_multi_pw_aff_copy(skip->index[type]),
-				skip->u.s.scop1, skip->u.s.scop2, type,
-				int_size, n_stmt);
+				skip->u.s.scop1, skip->u.s.scop2, type, state);
 }
 
 /* Construct the required skip conditions.
  */
 void pet_skip_info_seq_extract(struct pet_skip_info *skip,
-	int int_size, int *n_stmt, int *n_test)
+	struct pet_state *state)
 {
-	pet_skip_info_seq_extract_type(skip, pet_skip_now,
-					int_size, n_stmt, n_test);
-	pet_skip_info_seq_extract_type(skip, pet_skip_later,
-					int_size, n_stmt, n_test);
+	pet_skip_info_seq_extract_type(skip, pet_skip_now, state);
+	pet_skip_info_seq_extract_type(skip, pet_skip_later, state);
 	if (skip->equal)
 		drop_skip_later(skip->u.s.scop1, skip->u.s.scop2);
 }
