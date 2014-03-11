@@ -44,66 +44,16 @@
 #include "tree2scop.h"
 
 /* Update "pc" by taking into account the writes in "stmt".
- * That is, first mark all scalar variables that are written by "stmt"
- * as having an unknown value.  Afterwards,
- * if "stmt" is a top-level (i.e., unconditional) assignment
- * to a scalar variable, then update "pc" accordingly.
- *
- * In particular, if the lhs of the assignment is a scalar variable and
- * if the rhs is an affine expression, then keep track of this value in "pc"
- * so that we can plug it in when we later come across the same variable.
- *
- * We skip assignments to virtual arrays (those with NULL user pointer).
+ * That is, mark all scalar variables that are written by "stmt"
+ * as having an unknown value.
  */
 static __isl_give pet_context *handle_writes(struct pet_stmt *stmt,
 	__isl_take pet_context *pc)
 {
-	pet_expr *body = stmt->body;
-	pet_expr *arg;
-	isl_id *id;
-	isl_pw_aff *pa;
-
-	pc = pet_context_clear_writes_in_expr(pc, body);
-	if (!pc)
-		return NULL;
-
-	if (pet_expr_get_type(body) != pet_expr_op)
-		return pc;
-	if (pet_expr_op_get_type(body) != pet_op_assign)
-		return pc;
-	if (!isl_set_plain_is_universe(stmt->domain))
-		return pc;
-	arg = pet_expr_get_arg(body, 0);
-	if (!pet_expr_is_scalar_access(arg)) {
-		pet_expr_free(arg);
-		return pc;
-	}
-
-	id = pet_expr_access_get_id(arg);
-	pet_expr_free(arg);
-
-	if (!isl_id_get_user(id)) {
-		isl_id_free(id);
-		return pc;
-	}
-
-	arg = pet_expr_get_arg(body, 1);
-	pa = pet_expr_extract_affine(arg, pc);
-	pet_expr_free(arg);
-
-	if (pa && isl_pw_aff_involves_nan(pa)) {
-		isl_id_free(id);
-		isl_pw_aff_free(pa);
-		return pc;
-	}
-
-	pc = pet_context_set_value(pc, id, pa);
-
-	return pc;
+	return pet_context_clear_writes_in_expr(pc, stmt->body);
 }
 
-/* Update "pc" based on the write accesses (and, in particular,
- * assignments) in "scop".
+/* Update "pc" based on the write accesses in "scop".
  */
 static __isl_give pet_context *scop_handle_writes(struct pet_scop *scop,
 	__isl_take pet_context *pc)
@@ -1779,6 +1729,71 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 	return pet_scop_from_pet_stmt(isl_set_get_space(domain), stmt);
 }
 
+/* Does "tree" represent an assignment to a variable?
+ *
+ * The assignment may be one of
+ * - a declaration with initialization
+ * - an expression with a top-level assignment operator
+ */
+static int is_assignment(__isl_keep pet_tree *tree)
+{
+	if (!tree)
+		return 0;
+	if (tree->type == pet_tree_decl_init)
+		return 1;
+	return pet_tree_is_assign(tree);
+}
+
+/* Update "pc" by taking into account the assignment performed by "tree",
+ * where "tree" satisfies is_assignment.
+ *
+ * In particular, if the lhs of the assignment is a scalar variable and
+ * if the rhs is an affine expression, then keep track of this value in "pc"
+ * so that we can plug it in when we later come across the same variable.
+ *
+ * The variable has already been marked as having been assigned
+ * an unknown value by scop_handle_writes.
+ */
+static __isl_give pet_context *handle_assignment(__isl_take pet_context *pc,
+	__isl_keep pet_tree *tree)
+{
+	pet_expr *var, *val;
+	isl_id *id;
+	isl_pw_aff *pa;
+
+	if (pet_tree_get_type(tree) == pet_tree_decl_init) {
+		var = pet_tree_decl_get_var(tree);
+		val = pet_tree_decl_get_init(tree);
+	} else {
+		pet_expr *expr;
+		expr = pet_tree_expr_get_expr(tree);
+		var = pet_expr_get_arg(expr, 0);
+		val = pet_expr_get_arg(expr, 1);
+		pet_expr_free(expr);
+	}
+
+	if (!pet_expr_is_scalar_access(var)) {
+		pet_expr_free(var);
+		pet_expr_free(val);
+		return pc;
+	}
+
+	pa = pet_expr_extract_affine(val, pc);
+	if (!pa)
+		pc = pet_context_free(pc);
+
+	if (!isl_pw_aff_involves_nan(pa)) {
+		id = pet_expr_access_get_id(var);
+		pc = pet_context_set_value(pc, id, pa);
+	} else {
+		isl_pw_aff_free(pa);
+	}
+	pet_expr_free(var);
+	pet_expr_free(val);
+
+	return pc;
+}
+
 /* Mark all arrays in "scop" as being exposed.
  */
 static struct pet_scop *mark_exposed(struct pet_scop *scop)
@@ -1843,6 +1858,8 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 
 		scop_i = scop_from_tree(tree->u.b.child[i], pc, state);
 		pc = scop_handle_writes(scop_i, pc);
+		if (is_assignment(tree->u.b.child[i]))
+			pc = handle_assignment(pc, tree->u.b.child[i]);
 		struct pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
 		pet_skip_info_seq_extract(&skip, pc, state);
