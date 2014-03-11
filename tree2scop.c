@@ -1746,28 +1746,27 @@ static struct pet_scop *scop_from_break(__isl_keep pet_tree *tree,
 }
 
 /* Extract a clone of the kill statement in "scop".
+ * The domain of the clone is given by "domain".
  * "scop" is expected to have been created from a DeclStmt
  * and should have the kill as its first statement.
  */
-static struct pet_scop *extract_kill(isl_ctx *ctx, struct pet_scop *scop,
-	struct pet_state *state)
+static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
+	struct pet_scop *scop, struct pet_state *state)
 {
 	pet_expr *kill;
 	struct pet_stmt *stmt;
-	isl_space *space;
-	isl_set *domain;
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *arg;
 
-	if (!scop)
+	if (!domain || !scop)
 		return NULL;
 	if (scop->n_stmt < 1)
-		isl_die(ctx, isl_error_internal,
+		isl_die(isl_set_get_ctx(domain), isl_error_internal,
 			"expecting at least one statement", return NULL);
 	stmt = scop->stmts[0];
 	if (!pet_stmt_is_kill(stmt))
-		isl_die(ctx, isl_error_internal,
+		isl_die(isl_set_get_ctx(domain), isl_error_internal,
 			"expecting kill statement", return NULL);
 
 	arg = pet_expr_get_arg(stmt->body, 0);
@@ -1777,11 +1776,9 @@ static struct pet_scop *extract_kill(isl_ctx *ctx, struct pet_scop *scop,
 	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
 	access = isl_map_reset_tuple_id(access, isl_dim_in);
 	kill = pet_expr_kill_from_access_and_index(access, index);
-	space = isl_space_set_alloc(ctx, 0, 0);
-	domain = isl_set_universe(isl_space_copy(space));
-	stmt = pet_stmt_from_pet_expr(domain, pet_loc_copy(stmt->loc),
-					NULL, state->n_stmt++, kill);
-	return pet_scop_from_pet_stmt(space, stmt);
+	stmt = pet_stmt_from_pet_expr(isl_set_copy(domain),
+			pet_loc_copy(stmt->loc), NULL, state->n_stmt++, kill);
+	return pet_scop_from_pet_stmt(isl_set_get_space(domain), stmt);
 }
 
 /* Mark all arrays in "scop" as being exposed.
@@ -1833,11 +1830,13 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 	int i;
 	isl_ctx *ctx;
 	isl_space *space;
+	isl_set *domain;
 	struct pet_scop *scop, *kills;
 
 	ctx = pet_tree_get_ctx(tree);
 
 	space = pet_context_get_space(pc);
+	domain = pet_context_get_domain(pc);
 	pc = pet_context_copy(pc);
 	scop = pet_scop_empty(isl_space_copy(space));
 	kills = pet_scop_empty(space);
@@ -1854,7 +1853,7 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		if (scop_i && pet_tree_is_decl(tree->u.b.child[i])) {
 			if (tree->u.b.block) {
 				struct pet_scop *kill;
-				kill = extract_kill(ctx, scop_i, state);
+				kill = extract_kill(domain, scop_i, state);
 				kills = pet_scop_add_par(ctx, kills, kill);
 			} else
 				scop_i = mark_exposed(scop_i);
@@ -1867,6 +1866,7 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		if (!scop)
 			break;
 	}
+	isl_set_free(domain);
 
 	kills = pet_scop_prefix(kills, tree->u.b.n);
 	scop = pet_scop_add_seq(ctx, scop, kills);
