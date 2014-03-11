@@ -304,8 +304,9 @@ static __isl_give isl_multi_pw_aff *map_to_previous(__isl_take isl_id *id_test,
 
 /* Add an implication to "scop" expressing that if an element of
  * virtual array "id_test" has value "satisfied" then all previous elements
- * of this array also have that value.  The set of previous elements
- * is bounded by "domain".  If "sign" is negative then the iterator
+ * of this array (in the final dimension) also have that value.
+ * The set of previous elements is bounded by "domain".
+ * If "sign" is negative then the iterator
  * is decreasing and we express that all subsequent array elements
  * (but still defined previously) have the same value.
  */
@@ -313,15 +314,22 @@ static struct pet_scop *add_implication(struct pet_scop *scop,
 	__isl_take isl_id *id_test, __isl_take isl_set *domain, int sign,
 	int satisfied)
 {
+	int i, dim;
 	isl_space *space;
 	isl_map *map;
 
+	dim = isl_set_dim(domain, isl_dim_set);
 	domain = isl_set_set_tuple_id(domain, id_test);
-	space = isl_set_get_space(domain);
+	space = isl_space_map_from_set(isl_set_get_space(domain));
+	map = isl_map_universe(space);
+	for (i = 0; i + 1 < dim; ++i)
+		map = isl_map_equate(map, isl_dim_in, i, isl_dim_out, i);
 	if (sign > 0)
-		map = isl_map_lex_ge(space);
+		map = isl_map_order_ge(map,
+				    isl_dim_in, dim - 1, isl_dim_out, dim - 1);
 	else
-		map = isl_map_lex_le(space);
+		map = isl_map_order_le(map,
+				    isl_dim_in, dim - 1, isl_dim_out, dim - 1);
 	map = isl_map_intersect_range(map, domain);
 	scop = pet_scop_add_implication(scop, map, satisfied);
 
