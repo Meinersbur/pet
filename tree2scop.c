@@ -699,17 +699,20 @@ error:
 }
 
 /* Check whether "cond" expresses a simple loop bound
- * on the only set dimension.
+ * on the final set dimension.
  * In particular, if "up" is set then "cond" should contain only
- * upper bounds on the set dimension.
+ * upper bounds on the final set dimension.
  * Otherwise, it should contain only lower bounds.
  */
 static int is_simple_bound(__isl_keep isl_set *cond, __isl_keep isl_val *inc)
 {
+	int pos;
+
+	pos = isl_set_dim(cond, isl_dim_set) - 1;
 	if (isl_val_is_pos(inc))
-		return !isl_set_dim_has_any_lower_bound(cond, isl_dim_set, 0);
+		return !isl_set_dim_has_any_lower_bound(cond, isl_dim_set, pos);
 	else
-		return !isl_set_dim_has_any_upper_bound(cond, isl_dim_set, 0);
+		return !isl_set_dim_has_any_upper_bound(cond, isl_dim_set, pos);
 }
 
 /* Extend a condition on a given iteration of a loop to one that
