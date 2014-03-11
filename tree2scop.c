@@ -715,37 +715,47 @@ static int is_simple_bound(__isl_keep isl_set *cond, __isl_keep isl_val *inc)
 /* Extend a condition on a given iteration of a loop to one that
  * imposes the same condition on all previous iterations.
  * "domain" expresses the lower [upper] bound on the iterations
- * when inc is positive [negative].
+ * when inc is positive [negative] in its final dimension.
  *
  * In particular, we construct the condition (when inc is positive)
  *
  *	forall i' : (domain(i') and i' <= i) => cond(i')
  *
+ * (where "<=" applies to the final dimension)
  * which is equivalent to
  *
  *	not exists i' : domain(i') and i' <= i and not cond(i')
  *
- * We construct this set by negating cond, applying a map
+ * We construct this set by subtracting the satisfying cond from domain,
+ * applying a map
  *
- *	{ [i'] -> [i] : domain(i') and i' <= i }
+ *	{ [i'] -> [i] : i' <= i }
  *
- * and then negating the result again.
+ * and then subtracting the result from domain again.
  */
 static __isl_give isl_set *valid_for_each_iteration(__isl_take isl_set *cond,
 	__isl_take isl_set *domain, __isl_take isl_val *inc)
 {
+	isl_space *space;
 	isl_map *previous_to_this;
+	int i, dim;
 
+	dim = isl_set_dim(cond, isl_dim_set);
+	space = isl_space_map_from_set(isl_set_get_space(cond));
+	previous_to_this = isl_map_universe(space);
+	for (i = 0; i + 1 < dim; ++i)
+		previous_to_this = isl_map_equate(previous_to_this,
+			isl_dim_in, i, isl_dim_out, i);
 	if (isl_val_is_pos(inc))
-		previous_to_this = isl_map_lex_le(isl_set_get_space(domain));
+		previous_to_this = isl_map_order_le(previous_to_this,
+			isl_dim_in, dim - 1, isl_dim_out, dim - 1);
 	else
-		previous_to_this = isl_map_lex_ge(isl_set_get_space(domain));
+		previous_to_this = isl_map_order_ge(previous_to_this,
+			isl_dim_in, dim - 1, isl_dim_out, dim - 1);
 
-	previous_to_this = isl_map_intersect_domain(previous_to_this, domain);
-
-	cond = isl_set_complement(cond);
+	cond = isl_set_subtract(isl_set_copy(domain), cond);
 	cond = isl_set_apply(cond, previous_to_this);
-	cond = isl_set_complement(cond);
+	cond = isl_set_subtract(domain, cond);
 
 	isl_val_free(inc);
 
