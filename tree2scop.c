@@ -198,16 +198,26 @@ static __isl_give isl_set *embed(__isl_take isl_set *set,
 }
 
 /* Return those elements in the space of "cond" that come after
- * (based on "sign") an element in "cond".
+ * (based on "sign") an element in "cond" in the final dimension.
  */
 static __isl_give isl_set *after(__isl_take isl_set *cond, int sign)
 {
+	isl_space *space;
 	isl_map *previous_to_this;
+	int i, dim;
 
+	dim = isl_set_dim(cond, isl_dim_set);
+	space = isl_space_map_from_set(isl_set_get_space(cond));
+	previous_to_this = isl_map_universe(space);
+	for (i = 0; i + 1 < dim; ++i)
+		previous_to_this = isl_map_equate(previous_to_this,
+			isl_dim_in, i, isl_dim_out, i);
 	if (sign > 0)
-		previous_to_this = isl_map_lex_lt(isl_set_get_space(cond));
+		previous_to_this = isl_map_order_lt(previous_to_this,
+			isl_dim_in, dim - 1, isl_dim_out, dim - 1);
 	else
-		previous_to_this = isl_map_lex_gt(isl_set_get_space(cond));
+		previous_to_this = isl_map_order_gt(previous_to_this,
+			isl_dim_in, dim - 1, isl_dim_out, dim - 1);
 
 	cond = isl_set_apply(cond, previous_to_this);
 
