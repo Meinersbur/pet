@@ -1314,6 +1314,19 @@ __isl_give pet_expr *pet_expr_update_domain(__isl_take pet_expr *expr,
 	return expr;
 }
 
+/* Given an expression with accesses that have a 0D anonymous domain,
+ * replace those domains by "space".
+ */
+__isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
+	__isl_take isl_space *space)
+{
+	isl_multi_pw_aff *mpa;
+
+	space = isl_space_from_domain(space);
+	mpa = isl_multi_pw_aff_zero(space);
+	return pet_expr_update_domain(expr, mpa);
+}
+
 /* Add all parameters in "space" to the access relation and index expression
  * of "expr".
  */

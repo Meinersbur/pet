@@ -185,6 +185,9 @@ __isl_give pet_expr *pet_expr_set_type_size(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 	int depth);
 
+__isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
+	__isl_take isl_space *space);
+
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 
 #if defined(__cplusplus)

@@ -408,12 +408,15 @@ static __isl_give pet_expr *plug_in_affine_read(__isl_take pet_expr *expr,
 
 /* Evaluate "expr" in the context of "pc".
  *
- * In particular, plug in affine expressions for scalar reads and
+ * In particular, we first make sure that all the access expressions
+ * inside "expr" have the same domain as "pc".
+ * Then, we plug in affine expressions for scalar reads and
  * plug in the arguments of all access expressions in "expr".
  */
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr)
 {
+	expr = pet_expr_insert_domain(expr, pet_context_get_space(pc));
 	expr = plug_in_affine_read(expr, pc);
 	return pet_expr_plug_in_args(expr, pc);
 }
