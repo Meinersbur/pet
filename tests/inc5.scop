@@ -8,10 +8,6 @@ arrays:
   element_type: int
   element_size: 4
   uniquely_defined: 1
-- context: '{  :  }'
-  extent: '[N] -> { N[] }'
-  element_type: int
-  element_size: 4
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
   element_type: int
@@ -74,8 +70,8 @@ statements:
         read: 1
         write: 0
       - type: access
-        relation: '[N] -> { S_2[t] -> N[] }'
-        index: '[N] -> { S_2[t] -> N[] }'
+        relation: '[N] -> { S_2[t] -> [N] }'
+        index: '[N] -> { S_2[t] -> [(N)] }'
         reference: __pet_ref_5
         read: 1
         write: 0

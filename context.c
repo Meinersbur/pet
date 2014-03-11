@@ -368,13 +368,53 @@ __isl_give pet_context *pet_context_clear_writes_in_tree(
 	return pc;
 }
 
+/* Given an access expression, check if it reads a scalar variable
+ * that has a known value in "pc".
+ * If so, then replace the access by an access to that value.
+ */
+static __isl_give pet_expr *access_plug_in_affine_read(
+	__isl_take pet_expr *expr, void *user)
+{
+	pet_context *pc = user;
+	isl_pw_aff *pa;
+
+	if (pet_expr_access_is_write(expr))
+		return expr;
+	if (!pet_expr_is_scalar_access(expr))
+		return expr;
+
+	pa = pet_expr_extract_affine(expr, pc);
+	if (!pa)
+		return pet_expr_free(expr);
+	if (isl_pw_aff_involves_nan(pa)) {
+		isl_pw_aff_free(pa);
+		return expr;
+	}
+
+	pet_expr_free(expr);
+	expr = pet_expr_from_index(isl_multi_pw_aff_from_pw_aff(pa));
+
+	return expr;
+}
+
+/* Replace every read access in "expr" to a scalar variable
+ * that has a known value in "pc" by that known value.
+ */
+static __isl_give pet_expr *plug_in_affine_read(__isl_take pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	return pet_expr_map_access(expr, &access_plug_in_affine_read, pc);
+}
+
 /* Evaluate "expr" in the context of "pc".
  *
- * In particular, plug in the arguments of all access expressions in 'expr".
+ * In particular, plug in affine expressions for scalar reads and
+ * plug in the arguments of all access expressions in "expr".
  */
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr)
 {
+	expr = plug_in_affine_read(expr, pc);
 	return pet_expr_plug_in_args(expr, pc);
 }
 

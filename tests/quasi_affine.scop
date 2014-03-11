@@ -1,49 +1,46 @@
 start: 84
 end: 218
-context: '[N] -> {  : N <= 2147483647 and N >= 0 }'
+context: '[N, in] -> {  : N <= 2147483647 and N >= 0 and in <= 2147483647 and in >=
+  -2147483648 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { A[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N, in] -> { A[i0] : i0 <= -1 + N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '[N] -> { in[] }'
-  element_type: int
-  element_size: 4
-- context: '{  :  }'
-  extent: '[N] -> { out[] }'
+  extent: '[N, in] -> { out[] }'
   element_type: int
   element_size: 4
 statements:
 - line: 14
-  domain: '[N] -> { S_0[] }'
+  domain: '[N, in] -> { S_0[] }'
   schedule: '{ S_0[] -> [0, 0] }'
   body:
     type: op
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_0[] -> A[0] }'
-      index: '[N] -> { S_0[] -> A[(0)] }'
+      relation: '[N, in] -> { S_0[] -> A[0] }'
+      index: '[N, in] -> { S_0[] -> A[(0)] }'
       reference: __pet_ref_0
       read: 0
       write: 1
     - type: access
-      relation: '[N] -> { S_0[] -> in[] }'
-      index: '[N] -> { S_0[] -> in[] }'
+      relation: '[N, in] -> { S_0[] -> [in] }'
+      index: '[N, in] -> { S_0[] -> [(in)] }'
       reference: __pet_ref_1
       read: 1
       write: 0
 - line: 16
-  domain: '[N] -> { S_1[i] : i <= N and i >= 1 }'
+  domain: '[N, in] -> { S_1[i] : i <= N and i >= 1 }'
   schedule: '[N] -> { S_1[i] -> [0, 1, i, 0] }'
   body:
     type: op
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_1[i] -> A[i] }'
-      index: '[N] -> { S_1[i] -> A[(i)] }'
+      relation: '[N, in] -> { S_1[i] -> A[i] }'
+      index: '[N, in] -> { S_1[i] -> A[(i)] }'
       reference: __pet_ref_2
       read: 0
       write: 1
@@ -54,21 +51,21 @@ statements:
         name: g
         arguments:
         - type: access
-          relation: '[N] -> { S_1[i] -> A[o0] : 2o0 >= -1 + i and 2o0 <= i }'
-          index: '[N] -> { S_1[i] -> A[(floor((i)/2))] }'
+          relation: '[N, in] -> { S_1[i] -> A[o0] : 2o0 >= -1 + i and 2o0 <= i }'
+          index: '[N, in] -> { S_1[i] -> A[(floor((i)/2))] }'
           reference: __pet_ref_3
           read: 1
           write: 0
 - line: 18
-  domain: '[N] -> { S_2[] }'
+  domain: '[N, in] -> { S_2[] }'
   schedule: '{ S_2[] -> [0, 2] }'
   body:
     type: op
     operation: =
     arguments:
     - type: access
-      relation: '[N] -> { S_2[] -> out[] }'
-      index: '[N] -> { S_2[] -> out[] }'
+      relation: '[N, in] -> { S_2[] -> out[] }'
+      index: '[N, in] -> { S_2[] -> out[] }'
       reference: __pet_ref_4
       read: 0
       write: 1
@@ -76,8 +73,8 @@ statements:
       name: g
       arguments:
       - type: access
-        relation: '[N] -> { S_2[] -> A[N] }'
-        index: '[N] -> { S_2[] -> A[(N)] }'
+        relation: '[N, in] -> { S_2[] -> A[N] }'
+        index: '[N, in] -> { S_2[] -> A[(N)] }'
         reference: __pet_ref_5
         read: 1
         write: 0

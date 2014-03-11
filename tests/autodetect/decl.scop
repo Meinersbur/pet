@@ -74,8 +74,8 @@ statements:
       read: 0
       write: 1
     - type: access
-      relation: '{ S_3[] -> c[] }'
-      index: '{ S_3[] -> c[] }'
+      relation: '{ S_3[] -> [5] }'
+      index: '{ S_3[] -> [(5)] }'
       reference: __pet_ref_4
       read: 1
       write: 0

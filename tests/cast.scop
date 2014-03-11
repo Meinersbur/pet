@@ -1,26 +1,22 @@
 start: 37
 end: 80
-context: '{  :  }'
+context: '[c] -> {  : c <= 127 and c >= -128 }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[] }'
+  extent: '[c] -> { a[] }'
   element_type: int
   element_size: 4
-- context: '{  :  }'
-  extent: '{ c[] }'
-  element_type: char
-  element_size: 1
 statements:
 - line: 7
-  domain: '{ S_0[] }'
+  domain: '[c] -> { S_0[] }'
   schedule: '{ S_0[] -> [0] }'
   body:
     type: op
     operation: =
     arguments:
     - type: access
-      relation: '{ S_0[] -> a[] }'
-      index: '{ S_0[] -> a[] }'
+      relation: '[c] -> { S_0[] -> a[] }'
+      index: '[c] -> { S_0[] -> a[] }'
       reference: __pet_ref_0
       read: 0
       write: 1
@@ -28,8 +24,8 @@ statements:
       type_name: int
       arguments:
       - type: access
-        relation: '{ S_0[] -> c[] }'
-        index: '{ S_0[] -> c[] }'
+        relation: '[c] -> { S_0[] -> [c] }'
+        index: '[c] -> { S_0[] -> [(c)] }'
         reference: __pet_ref_1
         read: 1
         write: 0

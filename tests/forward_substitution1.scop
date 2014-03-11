@@ -44,8 +44,8 @@ statements:
       read: 0
       write: 1
     - type: access
-      relation: '{ S_1[] -> b[] }'
-      index: '{ S_1[] -> b[] }'
+      relation: '{ S_1[] -> [1] }'
+      index: '{ S_1[] -> [(1)] }'
       reference: __pet_ref_2
       read: 1
       write: 0
