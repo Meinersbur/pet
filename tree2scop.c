@@ -80,15 +80,18 @@ static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
 	__isl_take isl_id *label, int stmt_nr, __isl_take pet_loc *loc,
 	__isl_keep pet_context *pc)
 {
+	isl_space *space;
 	isl_set *domain;
 	struct pet_stmt *ps;
 
+	space = pet_context_get_space(pc);
+
 	expr = pet_expr_plug_in_args(expr, pc);
-	expr = pet_expr_resolve_nested(expr);
+	expr = pet_expr_resolve_nested(expr, space);
 	expr = pet_expr_resolve_assume(expr, pc);
 	domain = pet_context_get_domain(pc);
 	ps = pet_stmt_from_pet_expr(domain, loc, label, stmt_nr, expr);
-	return pet_scop_from_pet_stmt(pet_context_get_space(pc), ps);
+	return pet_scop_from_pet_stmt(space, ps);
 }
 
 /* Construct a pet_scop with a single statement killing the entire

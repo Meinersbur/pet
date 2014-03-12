@@ -547,10 +547,11 @@ static __isl_give pet_expr *remove_marked_self_dependences(
  * parameters with name "__pet_expr".
  *
  * If there are any such parameters, then the domain of the index
- * expression and the access relation, which is either [] or
- * [[] -> [a_1,...,a_m]] at this point, is replaced by [[] -> [t_1,...,t_n]] or
- * [[] -> [a_1,...,a_m,t_1,...,t_n]], with m the original number of arguments
- * (n_arg) and n the number of these parameters
+ * expression and the access relation, which is either "domain" or
+ * [domain -> [a_1,...,a_m]] at this point, is replaced by
+ * [domain -> [t_1,...,t_n]] or [domain -> [a_1,...,a_m,t_1,...,t_n]],
+ * with m the original number of arguments (n_arg) and
+ * n the number of these parameters
  * (after identifying identical nested accesses).
  *
  * This transformation is performed in several steps.
@@ -559,14 +560,16 @@ static __isl_give pet_expr *remove_marked_self_dependences(
  * of the argument beyond the initial (n_arg) number of arguments.
  * Then we move these parameters to input dimensions.
  * t2pos maps the positions of these temporary input dimensions
- * to the positions of the corresponding arguments.
+ * to the positions of the corresponding arguments inside the space
+ * [domain -> [t_1,...,t_n]].
  * Finally, we express these temporary dimensions in terms of the domain
- * [[] -> [a_1,...,a_m,t_1,...,t_n]] and precompose index expression and access
- * relations with this function.
+ * [domain -> [a_1,...,a_m,t_1,...,t_n]] and precompose index expression and
+ * access relations with this function.
  */
-__isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr)
+__isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr,
+	__isl_keep isl_space *domain)
 {
-	int i, n, n_arg;
+	int i, n, n_arg, dim, n_in;
 	int nparam;
 	isl_ctx *ctx;
 	isl_space *space;
@@ -583,12 +586,15 @@ __isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr)
 	for (i = 0; i < n_arg; ++i) {
 		pet_expr *arg;
 		arg = pet_expr_get_arg(expr, i);
-		arg = pet_expr_resolve_nested(arg);
+		arg = pet_expr_resolve_nested(arg, domain);
 		expr = pet_expr_set_arg(expr, i, arg);
 	}
 
 	if (pet_expr_get_type(expr) != pet_expr_access)
 		return expr;
+
+	dim = isl_space_dim(domain, isl_dim_set);
+	n_in = dim + n_arg;
 
 	space = pet_expr_access_get_parameter_space(expr);
 	n = pet_nested_n_in_space(space);
@@ -626,25 +632,25 @@ __isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr)
 		}
 
 		expr = pet_expr_access_move_dims(expr,
-				    isl_dim_in, n_arg + n, isl_dim_param, i, 1);
-		t2pos[n] = n_arg + param2pos[i];
+				    isl_dim_in, n_in + n, isl_dim_param, i, 1);
+		t2pos[n] = n_in + param2pos[i];
 		n++;
 
 		isl_id_free(id);
 	}
 	isl_space_free(space);
 
-	space = pet_expr_access_get_parameter_space(expr);
-	space = isl_space_set_from_params(space);
-	space = isl_space_add_dims(space, isl_dim_set,
+	space = isl_space_copy(domain);
+	space = isl_space_from_domain(space);
+	space = isl_space_add_dims(space, isl_dim_out,
 					pet_expr_get_n_arg(expr));
-	space = isl_space_wrap(isl_space_from_range(space));
+	space = isl_space_wrap(space);
 	ls = isl_local_space_from_space(isl_space_copy(space));
 	space = isl_space_from_domain(space);
-	space = isl_space_add_dims(space, isl_dim_out, n_arg + n);
+	space = isl_space_add_dims(space, isl_dim_out, n_in + n);
 	ma = isl_multi_aff_zero(space);
 
-	for (i = 0; i < n_arg; ++i) {
+	for (i = 0; i < n_in; ++i) {
 		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
 					    isl_dim_set, i);
 		ma = isl_multi_aff_set_aff(ma, i, aff);
@@ -652,13 +658,13 @@ __isl_give pet_expr *pet_expr_resolve_nested(__isl_take pet_expr *expr)
 	for (i = 0; i < n; ++i) {
 		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
 					    isl_dim_set, t2pos[i]);
-		ma = isl_multi_aff_set_aff(ma, n_arg + i, aff);
+		ma = isl_multi_aff_set_aff(ma, n_in + i, aff);
 	}
 	isl_local_space_free(ls);
 
 	expr = pet_expr_access_pullback_multi_aff(expr, ma);
 
-	expr = remove_marked_self_dependences(expr, 0, n_arg);
+	expr = remove_marked_self_dependences(expr, dim, n_arg);
 
 	free(t2pos);
 	free(param2pos);
