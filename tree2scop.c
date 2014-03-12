@@ -49,9 +49,8 @@
  * if "stmt" is a top-level (i.e., unconditional) assignment
  * to a scalar variable, then update "pc" accordingly.
  *
- * In particular, if the lhs of the assignment is a scalar variable, then mark
- * the variable as having been assigned.  If, furthermore, the rhs
- * is an affine expression, then keep track of this value in "pc"
+ * In particular, if the lhs of the assignment is a scalar variable and
+ * if the rhs is an affine expression, then keep track of this value in "pc"
  * so that we can plug it in when we later come across the same variable.
  *
  * We skip assignments to virtual arrays (those with NULL user pointer).
@@ -90,7 +89,6 @@ static __isl_give pet_context *handle_writes(struct pet_stmt *stmt,
 
 	arg = pet_expr_get_arg(body, 1);
 	pa = pet_expr_extract_affine(arg, pc);
-	pc = pet_context_mark_assigned(pc, isl_id_copy(id));
 	pet_expr_free(arg);
 
 	if (pa && isl_pw_aff_involves_nan(pa)) {
