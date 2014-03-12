@@ -34,6 +34,7 @@
 
 #include <string.h>
 
+#include "aff.h"
 #include "expr.h"
 #include "expr_arg.h"
 #include "nest.h"
@@ -309,9 +310,27 @@ error:
 	return NULL;
 }
 
+/* Embed all access expressions in "expr" in the domain "space".
+ * The initial domain of the access expressions
+ * is the zero-dimensional anonymous domain.
+ */
+static __isl_give pet_expr *embed(__isl_take pet_expr *expr,
+	__isl_keep isl_space *space)
+{
+	isl_multi_pw_aff *mpa;
+
+	space = isl_space_from_domain(isl_space_copy(space));
+	mpa = isl_multi_pw_aff_from_multi_aff(isl_multi_aff_zero(space));
+	expr = pet_expr_update_domain(expr, mpa);
+
+	return expr;
+}
+
 /* For each nested access parameter in "space",
  * construct a corresponding pet_expr, place it in args and
  * record its position in "param2pos".
+ * The constructed pet_expr objects are embedded in "space"
+ * (with the nested access parameters removed).
  * "n_arg" is the number of elements that are already in args.
  * The position recorded in "param2pos" takes this number into account.
  * If the pet_expr corresponding to a parameter is identical to
@@ -324,7 +343,10 @@ int pet_extract_nested_from_space(__isl_keep isl_space *space,
 	int n_arg, __isl_give pet_expr **args, int *param2pos)
 {
 	int i, nparam;
+	isl_space *domain;
 
+	domain = isl_space_copy(space);
+	domain = pet_nested_remove_from_space(domain);
 	nparam = isl_space_dim(space, isl_dim_param);
 	for (i = 0; i < nparam; ++i) {
 		int j;
@@ -335,7 +357,7 @@ int pet_extract_nested_from_space(__isl_keep isl_space *space,
 			continue;
 		}
 
-		args[n_arg] = pet_nested_extract_expr(id);
+		args[n_arg] = embed(pet_nested_extract_expr(id), domain);
 		isl_id_free(id);
 		if (!args[n_arg])
 			return -1;
@@ -351,6 +373,7 @@ int pet_extract_nested_from_space(__isl_keep isl_space *space,
 		} else
 			param2pos[i] = n_arg++;
 	}
+	isl_space_free(domain);
 
 	return n_arg;
 }
@@ -375,7 +398,7 @@ __isl_give pet_expr *pet_expr_extract_nested(__isl_take pet_expr *expr, int n,
 		return pet_expr_free(expr);
 
 	n_arg = pet_expr_get_n_arg(expr);
-	space = pet_expr_access_get_parameter_space(expr);
+	space = pet_expr_access_get_domain_space(expr);
 	n = pet_extract_nested_from_space(space, 0, args, param2pos);
 	isl_space_free(space);
 
@@ -675,28 +698,6 @@ error:
 	return pet_expr_free(expr);
 }
 
-/* Precompose the access relation and the index expression associated
- * to "expr" with the function pointed to by "user",
- * thereby embedding the access relation in the domain of this function.
- * The initial domain of the access relation and the index expression
- * is the zero-dimensional domain.
- */
-static __isl_give pet_expr *embed_access(__isl_take pet_expr *expr, void *user)
-{
-	isl_multi_aff *ma = (isl_multi_aff *) user;
-
-	return pet_expr_access_pullback_multi_aff(expr, isl_multi_aff_copy(ma));
-}
-
-/* Precompose all access relations in "expr" with "ma", thereby
- * embedding them in the domain of "ma".
- */
-static __isl_give pet_expr *embed(__isl_take pet_expr *expr,
-	__isl_keep isl_multi_aff *ma)
-{
-	return pet_expr_map_access(expr, &embed_access, ma);
-}
-
 /* For each nested access parameter in the domain of "stmt",
  * construct a corresponding pet_expr, place it before the original
  * elements in stmt->args and record its position in "param2pos".
@@ -719,6 +720,8 @@ struct pet_stmt *pet_stmt_extract_nested(struct pet_stmt *stmt, int n,
 		goto error;
 
 	space = isl_set_get_space(stmt->domain);
+	if (isl_space_is_wrapping(space))
+		space = isl_space_domain(isl_space_unwrap(space));
 	n_arg = pet_extract_nested_from_space(space, 0, args, param2pos);
 	isl_space_free(space);
 
@@ -799,9 +802,7 @@ error:
  * and subsequently projected out, from the iteration domain,
  * the schedule and the access relations.
  * For each of the output dimensions, a corresponding argument
- * expression is inserted.  Initially they are created with
- * a zero-dimensional domain, so they have to be embedded
- * in the current iteration domain.
+ * expression is inserted, embedded in the current iteration domain.
  * param2pos maps the position of the parameter to the position
  * of the corresponding output dimension in the wrapped map.
  */
@@ -856,13 +857,6 @@ struct pet_stmt *pet_stmt_resolve_nested(struct pet_stmt *stmt)
 	}
 
 	stmt->domain = isl_map_wrap(map);
-
-	space = isl_space_unwrap(isl_set_get_space(stmt->domain));
-	space = isl_space_from_domain(isl_space_domain(space));
-	ma = isl_multi_aff_zero(space);
-	for (pos = 0; pos < n; ++pos)
-		stmt->args[pos] = embed(stmt->args[pos], ma);
-	isl_multi_aff_free(ma);
 
 	stmt = pet_stmt_remove_nested_parameters(stmt);
 	stmt = remove_duplicate_arguments(stmt, n);
