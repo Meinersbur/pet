@@ -115,7 +115,7 @@ static void clear_assignment(map<ValueDecl *, isl_pw_aff *> &assigned_value,
 
 	assigned_value[decl] = NULL;
 
-	if (it == assigned_value.end())
+	if (it != assigned_value.end())
 		return;
 
 	for (it = assigned_value.begin(); it != assigned_value.end(); ++it) {
