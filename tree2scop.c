@@ -269,28 +269,34 @@ static __isl_give isl_aff *identity_aff(__isl_keep isl_set *domain)
 }
 
 /* Create an affine expression that maps elements
- * of a single-dimensional array "id_test" to the previous element
+ * of an array "id_test" to the previous element in the final dimension
  * (according to "inc"), provided this element belongs to "domain".
  * That is, create the affine expression
  *
- *	{ id[x] -> id[x - inc] : x - inc in domain }
+ *	{ id[outer,x] -> id[outer,x - inc] : (outer,x - inc) in domain }
  */
 static __isl_give isl_multi_pw_aff *map_to_previous(__isl_take isl_id *id_test,
 	__isl_take isl_set *domain, __isl_take isl_val *inc)
 {
+	int pos;
 	isl_space *space;
-	isl_local_space *ls;
 	isl_aff *aff;
+	isl_pw_aff *pa;
+	isl_multi_aff *ma;
 	isl_multi_pw_aff *prev;
 
+	pos = isl_set_dim(domain, isl_dim_set) - 1;
 	space = isl_set_get_space(domain);
-	ls = isl_local_space_from_space(space);
-	aff = isl_aff_var_on_domain(ls, isl_dim_set, 0);
+	space = isl_space_map_from_set(space);
+	ma = isl_multi_aff_identity(space);
+	aff = isl_multi_aff_get_aff(ma, pos);
 	aff = isl_aff_add_constant_val(aff, isl_val_neg(inc));
-	prev = isl_multi_pw_aff_from_pw_aff(isl_pw_aff_from_aff(aff));
-	domain = isl_set_preimage_multi_pw_aff(domain,
-						isl_multi_pw_aff_copy(prev));
-	prev = isl_multi_pw_aff_intersect_domain(prev, domain);
+	ma = isl_multi_aff_set_aff(ma, pos, aff);
+	domain = isl_set_preimage_multi_aff(domain, isl_multi_aff_copy(ma));
+	prev = isl_multi_pw_aff_from_multi_aff(ma);
+	pa = isl_multi_pw_aff_get_pw_aff(prev, pos);
+	pa = isl_pw_aff_intersect_domain(pa, domain);
+	prev = isl_multi_pw_aff_set_pw_aff(prev, pos, pa);
 	prev = isl_multi_pw_aff_set_tuple_id(prev, isl_dim_out, id_test);
 
 	return prev;
