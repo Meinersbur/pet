@@ -43,6 +43,9 @@ __isl_give pet_context *pet_context_clear_writes_in_expr(
 __isl_give pet_context *pet_context_clear_writes_in_tree(
 	__isl_take pet_context *pc, __isl_keep pet_tree *tree);
 
+__isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
+	__isl_take pet_expr *expr);
+
 void pet_context_dump(__isl_keep pet_context *pc);
 
 #if defined(__cplusplus)

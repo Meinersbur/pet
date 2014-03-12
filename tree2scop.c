@@ -70,13 +70,14 @@ static __isl_give pet_context *scop_handle_writes(struct pet_scop *scop,
 
 /* Convert a top-level pet_expr to a pet_scop with one statement
  * within the context "pc".
+ * "expr" has already been evaluated in the context of "pc".
  * This mainly involves resolving nested expression parameters
  * and setting the name of the iteration space.
  * The name is given by "label" if it is non-NULL.  Otherwise,
  * it is of the form S_<stmt_nr>.
  * The location of the statement is set to "loc".
  */
-static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
+static struct pet_scop *scop_from_evaluated_expr(__isl_take pet_expr *expr,
 	__isl_take isl_id *label, int stmt_nr, __isl_take pet_loc *loc,
 	__isl_keep pet_context *pc)
 {
@@ -86,12 +87,28 @@ static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
 
 	space = pet_context_get_space(pc);
 
-	expr = pet_expr_plug_in_args(expr, pc);
 	expr = pet_expr_resolve_nested(expr, space);
 	expr = pet_expr_resolve_assume(expr, pc);
 	domain = pet_context_get_domain(pc);
 	ps = pet_stmt_from_pet_expr(domain, loc, label, stmt_nr, expr);
 	return pet_scop_from_pet_stmt(space, ps);
+}
+
+/* Convert a top-level pet_expr to a pet_scop with one statement
+ * within the context "pc", where "expr" has not yet been evaluated
+ * in the context of "pc".
+ * We evaluate "expr" in the context of "pc" and continue with
+ * scop_from_evaluated_expr.
+ * The statement name is given by "label" if it is non-NULL.  Otherwise,
+ * it is of the form S_<stmt_nr>.
+ * The location of the statement is set to "loc".
+ */
+static struct pet_scop *scop_from_expr(__isl_take pet_expr *expr,
+	__isl_take isl_id *label, int stmt_nr, __isl_take pet_loc *loc,
+	__isl_keep pet_context *pc)
+{
+	expr = pet_context_evaluate_expr(pc, expr);
+	return scop_from_evaluated_expr(expr, label, stmt_nr, loc, pc);
 }
 
 /* Construct a pet_scop with a single statement killing the entire
@@ -524,6 +541,7 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
 /* Create a pet_scop with a single statement with name S_<stmt_nr>,
  * evaluating "cond" and writing the result to a virtual scalar,
  * as expressed by "index".
+ * The expression "cond" has not yet been evaluated in the context of "pc".
  * Do so within the context "pc".
  * The location of the statement is set to "loc".
  */
@@ -534,12 +552,14 @@ static struct pet_scop *scop_from_non_affine_condition(
 {
 	pet_expr *expr, *write;
 
+	cond = pet_context_evaluate_expr(pc, cond);
+
 	write = pet_expr_from_index(index);
 	write = pet_expr_access_set_write(write, 1);
 	write = pet_expr_access_set_read(write, 0);
 	expr = pet_expr_new_binary(1, pet_op_assign, write, cond);
 
-	return scop_from_expr(expr, NULL, stmt_nr, loc, pc);
+	return scop_from_evaluated_expr(expr, NULL, stmt_nr, loc, pc);
 }
 
 /* Construct a generic while scop, with iteration domain
@@ -680,7 +700,7 @@ static struct pet_scop *scop_from_while(__isl_keep pet_tree *tree,
 	pc = pet_context_clear_writes_in_tree(pc, tree->u.l.body);
 
 	cond_expr = pet_expr_copy(tree->u.l.cond);
-	cond_expr = pet_expr_plug_in_args(cond_expr, pc);
+	cond_expr = pet_context_evaluate_expr(pc, cond_expr);
 	pa = pet_expr_extract_affine_condition(cond_expr, pc);
 	pet_expr_free(cond_expr);
 
@@ -1157,7 +1177,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	id = pet_expr_access_get_id(tree->u.l.iv);
 
 	cond_expr = pet_expr_copy(tree->u.l.cond);
-	cond_expr = pet_expr_plug_in_args(cond_expr, pc);
+	cond_expr = pet_context_evaluate_expr(pc, cond_expr);
 	pc_nested = pet_context_copy(pc);
 	pc_nested = pet_context_set_allow_nested(pc_nested, 1);
 	pa = pet_expr_extract_affine_condition(cond_expr, pc_nested);
@@ -1448,7 +1468,7 @@ static struct pet_scop *scop_from_conditional_assignment(
 	struct pet_scop *scop;
 
 	pe_cond = pet_expr_copy(tree->u.i.cond);
-	pe_cond = pet_expr_plug_in_args(pe_cond, pc);
+	pe_cond = pet_context_evaluate_expr(pc, pe_cond);
 	pc_nested = pet_context_copy(pc);
 	pc_nested = pet_context_set_allow_nested(pc_nested, 1);
 	pa = pet_expr_extract_affine_condition(pe_cond, pc_nested);
@@ -1464,16 +1484,19 @@ static struct pet_scop *scop_from_conditional_assignment(
 	pe_cond = pet_expr_from_index(index);
 
 	pe_then = pet_expr_get_arg(expr1, 1);
+	pe_then = pet_context_evaluate_expr(pc, pe_then);
 	pe_then = pet_expr_restrict(pe_then, cond);
 	pe_else = pet_expr_get_arg(expr2, 1);
+	pe_else = pet_context_evaluate_expr(pc, pe_else);
 	pe_else = pet_expr_restrict(pe_else, comp);
 	pe_write = pet_expr_get_arg(expr1, 0);
+	pe_write = pet_context_evaluate_expr(pc, pe_write);
 
 	pe = pet_expr_new_ternary(pe_cond, pe_then, pe_else);
 	type_size = pet_expr_get_type_size(pe_write);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, pe_write, pe);
 
-	scop = scop_from_expr(pe, NULL, state->n_stmt++,
+	scop = scop_from_evaluated_expr(pe, NULL, state->n_stmt++,
 				pet_tree_get_loc(tree), pc);
 
 	pet_context_free(pc);
@@ -1649,7 +1672,7 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 		return scop_from_conditional_assignment(tree, pc, state);
 
 	cond_expr = pet_expr_copy(tree->u.i.cond);
-	cond_expr = pet_expr_plug_in_args(cond_expr, pc);
+	cond_expr = pet_context_evaluate_expr(pc, cond_expr);
 	pc_nested = pet_context_copy(pc);
 	pc_nested = pet_context_set_allow_nested(pc_nested, 1);
 	cond = pet_expr_extract_affine_condition(cond_expr, pc_nested);

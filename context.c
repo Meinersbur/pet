@@ -36,6 +36,7 @@
 
 #include "context.h"
 #include "expr.h"
+#include "expr_arg.h"
 #include "nest.h"
 
 /* A pet_context represents the context in which a pet_expr
@@ -365,6 +366,16 @@ __isl_give pet_context *pet_context_clear_writes_in_tree(
 		pc = pet_context_free(pc);
 
 	return pc;
+}
+
+/* Evaluate "expr" in the context of "pc".
+ *
+ * In particular, plug in the arguments of all access expressions in 'expr".
+ */
+__isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
+	__isl_take pet_expr *expr)
+{
+	return pet_expr_plug_in_args(expr, pc);
 }
 
 void pet_context_dump(__isl_keep pet_context *pc)
