@@ -310,17 +310,58 @@ error:
 	return NULL;
 }
 
+/* Set *dim to the dimension of the domain of the access expression "expr" and
+ * abort the search.
+ */
+static int set_dim(__isl_keep pet_expr *expr, void *user)
+{
+	int *dim = user;
+	isl_space *space;
+
+	space = pet_expr_access_get_domain_space(expr);
+	*dim = isl_space_dim(space, isl_dim_set);
+	isl_space_free(space);
+
+	return -1;
+}
+
+/* Determine the dimension of the domain of the access expressions in "expr".
+ *
+ * In particular, return the dimension of the domain of the first access
+ * expression in "expr" as all access expressions should have the same
+ * domain.
+ *
+ * If "expr" does not contain any access expressions, then we return 0.
+ */
+static int pet_expr_domain_dim(__isl_keep pet_expr *expr)
+{
+	int dim = -1;
+
+	if (pet_expr_foreach_access_expr(expr, &set_dim, &dim) >= 0)
+		return 0;
+
+	return dim;
+}
+
 /* Embed all access expressions in "expr" in the domain "space".
  * The initial domain of the access expressions
- * is the zero-dimensional anonymous domain.
+ * is an anonymous domain of a dimension that may be lower
+ * than the dimension of "space".
+ * We may therefore need to introduce extra dimensions as well as
+ * (potentially) the name of "space".
  */
 static __isl_give pet_expr *embed(__isl_take pet_expr *expr,
 	__isl_keep isl_space *space)
 {
+	int n;
 	isl_multi_pw_aff *mpa;
 
-	space = isl_space_from_domain(isl_space_copy(space));
-	mpa = isl_multi_pw_aff_from_multi_aff(isl_multi_aff_zero(space));
+	n = pet_expr_domain_dim(expr);
+	if (n < 0)
+		return pet_expr_free(expr);
+
+	space = isl_space_copy(space);
+	mpa = isl_multi_pw_aff_from_multi_aff(pet_prefix_projection(space, n));
 	expr = pet_expr_update_domain(expr, mpa);
 
 	return expr;
