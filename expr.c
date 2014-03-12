@@ -918,6 +918,27 @@ __isl_give isl_space *pet_expr_access_get_parameter_space(
 	return space;
 }
 
+/* Return the domain space of "expr", without the arguments (if any).
+ */
+__isl_give isl_space *pet_expr_access_get_domain_space(
+	__isl_keep pet_expr *expr)
+{
+	isl_space *space;
+
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return NULL);
+
+	space = isl_multi_pw_aff_get_space(expr->acc.index);
+	space = isl_space_domain(space);
+	if (isl_space_is_wrapping(space))
+		space = isl_space_domain(isl_space_unwrap(space));
+
+	return space;
+}
+
 /* Return the space of the data accessed by "expr".
  */
 __isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr)
