@@ -34,6 +34,18 @@
 
 #include "aff.h"
 
+/* Return a function that projects "space" onto its first "n" dimensions,
+ * with anonymous target space.
+ */
+__isl_give isl_multi_aff *pet_prefix_projection(__isl_take isl_space *space,
+	int n)
+{
+	int dim;
+
+	dim = isl_space_dim(space, isl_dim_set);
+	return isl_multi_aff_project_out_map(space, isl_dim_set, n, dim - n);
+}
+
 /* If the isl_pw_aff on which isl_pw_aff_foreach_piece is called
  * has a constant expression on its only domain, then replace
  * the isl_val in *user by this constant.

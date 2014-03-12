@@ -9,6 +9,9 @@
 extern "C" {
 #endif
 
+__isl_give isl_multi_aff *pet_prefix_projection(__isl_take isl_space *space,
+	int n);
+
 __isl_give isl_val *pet_extract_cst(__isl_keep isl_pw_aff *pa);
 
 __isl_give isl_pw_aff *pet_and(__isl_take isl_pw_aff *lhs,
