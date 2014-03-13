@@ -3,7 +3,7 @@ end: 357
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4

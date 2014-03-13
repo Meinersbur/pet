@@ -1648,26 +1648,44 @@ error:
 }
 
 /* Embed the given pet_array in an extra outer loop with iteration domain
- * "dom".
+ * "dom".  "var_id" represents the induction variable of the loop.
+ * "iv_map" maps a possibly virtual iterator to the real iterator.
+ *
  * This embedding only has an effect on virtual arrays (those with
  * user pointer equal to NULL), which need to be extended along with
  * the iteration domain.
+ *
+ * The induction variable may also appears in the extent (as a parameter)
+ * due to being introduced by array_restrict.
+ * If so, then the parameter is equated to the newly introduced iteration
+ * domain dimension and subsequently projected out.
  */
 static struct pet_array *pet_array_embed(struct pet_array *array,
-	__isl_take isl_set *dom)
+	__isl_take isl_set *dom, __isl_take isl_aff *iv_map,
+	__isl_take isl_id *var_id)
 {
+	int pos;
 	isl_id *array_id = NULL;
 
 	if (!array)
 		goto error;
 	if (!extent_is_virtual_array(array->extent)) {
 		isl_set_free(dom);
+		isl_aff_free(iv_map);
+		isl_id_free(var_id);
 		return array;
 	}
 
 	array_id = isl_set_get_tuple_id(array->extent);
 	array->extent = isl_set_flat_product(dom, array->extent);
+	pos = isl_set_find_dim_by_id(array->extent, isl_dim_param, var_id);
+	if (pos >= 0)
+		array->extent = internalize_iv(array->extent, pos,
+						isl_aff_copy(iv_map));
 	array->extent = isl_set_set_tuple_id(array->extent, array_id);
+
+	isl_aff_free(iv_map);
+	isl_id_free(var_id);
 	if (!array->extent)
 		return pet_array_free(array);
 
@@ -1806,7 +1824,8 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 
 	for (i = 0; i < scop->n_array; ++i) {
 		scop->arrays[i] = pet_array_embed(scop->arrays[i],
-					isl_set_copy(dom));
+					isl_set_copy(dom),
+					isl_aff_copy(iv_map), isl_id_copy(id));
 		if (!scop->arrays[i])
 			goto error;
 	}
@@ -1846,6 +1865,29 @@ static struct pet_stmt *stmt_restrict(struct pet_stmt *stmt,
 error:
 	isl_set_free(cond);
 	return pet_stmt_free(stmt);
+}
+
+/* Add extra conditions on the parameters to the extent of "array",
+ * provided it is a virtual array.
+ */
+static struct pet_array *array_restrict(struct pet_array *array,
+	__isl_take isl_set *cond)
+{
+	if (!array)
+		goto error;
+	if (!extent_is_virtual_array(array->extent)) {
+		isl_set_free(cond);
+		return array;
+	}
+
+	array->extent = isl_set_intersect_params(array->extent, cond);
+	if (!array->extent)
+		return pet_array_free(array);
+
+	return array;
+error:
+	isl_set_free(cond);
+	return NULL;
 }
 
 /* Add extra conditions to scop->skip[type].
@@ -1888,7 +1930,7 @@ static struct pet_scop *pet_scop_restrict_skip(struct pet_scop *scop,
 }
 
 /* Add extra conditions on the parameters to all iteration domains
- * and skip conditions.
+ * virtual array extents and skip conditions.
  *
  * A parameter value is valid for the result if it was valid
  * for the original scop and satisfies "cond" or if it does
@@ -1918,6 +1960,13 @@ struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 		scop->stmts[i] = stmt_restrict(scop->stmts[i],
 						    isl_set_copy(cond));
 		if (!scop->stmts[i])
+			goto error;
+	}
+
+	for (i = 0; i < scop->n_array; ++i) {
+		scop->arrays[i] = array_restrict(scop->arrays[i],
+						    isl_set_copy(cond));
+		if (!scop->arrays[i])
 			goto error;
 	}
 

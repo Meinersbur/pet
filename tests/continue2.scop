@@ -3,19 +3,19 @@ end: 289
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i] : i >= 0 and i <= 99 }'
+  extent: '{ __pet_test_0[i] : i >= 0 and i <= 59 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_1[i] : i >= 0 and i <= 99 }'
+  extent: '{ __pet_test_1[i] : i >= 0 and i <= 59 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_2[i] : i >= 0 and i <= 99 }'
+  extent: '{ __pet_test_2[i] : i >= 0 and i <= 59 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4

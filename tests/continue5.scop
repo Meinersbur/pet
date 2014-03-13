@@ -3,7 +3,7 @@ end: 216
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i] : i >= 0 and i <= 99 }'
+  extent: '{ __pet_test_0[i] : (i <= 99 and i >= 58) or (i <= 56 and i >= 0) }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -39,7 +39,7 @@ statements:
     - type: call
       name: f
 - line: 12
-  domain: '{ S_1[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
+  domain: '{ S_1[i] : (i <= 56 and i >= 0) or (i <= 99 and i >= 58) }'
   schedule: '{ S_1[i] -> [0, i, 2] }'
   body:
     type: op
@@ -58,7 +58,7 @@ statements:
       read: 1
       write: 0
 - line: 13
-  domain: '{ S_2[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
+  domain: '{ S_2[i] : (i <= 99 and i >= 58) or (i <= 56 and i >= 0) }'
   schedule: '{ S_2[i] -> [0, i, 3] }'
   body:
     type: op
@@ -73,7 +73,7 @@ statements:
     - type: call
       name: f
 - line: 14
-  domain: '{ S_3[i] : (i >= 0 and i <= 56) or (i >= 58 and i <= 99) }'
+  domain: '{ S_3[i] : (i <= 99 and i >= 58) or (i <= 56 and i >= 0) }'
   schedule: '{ S_3[i] -> [0, i, 4, 0, 0] }'
   body:
     type: op
