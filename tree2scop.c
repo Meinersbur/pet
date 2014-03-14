@@ -1979,13 +1979,10 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 	kills = pet_scop_empty(space);
 	for (i = 0; i < tree->u.b.n; ++i) {
 		struct pet_scop *scop_i;
-		pet_context *pc_body;
 
-		pc_body = pet_context_copy(pc);
 		if (pet_scop_has_affine_skip(scop, pet_skip_now))
-			pc_body = apply_affine_continue(pc_body, scop);
-		scop_i = scop_from_tree(tree->u.b.child[i], pc_body, state);
-		pet_context_free(pc_body);
+			pc = apply_affine_continue(pc, scop);
+		scop_i = scop_from_tree(tree->u.b.child[i], pc, state);
 		pc = scop_handle_writes(scop_i, pc);
 		if (is_assignment(tree->u.b.child[i]))
 			pc = handle_assignment(pc, tree->u.b.child[i]);
