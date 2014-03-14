@@ -92,7 +92,7 @@ static char *op_str[] = {
  * loop iterations (skip[pet_skip_later]).
  *
  * The conditions are represented as index expressions defined
- * over a zero-dimensiona domain.  The index expression is either
+ * over a zero-dimensional domain.  The index expression is either
  * a boolean affine expression or an access to a variable, which
  * is assumed to attain values zero and one.  The condition holds
  * if the variable has value one or if the affine expression
@@ -669,7 +669,7 @@ int pet_expr_is_equal(struct pet_expr *expr1, struct pet_expr *expr2)
 /* Add extra conditions on the parameters to all access relations in "expr".
  *
  * The conditions are not added to the index expression.  Instead, they
- * are used to try and simplifty the index expression.
+ * are used to try and simplify the index expression.
  */
 struct pet_expr *pet_expr_restrict(struct pet_expr *expr,
 	__isl_take isl_set *cond)
@@ -1307,7 +1307,7 @@ static int is_known_implication(struct pet_scop *scop,
 	return 0;
 }
 
-/* Store the concatenation of the impliciations of "scop1" and "scop2"
+/* Store the concatenation of the implications of "scop1" and "scop2"
  * in "scop", removing duplicates (i.e., implications in "scop2" that
  * already appear in "scop1").
  */
@@ -2377,7 +2377,7 @@ error:
 	return pet_scop_free(scop);
 }
 
-/* Add extra conditions on the parameters to iteration domain of "stmt".
+/* Add extra conditions on the parameters to the iteration domain of "stmt".
  */
 static struct pet_stmt *stmt_restrict(struct pet_stmt *stmt,
 	__isl_take isl_set *cond)
