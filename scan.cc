@@ -1,6 +1,6 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
- * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -3059,6 +3059,7 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	struct pet_scop *scop, *scop_cond = NULL;
 	assigned_value_cache cache(assigned_value);
 	isl_val *inc;
+	bool was_assigned;
 	bool is_one;
 	bool is_unsigned;
 	bool is_simple;
@@ -3105,13 +3106,24 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	clear_assignments clear(assigned_value);
 	clear.TraverseStmt(stmt->getBody());
 
-	pa_inc = extract_increment(stmt, iv);
-	if (!pa_inc)
+	was_assigned = assigned_value.find(iv) != assigned_value.end();
+	clear_assignment(assigned_value, iv);
+	init_val = extract_affine(rhs);
+	if (!was_assigned)
+		assigned_value.erase(iv);
+	if (!init_val)
 		return NULL;
+
+	pa_inc = extract_increment(stmt, iv);
+	if (!pa_inc) {
+		isl_pw_aff_free(init_val);
+		return NULL;
+	}
 
 	inc = NULL;
 	if (isl_pw_aff_n_piece(pa_inc) != 1 ||
 	    isl_pw_aff_foreach_piece(pa_inc, &extract_cst, &inc) < 0) {
+		isl_pw_aff_free(init_val);
 		isl_pw_aff_free(pa_inc);
 		unsupported(stmt->getInc());
 		isl_val_free(inc);
@@ -3175,7 +3187,6 @@ struct pet_scop *PetScan::extract_for(ForStmt *stmt)
 	is_one = isl_val_is_one(inc) || isl_val_is_negone(inc);
 	is_virtual = is_unsigned && (!is_one || can_wrap(cond, iv, inc));
 
-	init_val = extract_affine(rhs);
 	valid_cond_init = enforce_subset(
 		isl_set_from_pw_aff(isl_pw_aff_copy(init_val)),
 		isl_set_copy(valid_cond));
