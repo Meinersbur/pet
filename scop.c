@@ -2415,7 +2415,7 @@ static struct pet_scop *pet_scop_restrict_skip(struct pet_scop *scop,
 
 	if (!multi_pw_aff_is_affine(ext->skip[type]))
 		isl_die(isl_multi_pw_aff_get_ctx(ext->skip[type]),
-			isl_error_internal, "can only resrict affine skips",
+			isl_error_internal, "can only restrict affine skips",
 			return pet_scop_free(scop));
 
 	skip = isl_multi_pw_aff_get_pw_aff(ext->skip[type], 0);
