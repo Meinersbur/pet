@@ -46,6 +46,16 @@ __isl_give pet_context *pet_context_clear_writes_in_tree(
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr);
 
+__isl_give pet_context *pet_context_add_inner_iterator(
+	__isl_take pet_context *pc, __isl_take isl_id *id);
+__isl_give pet_context *pet_context_add_infinite_loop(
+	__isl_take pet_context *pc);
+__isl_give pet_context *pet_context_preimage_domain(__isl_take pet_context *pc,
+	__isl_keep isl_multi_aff *ma);
+
+__isl_give pet_context *pet_context_intersect_domain(__isl_take pet_context *pc,
+	__isl_take isl_set *set);
+
 void pet_context_dump(__isl_keep pet_context *pc);
 
 #if defined(__cplusplus)

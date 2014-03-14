@@ -34,6 +34,7 @@
 
 #include <isl/aff.h>
 
+#include "aff.h"
 #include "context.h"
 #include "expr.h"
 #include "expr_arg.h"
@@ -45,7 +46,9 @@
  * "domain" prescribes the domain of the affine expressions.
  *
  * "assignments" maps variable names to their currently known values.
- * The domains of the values are equal to the space of "domain".
+ * Internally, the domains of the values may be equal to some prefix
+ * of the space of "domain", but the domains are updated to be
+ * equal to the space of "domain" before passing them to the user.
  * If a variable has been assigned an unknown value (possibly because
  * it may be assigned a different expression in each iteration) or a value
  * that is not an affine expression, then the corresponding isl_pw_aff
@@ -224,14 +227,31 @@ int pet_context_is_assigned(__isl_keep pet_context *pc, __isl_keep isl_id *id)
 }
 
 /* Return the value assigned to "id" in "pc".
+ *
+ * Some dimensions may have been added to pc->domain after the value
+ * associated to "id" was added.  We therefore need to adjust the domain
+ * of the stored value to match pc->domain by adding the missing
+ * dimensions.
  */
 __isl_give isl_pw_aff *pet_context_get_value(__isl_keep pet_context *pc,
 	__isl_take isl_id *id)
 {
+	int dim;
+	isl_pw_aff *pa;
+	isl_multi_aff *ma;
+
 	if (!pc || !id)
 		goto error;
 
-	return isl_id_to_pw_aff_get(pc->assignments, id);
+	pa = isl_id_to_pw_aff_get(pc->assignments, id);
+	dim = isl_pw_aff_dim(pa, isl_dim_in);
+	if (dim == isl_set_dim(pc->domain, isl_dim_set))
+		return pa;
+
+	ma = pet_prefix_projection(pet_context_get_space(pc), dim);
+	pa = isl_pw_aff_pullback_multi_aff(pa, ma);
+
+	return pa;
 error:
 	isl_id_free(id);
 	return NULL;
@@ -419,6 +439,195 @@ __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	expr = pet_expr_insert_domain(expr, pet_context_get_space(pc));
 	expr = plug_in_affine_read(expr, pc);
 	return pet_expr_plug_in_args(expr, pc);
+}
+
+/* Add an unbounded inner dimension "id" to pc->domain.
+ *
+ * The assignments are not adjusted here and therefore keep
+ * their original domain.  These domains need to be adjusted before
+ * these assigned values can be used.  This is taken care of by
+ * pet_context_get_value.
+ */
+static __isl_give pet_context *extend_domain(__isl_take pet_context *pc,
+	__isl_take isl_id *id)
+{
+	int pos;
+
+	pc = pet_context_cow(pc);
+	if (!pc || !id)
+		goto error;
+
+	pos = pet_context_dim(pc);
+	pc->domain = isl_set_add_dims(pc->domain, isl_dim_set, 1);
+	pc->domain = isl_set_set_dim_id(pc->domain, isl_dim_set, pos, id);
+	if (!pc->domain)
+		return pet_context_free(pc);
+
+	return pc;
+error:
+	pet_context_free(pc);
+	isl_id_free(id);
+	return NULL;
+}
+
+/* Add an unbounded inner iterator "id" to pc->domain.
+ * Additionally, mark the variable "id" as having the value of this
+ * new inner iterator.
+ */
+__isl_give pet_context *pet_context_add_inner_iterator(
+	__isl_take pet_context *pc, __isl_take isl_id *id)
+{
+	int pos;
+	isl_space *space;
+	isl_local_space *ls;
+	isl_aff *aff;
+	isl_pw_aff *pa;
+
+	if (!pc || !id)
+		goto error;
+
+	pos = pet_context_dim(pc);
+	pc = extend_domain(pc, isl_id_copy(id));
+	if (!pc)
+		goto error;
+
+	space = pet_context_get_space(pc);
+	ls = isl_local_space_from_space(space);
+	aff = isl_aff_var_on_domain(ls, isl_dim_set, pos);
+	pa = isl_pw_aff_from_aff(aff);
+
+	pc = pet_context_set_value(pc, id, pa);
+
+	return pc;
+error:
+	pet_context_free(pc);
+	isl_id_free(id);
+	return NULL;
+}
+
+/* Add an inner iterator to pc->domain.
+ * In particular, extend the domain with an inner loop { [t] : t >= 0 }.
+ */
+__isl_give pet_context *pet_context_add_infinite_loop(
+	__isl_take pet_context *pc)
+{
+	int dim;
+	isl_ctx *ctx;
+	isl_id *id;
+
+	if (!pc)
+		return NULL;
+
+	dim = pet_context_dim(pc);
+	ctx = pet_context_get_ctx(pc);
+	id = isl_id_alloc(ctx, "t", NULL);
+	pc = extend_domain(pc, id);
+	pc = pet_context_cow(pc);
+	if (!pc)
+		return NULL;
+	pc->domain = isl_set_lower_bound_si(pc->domain, isl_dim_set, dim, 0);
+	if (!pc->domain)
+		return pet_context_free(pc);
+
+	return pc;
+}
+
+/* Internal data structure for preimage_domain.
+ *
+ * "ma" is the function under which the preimage should be computed.
+ * "assignments" collects the results.
+ */
+struct pet_preimage_domain_data {
+	isl_multi_aff *ma;
+	isl_id_to_pw_aff *assignments;
+};
+
+/* Add the assignment to "key" of the preimage of "val" under data->ma
+ * to data->assignments.
+ *
+ * Some dimensions may have been added to the domain of the enclosing
+ * pet_context after the value "val" was added.  We therefore need to
+ * adjust the domain of "val" to match the range of data->ma (which
+ * in turn matches the domain of the pet_context), by adding the missing
+ * dimensions.
+ */
+static int preimage_domain_pair(__isl_take isl_id *key,
+	__isl_take isl_pw_aff *val, void *user)
+{
+	struct pet_preimage_domain_data *data = user;
+	int dim;
+	isl_multi_aff *ma;
+
+	ma = isl_multi_aff_copy(data->ma);
+
+	dim = isl_pw_aff_dim(val, isl_dim_in);
+	if (dim != isl_multi_aff_dim(data->ma, isl_dim_out)) {
+		isl_space *space;
+		isl_multi_aff *proj;
+		space = isl_multi_aff_get_space(data->ma);
+		space = isl_space_range(space);
+		proj = pet_prefix_projection(space, dim);
+		ma = isl_multi_aff_pullback_multi_aff(proj, ma);
+	}
+
+	val = isl_pw_aff_pullback_multi_aff(val, ma);
+	data->assignments = isl_id_to_pw_aff_set(data->assignments, key, val);
+
+	return 0;
+}
+
+/* Compute the preimage of "assignments" under the function represented by "ma".
+ * In other words, plug in "ma" in the domains of the assigned values.
+ */
+static __isl_give isl_id_to_pw_aff *preimage_domain(
+	__isl_take isl_id_to_pw_aff *assignments, __isl_keep isl_multi_aff *ma)
+{
+	struct pet_preimage_domain_data data = { ma };
+	isl_ctx *ctx;
+
+	ctx = isl_id_to_pw_aff_get_ctx(assignments);
+	data.assignments = isl_id_to_pw_aff_alloc(ctx, 0);
+	if (isl_id_to_pw_aff_foreach(assignments, &preimage_domain_pair,
+					&data) < 0)
+		data.assignments = isl_id_to_pw_aff_free(data.assignments);
+	isl_id_to_pw_aff_free(assignments);
+
+	return data.assignments;
+}
+
+/* Compute the preimage of "pc" under the function represented by "ma".
+ * In other words, plug in "ma" in the domain of "pc".
+ */
+__isl_give pet_context *pet_context_preimage_domain(__isl_take pet_context *pc,
+	__isl_keep isl_multi_aff *ma)
+{
+	pc = pet_context_cow(pc);
+	if (!pc)
+		return NULL;
+	pc->domain = isl_set_preimage_multi_aff(pc->domain,
+						isl_multi_aff_copy(ma));
+	pc->assignments = preimage_domain(pc->assignments, ma);
+	if (!pc->domain || !pc->assignments)
+		return pet_context_free(pc);
+	return pc;
+}
+
+/* Add the constraints of "set" to the domain of "pc".
+ */
+__isl_give pet_context *pet_context_intersect_domain(__isl_take pet_context *pc,
+	__isl_take isl_set *set)
+{
+	pc = pet_context_cow(pc);
+	if (!pc)
+		goto error;
+	pc->domain = isl_set_intersect(pc->domain, set);
+	if (!pc->domain)
+		return pet_context_free(pc);
+	return pc;
+error:
+	pet_context_free(pc);
+	isl_set_free(set);
+	return NULL;
 }
 
 void pet_context_dump(__isl_keep pet_context *pc)
