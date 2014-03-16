@@ -1575,17 +1575,23 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 
 /* Extract a pet_scop from "tree" within the context "pc".
  *
- * We simply call pet_scop_from_pet_tree with the appropriate arguments.
+ * We simply call pet_scop_from_pet_tree with the appropriate arguments and
+ * then add pet_arrays for all accessed arrays.
  */
 struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree,
 	__isl_keep pet_context *pc)
 {
 	int int_size;
+	pet_scop *scop;
 
 	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
 
-	return pet_scop_from_pet_tree(tree, int_size,
+	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, this, pc);
+	scop = pet_scop_detect_parameter_accesses(scop);
+	scop = scan_arrays(scop, pc);
+
+	return scop;
 }
 
 /* Check if the scop marked by the user is exactly this Stmt
@@ -2130,8 +2136,6 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 		scop = scan(stmt, pc);
 		scop = pet_scop_update_start_end(scop, loc.start, loc.end);
 	}
-	scop = pet_scop_detect_parameter_accesses(scop);
-	scop = scan_arrays(scop, pc);
 	pet_context_free(pc);
 	scop = add_parameter_bounds(scop);
 	scop = pet_scop_gist(scop, value_bounds);
