@@ -52,6 +52,11 @@ struct PetScan {
 	 */
 	bool partial;
 
+	/* A cache of size expressions for array types as computed
+	 * by PetScan::get_array_size.
+	 */
+	std::map<const clang::Type *, pet_expr *> type_size;
+
 	/* A union of mappings of the form
 	 *	{ identifier[] -> [i] : lower_bound <= i <= upper_bound }
 	 */

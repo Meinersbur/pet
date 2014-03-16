@@ -191,6 +191,11 @@ static __isl_give isl_id *create_decl_id(isl_ctx *ctx, NamedDecl *decl)
 
 PetScan::~PetScan()
 {
+	std::map<const Type *, pet_expr *>::iterator it;
+
+	for (it = type_size.begin(); it != type_size.end(); ++it)
+		pet_expr_free(it->second);
+
 	isl_union_map_free(value_bounds);
 }
 
@@ -1738,11 +1743,17 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
  * in a given dimension, then the corresponding argument is set to infinity.
  * In fact, we initialize all arguments to infinity and then update
  * them if we are able to figure out the size.
+ *
+ * The result is stored in the type_size cache so that we can reuse
+ * it if this method gets called on the same type again later on.
  */
 __isl_give pet_expr *PetScan::get_array_size(const Type *type)
 {
 	int depth;
 	pet_expr *expr, *inf;
+
+	if (type_size.find(type) != type_size.end())
+		return pet_expr_copy(type_size[type]);
 
 	depth = array_depth(type);
 	inf = pet_expr_new_int(isl_val_infty(ctx));
@@ -1752,6 +1763,7 @@ __isl_give pet_expr *PetScan::get_array_size(const Type *type)
 	pet_expr_free(inf);
 
 	expr = set_upper_bounds(expr, type, 0);
+	type_size[type] = pet_expr_copy(expr);
 
 	return expr;
 }
