@@ -1573,23 +1573,27 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	return ps->extract_array(ctx, iv, NULL, pc);
 }
 
-/* Extract a pet_scop from "tree" within the context "pc".
+/* Extract a pet_scop from "tree".
  *
  * We simply call pet_scop_from_pet_tree with the appropriate arguments and
  * then add pet_arrays for all accessed arrays.
  */
-struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree,
-	__isl_keep pet_context *pc)
+struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 {
 	int int_size;
+	isl_set *domain;
+	pet_context *pc;
 	pet_scop *scop;
 
 	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
 
+	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
+	pc = pet_context_alloc(domain);
 	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, this, pc);
 	scop = pet_scop_detect_parameter_accesses(scop);
 	scop = scan_arrays(scop, pc);
+	pet_context_free(pc);
 
 	return scop;
 }
@@ -1597,10 +1601,9 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree,
 /* Check if the scop marked by the user is exactly this Stmt
  * or part of this Stmt.
  * If so, return a pet_scop corresponding to the marked region.
- * The pet_scop is created within the context "pc".
  * Otherwise, return NULL.
  */
-struct pet_scop *PetScan::scan(Stmt *stmt, __isl_keep pet_context *pc)
+struct pet_scop *PetScan::scan(Stmt *stmt)
 {
 	SourceManager &SM = PP.getSourceManager();
 	unsigned start_off, end_off;
@@ -1614,7 +1617,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt, __isl_keep pet_context *pc)
 		return NULL;
 
 	if (start_off >= loc.start && end_off <= loc.end)
-		return extract_scop(extract(stmt), pc);
+		return extract_scop(extract(stmt));
 
 	StmtIterator start;
 	for (start = stmt->child_begin(); start != stmt->child_end(); ++start) {
@@ -1624,7 +1627,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt, __isl_keep pet_context *pc)
 		start_off = getExpansionOffset(SM, child->getLocStart());
 		end_off = getExpansionOffset(SM, child->getLocEnd());
 		if (start_off < loc.start && end_off >= loc.end)
-			return scan(child, pc);
+			return scan(child);
 		if (start_off >= loc.start)
 			break;
 	}
@@ -1637,7 +1640,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt, __isl_keep pet_context *pc)
 			break;
 	}
 
-	return extract_scop(extract(StmtRange(start, end), false, false), pc);
+	return extract_scop(extract(StmtRange(start, end), false, false));
 }
 
 /* Set the size of index "pos" of "array" to "size".
@@ -2123,20 +2126,15 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 {
 	pet_scop *scop;
 	Stmt *stmt;
-	isl_set *domain;
-	pet_context *pc;
 
 	stmt = fd->getBody();
 
-	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
-	pc = pet_context_alloc(domain);
 	if (options->autodetect) {
-		scop = extract_scop(extract(stmt, true), pc);
+		scop = extract_scop(extract(stmt, true));
 	} else {
-		scop = scan(stmt, pc);
+		scop = scan(stmt);
 		scop = pet_scop_update_start_end(scop, loc.start, loc.end);
 	}
-	pet_context_free(pc);
 	scop = add_parameter_bounds(scop);
 	scop = pet_scop_gist(scop, value_bounds);
 

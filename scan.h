@@ -76,7 +76,7 @@ struct PetScan {
 	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
 		lex_recorddecl_set *types, __isl_keep pet_context *pc);
 private:
-	struct pet_scop *scan(clang::Stmt *stmt, __isl_keep pet_context *pc);
+	struct pet_scop *scan(clang::Stmt *stmt);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop,
 		__isl_keep pet_context *pc);
@@ -106,8 +106,7 @@ private:
 	__isl_give pet_tree *update_loc(__isl_take pet_tree *tree,
 		clang::Stmt *stmt);
 
-	struct pet_scop *extract_scop(__isl_take pet_tree *tree,
-		__isl_keep pet_context *pc);
+	struct pet_scop *extract_scop(__isl_take pet_tree *tree);
 
 	clang::BinaryOperator *initialization_assignment(clang::Stmt *init);
 	clang::Decl *initialization_declaration(clang::Stmt *init);
