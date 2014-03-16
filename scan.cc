@@ -1732,6 +1732,30 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 	return set_upper_bounds(expr, type, pos + 1);
 }
 
+/* Construct a pet_expr that holds the sizes of an array of the given type.
+ * The returned expression is a call expression with as arguments
+ * the sizes in each dimension.  If we are unable to derive the size
+ * in a given dimension, then the corresponding argument is set to infinity.
+ * In fact, we initialize all arguments to infinity and then update
+ * them if we are able to figure out the size.
+ */
+__isl_give pet_expr *PetScan::get_array_size(const Type *type)
+{
+	int depth;
+	pet_expr *expr, *inf;
+
+	depth = array_depth(type);
+	inf = pet_expr_new_int(isl_val_infty(ctx));
+	expr = pet_expr_new_call(ctx, "bounds", depth);
+	for (int i = 0; i < depth; ++i)
+		expr = pet_expr_set_arg(expr, i, pet_expr_copy(inf));
+	pet_expr_free(inf);
+
+	expr = set_upper_bounds(expr, type, 0);
+
+	return expr;
+}
+
 /* Does "expr" represent the "integer" infinity?
  */
 static int is_infty(__isl_keep pet_expr *expr)
@@ -1752,33 +1776,29 @@ static int is_infty(__isl_keep pet_expr *expr)
  * "type" and update "array" accordingly.
  *
  * We first construct a pet_expr that holds the sizes of the array
- * in each dimension.  The expression is initialized to infinity
- * and updated from the type.
+ * in each dimension.  The resulting expression may containing
+ * infinity values for dimension where we are unable to derive
+ * a size expression.
  *
- * The arguments of the size expression that have been updated
- * are then converted to an affine expression within the context "pc" and
- * incorporated into the size of "array".  If we are unable to convert
- * a size expression to an affine expression, then we leave
- * the corresponding size of "array" untouched.
+ * The arguments of the size expression that have a value different from
+ * infinity are then converted to an affine expression
+ * within the context "pc" and incorporated into the size of "array".
+ * If we are unable to convert a size expression to an affine expression,
+ * then we leave the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	const Type *type, __isl_keep pet_context *pc)
 {
-	int depth = array_depth(type);
-	pet_expr *expr, *inf;
+	int n;
+	pet_expr *expr;
 
 	if (!array)
 		return NULL;
 
-	inf = pet_expr_new_int(isl_val_infty(ctx));
-	expr = pet_expr_new_call(ctx, "bounds", depth);
-	for (int i = 0; i < depth; ++i)
-		expr = pet_expr_set_arg(expr, i, pet_expr_copy(inf));
-	pet_expr_free(inf);
+	expr = get_array_size(type);
 
-	expr = set_upper_bounds(expr, type, 0);
-
-	for (int i = 0; i < depth; ++i) {
+	n = pet_expr_get_n_arg(expr);
+	for (int i = 0; i < n; ++i) {
 		pet_expr *arg;
 		isl_pw_aff *size;
 

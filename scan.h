@@ -73,6 +73,7 @@ struct PetScan {
 		clang::IntegerLiteral *expr);
 	static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
 		const llvm::APInt &val);
+	__isl_give pet_expr *get_array_size(const clang::Type *type);
 	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
 		lex_recorddecl_set *types, __isl_keep pet_context *pc);
 private:
