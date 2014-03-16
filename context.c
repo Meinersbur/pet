@@ -179,6 +179,20 @@ __isl_give isl_set *pet_context_get_domain(__isl_keep pet_context *pc)
 	return isl_set_copy(pc->domain);
 }
 
+/* Return the domain of "pc" in a form that is suitable
+ * for use as a gist context.
+ * In particular, remove all references to nested expression parameters
+ * so that they do not get introduced in the gisted expression.
+ */
+__isl_give isl_set *pet_context_get_gist_domain(__isl_keep pet_context *pc)
+{
+	isl_set *domain;
+
+	domain = pet_context_get_domain(pc);
+	domain = pet_nested_remove_from_set(domain);
+	return domain;
+}
+
 /* Return the domain space of "pc".
  *
  * The domain of "pc" may have constraints involving parameters

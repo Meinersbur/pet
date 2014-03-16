@@ -21,6 +21,7 @@ __isl_give pet_context *pet_context_copy(__isl_keep pet_context *pc);
 __isl_null pet_context *pet_context_free(__isl_take pet_context *pc);
 
 __isl_give isl_set *pet_context_get_domain(__isl_keep pet_context *pc);
+__isl_give isl_set *pet_context_get_gist_domain(__isl_keep pet_context *pc);
 __isl_give isl_space *pet_context_get_space(__isl_keep pet_context *pc);
 unsigned pet_context_dim(__isl_keep pet_context *pc);
 __isl_give isl_id_to_pw_aff *pet_context_get_assignments(
