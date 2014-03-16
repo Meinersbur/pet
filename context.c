@@ -35,6 +35,7 @@
 #include <isl/aff.h>
 
 #include "context.h"
+#include "expr.h"
 
 /* A pet_context represents the context in which a pet_expr
  * in converted to an affine expression.
@@ -375,6 +376,52 @@ __isl_give pet_context *pet_context_set_allow_nested(__isl_take pet_context *pc,
 	if (!pc)
 		return NULL;
 	pc->allow_nested = allow_nested;
+	return pc;
+}
+
+/* If the access expression "expr" writes to a (non-virtual) scalar,
+ * then mark the scalar as having an unknown value in "pc".
+ */
+static int clear_write(__isl_keep pet_expr *expr, void *user)
+{
+	isl_id *id;
+	pet_context **pc = (pet_context **) user;
+
+	if (!pet_expr_access_is_write(expr))
+		return 0;
+	if (!pet_expr_is_scalar_access(expr))
+		return 0;
+
+	id = pet_expr_access_get_id(expr);
+	if (isl_id_get_user(id))
+		*pc = pet_context_mark_assigned(*pc, id);
+	else
+		isl_id_free(id);
+
+	return 0;
+}
+
+/* Look for any writes to scalar variables in "expr" and
+ * mark them as having an unknown value in "pc".
+ */
+__isl_give pet_context *pet_context_clear_writes_in_expr(
+	__isl_take pet_context *pc, __isl_keep pet_expr *expr)
+{
+	if (pet_expr_foreach_access_expr(expr, &clear_write, &pc) < 0)
+		pc = pet_context_free(pc);
+
+	return pc;
+}
+
+/* Look for any writes to scalar variables in "tree" and
+ * mark them as having an unknown value in "pc".
+ */
+__isl_give pet_context *pet_context_clear_writes_in_tree(
+	__isl_take pet_context *pc, __isl_keep pet_tree *tree)
+{
+	if (pet_tree_foreach_access_expr(tree, &clear_write, &pc) < 0)
+		pc = pet_context_free(pc);
+
 	return pc;
 }
 

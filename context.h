@@ -4,6 +4,8 @@
 #include <isl/space.h>
 #include <isl/id_to_pw_aff.h>
 
+#include <pet.h>
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -35,6 +37,11 @@ __isl_give pet_context *pet_context_clear_value(__isl_keep pet_context *pc,
 __isl_give pet_context *pet_context_set_allow_nested(__isl_take pet_context *pc,
 	int allow_nested);
 int pet_context_allow_nesting(__isl_keep pet_context *pc);
+
+__isl_give pet_context *pet_context_clear_writes_in_expr(
+	__isl_take pet_context *pc, __isl_keep pet_expr *expr);
+__isl_give pet_context *pet_context_clear_writes_in_tree(
+	__isl_take pet_context *pc, __isl_keep pet_tree *tree);
 
 void pet_context_dump(__isl_keep pet_context *pc);
 
