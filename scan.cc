@@ -1553,6 +1553,40 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	return tree;
 }
 
+/* Is "T" the type of a variable length array with static size?
+ */
+static bool is_vla_with_static_size(QualType T)
+{
+	const VariableArrayType *vlatype;
+
+	if (!T->isVariableArrayType())
+		return false;
+	vlatype = cast<VariableArrayType>(T);
+	return vlatype->getSizeModifier() == VariableArrayType::Static;
+}
+
+/* Return the type of "decl" as an array.
+ *
+ * In particular, if "decl" is a parameter declaration that
+ * is a variable length array with a static size, then
+ * return the original type (i.e., the variable length array).
+ * Otherwise, return the type of decl.
+ */
+static QualType get_array_type(ValueDecl *decl)
+{
+	ParmVarDecl *parm;
+	QualType T;
+
+	parm = dyn_cast<ParmVarDecl>(decl);
+	if (!parm)
+		return decl->getType();
+
+	T = parm->getOriginalType();
+	if (!is_vla_with_static_size(T))
+		return decl->getType();
+	return T;
+}
+
 extern "C" {
 	static struct pet_array *extract_array(__isl_keep pet_expr *access,
 		__isl_keep pet_context *pc, void *user);
@@ -1829,40 +1863,6 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	pet_expr_free(expr);
 
 	return array;
-}
-
-/* Is "T" the type of a variable length array with static size?
- */
-static bool is_vla_with_static_size(QualType T)
-{
-	const VariableArrayType *vlatype;
-
-	if (!T->isVariableArrayType())
-		return false;
-	vlatype = cast<VariableArrayType>(T);
-	return vlatype->getSizeModifier() == VariableArrayType::Static;
-}
-
-/* Return the type of "decl" as an array.
- *
- * In particular, if "decl" is a parameter declaration that
- * is a variable length array with a static size, then
- * return the original type (i.e., the variable length array).
- * Otherwise, return the type of decl.
- */
-static QualType get_array_type(ValueDecl *decl)
-{
-	ParmVarDecl *parm;
-	QualType T;
-
-	parm = dyn_cast<ParmVarDecl>(decl);
-	if (!parm)
-		return decl->getType();
-
-	T = parm->getOriginalType();
-	if (!is_vla_with_static_size(T))
-		return decl->getType();
-	return T;
 }
 
 /* Does "decl" have definition that we can keep track of in a pet_type?
