@@ -61,38 +61,35 @@ ISL_ARGS_END
 ISL_ARG_DEF(options, struct options, options_args)
 
 static __isl_give isl_pw_aff *expr_extract_pw_aff(__isl_keep pet_expr *expr,
-	__isl_keep isl_space *space, __isl_keep isl_id_to_pw_aff *assignments);
+	__isl_keep isl_space *space);
 
-/* Extract an affine expression from the call to floord in "expr",
- * possibly exploiting "assignments".
+/* Extract an affine expression from the call to floord in "expr".
  *
  * "space" is the iteration space of the statement containing the expression.
  */
 static __isl_give isl_pw_aff *expr_extract_floord(__isl_keep pet_expr *expr,
-	__isl_keep isl_space *space, __isl_keep isl_id_to_pw_aff *assignments)
+	__isl_keep isl_space *space)
 {
 	isl_pw_aff *lhs, *rhs;
 	pet_expr *arg;
 
 	arg = pet_expr_get_arg(expr, 0);
-	lhs = expr_extract_pw_aff(arg, space, assignments);
+	lhs = expr_extract_pw_aff(arg, space);
 	pet_expr_free(arg);
 	arg = pet_expr_get_arg(expr, 1);
-	rhs = expr_extract_pw_aff(arg, space, assignments);
+	rhs = expr_extract_pw_aff(arg, space);
 	pet_expr_free(arg);
 	return isl_pw_aff_floor(isl_pw_aff_div(lhs, rhs));
 }
 
-/* Extract an affine expression from the call in "expr",
- * possibly exploiting "assignments".
+/* Extract an affine expression from the call in "expr".
  *
  * "space" is the iteration space of the statement containing the expression.
  *
  * We only support calls to the "floord" function for now.
  */
 static __isl_give isl_pw_aff *call_expr_extract_pw_aff(
-	__isl_keep pet_expr *expr, __isl_keep isl_space *space,
-	__isl_keep isl_id_to_pw_aff *assignments)
+	__isl_keep pet_expr *expr, __isl_keep isl_space *space)
 {
 	const char *name;
 
@@ -100,109 +97,24 @@ static __isl_give isl_pw_aff *call_expr_extract_pw_aff(
 	if (!name)
 		return NULL;
 	if (!strcmp(name, "floord"))
-		return expr_extract_floord(expr, space, assignments);
+		return expr_extract_floord(expr, space);
 
-	isl_die(isl_id_to_pw_aff_get_ctx(assignments), isl_error_unsupported,
+	isl_die(isl_space_get_ctx(space), isl_error_unsupported,
 		"unsupported expression", return NULL);
 }
 
-/* Is the variable accessed by "index" assigned in "assignments"?
+/* Extract an affine expression from the access to a named space in "index".
  *
- * The assignments map variable identifiers to functions of the form
- *
- *	{ domain -> value }
- */
-static int is_assigned(__isl_keep isl_multi_pw_aff *index,
-	__isl_keep isl_id_to_pw_aff *assignments)
-{
-	isl_id *var;
-	int assigned;
-
-	var = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
-	assigned = isl_id_to_pw_aff_has(assignments, var);
-	isl_id_free(var);
-
-	return assigned;
-}
-
-/* Apply the appropriate assignment in "assignments"
- * to the index expression "index".
- *
- * "index" is of the form
- *
- *	{ access_domain -> variable }
- *
- * "assignments" maps variable identifiers to functions of the form
- *
- *	{ assignment_domain -> value }
- *
- * We assume the assignment precedes the access in the code.
- * In particular, we assume that the loops around the assignment
- * are the same as the first loops around the access.
- *
- * We compute
- *
- *	{ access_domain -> assignment_domain }
- *
- * equating the iterators of assignment_domain to the corresponding iterators
- * in access_domain and then plug that into the assigned value, obtaining
- *
- *	{ access_domain -> value }
- */
-static __isl_give isl_pw_aff *apply_assignment(
-	__isl_take isl_multi_pw_aff *index,
-	__isl_keep isl_id_to_pw_aff *assignments)
-{
-	isl_id *id;
-	isl_set *dom;
-	isl_pw_aff *val;
-	isl_multi_aff *ma;
-	isl_space *space, *dom_space;
-	isl_local_space *ls;
-	int i, n;
-
-	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
-	dom = isl_multi_pw_aff_domain(index);
-	val = isl_id_to_pw_aff_get(assignments, id);
-	space = isl_pw_aff_get_domain_space(val);
-	dom_space = isl_set_get_space(dom);
-	space = isl_space_map_from_domain_and_range(dom_space, space);
-	ma = isl_multi_aff_zero(space);
-	ls = isl_local_space_from_space(isl_set_get_space(dom));
-	n = isl_multi_aff_dim(ma, isl_dim_out);
-	for (i = 0; i < n; ++i) {
-		isl_aff *aff;
-
-		aff = isl_aff_var_on_domain(isl_local_space_copy(ls),
-					isl_dim_set, i);
-		ma = isl_multi_aff_set_aff(ma, i, aff);
-	}
-	isl_local_space_free(ls);
-
-	val = isl_pw_aff_pullback_multi_aff(val, ma);
-	val = isl_pw_aff_intersect_domain(val, dom);
-
-	return val;
-}
-
-/* Extract an affine expression from the access to a named space in "index",
- * possibly exploiting "assignments".
- *
- * If the variable has been assigned a value, we return the corresponding
- * assignment.  Otherwise, we assume we are accessing a 0D space and
+ * We assume we are accessing a 0D space and
  * we turn that into an expression equal to a parameter of the same name.
  */
-static __isl_give isl_pw_aff *resolve_access(__isl_take isl_multi_pw_aff *index,
-	__isl_keep isl_id_to_pw_aff *assignments)
+static __isl_give isl_pw_aff *resolve_access(__isl_take isl_multi_pw_aff *index)
 {
 	isl_id *id;
 	isl_set *dom;
 	isl_aff *aff;
 	isl_local_space *ls;
 	isl_pw_aff *pa;
-
-	if (is_assigned(index, assignments))
-		return apply_assignment(index, assignments);
 
 	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	dom = isl_multi_pw_aff_domain(index);
@@ -215,8 +127,7 @@ static __isl_give isl_pw_aff *resolve_access(__isl_take isl_multi_pw_aff *index,
 	return pa;
 }
 
-/* Extract an affine expression from the access expression "expr",
- * possibly exploiting "assignments".
+/* Extract an affine expression from the access expression "expr".
  *
  * If we are accessing a (1D) anonymous space, then we are actually
  * computing an affine expression and we simply return that expression.
@@ -224,14 +135,14 @@ static __isl_give isl_pw_aff *resolve_access(__isl_take isl_multi_pw_aff *index,
  * resolve_access().
  */
 static __isl_give isl_pw_aff *access_expr_extract_pw_aff(
-	__isl_keep pet_expr *expr, __isl_keep isl_id_to_pw_aff *assignments)
+	__isl_keep pet_expr *expr)
 {
 	isl_pw_aff *pa;
 	isl_multi_pw_aff *index;
 
 	index = pet_expr_access_get_index(expr);
 	if (isl_multi_pw_aff_has_tuple_id(index, isl_dim_out)) {
-		pa = resolve_access(index, assignments);
+		pa = resolve_access(index);
 	} else {
 		pa = isl_multi_pw_aff_get_pw_aff(index, 0);
 		isl_multi_pw_aff_free(index);
@@ -254,8 +165,7 @@ static __isl_give isl_pw_aff *int_expr_extract_pw_aff(
 	return isl_pw_aff_from_aff(aff);
 }
 
-/* Extract an affine expression from the operation in "expr",
- * possibly exploiting "assignments".
+/* Extract an affine expression from the operation in "expr".
  *
  * "space" is the iteration space of the statement containing the expression.
  *
@@ -263,7 +173,7 @@ static __isl_give isl_pw_aff *int_expr_extract_pw_aff(
  * as arguments to a function call in code generated by isl.
  */
 static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
-	__isl_keep isl_space *space, __isl_keep isl_id_to_pw_aff *assignments)
+	__isl_keep isl_space *space)
 {
 	isl_pw_aff *pa, *pa1, *pa2;
 	pet_expr *arg;
@@ -273,17 +183,17 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
 	case 1:
 		if (pet_expr_op_get_type(expr) == pet_op_minus) {
 			arg = pet_expr_get_arg(expr, 0);
-			pa = expr_extract_pw_aff(arg, space, assignments);
+			pa = expr_extract_pw_aff(arg, space);
 			pet_expr_free(arg);
 			return isl_pw_aff_neg(pa);
 		}
 		assert(0);
 	case 2:
 		arg = pet_expr_get_arg(expr, 0);
-		pa1 = expr_extract_pw_aff(arg, space, assignments);
+		pa1 = expr_extract_pw_aff(arg, space);
 		pet_expr_free(arg);
 		arg = pet_expr_get_arg(expr, 1);
-		pa2 = expr_extract_pw_aff(arg, space, assignments);
+		pa2 = expr_extract_pw_aff(arg, space);
 		pet_expr_free(arg);
 		type = pet_expr_op_get_type(expr);
 		switch (type) {
@@ -320,13 +230,13 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
 		return pa;
 	case 3:
 		arg = pet_expr_get_arg(expr, 0);
-		pa = expr_extract_pw_aff(arg, space, assignments);
+		pa = expr_extract_pw_aff(arg, space);
 		pet_expr_free(arg);
 		arg = pet_expr_get_arg(expr, 1);
-		pa1 = expr_extract_pw_aff(arg, space, assignments);
+		pa1 = expr_extract_pw_aff(arg, space);
 		pet_expr_free(arg);
 		arg = pet_expr_get_arg(expr, 2);
-		pa2 = expr_extract_pw_aff(arg, space, assignments);
+		pa2 = expr_extract_pw_aff(arg, space);
 		pet_expr_free(arg);
 		return isl_pw_aff_cond(pa, pa1, pa2);
 	default:
@@ -334,8 +244,7 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
 	}
 }
 
-/* Extract an affine expression from "expr", possibly exploiting "assignments",
- * in the form of an isl_pw_aff.
+/* Extract an affine expression from "expr" in the form of an isl_pw_aff.
  *
  * "space" is the iteration space of the statement containing the expression.
  *
@@ -343,17 +252,17 @@ static __isl_give isl_pw_aff *op_expr_extract_pw_aff(__isl_keep pet_expr *expr,
  * as arguments to a function call in code generated by isl.
  */
 static __isl_give isl_pw_aff *expr_extract_pw_aff(__isl_keep pet_expr *expr,
-	__isl_keep isl_space *space, __isl_keep isl_id_to_pw_aff *assignments)
+	__isl_keep isl_space *space)
 {
 	switch (pet_expr_get_type(expr)) {
 	case pet_expr_int:
 		return int_expr_extract_pw_aff(expr, space);
 	case pet_expr_access:
-		return access_expr_extract_pw_aff(expr, assignments);
+		return access_expr_extract_pw_aff(expr);
 	case pet_expr_op:
-		return op_expr_extract_pw_aff(expr, space, assignments);
+		return op_expr_extract_pw_aff(expr, space);
 	case pet_expr_call:
-		return call_expr_extract_pw_aff(expr, space, assignments);
+		return call_expr_extract_pw_aff(expr, space);
 	case pet_expr_cast:
 	case pet_expr_double:
 	case pet_expr_error:
@@ -361,28 +270,26 @@ static __isl_give isl_pw_aff *expr_extract_pw_aff(__isl_keep pet_expr *expr,
 	}
 }
 
-/* Extract an affine expression from "expr", possibly exploiting "assignments",
- * in the form of an isl_map.
+/* Extract an affine expression from "expr" in the form of an isl_map.
  *
  * "space" is the iteration space of the statement containing the expression.
  */
 static __isl_give isl_map *expr_extract_map(__isl_keep pet_expr *expr,
-	__isl_keep isl_space *space, __isl_keep isl_id_to_pw_aff *assignments)
+	__isl_keep isl_space *space)
 {
 	isl_pw_aff *pa;
 
-	pa = expr_extract_pw_aff(expr, space, assignments);
+	pa = expr_extract_pw_aff(expr, space);
 	return isl_map_from_pw_aff(pa);
 }
 
-/* Extract a call from "stmt", possibly exploiting "assignments".
+/* Extract a call from "stmt".
  *
  * The returned map is of the form
  *
  *	{ domain -> function[arguments] }
  */
-static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt,
-	__isl_keep isl_id_to_pw_aff *assignments)
+static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt)
 {
 	int i, n;
 	isl_set *domain;
@@ -402,7 +309,7 @@ static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt,
 
 		arg = pet_expr_get_arg(stmt->body, i);
 		space = pet_stmt_get_space(stmt);
-		map_i = expr_extract_map(arg, space, assignments);
+		map_i = expr_extract_map(arg, space);
 		isl_space_free(space);
 		pet_expr_free(arg);
 		call = isl_map_flat_range_product(call, map_i);
@@ -414,55 +321,10 @@ static __isl_give isl_map *stmt_extract_call(struct pet_stmt *stmt,
 	return call;
 }
 
-/* Add the assignment in "stmt" to "assignments".
- *
- * We extract the accessed variable identifier "var"
- * and the assigned value
- *
- *	{ domain -> value }
- *
- * and map "var" to this value in "assignments", replacing
- * any possible previously assigned value to the same variable.
- */
-static __isl_give isl_id_to_pw_aff *add_assignment(
-	__isl_take isl_id_to_pw_aff *assignments, struct pet_stmt *stmt)
-{
-	isl_id *var;
-	isl_space *space;
-	isl_pw_aff *val;
-	pet_expr *arg;
-
-	assert(pet_stmt_is_assign(stmt));
-	arg = pet_expr_get_arg(stmt->body, 0);
-	assert(pet_expr_get_type(arg) == pet_expr_access);
-	var = pet_expr_access_get_id(arg);
-	pet_expr_free(arg);
-	arg = pet_expr_get_arg(stmt->body, 1);
-	space = pet_stmt_get_space(stmt);
-	val = expr_extract_pw_aff(arg, space, assignments);
-	isl_space_free(space);
-	pet_expr_free(arg);
-
-	assignments = isl_id_to_pw_aff_set(assignments, var, val);
-
-	return assignments;
-}
-
 /* Extract a mapping from the iterations domains of "scop" to
  * the calls in the corresponding statements.
  *
- * While scanning "scop", we keep track of assignments to variables
- * so that we can plug them in in the arguments of the calls.
- * Note that we do not perform any dependence analysis on the assigned
- * variables.  In code generated by isl, such assignments should only
- * appear immediately before they are used.
- *
- * The assignments are kept as an associative array between
- * variable identifiers and assignments of the form
- *
- *	{ domain -> value }
- *
- * We skip kill statements.
+ * We skip assignment and kill statements.
  * Other than assignments and kill statements, all statements are assumed
  * to be function calls.
  */
@@ -471,7 +333,6 @@ static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
 	int i;
 	isl_ctx *ctx;
 	isl_map *call_i;
-	isl_id_to_pw_aff *assignments;
 	isl_union_map *call;
 
 	if (!scop)
@@ -479,23 +340,18 @@ static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
 
 	call = isl_union_map_empty(isl_set_get_space(scop->context));
 	ctx = isl_set_get_ctx(scop->context);
-	assignments = isl_id_to_pw_aff_alloc(ctx, 0);
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		struct pet_stmt *stmt;
 
 		stmt = scop->stmts[i];
-		if (pet_stmt_is_assign(stmt)) {
-			assignments = add_assignment(assignments, stmt);
+		if (pet_stmt_is_assign(stmt))
 			continue;
-		}
 		if (pet_stmt_is_kill(stmt))
 			continue;
-		call_i = stmt_extract_call(scop->stmts[i], assignments);
+		call_i = stmt_extract_call(scop->stmts[i]);
 		call = isl_union_map_add_map(call, call_i);
 	}
-
-	isl_id_to_pw_aff_free(assignments);
 
 	return call;
 }
