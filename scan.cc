@@ -651,7 +651,7 @@ static __isl_give isl_pw_aff *indicator_function(__isl_take isl_set *set,
 {
 	isl_pw_aff *pa;
 	pa = isl_set_indicator_function(set);
-	pa = isl_pw_aff_intersect_domain(pa, dom);
+	pa = isl_pw_aff_intersect_domain(pa, isl_set_coalesce(dom));
 	return pa;
 }
 
