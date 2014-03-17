@@ -33,7 +33,7 @@ arrays:
 statements:
 - line: 10
   domain: '[N] -> { S_0[t] : N = 0 and t >= 1; S_0[0] }'
-  schedule: '[N] -> { S_0[t] -> [0, t, 0] }'
+  schedule: '{ S_0[t] -> [0, t, 0] }'
   body:
     type: op
     operation: =
@@ -129,7 +129,7 @@ statements:
     write: 0
 - line: 21
   domain: '[N] -> { [S_5[t] -> [1]] : N = 0 and t >= 1; [S_5[0] -> [1]] }'
-  schedule: '[N] -> { S_5[t] -> [2, t, 0] }'
+  schedule: '{ S_5[t] -> [2, t, 0] }'
   body:
     type: op
     operation: =
@@ -153,7 +153,7 @@ statements:
     write: 0
 - line: 22
   domain: '[N] -> { [S_6[t] -> [1]] : N = 0 and t >= 1; [S_6[0] -> [1]] }'
-  schedule: '[N] -> { S_6[t] -> [2, t, 1, 0] }'
+  schedule: '{ S_6[t] -> [2, t, 1, 0] }'
   body:
     type: op
     operation: =

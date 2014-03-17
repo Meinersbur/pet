@@ -23,9 +23,8 @@ statements:
     - type: int
       value: 5
 - line: 11
-  domain: '{ S_1[k] : (exists (e0 = floor((k)/256): 256e0 = k and k >= 252 and k <=
-    257)) or (exists (e0 = floor((257 - k)/256): k >= 252 and k <= 257 and 256e0 >=
-    2 - k and 256e0 <= 255 - k)) }'
+  domain: '{ S_1[k] : exists (e0 = floor((-1 + k)/256): k >= 252 and k <= 257 and
+    256e0 >= -256 + k and 256e0 <= -2 + k) }'
   schedule: '{ S_1[k] -> [0, k, 2] }'
   body:
     type: op

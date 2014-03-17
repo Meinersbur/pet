@@ -28,7 +28,7 @@ statements:
       value: 1
 - line: 7
   domain: '[N] -> { S_1[] : N = 2 }'
-  schedule: '{ S_1[] -> [1] }'
+  schedule: '[N] -> { S_1[] -> [1] }'
   body:
     type: op
     operation: =

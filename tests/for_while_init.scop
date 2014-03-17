@@ -179,5 +179,5 @@ statements:
       write: 0
 implications:
 - satisfied: 1
-  extension: '[n] -> { __pet_test_0[x1, t] -> __pet_test_0[x1, t''] : x1 >= 0 and
-    x1 <= -1 + n and t'' <= t and t'' >= 0 }'
+  extension: '[n] -> { __pet_test_0[x1, t] -> __pet_test_0[x1, t''] : t'' <= t and
+    x1 >= 0 and x1 <= -1 + n and t'' >= 0 }'

@@ -14,7 +14,7 @@ arrays:
 statements:
 - line: 14
   domain: '[N, in] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0, 0] }'
+  schedule: '[N] -> { S_0[] -> [0, 0] }'
   body:
     type: op
     operation: =
@@ -58,7 +58,7 @@ statements:
           write: 0
 - line: 18
   domain: '[N, in] -> { S_2[] }'
-  schedule: '{ S_2[] -> [0, 2] }'
+  schedule: '[N] -> { S_2[] -> [0, 2] }'
   body:
     type: op
     operation: =

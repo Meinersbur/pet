@@ -8,9 +8,9 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[i, j] : (exists (e0 = floor((2 + 4i)/5): i >= 3 and i <= 4 and j
-    >= i and j <= 2147483647 and 5e0 <= 5i - j and 5e0 <= 2 + 4i and 5e0 >= -2 + 4i))
-    or (i >= 0 and i <= 2 and j >= i and j <= 0) }'
+  domain: '{ S_0[i, j] : exists (e0 = floor((2 + 4i)/5): i >= 0 and i <= 4 and j <=
+    2147483645 and 5e0 <= 2 + 4i and j >= i and 5e0 <= 5i - j and 5e0 >= -2 + 4i)
+    }'
   schedule: '{ S_0[i, j] -> [0, i, j] }'
   body:
     type: op

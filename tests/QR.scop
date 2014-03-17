@@ -1,7 +1,7 @@
 start: 285
 end: 840
 context: '[K, N] -> {  : N <= 16 and N >= 8 and K >= 100 and K <= 1000 }'
-context_value: '[K] -> {  : K = 256 }'
+context_value: '[K, N] -> {  : K = 256 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N, K] -> { R[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 <= -1 + N and i1
@@ -36,7 +36,7 @@ statements:
 - line: 23
   domain: '[N, K] -> { S_1[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
     0 }'
-  schedule: '[N, K] -> { S_1[k, j] -> [1, k, j] }'
+  schedule: '[K, N] -> { S_1[k, j] -> [1, k, j] }'
   body:
     type: op
     operation: =
@@ -52,7 +52,7 @@ statements:
 - line: 27
   domain: '[N, K] -> { S_2[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
     0 }'
-  schedule: '[N, K] -> { S_2[k, j] -> [2, k, j, 0] }'
+  schedule: '[K, N] -> { S_2[k, j] -> [2, k, j, 0] }'
   body:
     type: call
     name: Vectorize
@@ -99,7 +99,7 @@ statements:
 - line: 29
   domain: '[N, K] -> { S_3[k, j, i] : i >= 1 + j and j >= 0 and k <= -1 + K and k
     >= 0 and i <= -1 + N }'
-  schedule: '[N, K] -> { S_3[k, j, i] -> [2, k, j, 1, i] }'
+  schedule: '[K, N] -> { S_3[k, j, i] -> [2, k, j, 1, i] }'
   body:
     type: call
     name: Rotate

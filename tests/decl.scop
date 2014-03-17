@@ -24,7 +24,7 @@ statements:
 - line: 8
   domain: '[N, K, M] -> { S_0[i, j] : j <= -1 + N and j >= 0 and i <= -1 + M and i
     >= 0 }'
-  schedule: '[N, M] -> { S_0[i, j] -> [0, i, j, 0] }'
+  schedule: '[M, N] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: op
     operation: =
@@ -40,7 +40,7 @@ statements:
 - line: 10
   domain: '[N, K, M] -> { S_1[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
     j >= 0 and i <= -1 + M and i >= 0 }'
-  schedule: '[K, N, M] -> { S_1[i, j, k] -> [0, i, j, 1, k, 0, 0] }'
+  schedule: '[M, N, K] -> { S_1[i, j, k] -> [0, i, j, 1, k, 0, 0] }'
   body:
     type: op
     operation: kill
@@ -54,7 +54,7 @@ statements:
 - line: 10
   domain: '[N, K, M] -> { S_2[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
     j >= 0 and i <= -1 + M and i >= 0 }'
-  schedule: '[K, N, M] -> { S_2[i, j, k] -> [0, i, j, 1, k, 0, 1] }'
+  schedule: '[M, N, K] -> { S_2[i, j, k] -> [0, i, j, 1, k, 0, 1] }'
   body:
     type: op
     operation: =
@@ -83,7 +83,7 @@ statements:
 - line: 11
   domain: '[N, K, M] -> { S_4[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
     j >= 0 and i <= -1 + M and i >= 0 }'
-  schedule: '[K, N, M] -> { S_4[i, j, k] -> [0, i, j, 1, k, 1] }'
+  schedule: '[M, N, K] -> { S_4[i, j, k] -> [0, i, j, 1, k, 1] }'
   body:
     type: op
     operation: +=
@@ -103,7 +103,7 @@ statements:
 - line: 10
   domain: '[N, K, M] -> { S_3[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
     j >= 0 and i <= -1 + M and i >= 0 }'
-  schedule: '[K, N, M] -> { S_3[i, j, k] -> [0, i, j, 1, k, 2] }'
+  schedule: '[M, N, K] -> { S_3[i, j, k] -> [0, i, j, 1, k, 2] }'
   body:
     type: op
     operation: kill

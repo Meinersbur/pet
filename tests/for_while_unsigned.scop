@@ -112,5 +112,5 @@ statements:
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[x1, x2] -> __pet_test_0[x1, x2''] : exists (e0
-    = floor((x2'')/3): 3e0 = x2'' and x1 >= 0 and x1 <= -1 + n and x2'' >= x2 and
+    = floor((x2'')/3): 3e0 = x2'' and x2'' >= x2 and x1 >= 0 and x1 <= -1 + n and
     x2'' <= 9) }'

@@ -17,7 +17,7 @@ statements:
 - line: 10
   domain: '[N] -> { [S_0[i, t] -> [1]] : N = 0 and i <= 9 and i >= 1 and t >= 0; [S_0[0,
     t] -> [1]] : t >= 0 }'
-  schedule: '[N] -> { S_0[i, t] -> [0, i, 0, t, 0] }'
+  schedule: '{ S_0[i, t] -> [0, i, 0, t, 0] }'
   body:
     type: op
     operation: =
@@ -40,7 +40,7 @@ statements:
 - line: 11
   domain: '[N] -> { [S_1[i, t] -> [1]] : N = 0 and i <= 9 and i >= 1 and t >= 0; [S_1[0,
     t] -> [1]] : t >= 0 }'
-  schedule: '[N] -> { S_1[i, t] -> [0, i, 0, t, 1] }'
+  schedule: '{ S_1[i, t] -> [0, i, 0, t, 1] }'
   body:
     type: op
     operation: =
@@ -77,6 +77,6 @@ statements:
       value: 6
 implications:
 - satisfied: 1
-  extension: '[N] -> { __pet_test_0[i, t] -> __pet_test_0[i, t''] : N = 0 and i >=
-    1 and i <= 9 and t'' <= t and t'' >= 0; __pet_test_0[0, t] -> __pet_test_0[0,
+  extension: '[N] -> { __pet_test_0[i, t] -> __pet_test_0[i, t''] : N = 0 and t''
+    <= t and i >= 1 and i <= 9 and t'' >= 0; __pet_test_0[0, t] -> __pet_test_0[0,
     t''] : t'' <= t and t'' >= 0 }'

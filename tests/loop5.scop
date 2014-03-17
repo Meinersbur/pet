@@ -1,7 +1,7 @@
 start: 34
 end: 110
-context: '[n, m] -> {  : m <= 2147483645 and n <= 2147483646 and n >= -2147483648
-  and m >= -2147483648 }'
+context: '[n, m] -> {  : m <= 2147483645 and n <= 2147483646 and m >= -2147483648
+  and n >= -2147483648 }'
 arrays:
 - context: '{  :  }'
   extent: '[n, m] -> { a[] }'

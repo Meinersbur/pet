@@ -8,7 +8,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[i] : (i >= 0 and i <= 4) or (i >= 6 and i <= 9) }'
+  domain: '{ S_0[i] : (i <= 4 and i >= 0) or (i <= 9 and i >= 6) }'
   schedule: '{ S_0[i] -> [0, i] }'
   body:
     type: op

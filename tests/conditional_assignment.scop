@@ -54,7 +54,7 @@ statements:
 - line: 23
   domain: '[N, M] -> { S_1[i, j] : j <= -1 + M and j >= 0 and i <= -1 + N and i >=
     0 }'
-  schedule: '[M, N] -> { S_1[i, j] -> [0, i, 1, j] }'
+  schedule: '[N, M] -> { S_1[i, j] -> [0, i, 1, j] }'
   body:
     type: op
     operation: =

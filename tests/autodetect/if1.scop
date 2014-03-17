@@ -9,7 +9,7 @@ arrays:
 statements:
 - line: 6
   domain: '[a] -> { S_0[] : a >= 1 }'
-  schedule: '{ S_0[] -> [0] }'
+  schedule: '[a] -> { S_0[] -> [0] }'
   body:
     type: op
     operation: =

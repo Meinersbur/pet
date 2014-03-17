@@ -8,8 +8,7 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '[N] -> { S_0[i] : (i <= -11 + 2N and i >= 0 and N <= 10) or (N >= 11 and
-    i >= 0 and i <= -1 + N) }'
+  domain: '[N] -> { S_0[i] : i <= -1 + N and i >= 0 and i <= -11 + 2N }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: op

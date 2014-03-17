@@ -8,7 +8,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 and j <= i }'
+  domain: '{ S_0[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 and j <= i }'
   schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: op
@@ -23,7 +23,7 @@ statements:
     - type: int
       value: 0
 - line: 11
-  domain: '{ S_1[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 and j <= -1 + i
+  domain: '{ S_1[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 and j <= -1 + i
     }'
   schedule: '{ S_1[i, j] -> [0, i, j, 2] }'
   body:

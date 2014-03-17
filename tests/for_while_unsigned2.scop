@@ -71,9 +71,9 @@ statements:
     read: 1
     write: 0
 - line: 15
-  domain: '[n] -> { [S2[x1, x2, x3] -> [1]] : exists (e0 = floor((255 - x2)/256),
-    e1 = floor((x2)/3): 3e1 = x2 and x3 >= 0 and x1 >= 0 and x1 <= -1 + n and x2 <=
-    9 and 256e0 >= -x2 + x3 and 256e0 <= 255 - x2 and 256e0 >= -x2) }'
+  domain: '[n] -> { [S2[x1, x2, x3] -> [1]] : exists (e0 = floor((x2)/256), e1 = floor((x2)/3):
+    3e1 = x2 and x3 >= 0 and x1 >= 0 and x1 <= -1 + n and x2 <= 9 and 256e0 <= x2
+    - x3 and 256e0 <= x2 and 256e0 >= -255 + x2) }'
   schedule: '[n] -> { S2[x1, x2, x3] -> [0, x1, 1, -x2, 1, 0, x3] }'
   body:
     type: op
@@ -100,7 +100,7 @@ statements:
         - type: access
           relation: '[n] -> { S2[x1, x2, x3] -> a[o0, 255 - o0] : exists (e0 = floor((x2)/3),
             e1 = floor((-253x2 - 3o0)/768): 3e0 = x2 and 768e1 = -253x2 - 3o0 and
-            o0 <= 255 and o0 >= 0) }'
+            o0 >= 0 and o0 <= 255) }'
           index: '[n] -> { S2[x1, x2, x3] -> a[(x2 - 256*floor((x2)/256)), (255 -
             x2 + 256*floor((x2)/256))] }'
           reference: __pet_ref_8
@@ -129,5 +129,5 @@ statements:
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[x1, x2] -> __pet_test_0[x1, x2''] : exists (e0
-    = floor((x2'')/3): 3e0 = x2'' and x1 >= 0 and x1 <= -1 + n and x2'' >= x2 and
+    = floor((x2'')/3): 3e0 = x2'' and x2'' >= x2 and x1 >= 0 and x1 <= -1 + n and
     x2'' <= 9) }'

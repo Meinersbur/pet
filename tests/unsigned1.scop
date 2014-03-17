@@ -8,10 +8,9 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '{ S_0[i, j, k] : (i >= 0 and i <= 199 and j >= 0 and j <= 199 and k >=
-    0 and k <= -1 + i + j and j <= 2147483647 - i) or (i >= 0 and i <= 199 and j >=
-    0 and j <= 199 and k >= 0 and k >= i + j and j >= 256 - i and j <= 2147483647
-    - i) }'
+  domain: '{ S_0[i, j, k] : (i <= 199 and j <= 199 and j >= 256 - i and k >= 0) or
+    (i <= 199 and i >= 0 and j <= 255 - i and j <= 199 and j >= 0 and k >= 0 and k
+    <= -1 + i + j) }'
   schedule: '{ S_0[i, j, k] -> [0, i, j, k] }'
   body:
     type: op

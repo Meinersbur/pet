@@ -1,6 +1,6 @@
 start: 274
 end: 498
-context: '[N, M] -> {  : N >= 10 and N <= 1000 and M >= 10 and M <= 1000 }'
+context: '[N, M] -> {  : N <= 1000 and N >= 10 and M >= 10 and M <= 1000 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N, M] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
@@ -53,7 +53,7 @@ statements:
 - line: 25
   domain: '[N, M] -> { S_1[i, j] : j <= -1 + M and j >= 0 and i <= -1 + N and i >=
     0 }'
-  schedule: '[M, N] -> { S_1[i, j] -> [0, i, 1, j] }'
+  schedule: '[N, M] -> { S_1[i, j] -> [0, i, 1, j] }'
   body:
     type: op
     operation: =

@@ -3,7 +3,7 @@ end: 186
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -14,7 +14,7 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
   schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: op
@@ -36,7 +36,7 @@ statements:
     read: 1
     write: 0
 - line: 11
-  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
   schedule: '{ S_1[i, j] -> [0, i, j, 1, 0] }'
   body:
     type: op
@@ -58,7 +58,7 @@ statements:
     read: 1
     write: 0
 - line: 13
-  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
   schedule: '{ S_2[i, j] -> [0, i, j, 2] }'
   body:
     type: op
@@ -94,5 +94,5 @@ statements:
     write: 0
 implications:
 - satisfied: 0
-  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i, j''] : i >= 0 and i <= 99 and
-    j'' <= j and j'' >= 0 and j'' <= 99 }'
+  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i, j''] : j'' <= j and i >= 0 and
+    i <= 99 and j'' >= 0 and j'' <= 99 }'

@@ -57,7 +57,7 @@ statements:
       - type: int
         value: 4
 - line: 14
-  domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
+  domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
   schedule: '{ S_2[i, j] -> [1, i, 1, j, 0] }'
   body:
     type: op
@@ -97,7 +97,7 @@ statements:
     read: 1
     write: 0
 - line: 15
-  domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
+  domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
   schedule: '{ S_3[i, j] -> [1, i, 1, j, 1] }'
   body:
     type: op

@@ -17,8 +17,8 @@ arrays:
   element_size: 4
 statements:
 - line: 18
-  domain: '{ S_0[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
-    and k <= 29 and l >= 0 and l <= 39 }'
+  domain: '{ S_0[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
+    and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_0[i, j, k, l] -> [0, i, j, k, l, 0] }'
   body:
     type: call
@@ -31,8 +31,8 @@ statements:
       read: 1
       write: 0
 - line: 19
-  domain: '{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
-    and k <= 29 and l >= 0 and l <= 39 }'
+  domain: '{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
+    and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_1[i, j, k, l] -> [0, i, j, k, l, 1] }'
   body:
     type: call
@@ -45,8 +45,8 @@ statements:
       read: 0
       write: 1
 - line: 20
-  domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
-    and k <= 29 and l >= 0 and l <= 39 }'
+  domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
+    and k >= 0 and l <= 39 and l >= 0 }'
   schedule: '{ S_2[i, j, k, l] -> [0, i, j, k, l, 2] }'
   body:
     type: call
