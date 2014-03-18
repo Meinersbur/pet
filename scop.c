@@ -3243,6 +3243,9 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 						isl_space_copy(space));
 	scop = scop_propagate_params(scop, space);
 
+	if (scop && !scop->context)
+		return pet_scop_free(scop);
+
 	return scop;
 }
 
