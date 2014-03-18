@@ -16,10 +16,12 @@
 
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.
+ * "start_line" is the line number of the start position.
  */
 struct ScopLoc {
 	ScopLoc() : end(0) {}
 
+	unsigned start_line;
 	unsigned start;
 	unsigned end;
 };
@@ -62,13 +64,18 @@ struct PetScan {
 	 */
 	isl_union_map *value_bounds;
 
+	/* The line number of the previously considered Stmt. */
+	unsigned last_line;
+	/* The line number of the Stmt currently being considered. */
+	unsigned current_line;
+
 	PetScan(clang::Preprocessor &PP,
 		clang::ASTContext &ast_context, ScopLoc &loc,
 		pet_options *options, __isl_take isl_union_map *value_bounds) :
 		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
 		ast_context(ast_context), loc(loc),
 		options(options), value_bounds(value_bounds),
-		partial(false) { }
+		partial(false), last_line(0), current_line(0) { }
 
 	~PetScan();
 
@@ -80,6 +87,8 @@ struct PetScan {
 	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
 		lex_recorddecl_set *types, __isl_keep pet_context *pc);
 private:
+	void set_current_stmt(clang::Stmt *stmt);
+
 	struct pet_scop *scan(clang::Stmt *stmt);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop,

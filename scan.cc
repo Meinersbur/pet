@@ -1490,6 +1490,8 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 {
 	pet_tree *tree;
 
+	set_current_stmt(stmt);
+
 	if (isa<Expr>(stmt))
 		return extract(extract_expr(cast<Expr>(stmt)),
 				stmt->getSourceRange(), true);
@@ -2236,8 +2238,10 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 	stmt = fd->getBody();
 
 	if (options->autodetect) {
+		set_current_stmt(stmt);
 		scop = extract_scop(extract(stmt, true));
 	} else {
+		current_line = loc.start_line;
 		scop = scan(stmt);
 		scop = pet_scop_update_start_end(scop, loc.start, loc.end);
 	}
@@ -2245,4 +2249,16 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 	scop = pet_scop_gist(scop, value_bounds);
 
 	return scop;
+}
+
+/* Update this->last_line and this->current_line based on the fact
+ * that we are about to consider "stmt".
+ */
+void PetScan::set_current_stmt(Stmt *stmt)
+{
+	SourceLocation loc = stmt->getLocStart();
+	SourceManager &SM = PP.getSourceManager();
+
+	last_line = current_line;
+	current_line = SM.getExpansionLineNumber(loc);
 }

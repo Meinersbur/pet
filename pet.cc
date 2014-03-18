@@ -336,9 +336,10 @@ struct ScopLocList {
 	 * If the last #pragma scop did not have a matching
 	 * #pragma endscop then overwrite it.
 	 */
-	void add_start(unsigned start) {
+	void add_start(unsigned line, unsigned start) {
 		ScopLoc loc;
 
+		loc.start_line = line;
 		loc.start = start;
 		if (list.size() == 0 || list[list.size() - 1].end != 0)
 			list.push_back(loc);
@@ -378,7 +379,7 @@ struct PragmaScopHandler : public PragmaHandler {
 		SourceLocation sloc = ScopTok.getLocation();
 		int line = SM.getExpansionLineNumber(sloc);
 		sloc = translateLineCol(SM, SM.getFileID(sloc), line, 1);
-		scops.add_start(SM.getFileOffset(sloc));
+		scops.add_start(line, SM.getFileOffset(sloc));
 	}
 };
 
