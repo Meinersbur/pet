@@ -22,8 +22,8 @@ statements:
       read: 0
       write: 1
     - type: access
-      relation: '{ S_0[k] -> [5] }'
-      index: '{ S_0[k] -> [(5)] }'
+      relation: '{ S_0[k] -> [k] }'
+      index: '{ S_0[k] -> [(k)] }'
       reference: __pet_ref_1
       read: 1
       write: 0

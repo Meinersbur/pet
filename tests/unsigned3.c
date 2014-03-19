@@ -5,6 +5,6 @@ int main()
 
 #pragma scop
 	for (k = 252; 1; ++k)
-		a = 5;
+		a = k;
 #pragma endscop
 }
