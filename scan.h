@@ -166,7 +166,6 @@ private:
 		int stmt_nr, struct pet_scop *scop_body,
 		struct pet_scop *scop_inc);
 
-	__isl_give pet_expr *mark_write(__isl_take pet_expr *access);
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
 	__isl_give pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
 		clang::Expr *expr);

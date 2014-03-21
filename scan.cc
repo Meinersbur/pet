@@ -1051,6 +1051,16 @@ __isl_give isl_pw_aff *PetScan::extract_condition(Expr *expr)
 	return cond;
 }
 
+/* Mark the given access pet_expr as a write.
+ */
+static __isl_give pet_expr *mark_write(__isl_take pet_expr *access)
+{
+	access = pet_expr_access_set_write(access, 1);
+	access = pet_expr_access_set_read(access, 0);
+
+	return access;
+}
+
 /* Construct a pet_expr representing a unary operator expression.
  */
 __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
@@ -1073,16 +1083,6 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 	}
 
 	return pet_expr_new_unary(op, arg);
-}
-
-/* Mark the given access pet_expr as a write.
- */
-__isl_give pet_expr *PetScan::mark_write(__isl_take pet_expr *access)
-{
-	access = pet_expr_access_set_write(access, 1);
-	access = pet_expr_access_set_read(access, 0);
-
-	return access;
 }
 
 /* If the access expression "expr" writes to a (non-virtual) scalar,
