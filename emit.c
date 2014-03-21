@@ -568,7 +568,7 @@ static int emit_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 	case pet_expr_call:
 		if (emit_string(emitter, "name") < 0)
 			return -1;
-		if (emit_string(emitter, expr->name) < 0)
+		if (emit_string(emitter, expr->c.name) < 0)
 			return -1;
 		break;
 	case pet_expr_cast:

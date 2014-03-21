@@ -428,7 +428,7 @@ static __isl_give isl_printer *print_pet_expr(__isl_take isl_printer *p,
 			p = isl_printer_print_str(p, ")");
 		break;
 	case pet_expr_call:
-		p = isl_printer_print_str(p, expr->name);
+		p = isl_printer_print_str(p, expr->c.name);
 		p = isl_printer_print_str(p, "(");
 		for (i = 0; i < expr->n_arg; ++i) {
 			if (i)

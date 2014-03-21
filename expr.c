@@ -394,8 +394,8 @@ __isl_give pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 	if (!expr)
 		return NULL;
 
-	expr->name = strdup(name);
-	if (!expr->name)
+	expr->c.name = strdup(name);
+	if (!expr->c.name)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -514,7 +514,7 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 		dup = pet_expr_access_set_kill(dup, expr->acc.kill);
 		break;
 	case pet_expr_call:
-		dup = pet_expr_call_set_name(dup, expr->name);
+		dup = pet_expr_call_set_name(dup, expr->c.name);
 		break;
 	case pet_expr_cast:
 		dup = pet_expr_cast_set_type_name(dup, expr->type_name);
@@ -570,7 +570,7 @@ __isl_null pet_expr *pet_expr_free(__isl_take pet_expr *expr)
 		isl_multi_pw_aff_free(expr->acc.index);
 		break;
 	case pet_expr_call:
-		free(expr->name);
+		free(expr->c.name);
 		break;
 	case pet_expr_cast:
 		free(expr->type_name);
@@ -767,7 +767,7 @@ int pet_expr_is_min(__isl_keep pet_expr *expr)
 		return 0;
 	if (expr->n_arg != 2)
 		return 0;
-	if (strcmp(expr->name, "min") != 0)
+	if (strcmp(expr->c.name, "min") != 0)
 		return 0;
 	return 1;
 }
@@ -782,7 +782,7 @@ int pet_expr_is_max(__isl_keep pet_expr *expr)
 		return 0;
 	if (expr->n_arg != 2)
 		return 0;
-	if (strcmp(expr->name, "max") != 0)
+	if (strcmp(expr->c.name, "max") != 0)
 		return 0;
 	return 1;
 }
@@ -998,7 +998,7 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 			return 0;
 		break;
 	case pet_expr_call:
-		if (strcmp(expr1->name, expr2->name))
+		if (strcmp(expr1->c.name, expr2->c.name))
 			return 0;
 		break;
 	case pet_expr_cast:
@@ -2360,7 +2360,7 @@ __isl_keep const char *pet_expr_call_get_name(__isl_keep pet_expr *expr)
 	if (expr->type != pet_expr_call)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not a call expression", return NULL);
-	return expr->name;
+	return expr->c.name;
 }
 
 /* Replace the name of the function called by "expr" by "name".
@@ -2374,9 +2374,9 @@ __isl_give pet_expr *pet_expr_call_set_name(__isl_take pet_expr *expr,
 	if (expr->type != pet_expr_call)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not a call expression", return pet_expr_free(expr));
-	free(expr->name);
-	expr->name = strdup(name);
-	if (!expr->name)
+	free(expr->c.name);
+	expr->c.name = strdup(name);
+	if (!expr->c.name)
 		return pet_expr_free(expr);
 	return expr;
 }
@@ -3310,7 +3310,7 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 			pet_expr_dump_with_indent(expr->args[i], indent + 2);
 		break;
 	case pet_expr_call:
-		fprintf(stderr, "%s/%d\n", expr->name, expr->n_arg);
+		fprintf(stderr, "%s/%d\n", expr->c.name, expr->n_arg);
 		for (i = 0; i < expr->n_arg; ++i)
 			pet_expr_dump_with_indent(expr->args[i], indent + 2);
 		break;

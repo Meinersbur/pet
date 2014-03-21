@@ -13,7 +13,7 @@ extern "C" {
 /* d is valid when type == pet_expr_double
  * i isl valid when type == pet_expr_int
  * acc is valid when type == pet_expr_access
- * name is valid when type == pet_expr_call
+ * c is valid when type == pet_expr_call
  * type is valid when type == pet_expr_cast
  * op is valid otherwise
  *
@@ -92,7 +92,9 @@ struct pet_expr {
 			isl_union_map *access[pet_expr_access_end];
 		} acc;
 		enum pet_op_type op;
-		char *name;
+		struct {
+			char *name;
+		} c;
 		char *type_name;
 		struct {
 			double val;
