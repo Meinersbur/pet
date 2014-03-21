@@ -12,6 +12,7 @@
 #include "context.h"
 #include "loc.h"
 #include "scop.h"
+#include "summary.h"
 #include "tree.h"
 
 /* The location of the scop, as delimited by scop and endscop
@@ -68,6 +69,11 @@ struct PetScan {
 	 * by PetScan::get_array_size.
 	 */
 	std::map<const clang::Type *, pet_expr *> type_size;
+
+	/* A cache of funtion summaries for function declarations
+	 * as extracted by PetScan::get_summary.
+	 */
+	std::map<clang::FunctionDecl *, pet_function_summary *> summary_cache;
 
 	/* A union of mappings of the form
 	 *	{ identifier[] -> [i] : lower_bound <= i <= upper_bound }
@@ -154,6 +160,9 @@ private:
 	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
 
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
+	__isl_give pet_function_summary *get_summary(clang::FunctionDecl *fd);
+	__isl_give pet_expr *set_summary(__isl_take pet_expr *expr,
+		clang::FunctionDecl *fd);
 	__isl_give pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
 		clang::Expr *expr);
 	__isl_give pet_expr *extract_expr(const llvm::APInt &val);

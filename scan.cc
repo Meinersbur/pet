@@ -192,9 +192,12 @@ static __isl_give isl_id *create_decl_id(isl_ctx *ctx, NamedDecl *decl)
 PetScan::~PetScan()
 {
 	std::map<const Type *, pet_expr *>::iterator it;
+	std::map<FunctionDecl *, pet_function_summary *>::iterator it_s;
 
 	for (it = type_size.begin(); it != type_size.end(); ++it)
 		pet_expr_free(it->second);
+	for (it_s = summary_cache.begin(); it_s != summary_cache.end(); ++it_s)
+		pet_function_summary_free(it_s->second);
 
 	isl_union_map_free(value_bounds);
 }
@@ -865,6 +868,8 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 		res = pet_expr_set_arg(res, i,
 					PetScan::extract_argument(fd, i, arg));
 	}
+
+	res = set_summary(res, fd);
 
 	return res;
 }
@@ -1687,6 +1692,158 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	iv = (ValueDecl *) isl_id_get_user(id);
 	isl_id_free(id);
 	return ps->extract_array(ctx, iv, NULL, pc);
+}
+
+/* Extract a function summary from the body of "fd".
+ *
+ * We extract a scop from the function body in a context with as
+ * parameters the integer arguments of the function.
+ * We turn off autodetection (in case it was set) to ensure that
+ * the entire function body is considered.
+ * We then collect the accessed array elements and attach them
+ * to the corresponding array arguments, taking into account
+ * that the function body may access members of array elements.
+ *
+ * The reason for representing the integer arguments as parameters in
+ * the context is that if we were to instead start with a context
+ * with the function arguments as initial dimensions, then we would not
+ * be able to refer to them from the array extents, without turning
+ * array extents into maps.
+ *
+ * The result is stored in the summary_cache cache so that we can reuse
+ * it if this method gets called on the same function again later on.
+ */
+__isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
+{
+	isl_space *space;
+	isl_set *domain;
+	pet_context *pc;
+	pet_tree *tree;
+	pet_function_summary *summary;
+	unsigned n;
+	ScopLoc loc;
+	int save_autodetect;
+	struct pet_scop *scop;
+	int int_size;
+	isl_union_set *may_read, *may_write, *must_write;
+	isl_union_map *to_inner;
+
+	if (summary_cache.find(fd) != summary_cache.end())
+		return pet_function_summary_copy(summary_cache[fd]);
+
+	space = isl_space_set_alloc(ctx, 0, 0);
+
+	n = fd->getNumParams();
+	summary = pet_function_summary_alloc(ctx, n);
+	for (int i = 0; i < n; ++i) {
+		ParmVarDecl *parm = fd->getParamDecl(i);
+		QualType type = parm->getType();
+		isl_id *id;
+
+		if (!type->isIntegerType())
+			continue;
+		id = create_decl_id(ctx, parm);
+		space = isl_space_insert_dims(space, isl_dim_param, 0, 1);
+		space = isl_space_set_dim_id(space, isl_dim_param, 0,
+						isl_id_copy(id));
+		summary = pet_function_summary_set_int(summary, i, id);
+	}
+
+	save_autodetect = options->autodetect;
+	options->autodetect = 0;
+	PetScan body_scan(PP, ast_context, loc, options,
+				isl_union_map_copy(value_bounds), independent);
+
+	tree = body_scan.extract(fd->getBody(), false);
+
+	domain = isl_set_universe(space);
+	pc = pet_context_alloc(domain);
+	pc = pet_context_add_parameters(pc, tree,
+						&::get_array_size, &body_scan);
+	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
+	scop = pet_scop_from_pet_tree(tree, int_size,
+					&::extract_array, &body_scan, pc);
+	scop = scan_arrays(scop, pc);
+	may_read = isl_union_map_range(pet_scop_collect_may_reads(scop));
+	may_write = isl_union_map_range(pet_scop_collect_may_writes(scop));
+	must_write = isl_union_map_range(pet_scop_collect_must_writes(scop));
+	to_inner = pet_scop_compute_outer_to_inner(scop);
+	pet_scop_free(scop);
+
+	for (int i = 0; i < n; ++i) {
+		ParmVarDecl *parm = fd->getParamDecl(i);
+		QualType type = parm->getType();
+		struct pet_array *array;
+		isl_space *space;
+		isl_union_set *data_set;
+		isl_union_set *may_read_i, *may_write_i, *must_write_i;
+
+		if (array_depth(type.getTypePtr()) == 0)
+			continue;
+
+		array = body_scan.extract_array(ctx, parm, NULL, pc);
+		space = array ? isl_set_get_space(array->extent) : NULL;
+		pet_array_free(array);
+		data_set = isl_union_set_from_set(isl_set_universe(space));
+		data_set = isl_union_set_apply(data_set,
+					isl_union_map_copy(to_inner));
+		may_read_i = isl_union_set_intersect(
+				isl_union_set_copy(may_read),
+				isl_union_set_copy(data_set));
+		may_write_i = isl_union_set_intersect(
+				isl_union_set_copy(may_write),
+				isl_union_set_copy(data_set));
+		must_write_i = isl_union_set_intersect(
+				isl_union_set_copy(must_write), data_set);
+		summary = pet_function_summary_set_array(summary, i,
+				may_read_i, may_write_i, must_write_i);
+	}
+
+	isl_union_set_free(may_read);
+	isl_union_set_free(may_write);
+	isl_union_set_free(must_write);
+	isl_union_map_free(to_inner);
+
+	options->autodetect = save_autodetect;
+	pet_context_free(pc);
+
+	summary_cache[fd] = pet_function_summary_copy(summary);
+
+	return summary;
+}
+
+/* If "fd" has a function body, then extract a function summary from
+ * this body and attach it to the call expression "expr".
+ *
+ * Even if a function body is available, "fd" itself may point
+ * to a declaration without function body.  We therefore first
+ * replace it by the declaration that comes with a body (if any).
+ *
+ * It is not clear why hasBody takes a reference to a const FunctionDecl *.
+ * It seems that it is possible to directly use the iterators to obtain
+ * a non-const pointer.
+ * Since we are not going to use the pointer to modify anything anyway,
+ * it seems safe to drop the constness.  The alternative would be to
+ * modify a lot of other functions to include const qualifiers.
+ */
+__isl_give pet_expr *PetScan::set_summary(__isl_take pet_expr *expr,
+	FunctionDecl *fd)
+{
+	pet_function_summary *summary;
+	const FunctionDecl *def;
+
+	if (!expr)
+		return NULL;
+	if (!fd->hasBody(def))
+		return expr;
+
+	fd = const_cast<FunctionDecl *>(def);
+
+	summary = get_summary(fd);
+
+	expr = pet_expr_call_set_summary(expr, summary);
+
+	return expr;
 }
 
 /* Extract a pet_scop from "tree".
