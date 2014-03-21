@@ -1891,8 +1891,7 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	Expr *expr)
 {
 	struct pet_expr *res;
-	int is_addr = 0;
-	pet_expr *main_arg;
+	int is_addr = 0, is_partial = 0;
 	Stmt::StmtClass sc;
 
 	if (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
@@ -1907,17 +1906,14 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		}
 	}
 	res = extract_expr(expr);
-	main_arg = res;
-	if (is_addr)
-		res = pet_expr_new_unary(ctx, pet_op_address_of, res);
 	if (!res)
 		return NULL;
 	sc = expr->getStmtClass();
 	if ((sc == Stmt::ArraySubscriptExprClass ||
 	     sc == Stmt::MemberExprClass) &&
 	    array_depth(expr->getType().getTypePtr()) > 0)
-		is_addr = 1;
-	if (is_addr && main_arg->type == pet_expr_access) {
+		is_partial = 1;
+	if ((is_addr || is_partial) && res->type == pet_expr_access) {
 		ParmVarDecl *parm;
 		if (!fd->hasPrototype()) {
 			report_prototype_required(expr);
@@ -1925,9 +1921,11 @@ struct pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		}
 		parm = fd->getParamDecl(pos);
 		if (!const_base(parm->getType()))
-			mark_write(main_arg);
+			mark_write(res);
 	}
 
+	if (is_addr)
+		res = pet_expr_new_unary(ctx, pet_op_address_of, res);
 	return res;
 }
 
