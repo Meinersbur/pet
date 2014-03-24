@@ -185,6 +185,9 @@ void pet_scop_collect_arrays(struct pet_scop *scop,
 		decl = (ValueDecl *)isl_id_get_user(id);
 		isl_id_free(id);
 
+		if (!decl)
+			continue;
+
 		ancestors.push_back(decl);
 
 		arrays.erase(ancestors);
