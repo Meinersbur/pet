@@ -1,0 +1,40 @@
+start: 169
+end: 250
+indent: "\t"
+context: '[n] -> {  : n <= 2147483647 and n >= 0 }'
+arrays:
+- context: '[n] -> {  : n >= 0 }'
+  extent: '[n] -> { B[i0, i1] : i0 >= 0 and i0 <= -1 + n and i1 <= -1 + n and i1 >=
+    0 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 15
+  domain: '[n] -> { S_0[i] : i <= -1 + n and i >= 0 }'
+  schedule: '[n] -> { S_0[i] -> [0, i] }'
+  body:
+    type: expression
+    expr:
+      type: call
+      name: foo
+      arguments:
+      - type: access
+        index: '[n] -> { S_0[i] -> [(1 + i)] }'
+        reference: __pet_ref_0
+        read: 1
+        write: 0
+      - type: access
+        index: '[n] -> { S_0[i] -> [(n)] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0
+      - type: access
+        may_read: '[n] -> { S_0[i] -> B[i, 1 + i] : i <= -2 + n }'
+        may_write: '[n] -> { S_0[i] -> B[i, 1 + i] : i <= -2 + n; S_0[i] -> B[i, i]
+          }'
+        must_write: '[n] -> { S_0[i] -> B[i, i] }'
+        index: '[n] -> { S_0[i] -> B[(i)] }'
+        depth: 2
+        reference: __pet_ref_2
+        read: 1
+        write: 1

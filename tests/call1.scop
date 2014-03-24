@@ -1,0 +1,49 @@
+start: 141
+end: 245
+indent: "\t"
+context: '[n] -> {  : exists (e0 = floor((n)/4): 4e0 = n and n >= 0 and n <= 2147483647)
+  }'
+arrays:
+- context: '[n] -> {  : n >= 0 }'
+  extent: '[n] -> { A[i0] : i0 <= -1 + n and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 10
+  domain: '[n] -> { S_0[] }'
+  schedule: '{ S_0[] -> [0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: assume
+      arguments:
+      - type: access
+        index: '[n] -> { S_0[] -> [(1)] }'
+        reference: __pet_ref_0
+        read: 1
+        write: 0
+- line: 12
+  domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i <= -4 + n and
+    i >= 0) }'
+  schedule: '[n] -> { S_1[i] -> [1, i] }'
+  body:
+    type: expression
+    expr:
+      type: call
+      name: foo
+      arguments:
+      - type: access
+        index: '[n] -> { S_1[i] -> [(i)] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0
+      - type: access
+        may_read: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
+        may_write: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
+        must_write: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
+        index: '[n] -> { S_1[i] -> A[] }'
+        depth: 1
+        reference: __pet_ref_2
+        read: 1
+        write: 1
