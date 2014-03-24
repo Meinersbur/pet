@@ -5353,8 +5353,8 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop)
 {
 	int i;
-	set<vector<ValueDecl *> > arrays;
-	set<vector<ValueDecl *> >::iterator it;
+	array_desc_set arrays;
+	array_desc_set::iterator it;
 	lex_recorddecl_set types;
 	lex_recorddecl_set types_done;
 	lex_recorddecl_set::iterator types_it;

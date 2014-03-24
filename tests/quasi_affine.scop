@@ -2,12 +2,12 @@ start: 84
 end: 218
 context: '[N] -> {  : N <= 2147483647 and N >= 0 }'
 arrays:
-- context: '{  :  }'
-  extent: '[N] -> { in[] }'
-  element_type: int
-  element_size: 4
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { A[i0] : i0 <= -1 + N and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N] -> { in[] }'
   element_type: int
   element_size: 4
 - context: '{  :  }'

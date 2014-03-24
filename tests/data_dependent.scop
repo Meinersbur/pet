@@ -2,6 +2,15 @@ start: 274
 end: 498
 context: '[N, M] -> {  : N >= 10 and N <= 1000 and M >= 10 and M <= 1000 }'
 arrays:
+- context: '[N] -> {  : N >= 0 }'
+  extent: '[N, M] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
+    9 }'
+  element_type: int
+  element_size: 4
+- context: '[N] -> {  : N >= 0 }'
+  extent: '[N, M] -> { C[i0] : i0 <= -1 + N and i0 >= 0 }'
+  element_type: int
+  element_size: 4
 - context: '[M, N] -> {  : N >= 0 and M >= 0 }'
   extent: '[N, M] -> { in1[i0, i1] : i1 <= -1 + M and i1 >= 0 and i0 <= -1 + N and
     i0 >= 0 }'
@@ -10,15 +19,6 @@ arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N, M] -> { in2[i0] : i0 <= -1 + N and i0 >= 0 }'
   value_bounds: '{ [i0] : i0 >= -1 and i0 <= 1 }'
-  element_type: int
-  element_size: 4
-- context: '[N] -> {  : N >= 0 }'
-  extent: '[N, M] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
-    9 }'
-  element_type: int
-  element_size: 4
-- context: '[N] -> {  : N >= 0 }'
-  extent: '[N, M] -> { C[i0] : i0 <= -1 + N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'

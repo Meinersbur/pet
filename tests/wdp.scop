@@ -8,16 +8,16 @@ arrays:
   element_type: int
   element_size: 4
   uniquely_defined: 1
+- context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
+  extent: '[N] -> { t[i0] : i0 <= N and i0 >= 0 }'
+  element_type: int
+  element_size: 4
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { x[i0] : i0 <= -1 + N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
   extent: '[N] -> { y[i0] : i0 <= N and i0 >= 0 }'
-  element_type: int
-  element_size: 4
-- context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
-  extent: '[N] -> { t[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= -2 and N <= 2147483645 }'

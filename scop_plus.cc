@@ -51,7 +51,7 @@ using namespace clang;
  * structure.
  */
 static void collect_sub_arrays(ValueDecl *decl, vector<ValueDecl *> ancestors,
-	set<vector<ValueDecl *> > &arrays)
+	array_desc_set &arrays)
 {
 	QualType type = decl->getType();
 	RecordDecl *record;
@@ -94,7 +94,7 @@ static void collect_sub_arrays(ValueDecl *decl, vector<ValueDecl *> ancestors,
  * to the scalar.
  */
 static void access_collect_arrays(__isl_keep pet_expr *expr,
-	set<vector<ValueDecl *> > &arrays)
+	array_desc_set &arrays)
 {
 	isl_id *id;
 	isl_space *space;
@@ -125,7 +125,7 @@ static void access_collect_arrays(__isl_keep pet_expr *expr,
 }
 
 static void expr_collect_arrays(__isl_keep pet_expr *expr,
-	set<vector<ValueDecl *> > &arrays)
+	array_desc_set &arrays)
 {
 	int n;
 
@@ -146,7 +146,7 @@ static void expr_collect_arrays(__isl_keep pet_expr *expr,
 }
 
 static void stmt_collect_arrays(struct pet_stmt *stmt,
-	set<vector<ValueDecl *> > &arrays)
+	array_desc_set &arrays)
 {
 	if (!stmt)
 		return;
@@ -169,7 +169,7 @@ static void stmt_collect_arrays(struct pet_stmt *stmt,
  * to be simple arrays, represented by a sequence of a single element.
  */
 void pet_scop_collect_arrays(struct pet_scop *scop,
-	set<vector<ValueDecl *> > &arrays)
+	array_desc_set &arrays)
 {
 	if (!scop)
 		return;

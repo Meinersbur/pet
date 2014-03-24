@@ -12,6 +12,10 @@ arrays:
   element_size: 404
   element_is_record: 1
 - context: '{  :  }'
+  extent: '{ s_b[s[] -> b[]] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
   extent: '{ s_f[s[] -> f[i0]] : i0 >= 0 and i0 <= 9 }'
   element_type: <subfield>
   element_size: 40
@@ -19,10 +23,6 @@ arrays:
 - context: '{  :  }'
   extent: '{ s_f_a[s_f[s[] -> f[i0]] -> a[i1]] : i0 >= 0 and i0 <= 9 and i1 >= 0 and
     i1 <= 9 }'
-  element_type: int
-  element_size: 4
-- context: '{  :  }'
-  extent: '{ s_b[s[] -> b[]] }'
   element_type: int
   element_size: 4
 statements:

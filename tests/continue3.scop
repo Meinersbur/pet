@@ -21,11 +21,11 @@ arrays:
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ j[] }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  extent: '{ j[] }'
   element_type: int
   element_size: 4
 statements:

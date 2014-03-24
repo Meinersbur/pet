@@ -3,11 +3,11 @@ end: 166
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ b[i0] : i0 >= 0 and i0 <= 10 }'
+  extent: '{ a[] }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '{ a[] }'
+  extent: '{ b[i0] : i0 >= 0 and i0 <= 10 }'
   element_type: int
   element_size: 4
 statements:

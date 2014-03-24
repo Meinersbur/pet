@@ -3,12 +3,12 @@ end: 351
 context: '{  :  }'
 arrays:
 - context: '{  :  }'
-  extent: '{ N[] }'
+  extent: '{ M[] }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 100 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '{ M[] }'
+  extent: '{ N[] }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 100 }'
   element_type: int
   element_size: 4

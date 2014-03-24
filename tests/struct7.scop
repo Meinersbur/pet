@@ -18,11 +18,11 @@ arrays:
   element_size: 8
   element_is_record: 1
 - context: '{  :  }'
-  extent: '{ p_a_re[p_a[p[] -> a[]] -> re[]] }'
+  extent: '{ p_a_im[p_a[p[] -> a[]] -> im[]] }'
   element_type: float
   element_size: 4
 - context: '{  :  }'
-  extent: '{ p_a_im[p_a[p[] -> a[]] -> im[]] }'
+  extent: '{ p_a_re[p_a[p[] -> a[]] -> re[]] }'
   element_type: float
   element_size: 4
 - context: '{  :  }'
@@ -31,11 +31,11 @@ arrays:
   element_size: 8
   element_is_record: 1
 - context: '{  :  }'
-  extent: '{ p_b_re[p_b[p[] -> b[]] -> re[]] }'
+  extent: '{ p_b_im[p_b[p[] -> b[]] -> im[]] }'
   element_type: float
   element_size: 4
 - context: '{  :  }'
-  extent: '{ p_b_im[p_b[p[] -> b[]] -> im[]] }'
+  extent: '{ p_b_re[p_b[p[] -> b[]] -> re[]] }'
   element_type: float
   element_size: 4
 statements:
