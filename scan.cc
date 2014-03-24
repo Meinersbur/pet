@@ -1753,6 +1753,30 @@ struct pet_scop *PetScan::extract(WhileStmt *stmt, __isl_keep pet_context *pc)
 	return extract_while(cond, test_nr, stmt_nr, scop_body, NULL, pc);
 }
 
+/* Create a pet_scop with a single statement with name S_<stmt_nr>,
+ * evaluating "cond" and writing the result to a virtual scalar,
+ * as expressed by "index".
+ * Do so within the context "pc".
+ */
+struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
+	__isl_take isl_multi_pw_aff *index, __isl_keep pet_context *pc)
+{
+	pet_expr *expr, *write;
+	struct pet_stmt *ps;
+	pet_loc *loc;
+
+	write = pet_expr_from_index(index);
+	write = pet_expr_access_set_write(write, 1);
+	write = pet_expr_access_set_read(write, 0);
+	expr = extract_expr(cond);
+	expr = pet_expr_plug_in_args(expr, pc);
+	expr = pet_expr_resolve_nested(expr);
+	expr = pet_expr_new_binary(1, pet_op_assign, write, expr);
+	loc = construct_pet_loc(cond->getSourceRange(), false);
+	ps = pet_stmt_from_pet_expr(loc, NULL, stmt_nr, expr);
+	return pet_scop_from_pet_stmt(ctx, ps);
+}
+
 /* Construct a generic while scop, with iteration domain
  * { [t] : t >= 0 } around "scop_body" within the context "pc".
  * The scop consists of two parts,
@@ -2731,30 +2755,6 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt,
 	type_size = get_type_size(ass_then->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, write_then, pe);
 	return extract(pe, stmt->getSourceRange(), false, pc);
-}
-
-/* Create a pet_scop with a single statement with name S_<stmt_nr>,
- * evaluating "cond" and writing the result to a virtual scalar,
- * as expressed by "index".
- * Do so within the context "pc".
- */
-struct pet_scop *PetScan::extract_non_affine_condition(Expr *cond, int stmt_nr,
-	__isl_take isl_multi_pw_aff *index, __isl_keep pet_context *pc)
-{
-	pet_expr *expr, *write;
-	struct pet_stmt *ps;
-	pet_loc *loc;
-
-	write = pet_expr_from_index(index);
-	write = pet_expr_access_set_write(write, 1);
-	write = pet_expr_access_set_read(write, 0);
-	expr = extract_expr(cond);
-	expr = pet_expr_plug_in_args(expr, pc);
-	expr = pet_expr_resolve_nested(expr);
-	expr = pet_expr_new_binary(1, pet_op_assign, write, expr);
-	loc = construct_pet_loc(cond->getSourceRange(), false);
-	ps = pet_stmt_from_pet_expr(loc, NULL, stmt_nr, expr);
-	return pet_scop_from_pet_stmt(ctx, ps);
 }
 
 /* Given an access expression "expr", is the variable accessed by
