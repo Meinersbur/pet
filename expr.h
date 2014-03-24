@@ -162,6 +162,9 @@ __isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr);
 __isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);
+__isl_give pet_expr *pet_expr_map_call(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user);
 
 __isl_give isl_union_map *pet_expr_access_get_access(__isl_keep pet_expr *expr,
 	enum pet_expr_access_type type);

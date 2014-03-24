@@ -1140,10 +1140,10 @@ __isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr)
 	return space;
 }
 
-/* Modify all expressions of type pet_expr_access in "expr"
- * by calling "fn" on them.
+/* Modify all expressions of type "type" in "expr" by calling "fn" on them.
  */
-__isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
+static __isl_give pet_expr *pet_expr_map_expr_of_type(__isl_take pet_expr *expr,
+	enum pet_expr_type type,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user)
 {
@@ -1152,17 +1152,37 @@ __isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
 	n = pet_expr_get_n_arg(expr);
 	for (i = 0; i < n; ++i) {
 		pet_expr *arg = pet_expr_get_arg(expr, i);
-		arg = pet_expr_map_access(arg, fn, user);
+		arg = pet_expr_map_expr_of_type(arg, type, fn, user);
 		expr = pet_expr_set_arg(expr, i, arg);
 	}
 
 	if (!expr)
 		return NULL;
 
-	if (expr->type == pet_expr_access)
+	if (expr->type == type)
 		expr = fn(expr, user);
 
 	return expr;
+}
+
+/* Modify all expressions of type pet_expr_access in "expr"
+ * by calling "fn" on them.
+ */
+__isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	return pet_expr_map_expr_of_type(expr, pet_expr_access, fn, user);
+}
+
+/* Modify all expressions of type pet_expr_call in "expr"
+ * by calling "fn" on them.
+ */
+__isl_give pet_expr *pet_expr_map_call(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	return pet_expr_map_expr_of_type(expr, pet_expr_call, fn, user);
 }
 
 /* Call "fn" on each of the subexpressions of "expr" of type "type".
