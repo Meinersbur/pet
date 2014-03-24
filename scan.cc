@@ -2156,6 +2156,68 @@ struct pet_scop *PetScan::extract_non_affine_for(ForStmt *stmt, ValueDecl *iv,
 	return scop;
 }
 
+/* Given an access expression "expr", is the variable accessed by
+ * "expr" assigned anywhere inside "scop"?
+ */
+static bool is_assigned(__isl_keep pet_expr *expr, pet_scop *scop)
+{
+	bool assigned = false;
+	isl_id *id;
+
+	id = pet_expr_access_get_id(expr);
+	assigned = pet_scop_writes(scop, id);
+	isl_id_free(id);
+
+	return assigned;
+}
+
+/* Are all nested access parameters in "pa" allowed given "scop".
+ * In particular, is none of them written by anywhere inside "scop".
+ *
+ * If "scop" has any skip conditions, then no nested access parameters
+ * are allowed.  In particular, if there is any nested access in a guard
+ * for a piece of code containing a "continue", then we want to introduce
+ * a separate statement for evaluating this guard so that we can express
+ * that the result is false for all previous iterations.
+ */
+bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
+{
+	int nparam;
+
+	if (!scop)
+		return true;
+
+	if (!pet_nested_any_in_pw_aff(pa))
+		return true;
+
+	if (pet_scop_has_skip(scop, pet_skip_now))
+		return false;
+
+	nparam = isl_pw_aff_dim(pa, isl_dim_param);
+	for (int i = 0; i < nparam; ++i) {
+		isl_id *id = isl_pw_aff_get_dim_id(pa, isl_dim_param, i);
+		pet_expr *expr;
+		bool allowed;
+
+		if (!pet_nested_in_id(id)) {
+			isl_id_free(id);
+			continue;
+		}
+
+		expr = pet_nested_extract_expr(id);
+		allowed = pet_expr_get_type(expr) == pet_expr_access &&
+			    !is_assigned(expr, scop);
+
+		pet_expr_free(expr);
+		isl_id_free(id);
+
+		if (!allowed)
+			return false;
+	}
+
+	return true;
+}
+
 /* Construct a pet_scop for a for statement within the context "pc".
  * The for loop is required to be of one of the following forms
  *
@@ -2755,68 +2817,6 @@ struct pet_scop *PetScan::extract_conditional_assignment(IfStmt *stmt,
 	type_size = get_type_size(ass_then->getType(), ast_context);
 	pe = pet_expr_new_binary(type_size, pet_op_assign, write_then, pe);
 	return extract(pe, stmt->getSourceRange(), false, pc);
-}
-
-/* Given an access expression "expr", is the variable accessed by
- * "expr" assigned anywhere inside "scop"?
- */
-static bool is_assigned(__isl_keep pet_expr *expr, pet_scop *scop)
-{
-	bool assigned = false;
-	isl_id *id;
-
-	id = pet_expr_access_get_id(expr);
-	assigned = pet_scop_writes(scop, id);
-	isl_id_free(id);
-
-	return assigned;
-}
-
-/* Are all nested access parameters in "pa" allowed given "scop".
- * In particular, is none of them written by anywhere inside "scop".
- *
- * If "scop" has any skip conditions, then no nested access parameters
- * are allowed.  In particular, if there is any nested access in a guard
- * for a piece of code containing a "continue", then we want to introduce
- * a separate statement for evaluating this guard so that we can express
- * that the result is false for all previous iterations.
- */
-bool PetScan::is_nested_allowed(__isl_keep isl_pw_aff *pa, pet_scop *scop)
-{
-	int nparam;
-
-	if (!scop)
-		return true;
-
-	if (!pet_nested_any_in_pw_aff(pa))
-		return true;
-
-	if (pet_scop_has_skip(scop, pet_skip_now))
-		return false;
-
-	nparam = isl_pw_aff_dim(pa, isl_dim_param);
-	for (int i = 0; i < nparam; ++i) {
-		isl_id *id = isl_pw_aff_get_dim_id(pa, isl_dim_param, i);
-		pet_expr *expr;
-		bool allowed;
-
-		if (!pet_nested_in_id(id)) {
-			isl_id_free(id);
-			continue;
-		}
-
-		expr = pet_nested_extract_expr(id);
-		allowed = pet_expr_get_type(expr) == pet_expr_access &&
-			    !is_assigned(expr, scop);
-
-		pet_expr_free(expr);
-		isl_id_free(id);
-
-		if (!allowed)
-			return false;
-	}
-
-	return true;
 }
 
 /* Construct a pet_scop for a non-affine if statement within the context "pc".
