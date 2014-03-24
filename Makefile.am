@@ -59,6 +59,7 @@ libpet_la_SOURCES = \
 	tree.h \
 	tree.c \
 	tree2scop.h \
+	tree2scop.c \
 	scan.h \
 	scan.cc \
 	scop.h \
