@@ -1707,52 +1707,6 @@ static struct pet_scop *scop_add_while(struct pet_scop *scop_cond,
 	return scop;
 }
 
-/* Check if the while loop is of the form
- *
- *	while (affine expression)
- *		body
- *
- * If so, call extract_affine_while to construct a scop.
- *
- * Otherwise, extract the body and pass control to extract_while
- * to extend the iteration domain with an infinite loop.
- * If we were only able to extract part of the body, then simply
- * return that part.
- *
- * "pc" is the context in which the affine expressions in the scop are created.
- */
-struct pet_scop *PetScan::extract(WhileStmt *stmt, __isl_keep pet_context *pc)
-{
-	Expr *cond;
-	int test_nr, stmt_nr;
-	isl_pw_aff *pa;
-	struct pet_scop *scop, *scop_body;
-
-	cond = stmt->getCond();
-	if (!cond) {
-		unsupported(stmt);
-		return NULL;
-	}
-
-	pc = pet_context_copy(pc);
-	clear_assignments clear(pc);
-	clear.TraverseStmt(stmt->getBody());
-
-	pa = extract_condition(cond, pc);
-	if (pa)
-		return extract_affine_while(pa, stmt->getBody(), pc);
-
-	test_nr = n_test++;
-	stmt_nr = n_stmt++;
-	scop_body = extract(stmt->getBody(), pc);
-	if (partial) {
-		pet_context_free(pc);
-		return scop_body;
-	}
-
-	return extract_while(cond, test_nr, stmt_nr, scop_body, NULL, pc);
-}
-
 /* Create a pet_scop with a single statement with name S_<stmt_nr>,
  * evaluating "cond" and writing the result to a virtual scalar,
  * as expressed by "index".
@@ -1858,6 +1812,52 @@ struct pet_scop *PetScan::extract_while(Expr *cond, int test_nr, int stmt_nr,
 
 	pet_context_free(pc);
 	return scop;
+}
+
+/* Check if the while loop is of the form
+ *
+ *	while (affine expression)
+ *		body
+ *
+ * If so, call extract_affine_while to construct a scop.
+ *
+ * Otherwise, extract the body and pass control to extract_while
+ * to extend the iteration domain with an infinite loop.
+ * If we were only able to extract part of the body, then simply
+ * return that part.
+ *
+ * "pc" is the context in which the affine expressions in the scop are created.
+ */
+struct pet_scop *PetScan::extract(WhileStmt *stmt, __isl_keep pet_context *pc)
+{
+	Expr *cond;
+	int test_nr, stmt_nr;
+	isl_pw_aff *pa;
+	struct pet_scop *scop, *scop_body;
+
+	cond = stmt->getCond();
+	if (!cond) {
+		unsupported(stmt);
+		return NULL;
+	}
+
+	pc = pet_context_copy(pc);
+	clear_assignments clear(pc);
+	clear.TraverseStmt(stmt->getBody());
+
+	pa = extract_condition(cond, pc);
+	if (pa)
+		return extract_affine_while(pa, stmt->getBody(), pc);
+
+	test_nr = n_test++;
+	stmt_nr = n_stmt++;
+	scop_body = extract(stmt->getBody(), pc);
+	if (partial) {
+		pet_context_free(pc);
+		return scop_body;
+	}
+
+	return extract_while(cond, test_nr, stmt_nr, scop_body, NULL, pc);
 }
 
 /* Check whether "cond" expresses a simple loop bound
