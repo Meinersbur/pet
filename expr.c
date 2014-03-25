@@ -1475,7 +1475,7 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 		isl_die(ctx, isl_error_invalid,
 			"can only filter access expressions", goto error);
 
-	space = isl_space_domain(isl_map_get_space(expr->acc.access));
+	space = isl_space_domain(isl_multi_pw_aff_get_space(expr->acc.index));
 	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
 	pma = pet_filter_insert_pma(space, id, satisfied);
 
