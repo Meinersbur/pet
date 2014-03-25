@@ -471,6 +471,9 @@ static int emit_expr_type(yaml_emitter_t *emitter, enum pet_expr_type type)
 
 /* Print the fields of the access expression "expr" to "emitter".
  *
+ * Only print the access relations that are present and relevant
+ * for the type of access.
+ *
  * If the depth of the access is equal to the depth that can be derived from
  * the index expression, then there is no need to print it.
  */
@@ -478,12 +481,22 @@ static int emit_access_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 {
 	int depth;
 
-	if (expr->acc.access) {
-		if (emit_string(emitter, "relation") < 0)
-			return -1;
-		if (emit_map(emitter, expr->acc.access) < 0)
-			return -1;
-	}
+	if (expr->acc.kill && expr->acc.access[pet_expr_access_fake_killed] &&
+	    emit_named_union_map(emitter, "killed",
+		    expr->acc.access[pet_expr_access_fake_killed]) < 0)
+		return -1;
+	if (expr->acc.read && expr->acc.access[pet_expr_access_may_read] &&
+	    emit_named_union_map(emitter, "may_read",
+		    expr->acc.access[pet_expr_access_may_read]) < 0)
+		return -1;
+	if (expr->acc.write && expr->acc.access[pet_expr_access_may_write] &&
+	    emit_named_union_map(emitter, "may_write",
+		    expr->acc.access[pet_expr_access_may_write]) < 0)
+		return -1;
+	if (expr->acc.write && expr->acc.access[pet_expr_access_must_write] &&
+	    emit_named_union_map(emitter, "must_write",
+		    expr->acc.access[pet_expr_access_must_write]) < 0)
+		return -1;
 	if (emit_named_multi_pw_aff(emitter, "index", expr->acc.index) < 0)
 		return -1;
 	depth = isl_multi_pw_aff_dim(expr->acc.index, isl_dim_out);

@@ -390,8 +390,8 @@ static __isl_give pet_expr *extract_expr_double(isl_ctx *ctx,
  *
  * The depth of the access is initialized by pet_expr_access_set_index.
  * Any explicitly specified depth therefore needs to be set after
- * setting the index expression.  Similiarly, the access relation (if any)
- * needs to be set after setting the depth.
+ * setting the index expression.  Similiarly, the access relations (if any)
+ * need to be set after setting the depth.
  */
 static __isl_give pet_expr *extract_expr_access(isl_ctx *ctx,
 	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
@@ -432,9 +432,22 @@ static __isl_give pet_expr *extract_expr_access(isl_ctx *ctx,
 			isl_die(ctx, isl_error_invalid, "expecting scalar key",
 				return pet_expr_free(expr));
 
-		if (!strcmp((char *) key->data.scalar.value, "relation"))
+		if (!strcmp((char *) key->data.scalar.value, "may_read"))
 			expr = pet_expr_access_set_access(expr,
-				    extract_map(ctx, document, value));
+				    pet_expr_access_may_read,
+				    extract_union_map(ctx, document, value));
+		if (!strcmp((char *) key->data.scalar.value, "may_write"))
+			expr = pet_expr_access_set_access(expr,
+				    pet_expr_access_may_write,
+				    extract_union_map(ctx, document, value));
+		if (!strcmp((char *) key->data.scalar.value, "must_write"))
+			expr = pet_expr_access_set_access(expr,
+				    pet_expr_access_must_write,
+				    extract_union_map(ctx, document, value));
+		if (!strcmp((char *) key->data.scalar.value, "killed"))
+			expr = pet_expr_access_set_access(expr,
+				    pet_expr_access_killed,
+				    extract_union_map(ctx, document, value));
 		if (!strcmp((char *) key->data.scalar.value, "reference"))
 			expr = pet_expr_access_set_ref_id(expr,
 				    extract_id(ctx, document, value));

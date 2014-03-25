@@ -4,6 +4,7 @@
 #include <pet.h>
 
 #include "context.h"
+#include "expr_access_type.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -27,17 +28,18 @@ extern "C" {
  * For each access expression inside the body of a statement, acc.ref_id
  * is a unique reference identifier.
  * acc.index represents the index expression, while acc.access
- * represents the corresponding access relation.
+ * represents the corresponding access relations.
  * The output dimension of the index expression may be smaller
  * than the number of dimensions of the accessed array (recorded
  * in acc.depth).
  * The target space of the access relation, on the other hand,
  * is equal to the array space.
- * acc.access may be NULL if it can be derived directly from
- * acc.index and acc.depth in construct_access_relation.
- * That is, acc.access may be NULL if there are no additional
- * constraints on the access relations.
- * Both acc.index and acc.access usually map an iteration space
+ * The entries in acc.access may be NULL if they can be derived directly from
+ * acc.index and acc.depth in construct_access_relation or if they are
+ * irrelevant for the given type of access.
+ * In particular, the entries of acc.access may be NULL if there are
+ * no additional constraints on the access relations.
+ * Both acc.index and the acc.access entries usually map an iteration space
  * to a (partial) data space.
  * If the access has arguments, however, then the domain of the
  * mapping is a wrapped mapping from the iteration space
@@ -62,6 +64,8 @@ extern "C" {
  * Alternatively, the expression may be marked "kill", in which case it
  * is the argument of a kill operation and represents the set of
  * killed array elements.  Such accesses are marked neither read nor write.
+ * Since a kill can never be a read (or a write), the killed access
+ * relation is stored in the same location as the may read access relation.
  *
  * A double is represented as both an (approximate) value "val" and
  * a string representation "s".
@@ -80,12 +84,12 @@ struct pet_expr {
 	union {
 		struct {
 			isl_id *ref_id;
-			isl_map *access;
 			isl_multi_pw_aff *index;
 			int depth;
 			unsigned read : 1;
 			unsigned write : 1;
 			unsigned kill : 1;
+			isl_union_map *access[pet_expr_access_end];
 		} acc;
 		enum pet_op_type op;
 		char *name;
@@ -149,8 +153,10 @@ __isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);
 
+__isl_give isl_union_map *pet_expr_access_get_access(__isl_keep pet_expr *expr,
+	enum pet_expr_access_type type);
 __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
-	__isl_take isl_map *access);
+	enum pet_expr_access_type type, __isl_take isl_union_map *access);
 __isl_give pet_expr *pet_expr_access_set_index(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *index);
 

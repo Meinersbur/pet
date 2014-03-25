@@ -200,6 +200,9 @@ __isl_give pet_expr *pet_expr_access_project_out_arg(__isl_take pet_expr *expr,
 	int i, n;
 	isl_space *space, *dom, *ran;
 	isl_multi_aff *ma1, *ma2;
+	enum pet_expr_access_type type;
+	isl_map *map;
+	isl_union_map *umap;
 
 	expr = pet_expr_cow(expr);
 	if (!expr)
@@ -216,15 +219,21 @@ __isl_give pet_expr *pet_expr_access_project_out_arg(__isl_take pet_expr *expr,
 					isl_dim_in, dim + pos, 1))
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"cannot project out", return pet_expr_free(expr));
-	if (expr->acc.access) {
-		expr->acc.access =
-		    isl_map_eliminate(expr->acc.access,
-						isl_dim_in, dim + pos, 1);
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+	space = isl_multi_pw_aff_get_domain_space(expr->acc.index);
+	map = isl_map_identity(isl_space_map_from_set(space));
+	map = isl_map_eliminate(map, isl_dim_out, dim + pos, 1);
+	umap = isl_union_map_from_map(map);
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_apply_domain(expr->acc.access[type],
+						isl_union_map_copy(umap));
+		if (!expr->acc.access[type])
+			break;
 	}
-	if (!expr->acc.index)
+	isl_union_map_free(umap);
+	if (!expr->acc.index || type < pet_expr_access_end)
 		return pet_expr_free(expr);
 
 	space = isl_multi_pw_aff_get_domain_space(expr->acc.index);

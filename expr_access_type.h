@@ -7,8 +7,11 @@ extern "C" {
 
 enum pet_expr_access_type {
 	pet_expr_access_may_read,
+	pet_expr_access_begin = pet_expr_access_may_read,
+	pet_expr_access_fake_killed = pet_expr_access_may_read,
 	pet_expr_access_may_write,
 	pet_expr_access_must_write,
+	pet_expr_access_end,
 	pet_expr_access_killed
 };
 

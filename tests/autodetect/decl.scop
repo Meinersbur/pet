@@ -44,7 +44,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        relation: '{ S_1[] -> c[] }'
+        killed: '{ S_1[] -> c[] }'
         index: '{ S_1[] -> c[] }'
         reference: __pet_ref_1
         kill: 1

@@ -30,7 +30,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        relation: '{ S_0[] -> b[] }'
+        killed: '{ S_0[] -> b[] }'
         index: '{ S_0[] -> b[] }'
         reference: __pet_ref_0
         kill: 1
@@ -60,7 +60,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        relation: '{ S_2[] -> c[] }'
+        killed: '{ S_2[] -> c[] }'
         index: '{ S_2[] -> c[] }'
         reference: __pet_ref_2
         kill: 1

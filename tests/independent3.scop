@@ -28,7 +28,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        relation: '[n] -> { S_0[i, j] -> t[] }'
+        killed: '[n] -> { S_0[i, j] -> t[] }'
         index: '[n] -> { S_0[i, j] -> t[] }'
         reference: __pet_ref_0
         kill: 1
@@ -97,7 +97,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        relation: '[n] -> { S_2[i, j] -> t[] }'
+        killed: '[n] -> { S_2[i, j] -> t[] }'
         index: '[n] -> { S_2[i, j] -> t[] }'
         reference: __pet_ref_7
         kill: 1

@@ -235,7 +235,7 @@ statements:
           read: 1
           write: 0
         - type: access
-          relation: '{ [S_6[t] -> [0]] -> __pet_test_2[t] }'
+          may_read: '{ [S_6[t] -> [0]] -> __pet_test_2[t] }'
           index: '{ [S_6[t] -> [__pet_test_1]] -> __pet_test_2[(t)] }'
           reference: __pet_ref_25
           read: 1

@@ -20,7 +20,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        relation: '[N] -> { S_0[] -> A[o0] : o0 >= 0 and o0 <= -1 + N }'
+        killed: '[N] -> { S_0[] -> A[o0] : o0 >= 0 and o0 <= -1 + N }'
         index: '{ S_0[] -> A[] }'
         depth: 1
         reference: __pet_ref_0

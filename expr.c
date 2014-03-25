@@ -205,17 +205,41 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 	return access;
 }
 
-/* Does the access expression "expr" have an explicit access relation?
+/* Does the access expression "expr" have any explicit access relation?
  */
-static int has_access_relation(__isl_keep pet_expr *expr)
+static int has_any_access_relation(__isl_keep pet_expr *expr)
 {
+	enum pet_expr_access_type type;
+
 	if (!expr)
 		return -1;
 
-	if (expr->acc.access)
-		return 1;
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type)
+		if (expr->acc.access[type])
+			return 1;
 
 	return 0;
+}
+
+/* Are all relevant access relations explicitly available in "expr"?
+ */
+static int has_relevant_access_relations(__isl_keep pet_expr *expr)
+{
+	enum pet_expr_access_type type;
+
+	if (!expr)
+		return -1;
+
+	if (expr->acc.kill && !expr->acc.access[pet_expr_access_fake_killed])
+		return 0;
+	if (expr->acc.read && !expr->acc.access[pet_expr_access_may_read])
+		return 0;
+	if (expr->acc.write &&
+	    (!expr->acc.access[pet_expr_access_may_write] ||
+	     !expr->acc.access[pet_expr_access_must_write]))
+		return 0;
+
+	return 1;
 }
 
 /* Replace the depth of the access expr "expr" by "depth".
@@ -234,7 +258,7 @@ __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 		return NULL;
 	if (expr->acc.depth == depth)
 		return expr;
-	if (has_access_relation(expr))
+	if (has_any_access_relation(expr))
 		isl_die(pet_expr_get_ctx(expr), isl_error_unsupported,
 			"depth cannot be changed after access relation "
 			"has been set or computed", return pet_expr_free(expr));
@@ -264,7 +288,8 @@ __isl_give pet_expr *pet_expr_kill_from_access_and_index(
 	expr = pet_expr_access_set_kill(expr, 1);
 	depth = isl_map_dim(access, isl_dim_out);
 	expr = pet_expr_access_set_depth(expr, depth);
-	expr = pet_expr_access_set_access(expr, access);
+	expr = pet_expr_access_set_access(expr, pet_expr_access_killed,
+					isl_union_map_from_map(access));
 	return pet_expr_new_unary(pet_op_kill, expr);
 error:
 	isl_map_free(access);
@@ -458,6 +483,7 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 {
 	int i;
 	pet_expr *dup;
+	enum pet_expr_access_type type;
 
 	if (!expr)
 		return NULL;
@@ -476,9 +502,13 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 		dup = pet_expr_access_set_index(dup,
 					isl_multi_pw_aff_copy(expr->acc.index));
 		dup = pet_expr_access_set_depth(dup, expr->acc.depth);
-		if (expr->acc.access)
-			dup = pet_expr_access_set_access(dup,
-				    isl_map_copy(expr->acc.access));
+		for (type = pet_expr_access_begin;
+		     type < pet_expr_access_end; ++type) {
+			if (!expr->acc.access[type])
+				continue;
+			dup = pet_expr_access_set_access(dup, type,
+				    isl_union_map_copy(expr->acc.access[type]));
+		}
 		dup = pet_expr_access_set_read(dup, expr->acc.read);
 		dup = pet_expr_access_set_write(dup, expr->acc.write);
 		dup = pet_expr_access_set_kill(dup, expr->acc.kill);
@@ -519,6 +549,7 @@ __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr)
 
 __isl_null pet_expr *pet_expr_free(__isl_take pet_expr *expr)
 {
+	enum pet_expr_access_type type;
 	int i;
 
 	if (!expr)
@@ -533,7 +564,9 @@ __isl_null pet_expr *pet_expr_free(__isl_take pet_expr *expr)
 	switch (expr->type) {
 	case pet_expr_access:
 		isl_id_free(expr->acc.ref_id);
-		isl_map_free(expr->acc.access);
+		for (type = pet_expr_access_begin;
+		     type < pet_expr_access_end; ++type)
+			isl_union_map_free(expr->acc.access[type]);
 		isl_multi_pw_aff_free(expr->acc.index);
 		break;
 	case pet_expr_call:
@@ -815,7 +848,8 @@ static int multi_pw_aff_is_equal(__isl_keep isl_multi_pw_aff *mpa1,
  * then we assume that all elements of the remaining dimensions
  * are accessed.
  */
-static __isl_give isl_map *construct_access_relation(__isl_keep pet_expr *expr)
+static __isl_give isl_union_map *construct_access_relation(
+	__isl_keep pet_expr *expr)
 {
 	isl_map *access;
 	int dim;
@@ -837,33 +871,55 @@ static __isl_give isl_map *construct_access_relation(__isl_keep pet_expr *expr)
 	if (dim != expr->acc.depth)
 		access = extend_range(access, expr->acc.depth - dim);
 
-	return access;
+	return isl_union_map_from_map(access);
 }
 
-/* Ensure that "expr" has an explicit access relation.
+/* Ensure that all relevant access relations are explicitly
+ * available in "expr".
  *
- * If "expr" does not already have an access relation, then create
- * one based on the index expression and the array depth.
+ * If "expr" does not already have the relevant access relations, then create
+ * them based on the index expression and the array depth.
  *
  * We do not cow since adding an explicit access relation
  * does not change the meaning of the expression.
  */
-static __isl_give pet_expr *introduce_access_relation(
+static __isl_give pet_expr *introduce_access_relations(
 	__isl_take pet_expr *expr)
 {
-	isl_map *access;
+	enum pet_expr_access_type type;
+	isl_union_map *access;
 	int dim;
+	int kill, read, write;
 
 	if (!expr)
 		return NULL;
-	if (has_access_relation(expr))
+	if (has_relevant_access_relations(expr))
 		return expr;
 
 	access = construct_access_relation(expr);
 	if (!access)
 		return pet_expr_free(expr);
 
-	expr->acc.access = access;
+	kill = expr->acc.kill;
+	read = expr->acc.read;
+	write = expr->acc.write;
+	if (kill && !expr->acc.access[pet_expr_access_fake_killed])
+		expr->acc.access[pet_expr_access_fake_killed] =
+						isl_union_map_copy(access);
+	if (read && !expr->acc.access[pet_expr_access_may_read])
+		expr->acc.access[pet_expr_access_may_read] =
+						isl_union_map_copy(access);
+	if (write && !expr->acc.access[pet_expr_access_may_write])
+		expr->acc.access[pet_expr_access_may_write] =
+						isl_union_map_copy(access);
+	if (write && !expr->acc.access[pet_expr_access_must_write])
+		expr->acc.access[pet_expr_access_must_write] =
+						isl_union_map_copy(access);
+
+	isl_union_map_free(access);
+
+	if (!has_relevant_access_relations(expr))
+		return pet_expr_free(expr);
 
 	return expr;
 }
@@ -873,6 +929,7 @@ static __isl_give pet_expr *introduce_access_relation(
 int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 {
 	int i;
+	enum pet_expr_access_type type;
 
 	if (!expr1 || !expr2)
 		return 0;
@@ -912,20 +969,29 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 			return 0;
 		if (expr1->acc.depth != expr2->acc.depth)
 			return 0;
-		if (has_access_relation(expr1) != has_access_relation(expr2)) {
+		if (has_relevant_access_relations(expr1) !=
+		    has_relevant_access_relations(expr2)) {
 			int equal;
 			expr1 = pet_expr_copy(expr1);
 			expr2 = pet_expr_copy(expr2);
-			expr1 = introduce_access_relation(expr1);
-			expr2 = introduce_access_relation(expr2);
+			expr1 = introduce_access_relations(expr1);
+			expr2 = introduce_access_relations(expr2);
 			equal = pet_expr_is_equal(expr1, expr2);
 			pet_expr_free(expr1);
 			pet_expr_free(expr2);
 			return equal;
 		}
-		if (expr1->acc.access &&
-		    !isl_map_is_equal(expr1->acc.access, expr2->acc.access))
-			return 0;
+		for (type = pet_expr_access_begin;
+		     type < pet_expr_access_end; ++type) {
+			if (!expr1->acc.access[type] !=
+						    !expr2->acc.access[type])
+				return 0;
+			if (!expr1->acc.access[type])
+				continue;
+			if (!isl_union_map_is_equal(expr1->acc.access[type],
+						    expr2->acc.access[type]))
+				return 0;
+		}
 		break;
 	case pet_expr_op:
 		if (expr1->op != expr2->op)
@@ -1184,13 +1250,15 @@ int pet_expr_writes(__isl_keep pet_expr *expr, __isl_keep isl_id *id)
 }
 
 /* Move the "n" dimensions of "src_type" starting at "src_pos" of
- * index expression and access relation of "expr" (if any)
+ * index expression and access relations of "expr" (if any)
  * to dimensions of "dst_type" at "dst_pos".
  */
 __isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,
 	enum isl_dim_type dst_type, unsigned dst_pos,
 	enum isl_dim_type src_type, unsigned src_pos, unsigned n)
 {
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
@@ -1198,27 +1266,31 @@ __isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access pet_expr", return pet_expr_free(expr));
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_move_dims(expr->acc.access,
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+			pet_union_map_move_dims(expr->acc.access[type],
 				dst_type, dst_pos, src_type, src_pos, n);
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = isl_multi_pw_aff_move_dims(expr->acc.index,
 				dst_type, dst_pos, src_type, src_pos, n);
-	if (!expr->acc.index)
+	if (!expr->acc.index || type < pet_expr_access_end)
 		return pet_expr_free(expr);
 
 	return expr;
 }
 
-/* Replace the index expression and access relation (if any) of "expr"
+/* Replace the index expression and access relations (if any) of "expr"
  * by their preimages under the function represented by "ma".
  */
 __isl_give pet_expr *pet_expr_access_pullback_multi_aff(
 	__isl_take pet_expr *expr, __isl_take isl_multi_aff *ma)
 {
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr || !ma)
 		goto error;
@@ -1226,16 +1298,18 @@ __isl_give pet_expr *pet_expr_access_pullback_multi_aff(
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access pet_expr", goto error);
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_preimage_domain_multi_aff(
-				    expr->acc.access, isl_multi_aff_copy(ma));
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_preimage_domain_multi_aff(
+			expr->acc.access[type], isl_multi_aff_copy(ma));
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
 						ma);
-	if (!expr->acc.index)
+	if (!expr->acc.index || type < pet_expr_access_end)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1245,12 +1319,14 @@ error:
 	return NULL;
 }
 
-/* Replace the index expression and access relation (if any) of "expr"
+/* Replace the index expression and access relations (if any) of "expr"
  * by their preimages under the function represented by "mpa".
  */
 __isl_give pet_expr *pet_expr_access_pullback_multi_pw_aff(
 	__isl_take pet_expr *expr, __isl_take isl_multi_pw_aff *mpa)
 {
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr || !mpa)
 		goto error;
@@ -1258,16 +1334,18 @@ __isl_give pet_expr *pet_expr_access_pullback_multi_pw_aff(
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access pet_expr", goto error);
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
-				expr->acc.access, isl_multi_pw_aff_copy(mpa));
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_preimage_domain_multi_pw_aff(
+			expr->acc.access[type], isl_multi_pw_aff_copy(mpa));
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = isl_multi_pw_aff_pullback_multi_pw_aff(
 				expr->acc.index, mpa);
-	if (!expr->acc.index)
+	if (!expr->acc.index || type < pet_expr_access_end)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1291,10 +1369,13 @@ __isl_give isl_multi_pw_aff *pet_expr_access_get_index(
 	return isl_multi_pw_aff_copy(expr->acc.index);
 }
 
-/* Align the parameters of expr->acc.index and expr->acc.access (if set).
+/* Align the parameters of expr->acc.index and expr->acc.access[*] (if set).
  */
 __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 {
+	isl_space *space;
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
@@ -1302,14 +1383,29 @@ __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	if (!has_access_relation(expr))
+	if (!has_any_access_relation(expr))
 		return expr;
 
-	expr->acc.access = isl_map_align_params(expr->acc.access,
-				isl_multi_pw_aff_get_space(expr->acc.index));
+	space = isl_multi_pw_aff_get_space(expr->acc.index);
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		space = isl_space_align_params(space,
+			    isl_union_map_get_space(expr->acc.access[type]));
+	}
 	expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
-				isl_map_get_space(expr->acc.access));
-	if (!expr->acc.access || !expr->acc.index)
+							isl_space_copy(space));
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_align_params(expr->acc.access[type],
+							isl_space_copy(space));
+		if (!expr->acc.access[type])
+			break;
+	}
+	isl_space_free(space);
+	if (!expr->acc.index || type < pet_expr_access_end)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1366,12 +1462,14 @@ int pet_expr_is_sub_access(__isl_keep pet_expr *expr1,
 
 	expr1 = pet_expr_copy(expr1);
 	expr2 = pet_expr_copy(expr2);
-	expr1 = introduce_access_relation(expr1);
-	expr2 = introduce_access_relation(expr2);
+	expr1 = introduce_access_relations(expr1);
+	expr2 = introduce_access_relations(expr2);
 	if (!expr1 || !expr2)
 		goto error;
 
-	is_subset = isl_map_is_subset(expr1->acc.access, expr2->acc.access);
+	is_subset = isl_union_map_is_subset(
+			expr1->acc.access[pet_expr_access_may_read],
+			expr2->acc.access[pet_expr_access_may_read]);
 
 	pet_expr_free(expr1);
 	pet_expr_free(expr2);
@@ -1411,6 +1509,8 @@ __isl_give pet_expr *pet_expr_restrict(__isl_take pet_expr *expr,
 	__isl_take isl_set *cond)
 {
 	int i;
+	isl_union_set *uset;
+	enum pet_expr_access_type type;
 
 	expr = pet_expr_cow(expr);
 	if (!expr)
@@ -1428,15 +1528,24 @@ __isl_give pet_expr *pet_expr_restrict(__isl_take pet_expr *expr,
 		return expr;
 	}
 
-	expr = introduce_access_relation(expr);
+	expr = introduce_access_relations(expr);
 	if (!expr)
 		goto error;
 
 	cond = add_arguments(cond, expr->n_arg);
-	expr->acc.access = isl_map_intersect_domain(expr->acc.access,
-						    isl_set_copy(cond));
+	uset = isl_union_set_from_set(isl_set_copy(cond));
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_intersect_domain(expr->acc.access[type],
+						    isl_union_set_copy(uset));
+		if (!expr->acc.access[type])
+			break;
+	}
+	isl_union_set_free(uset);
 	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, cond);
-	if (!expr->acc.access || !expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1445,7 +1554,7 @@ error:
 	return pet_expr_free(expr);
 }
 
-/* Modify the access relation (if any) and index expression
+/* Modify the access relations (if any) and index expression
  * of the given access expression
  * based on the given iteration space transformation.
  * In particular, precompose the access relation and index expression
@@ -1460,6 +1569,8 @@ error:
 __isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 	__isl_keep isl_multi_pw_aff *update)
 {
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
@@ -1482,17 +1593,19 @@ __isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 		update = isl_multi_pw_aff_product(update, id);
 	}
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
-					    expr->acc.access,
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_preimage_domain_multi_pw_aff(
+					    expr->acc.access[type],
 					    isl_multi_pw_aff_copy(update));
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = isl_multi_pw_aff_pullback_multi_pw_aff(
 					    expr->acc.index, update);
-	if (!expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1529,12 +1642,13 @@ __isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
 	return pet_expr_update_domain(expr, mpa);
 }
 
-/* Add all parameters in "space" to the access relation (if any)
+/* Add all parameters in "space" to the access relations (if any)
  * and index expression of "expr".
  */
 static __isl_give pet_expr *align_params(__isl_take pet_expr *expr, void *user)
 {
 	isl_space *space = user;
+	enum pet_expr_access_type type;
 
 	expr = pet_expr_cow(expr);
 	if (!expr)
@@ -1543,16 +1657,18 @@ static __isl_give pet_expr *align_params(__isl_take pet_expr *expr, void *user)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_align_params(expr->acc.access,
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_align_params(expr->acc.access[type],
 						isl_space_copy(space));
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
 						isl_space_copy(space));
-	if (!expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1623,6 +1739,7 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 	isl_ctx *ctx;
 	isl_space *space;
 	isl_pw_multi_aff *pma;
+	enum pet_expr_access_type type;
 
 	expr = pet_expr_cow(expr);
 	if (!expr || !test)
@@ -1646,7 +1763,7 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 		isl_die(ctx, isl_error_invalid,
 			"can only filter access expressions", goto error);
 
-	expr = introduce_access_relation(expr);
+	expr = introduce_access_relations(expr);
 	if (!expr)
 		goto error;
 
@@ -1654,14 +1771,21 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
 	pma = pet_filter_insert_pma(space, id, satisfied);
 
-	expr->acc.access = isl_map_preimage_domain_pw_multi_aff(
-						expr->acc.access,
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_preimage_domain_pw_multi_aff(
+						expr->acc.access[type],
 						isl_pw_multi_aff_copy(pma));
+		if (!expr->acc.access[type])
+			break;
+	}
 	pma = isl_pw_multi_aff_gist(pma,
 			isl_pw_multi_aff_domain(isl_pw_multi_aff_copy(pma)));
 	expr->acc.index = isl_multi_pw_aff_pullback_pw_multi_aff(
 							expr->acc.index, pma);
-	if (!expr->acc.access || !expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		goto error;
 
 	expr = insert_access_arg(expr, test);
@@ -1706,12 +1830,14 @@ __isl_give pet_expr *pet_expr_add_ref_ids(__isl_take pet_expr *expr, int *n_ref)
 }
 
 /* Reset the user pointer on all parameter and tuple ids in
- * the access relation (if any) and the index expression
+ * the access relations (if any) and the index expression
  * of the access expression "expr".
  */
 static __isl_give pet_expr *access_anonymize(__isl_take pet_expr *expr,
 	void *user)
 {
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return expr;
@@ -1719,14 +1845,16 @@ static __isl_give pet_expr *access_anonymize(__isl_take pet_expr *expr,
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_reset_user(expr->acc.access);
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+			isl_union_map_reset_user(expr->acc.access[type]);
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = isl_multi_pw_aff_reset_user(expr->acc.index);
-	if (!expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1745,7 +1873,7 @@ struct pet_access_gist_data {
 };
 
 /* Given an expression "expr" of type pet_expr_access, compute
- * the gist of the associated access relation (if any) and index expression
+ * the gist of the associated access relations (if any) and index expression
  * with respect to data->domain and the bounds on the values of the arguments
  * of the expression.
  *
@@ -1758,6 +1886,8 @@ static __isl_give pet_expr *access_gist(__isl_take pet_expr *expr, void *user)
 {
 	struct pet_access_gist_data *data = user;
 	isl_set *domain;
+	isl_union_set *uset;
+	enum pet_expr_access_type type;
 
 	expr = pet_expr_remove_duplicate_args(expr);
 	expr = pet_expr_cow(expr);
@@ -1772,15 +1902,19 @@ static __isl_give pet_expr *access_gist(__isl_take pet_expr *expr, void *user)
 		domain = pet_value_bounds_apply(domain, expr->n_arg, expr->args,
 						data->value_bounds);
 
-	if (expr->acc.access) {
-		expr->acc.access = isl_map_gist_domain(expr->acc.access,
-						isl_set_copy(domain));
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+	uset = isl_union_set_from_set(isl_set_copy(domain));
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    isl_union_map_gist_domain(expr->acc.access[type],
+						isl_union_set_copy(uset));
+		if (!expr->acc.access[type])
+			break;
 	}
+	isl_union_set_free(uset);
 	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, domain);
-	if (!expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1854,10 +1988,23 @@ __isl_give pet_expr *pet_expr_access_set_kill(__isl_take pet_expr *expr,
 	return expr;
 }
 
-/* Replace the access relation of "expr" by "access".
+/* Map the access type "type" to the corresponding location
+ * in the access array.
+ * In particular, the access relation of type pet_expr_access_killed is
+ * stored in the element at position pet_expr_access_fake_killed.
+ */
+static enum pet_expr_access_type internalize_type(
+	enum pet_expr_access_type type)
+{
+	if (type == pet_expr_access_killed)
+		return pet_expr_access_fake_killed;
+	return type;
+}
+
+/* Replace the access relation of the given "type" of "expr" by "access".
  */
 __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
-	__isl_take isl_map *access)
+	enum pet_expr_access_type type, __isl_take isl_union_map *access)
 {
 	expr = pet_expr_cow(expr);
 	if (!expr || !access)
@@ -1865,12 +2012,13 @@ __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", goto error);
-	isl_map_free(expr->acc.access);
-	expr->acc.access = access;
+	type = internalize_type(type);
+	isl_union_map_free(expr->acc.access[type]);
+	expr->acc.access[type] = access;
 
 	return expr;
 error:
-	isl_map_free(access);
+	isl_union_map_free(access);
 	pet_expr_free(expr);
 	return NULL;
 }
@@ -1966,13 +2114,21 @@ __isl_give isl_union_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 	return access;
 }
 
-/* Return the relation mapping pairs of domain iterations and argument
- * values to the corresponding accessed data elements.
+/* Return the access relation of the given "type" associated to "expr"
+ * that maps pairs of domain iterations and argument values
+ * to the corresponding accessed data elements.
+ *
+ * If the requested access relation is explicitly available,
+ * then return a copy.  Otherwise, check if it is irrelevant for
+ * the access expression and return an empty relation if this is the case.
+ * Otherwise, introduce the requested access relation in "expr" and
+ * return a copy.
  */
-static __isl_give isl_map *pet_expr_access_get_dependent_access(
-	__isl_keep pet_expr *expr)
+__isl_give isl_union_map *pet_expr_access_get_dependent_access(
+	__isl_keep pet_expr *expr, enum pet_expr_access_type type)
 {
-	isl_map *access;
+	isl_union_map *access;
+	int empty;
 
 	if (!expr)
 		return NULL;
@@ -1980,97 +2136,73 @@ static __isl_give isl_map *pet_expr_access_get_dependent_access(
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return NULL);
 
-	if (expr->acc.access)
-		return isl_map_copy(expr->acc.access);
+	type = internalize_type(type);
+	if (expr->acc.access[type])
+		return isl_union_map_copy(expr->acc.access[type]);
 
-	expr = pet_expr_copy(expr);
-	expr = introduce_access_relation(expr);
-	if (!expr)
-		return NULL;
-	access = isl_map_copy(expr->acc.access);
-	pet_expr_free(expr);
+	if (type == pet_expr_access_may_read)
+		empty = !expr->acc.read;
+	else
+		empty = !expr->acc.write;
 
-	return access;
-}
+	if (!empty) {
+		expr = pet_expr_copy(expr);
+		expr = introduce_access_relations(expr);
+		if (!expr)
+			return NULL;
+		access = isl_union_map_copy(expr->acc.access[type]);
+		pet_expr_free(expr);
 
-/* Return an empty access relation for access expression "expr".
- */
-static __isl_give isl_union_map *empty_access_relation(
-	__isl_keep pet_expr *expr)
-{
+		return access;
+	}
+
 	return isl_union_map_empty(pet_expr_access_get_parameter_space(expr));
 }
 
 /* Return the may read access relation associated to "expr"
  * that maps pairs of domain iterations and argument values
  * to the corresponding accessed data elements.
- *
- * Since the accesses are currently represented by a single access relation,
- * we return the entire access relation if "expr" is a read and
- * an empty relation if it is not.
  */
 __isl_give isl_union_map *pet_expr_access_get_dependent_may_read(
 	__isl_keep pet_expr *expr)
 {
-	isl_map *access;
-
-	if (!expr)
-		return NULL;
-	if (!pet_expr_access_is_read(expr))
-		return empty_access_relation(expr);
-	access = pet_expr_access_get_dependent_access(expr);
-	return isl_union_map_from_map(access);
+	return pet_expr_access_get_dependent_access(expr,
+						    pet_expr_access_may_read);
 }
 
 /* Return the may write access relation associated to "expr"
  * that maps pairs of domain iterations and argument values
  * to the corresponding accessed data elements.
- *
- * Since the accesses are currently represented by a single access relation,
- * we return the entire access relation if "expr" is a write and
- * an empty relation if it is not.
  */
 __isl_give isl_union_map *pet_expr_access_get_dependent_may_write(
 	__isl_keep pet_expr *expr)
 {
-	isl_map *access;
-
-	if (!expr)
-		return NULL;
-	if (!pet_expr_access_is_write(expr))
-		return empty_access_relation(expr);
-	access = pet_expr_access_get_dependent_access(expr);
-	return isl_union_map_from_map(access);
+	return pet_expr_access_get_dependent_access(expr,
+						    pet_expr_access_may_write);
 }
 
 /* Return the must write access relation associated to "expr"
  * that maps pairs of domain iterations and argument values
  * to the corresponding accessed data elements.
- *
- * Since the accesses are currently represented by a single access relation,
- * we return the entire access relation when "expr" is a write.
  */
 __isl_give isl_union_map *pet_expr_access_get_dependent_must_write(
 	__isl_keep pet_expr *expr)
 {
-	isl_map *access;
-
-	if (!expr)
-		return NULL;
-	if (!pet_expr_access_is_write(expr))
-		return empty_access_relation(expr);
-	access = pet_expr_access_get_dependent_access(expr);
-	return isl_union_map_from_map(access);
+	return pet_expr_access_get_dependent_access(expr,
+						    pet_expr_access_must_write);
 }
 
-/* Return the relation mapping domain iterations to all possibly
- * accessed data elements.
- * In particular, take the access relation and project out the values
- * of the arguments, if any.
+/* Return the relation of the given "type" mapping domain iterations
+ * to the accessed data elements.
+ * In particular, take the access relation and, in case of may_read
+ * or may_write, project out the values of the arguments, if any.
+ * In case of must_write, return the empty relation if there are
+ * any arguments.
  */
-__isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr)
+__isl_give isl_union_map *pet_expr_access_get_access(__isl_keep pet_expr *expr,
+	enum pet_expr_access_type type)
 {
-	isl_map *access;
+	isl_union_map *access;
 	isl_space *space;
 	isl_map *map;
 
@@ -2080,95 +2212,69 @@ __isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return NULL);
 
-	access = pet_expr_access_get_dependent_access(expr);
+	if (expr->n_arg != 0 && type == pet_expr_access_must_write) {
+		space = pet_expr_access_get_parameter_space(expr);
+		return isl_union_map_empty(space);
+	}
+
+	access = pet_expr_access_get_dependent_access(expr, type);
 	if (expr->n_arg == 0)
 		return access;
 
-	space = isl_space_domain(isl_map_get_space(access));
+	space = isl_multi_pw_aff_get_space(expr->acc.index);
+	space = isl_space_domain(space);
 	map = isl_map_universe(isl_space_unwrap(space));
 	map = isl_map_domain_map(map);
-	access = isl_map_apply_domain(access, map);
+	access = isl_union_map_apply_domain(access,
+						isl_union_map_from_map(map));
 
 	return access;
 }
 
 /* Return the relation mapping domain iterations to all possibly
  * read data elements.
- *
- * Since the accesses are currently represented by a single access relation,
- * we return the may access relation if "expr" is a read and
- * an empty relation if it is not.
  */
 __isl_give isl_union_map *pet_expr_access_get_may_read(
 	__isl_keep pet_expr *expr)
 {
-	if (!expr)
-		return NULL;
-	if (!pet_expr_access_is_read(expr))
-		return empty_access_relation(expr);
-	return isl_union_map_from_map(pet_expr_access_get_may_access(expr));
+	return pet_expr_access_get_access(expr, pet_expr_access_may_read);
 }
 
 /* Return the relation mapping domain iterations to all possibly
  * written data elements.
- *
- * Since the accesses are currently represented by a single access relation,
- * we return the may access relation if "expr" is a write and
- * an empty relation if it is not.
  */
 __isl_give isl_union_map *pet_expr_access_get_may_write(
 	__isl_keep pet_expr *expr)
 {
-	if (!expr)
-		return NULL;
-	if (!pet_expr_access_is_write(expr))
-		return empty_access_relation(expr);
-	return isl_union_map_from_map(pet_expr_access_get_may_access(expr));
-}
-
-/* Return a relation mapping domain iterations to definitely
- * accessed data elements, assuming the statement containing
- * the expression is executed.
- *
- * If there are no arguments, then all elements are accessed.
- * Otherwise, we conservatively return an empty relation.
- */
-static __isl_give isl_map *pet_expr_access_get_must_access(
-	__isl_keep pet_expr *expr)
-{
-	isl_space *space;
-
-	if (!expr)
-		return NULL;
-	if (expr->type != pet_expr_access)
-		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return NULL);
-
-	if (expr->n_arg == 0)
-		return pet_expr_access_get_dependent_access(expr);
-
-	space = isl_multi_pw_aff_get_space(expr->acc.index);
-	space = isl_space_domain_factor_domain(space);
-
-	return isl_map_empty(space);
+	return pet_expr_access_get_access(expr, pet_expr_access_may_write);
 }
 
 /* Return a relation mapping domain iterations to definitely
  * written data elements, assuming the statement containing
  * the expression is executed.
- *
- * Since the accesses are currently represented by a single access relation,
- * we return the must access relation if "expr" is a write and
- * an empty relation if it is not.
  */
 __isl_give isl_union_map *pet_expr_access_get_must_write(
 	__isl_keep pet_expr *expr)
 {
+	return pet_expr_access_get_access(expr, pet_expr_access_must_write);
+}
+
+/* Return the relation of the given "type" mapping domain iterations to
+ * accessed data elements, with its domain tagged with the reference
+ * identifier.
+ */
+static __isl_give isl_union_map *pet_expr_access_get_tagged_access(
+	__isl_keep pet_expr *expr, enum pet_expr_access_type type)
+{
+	isl_union_map *access;
+
 	if (!expr)
 		return NULL;
-	if (!pet_expr_access_is_write(expr))
-		return empty_access_relation(expr);
-	return isl_union_map_from_map(pet_expr_access_get_must_access(expr));
+
+	access = pet_expr_access_get_access(expr, type);
+	access = pet_expr_tag_access(expr, access);
+
+	return access;
 }
 
 /* Return the relation mapping domain iterations to all possibly
@@ -2178,15 +2284,8 @@ __isl_give isl_union_map *pet_expr_access_get_must_write(
 __isl_give isl_union_map *pet_expr_access_get_tagged_may_read(
 	__isl_keep pet_expr *expr)
 {
-	isl_union_map *access;
-
-	if (!expr)
-		return NULL;
-
-	access = pet_expr_access_get_may_read(expr);
-	access = pet_expr_tag_access(expr, access);
-
-	return access;
+	return pet_expr_access_get_tagged_access(expr,
+						pet_expr_access_may_read);
 }
 
 /* Return the relation mapping domain iterations to all possibly
@@ -2196,15 +2295,8 @@ __isl_give isl_union_map *pet_expr_access_get_tagged_may_read(
 __isl_give isl_union_map *pet_expr_access_get_tagged_may_write(
 	__isl_keep pet_expr *expr)
 {
-	isl_union_map *access;
-
-	if (!expr)
-		return NULL;
-
-	access = pet_expr_access_get_may_write(expr);
-	access = pet_expr_tag_access(expr, access);
-
-	return access;
+	return pet_expr_access_get_tagged_access(expr,
+						pet_expr_access_may_write);
 }
 
 /* Return the operation type of operation expression "expr".
@@ -3176,9 +3268,20 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 			fprintf(stderr, "%*swrite: %d\n", indent + 2,
 					"", expr->acc.write);
 		}
-		if (expr->acc.access) {
-			fprintf(stderr, "%*saccess: ", indent + 2, "");
-			isl_map_dump(expr->acc.access);
+		if (expr->acc.access[pet_expr_access_may_read]) {
+			fprintf(stderr, "%*smay_read: ", indent + 2, "");
+			isl_union_map_dump(
+				expr->acc.access[pet_expr_access_may_read]);
+		}
+		if (expr->acc.access[pet_expr_access_may_write]) {
+			fprintf(stderr, "%*smay_write: ", indent + 2, "");
+			isl_union_map_dump(
+				expr->acc.access[pet_expr_access_may_write]);
+		}
+		if (expr->acc.access[pet_expr_access_must_write]) {
+			fprintf(stderr, "%*smust_write: ", indent + 2, "");
+			isl_union_map_dump(
+				expr->acc.access[pet_expr_access_must_write]);
 		}
 		for (i = 0; i < expr->n_arg; ++i)
 			pet_expr_dump_with_indent(expr->args[i], indent + 2);

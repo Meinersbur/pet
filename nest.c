@@ -126,6 +126,20 @@ int pet_nested_in_map(__isl_keep isl_map *map, int pos)
 	return nested;
 }
 
+/* Does parameter "pos" of "umap" refer to a nested access?
+ */
+static int pet_nested_in_union_map(__isl_keep isl_union_map *umap, int pos)
+{
+	int nested;
+	isl_id *id;
+
+	id = isl_union_map_get_dim_id(umap, isl_dim_param, pos);
+	nested = pet_nested_in_id(id);
+	isl_id_free(id);
+
+	return nested;
+}
+
 /* Does "space" involve any parameters that refer to nested accesses?
  */
 int pet_nested_any_in_space(__isl_keep isl_space *space)
@@ -243,6 +257,23 @@ static __isl_give isl_map *pet_nested_remove_from_map(__isl_take isl_map *map)
 	return map;
 }
 
+/* Remove all parameters from "umap" that refer to nested accesses.
+ */
+static __isl_give isl_union_map *pet_nested_remove_from_union_map(
+	__isl_take isl_union_map *umap)
+{
+	int i;
+	int nparam;
+
+	nparam = isl_union_map_dim(umap, isl_dim_param);
+	for (i = nparam - 1; i >= 0; --i)
+		if (pet_nested_in_union_map(umap, i))
+			umap = isl_union_map_project_out(umap,
+							isl_dim_param, i, 1);
+
+	return umap;
+}
+
 /* Remove all parameters from "mpa" that refer to nested accesses.
  */
 static __isl_give isl_multi_pw_aff *pet_nested_remove_from_multi_pw_aff(
@@ -264,24 +295,28 @@ static __isl_give isl_multi_pw_aff *pet_nested_remove_from_multi_pw_aff(
 	return mpa;
 }
 
-/* Remove all parameters from the index expression and access relation of "expr"
- * that refer to nested accesses.
+/* Remove all parameters from the index expression and
+ * access relations of "expr" that refer to nested accesses.
  */
 static __isl_give pet_expr *expr_remove_nested_parameters(
 	__isl_take pet_expr *expr, void *user)
 {
+	enum pet_expr_access_type type;
+
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
 
-	if (expr->acc.access) {
-		expr->acc.access = pet_nested_remove_from_map(expr->acc.access);
-		if (!expr->acc.access)
-			expr->acc.index =
-				isl_multi_pw_aff_free(expr->acc.index);
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] =
+		    pet_nested_remove_from_union_map(expr->acc.access[type]);
+		if (!expr->acc.access[type])
+			break;
 	}
 	expr->acc.index = pet_nested_remove_from_multi_pw_aff(expr->acc.index);
-	if (!expr->acc.index)
+	if (type < pet_expr_access_end || !expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;

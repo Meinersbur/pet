@@ -2343,24 +2343,24 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 	return scop;
 }
 
-/* Add the access relation of the access expression "expr" to "accesses" and
- * return the result.
+/* Add the access relation of the give "type" of the access expression "expr"
+ * to "accesses" and return the result.
  * The domain of the access relation is intersected with "domain".
  * If "tag" is set, then the access relation is tagged with
  * the corresponding reference identifier.
  */
 static __isl_give isl_union_map *expr_collect_access(__isl_keep pet_expr *expr,
-	int tag, __isl_take isl_union_map *accesses, __isl_keep isl_set *domain)
+	enum pet_expr_access_type type, int tag,
+	__isl_take isl_union_map *accesses, __isl_keep isl_union_set *domain)
 {
-	isl_map *access;
-	isl_union_map *umap;
+	isl_union_map *access;
 
-	access = pet_expr_access_get_may_access(expr);
-	access = isl_map_intersect_domain(access, isl_set_copy(domain));
-	umap = isl_union_map_from_map(access);
+	access = pet_expr_access_get_access(expr, type);
+	access = isl_union_map_intersect_domain(access,
+						isl_union_set_copy(domain));
 	if (tag)
-		umap = pet_expr_tag_access(expr, umap);
-	return isl_union_map_union(accesses, umap);
+		access = pet_expr_tag_access(expr, access);
+	return isl_union_map_union(accesses, access);
 }
 
 /* Internal data structure for expr_collect_accesses.
@@ -2374,7 +2374,7 @@ static __isl_give isl_union_map *expr_collect_access(__isl_keep pet_expr *expr,
 struct pet_expr_collect_accesses_data {
 	enum pet_expr_access_type type;
 	int tag;
-	isl_set *domain;
+	isl_union_set *domain;
 
 	isl_union_map *accesses;
 };
@@ -2411,7 +2411,8 @@ static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 	if ((data->type == pet_expr_access_may_read && expr->acc.read) ||
 	    ((data->type == pet_expr_access_may_write ||
 	      data->type == pet_expr_access_must_write) && expr->acc.write))
-		data->accesses = expr_collect_access(expr, data->tag,
+		data->accesses = expr_collect_access(expr,
+						data->type, data->tag,
 						data->accesses, data->domain);
 
 	return data->accesses ? 0 : -1;
@@ -2439,6 +2440,7 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 {
 	struct pet_expr_collect_accesses_data data = { type, tag };
 	int must;
+	isl_set *domain;
 
 	if (!stmt)
 		return NULL;
@@ -2456,14 +2458,16 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	if (must && pet_tree_get_type(stmt->body) != pet_tree_expr)
 		return data.accesses;
 
-	data.domain = drop_arguments(isl_set_copy(stmt->domain));
+	domain = drop_arguments(isl_set_copy(stmt->domain));
+	data.domain = isl_union_set_from_set(domain);
 
 	if (type == pet_expr_access_killed) {
 		pet_expr *body, *arg;
 
 		body = pet_tree_expr_get_expr(stmt->body);
 		arg = pet_expr_get_arg(body, 0);
-		data.accesses = expr_collect_access(arg, tag,
+		data.accesses = expr_collect_access(arg,
+						pet_expr_access_killed, tag,
 						data.accesses, data.domain);
 		pet_expr_free(arg);
 		pet_expr_free(body);
@@ -2471,7 +2475,7 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 					&expr_collect_accesses, &data) < 0)
 		data.accesses = isl_union_map_free(data.accesses);
 
-	isl_set_free(data.domain);
+	isl_union_set_free(data.domain);
 
 	return data.accesses;
 }
