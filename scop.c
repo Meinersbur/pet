@@ -1773,7 +1773,7 @@ static int implies_filter(struct pet_scop *scop,
 	if (s != satisfied)
 		return 0;
 
-	implied = isl_map_copy(expr->acc.access);
+	implied = isl_map_from_multi_pw_aff(pet_expr_access_get_index(expr));
 	implied = apply_implications(scop, implied, test_id, satisfied);
 	is_subset = isl_map_is_subset(test, implied);
 	isl_map_free(implied);
