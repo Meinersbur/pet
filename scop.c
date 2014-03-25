@@ -382,12 +382,14 @@ static __isl_give isl_set *expr_extract_context(__isl_keep pet_expr *expr,
 		context2 = expr_extract_context(expr->args[2], context);
 
 		if (is_aff) {
-			isl_map *access;
+			isl_multi_pw_aff *mpa;
+			isl_pw_aff *pa;
 			isl_set *zero_set;
 
-			access = isl_map_copy(expr->args[0]->acc.access);
-			access = isl_map_fix_si(access, isl_dim_out, 0, 0);
-			zero_set = access_domain(access);
+			mpa = pet_expr_access_get_index(expr->args[0]);
+			pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
+			isl_multi_pw_aff_free(mpa);
+			zero_set = drop_arguments(isl_pw_aff_zero_set(pa));
 			zero_set = isl_set_reset_tuple_id(zero_set);
 			context1 = isl_set_subtract(context1,
 						    isl_set_copy(zero_set));
