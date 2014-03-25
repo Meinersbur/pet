@@ -349,11 +349,19 @@ static __isl_give isl_set *access_extract_context(__isl_keep isl_map *access,
  * If the condition is an affine expression, then we can be a bit more specific.
  * The value then has to be valid for the second argument for
  * non-zero accesses and valid for the third argument for zero accesses.
+ *
+ * If "expr" represents a kill statement, then its argument is the entire
+ * extent of the array being killed.  Do not update "context" based
+ * on this argument as that would impose constraints that ensure that
+ * the array is non-empty.
  */
 static __isl_give isl_set *expr_extract_context(__isl_keep pet_expr *expr,
 	__isl_take isl_set *context)
 {
 	int i;
+
+	if (expr->type == pet_expr_op && expr->op == pet_op_kill)
+		return context;
 
 	if (expr->type == pet_expr_op && expr->op == pet_op_cond) {
 		int is_aff;
