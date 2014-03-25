@@ -313,29 +313,20 @@ static __isl_give isl_set *drop_arguments(__isl_take isl_set *domain)
 	return domain;
 }
 
-/* Return the constraints on the iteration domain in the access relation
- * "access".
- * If the corresponding access expression has arguments then the domain
- * of "access" is a wrapped relation with the iteration domain in the domain
- * and the arguments in the range.
- */
-static __isl_give isl_set *access_domain(__isl_take isl_map *access)
-{
-	return drop_arguments(isl_map_domain(access));
-}
-
 /* Update "context" with the constraints imposed on the outer iteration
- * domain by "access".
- * "context" lives in an anonymous space, while the domain of "access"
- * refers to a particular statement.  This reference therefore needs to be
- * stripped off.
+ * domain by access expression "expr".
+ * "context" lives in an anonymous space, while the domain of the access
+ * relation of "expr" refers to a particular statement.
+ * This reference therefore needs to be stripped off.
  */
-static __isl_give isl_set *access_extract_context(__isl_keep isl_map *access,
+static __isl_give isl_set *access_extract_context(__isl_keep pet_expr *expr,
 	__isl_take isl_set *context)
 {
+	isl_multi_pw_aff *mpa;
 	isl_set *domain;
 
-	domain = access_domain(isl_map_copy(access));
+	mpa = pet_expr_access_get_index(expr);
+	domain = drop_arguments(isl_multi_pw_aff_domain(mpa));
 	domain = isl_set_reset_tuple_id(domain);
 	context = isl_set_intersect(context, domain);
 	return context;
@@ -406,7 +397,7 @@ static __isl_give isl_set *expr_extract_context(__isl_keep pet_expr *expr,
 		context = expr_extract_context(expr->args[i], context);
 
 	if (expr->type == pet_expr_access)
-		context = access_extract_context(expr->acc.access, context);
+		context = access_extract_context(expr, context);
 
 	return context;
 error:
