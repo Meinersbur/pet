@@ -758,7 +758,7 @@ int pet_expr_is_affine(__isl_keep pet_expr *expr)
 	if (expr->type != pet_expr_access)
 		return 0;
 
-	has_id = isl_map_has_tuple_id(expr->acc.access, isl_dim_out);
+	has_id = isl_multi_pw_aff_has_tuple_id(expr->acc.index, isl_dim_out);
 	if (has_id < 0)
 		return -1;
 
