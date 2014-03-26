@@ -2109,10 +2109,11 @@ error:
 static int access_collect_params(__isl_keep pet_expr *expr, void *user)
 {
 	int i;
+	isl_space *expr_space;
 	isl_space **space = user;
 
-	*space = isl_space_align_params(*space,
-					isl_map_get_space(expr->acc.access));
+	expr_space = pet_expr_access_get_parameter_space(expr);
+	*space = isl_space_align_params(*space, expr_space);
 
 	return *space ? 0 : -1;
 }
