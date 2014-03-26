@@ -1935,7 +1935,7 @@ __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 	__isl_take isl_map *access)
 {
 	isl_space *space;
-	isl_map *add_tag;
+	isl_multi_aff *add_tag;
 	isl_id *id;
 
 	if (expr->type != pet_expr_access)
@@ -1944,11 +1944,11 @@ __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 			return isl_map_free(access));
 
 	id = isl_id_copy(expr->acc.ref_id);
-	space = isl_space_range(isl_map_get_space(access));
-	space = isl_space_from_range(space);
-	space = isl_space_set_tuple_id(space, isl_dim_in, id);
-	add_tag = isl_map_universe(space);
-	access = isl_map_domain_product(access, add_tag);
+	space = pet_expr_access_get_domain_space(expr);
+	space = isl_space_from_domain(space);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
+	add_tag = isl_multi_aff_domain_map(space);
+	access = isl_map_preimage_domain_multi_aff(access, add_tag);
 
 	return access;
 }
