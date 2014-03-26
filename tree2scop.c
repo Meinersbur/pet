@@ -2022,9 +2022,8 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 {
 	pet_expr *kill;
 	struct pet_stmt *stmt;
-	isl_multi_pw_aff *index;
-	isl_map *access;
-	pet_expr *expr, *arg;
+	isl_space *space;
+	isl_multi_pw_aff *mpa;
 	pet_tree *tree;
 
 	if (!domain || !scop)
@@ -2037,15 +2036,12 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 		isl_die(isl_set_get_ctx(domain), isl_error_internal,
 			"expecting kill statement", return NULL);
 
-	expr = pet_tree_expr_get_expr(stmt->body);
-	arg = pet_expr_get_arg(expr, 0);
-	pet_expr_free(expr);
-	index = pet_expr_access_get_index(arg);
-	access = pet_expr_access_get_access(arg);
-	pet_expr_free(arg);
-	index = isl_multi_pw_aff_reset_tuple_id(index, isl_dim_in);
-	access = isl_map_reset_tuple_id(access, isl_dim_in);
-	kill = pet_expr_kill_from_access_and_index(access, index);
+	kill = pet_tree_expr_get_expr(stmt->body);
+	space = pet_stmt_get_space(stmt);
+	space = isl_space_map_from_set(space);
+	mpa = isl_multi_pw_aff_identity(space);
+	mpa = isl_multi_pw_aff_reset_tuple_id(mpa, isl_dim_in);
+	kill = pet_expr_update_domain(kill, mpa);
 	tree = pet_tree_new_expr(kill);
 	tree = pet_tree_set_loc(tree, pet_loc_copy(stmt->loc));
 	stmt = pet_stmt_from_pet_tree(isl_set_copy(domain),
