@@ -901,11 +901,11 @@ __isl_give isl_id *pet_expr_access_get_id(__isl_keep pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return NULL);
 
-	if (isl_map_range_is_wrapping(expr->acc.access)) {
+	if (isl_multi_pw_aff_range_is_wrapping(expr->acc.index)) {
 		isl_space *space;
 		isl_id *id;
 
-		space = isl_map_get_space(expr->acc.access);
+		space = isl_multi_pw_aff_get_space(expr->acc.index);
 		space = isl_space_range(space);
 		while (space && isl_space_is_wrapping(space))
 			space = isl_space_domain(isl_space_unwrap(space));
@@ -915,7 +915,7 @@ __isl_give isl_id *pet_expr_access_get_id(__isl_keep pet_expr *expr)
 		return id;
 	}
 
-	return isl_map_get_tuple_id(expr->acc.access, isl_dim_out);
+	return isl_multi_pw_aff_get_tuple_id(expr->acc.index, isl_dim_out);
 }
 
 /* Return the parameter space of "expr".
