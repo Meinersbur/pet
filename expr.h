@@ -141,6 +141,9 @@ __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_access_set_index(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *index);
 
+int pet_expr_is_sub_access(__isl_keep pet_expr *expr1,
+	__isl_keep pet_expr *expr2, int n_arg);
+
 int pet_expr_writes(__isl_keep pet_expr *expr, __isl_keep isl_id *id);
 
 __isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,

@@ -456,65 +456,6 @@ __isl_give pet_expr *pet_expr_extract_nested(__isl_take pet_expr *expr, int n,
 	return expr;
 }
 
-/* Are "expr1" and "expr2" both array accesses such that
- * the access relation of "expr1" is a subset of that of "expr2"?
- * Only take into account the first "n_arg" arguments.
- */
-static int is_sub_access(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2,
-	int n_arg)
-{
-	isl_id *id1, *id2;
-	isl_map *access1, *access2;
-	int is_subset;
-	int i, n1, n2;
-
-	if (!expr1 || !expr2)
-		return 0;
-	if (pet_expr_get_type(expr1) != pet_expr_access)
-		return 0;
-	if (pet_expr_get_type(expr2) != pet_expr_access)
-		return 0;
-	if (pet_expr_is_affine(expr1))
-		return 0;
-	if (pet_expr_is_affine(expr2))
-		return 0;
-	n1 = pet_expr_get_n_arg(expr1);
-	if (n1 > n_arg)
-		n1 = n_arg;
-	n2 = pet_expr_get_n_arg(expr2);
-	if (n2 > n_arg)
-		n2 = n_arg;
-	if (n1 != n2)
-		return 0;
-	for (i = 0; i < n1; ++i) {
-		pet_expr *arg1, *arg2;
-		int equal;
-		arg1 = pet_expr_get_arg(expr1, i);
-		arg2 = pet_expr_get_arg(expr2, i);
-		equal = pet_expr_is_equal(arg1, arg2);
-		pet_expr_free(arg1);
-		pet_expr_free(arg2);
-		if (equal < 0 || !equal)
-			return equal;
-	}
-	id1 = pet_expr_access_get_id(expr1);
-	id2 = pet_expr_access_get_id(expr2);
-	isl_id_free(id1);
-	isl_id_free(id2);
-	if (!id1 || !id2)
-		return 0;
-	if (id1 != id2)
-		return 0;
-
-	access1 = pet_expr_access_get_access(expr1);
-	access2 = pet_expr_access_get_access(expr2);
-	is_subset = isl_map_is_subset(access1, access2);
-	isl_map_free(access1);
-	isl_map_free(access2);
-
-	return is_subset;
-}
-
 /* Mark self dependences among the arguments of "expr" starting at "first".
  * These arguments have already been added to the list of arguments
  * but are not yet referenced directly from the index expression.
@@ -548,7 +489,7 @@ static __isl_give pet_expr *mark_self_dependences(__isl_take pet_expr *expr,
 		pet_expr *arg;
 
 		arg = pet_expr_get_arg(expr, i);
-		mark = is_sub_access(expr, arg, first);
+		mark = pet_expr_is_sub_access(expr, arg, first);
 		pet_expr_free(arg);
 		if (mark < 0)
 			return pet_expr_free(expr);
