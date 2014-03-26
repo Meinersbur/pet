@@ -1180,19 +1180,6 @@ error:
 	return NULL;
 }
 
-/* Return the access relation of access expression "expr".
- */
-__isl_give isl_map *pet_expr_access_get_access(__isl_keep pet_expr *expr)
-{
-	if (!expr)
-		return NULL;
-	if (expr->type != pet_expr_access)
-		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return NULL);
-
-	return isl_map_copy(expr->acc.access);
-}
-
 /* Return the index expression of access expression "expr".
  */
 __isl_give isl_multi_pw_aff *pet_expr_access_get_index(

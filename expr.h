@@ -135,7 +135,6 @@ __isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);
 
-__isl_give isl_map *pet_expr_access_get_access(__isl_keep pet_expr *expr);
 __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
 	__isl_take isl_map *access);
 __isl_give pet_expr *pet_expr_access_set_index(__isl_take pet_expr *expr,
