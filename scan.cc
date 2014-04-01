@@ -811,6 +811,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		return NULL;
 	sc = expr->getStmtClass();
 	if ((sc == Stmt::ArraySubscriptExprClass ||
+	     sc == Stmt::DeclRefExprClass ||
 	     sc == Stmt::MemberExprClass) &&
 	    array_depth(expr->getType().getTypePtr()) > 0)
 		is_partial = 1;
