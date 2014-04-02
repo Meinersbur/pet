@@ -173,6 +173,9 @@ __isl_give pet_expr *pet_expr_access_set_read(__isl_take pet_expr *expr,
 /* Mark "expr" as a write dependening on "write". */
 __isl_give pet_expr *pet_expr_access_set_write(__isl_take pet_expr *expr,
 	int write);
+/* Mark "expr" as a kill dependening on "kill". */
+__isl_give pet_expr *pet_expr_access_set_kill(__isl_take pet_expr *expr,
+	int kill);
 /* Return the reference identifier of access expression "expr". */
 __isl_give isl_id *pet_expr_access_get_ref_id(__isl_keep pet_expr *expr);
 /* Replace the reference identifier of access expression "expr" by "ref_id". */

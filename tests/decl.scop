@@ -53,8 +53,7 @@ statements:
         relation: '[N, K, M] -> { S_1[i, j, k] -> t[] }'
         index: '[N, K, M] -> { S_1[i, j, k] -> t[] }'
         reference: __pet_ref_1
-        read: 0
-        write: 0
+        kill: 1
 - line: 10
   domain: '[N, K, M] -> { S_2[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
     j >= 0 and i <= -1 + M and i >= 0 }'
@@ -117,5 +116,4 @@ statements:
         relation: '[N, K, M] -> { S_3[i, j, k] -> t[] }'
         index: '[N, K, M] -> { S_3[i, j, k] -> t[] }'
         reference: __pet_ref_7
-        read: 0
-        write: 0
+        kill: 1

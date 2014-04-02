@@ -52,8 +52,7 @@ statements:
         relation: '[n] -> { S_5[i] -> j[] }'
         index: '[n] -> { S_5[i] -> j[] }'
         reference: __pet_ref_1
-        read: 0
-        write: 0
+        kill: 1
 - line: 8
   domain: '[n] -> { S_1[i] : i <= -1 + n and i >= 0 }'
   schedule: '[n] -> { S_1[i] -> [1, i, 1] }'
@@ -158,8 +157,7 @@ statements:
         relation: '[n] -> { S_6[i] -> j[] }'
         index: '[n] -> { S_6[i] -> j[] }'
         reference: __pet_ref_11
-        read: 0
-        write: 0
+        kill: 1
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[i, t] -> __pet_test_0[i, t''] : t'' <= t and i

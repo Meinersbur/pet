@@ -26,8 +26,7 @@ statements:
         relation: '{ S_5[] -> s[] }'
         index: '{ S_5[] -> s[] }'
         reference: __pet_ref_0
-        read: 0
-        write: 0
+        kill: 1
 - line: 4
   domain: '{ S_4[] }'
   schedule: '{ S_4[] -> [0, 1] }'
@@ -78,5 +77,4 @@ statements:
         relation: '{ S_6[] -> s[] }'
         index: '{ S_6[] -> s[] }'
         reference: __pet_ref_4
-        read: 0
-        write: 0
+        kill: 1

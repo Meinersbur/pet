@@ -493,14 +493,19 @@ static int emit_access_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 	if (expr->acc.ref_id &&
 	    emit_named_id(emitter, "reference", expr->acc.ref_id) < 0)
 		return -1;
-	if (emit_string(emitter, "read") < 0)
-		return -1;
-	if (emit_int(emitter, expr->acc.read) < 0)
-		return -1;
-	if (emit_string(emitter, "write") < 0)
-		return -1;
-	if (emit_int(emitter, expr->acc.write) < 0)
-		return -1;
+	if (expr->acc.kill) {
+		if (emit_named_unsigned(emitter, "kill", 1) < 0)
+			return -1;
+	} else {
+		if (emit_string(emitter, "read") < 0)
+			return -1;
+		if (emit_int(emitter, expr->acc.read) < 0)
+			return -1;
+		if (emit_string(emitter, "write") < 0)
+			return -1;
+		if (emit_int(emitter, expr->acc.write) < 0)
+			return -1;
+	}
 
 	return 0;
 }

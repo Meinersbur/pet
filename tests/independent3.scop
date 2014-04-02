@@ -31,8 +31,7 @@ statements:
         relation: '[n] -> { S_0[i, j] -> t[] }'
         index: '[n] -> { S_0[i, j] -> t[] }'
         reference: __pet_ref_0
-        read: 0
-        write: 0
+        kill: 1
 - line: 7
   domain: '[n] -> { S_1[i, j] : i >= 0 and i <= -1 + n and j <= -1 + n and j >= 0
     }'
@@ -101,8 +100,7 @@ statements:
         relation: '[n] -> { S_2[i, j] -> t[] }'
         index: '[n] -> { S_2[i, j] -> t[] }'
         reference: __pet_ref_7
-        read: 0
-        write: 0
+        kill: 1
 independences:
 - filter: '[n] -> { S_2[i, j] -> S_2[i, j''] : j'' >= 1 + j; S_0[i, j] -> S_1[i, j'']
     : j'' >= 1 + j; S_2[i, j] -> S_1[i, j''] : j'' >= 1 + j; S_3[i, j] -> S_1[i, j'']

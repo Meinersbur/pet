@@ -24,8 +24,7 @@ statements:
         index: '{ S_0[] -> A[] }'
         depth: 1
         reference: __pet_ref_0
-        read: 0
-        write: 0
+        kill: 1
 - line: 5
   domain: '{ S_1[] }'
   schedule: '{ S_1[] -> [1] }'

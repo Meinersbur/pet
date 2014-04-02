@@ -444,6 +444,9 @@ static __isl_give pet_expr *extract_expr_access(isl_ctx *ctx,
 		if (!strcmp((char *) key->data.scalar.value, "write"))
 			expr = pet_expr_access_set_write(expr,
 				    extract_int(ctx, document, value));
+		if (!strcmp((char *) key->data.scalar.value, "kill"))
+			expr = pet_expr_access_set_kill(expr,
+				    extract_int(ctx, document, value));
 	}
 
 	return expr;

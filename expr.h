@@ -59,9 +59,9 @@ extern "C" {
  * An access expresssion is marked "read" if it represents a read and
  * marked "write" if it represents a write.  A single access expression
  * may be marked both read and write.
- * It may also be marked neither read or write, in which case it
+ * Alternatively, the expression may be marked "kill", in which case it
  * is the argument of a kill operation and represents the set of
- * killed array elements.
+ * killed array elements.  Such accesses are marked neither read nor write.
  *
  * A double is represented as both an (approximate) value "val" and
  * a string representation "s".
@@ -85,6 +85,7 @@ struct pet_expr {
 			int depth;
 			unsigned read : 1;
 			unsigned write : 1;
+			unsigned kill : 1;
 		} acc;
 		enum pet_op_type op;
 		char *name;

@@ -42,8 +42,7 @@ statements:
         relation: '[n] -> { S_4[x1] -> x2[] }'
         index: '[n] -> { S_4[x1] -> x2[] }'
         reference: __pet_ref_1
-        read: 0
-        write: 0
+        kill: 1
 - line: 13
   domain: '[n] -> { S_3[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { S_3[x1] -> [0, x1, 1, 1] }'
@@ -111,8 +110,7 @@ statements:
         relation: '[n] -> { S_5[x1] -> x2[] }'
         index: '[n] -> { S_5[x1] -> x2[] }'
         reference: __pet_ref_7
-        read: 0
-        write: 0
+        kill: 1
 - line: 16
   domain: '[n] -> { R[x1] : x1 <= -1 + n and x1 >= 0 }'
   schedule: '[n] -> { R[x1] -> [0, x1, 2] }'

@@ -275,6 +275,7 @@ __isl_give pet_expr *pet_expr_kill_from_access_and_index(
 
 	expr = pet_expr_from_access_and_index(access, index);
 	expr = pet_expr_access_set_read(expr, 0);
+	expr = pet_expr_access_set_kill(expr, 1);
 	return pet_expr_new_unary(pet_op_kill, expr);
 error:
 	isl_map_free(access);
@@ -491,6 +492,7 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 				    isl_map_copy(expr->acc.access));
 		dup = pet_expr_access_set_read(dup, expr->acc.read);
 		dup = pet_expr_access_set_write(dup, expr->acc.write);
+		dup = pet_expr_access_set_kill(dup, expr->acc.kill);
 		break;
 	case pet_expr_call:
 		dup = pet_expr_call_set_name(dup, expr->name);
@@ -910,6 +912,8 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 		if (expr1->acc.read != expr2->acc.read)
 			return 0;
 		if (expr1->acc.write != expr2->acc.write)
+			return 0;
+		if (expr1->acc.kill != expr2->acc.kill)
 			return 0;
 		if (expr1->acc.ref_id != expr2->acc.ref_id)
 			return 0;
@@ -1837,6 +1841,26 @@ __isl_give pet_expr *pet_expr_access_set_write(__isl_take pet_expr *expr,
 	if (!expr)
 		return NULL;
 	expr->acc.write = write;
+
+	return expr;
+}
+
+/* Mark "expr" as a kill dependening on "kill".
+ */
+__isl_give pet_expr *pet_expr_access_set_kill(__isl_take pet_expr *expr,
+	int kill)
+{
+	if (!expr)
+		return pet_expr_free(expr);
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return pet_expr_free(expr));
+	if (expr->acc.kill == kill)
+		return expr;
+	expr = pet_expr_cow(expr);
+	if (!expr)
+		return NULL;
+	expr->acc.kill = kill;
 
 	return expr;
 }
@@ -3155,10 +3179,14 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 		isl_multi_pw_aff_dump(expr->acc.index);
 		fprintf(stderr, "%*sdepth: %d\n", indent + 2,
 				"", expr->acc.depth);
-		fprintf(stderr, "%*sread: %d\n", indent + 2,
-				"", expr->acc.read);
-		fprintf(stderr, "%*swrite: %d\n", indent + 2,
-				"", expr->acc.write);
+		if (expr->acc.kill) {
+			fprintf(stderr, "%*skill: 1\n", indent + 2, "");
+		} else {
+			fprintf(stderr, "%*sread: %d\n", indent + 2,
+					"", expr->acc.read);
+			fprintf(stderr, "%*swrite: %d\n", indent + 2,
+					"", expr->acc.write);
+		}
 		if (expr->acc.access) {
 			fprintf(stderr, "%*saccess: ", indent + 2, "");
 			isl_map_dump(expr->acc.access);
