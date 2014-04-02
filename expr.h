@@ -83,8 +83,8 @@ struct pet_expr {
 			isl_map *access;
 			isl_multi_pw_aff *index;
 			int depth;
-			int read;
-			int write;
+			unsigned read : 1;
+			unsigned write : 1;
 		} acc;
 		enum pet_op_type op;
 		char *name;
