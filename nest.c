@@ -274,9 +274,14 @@ static __isl_give pet_expr *expr_remove_nested_parameters(
 	if (!expr)
 		return NULL;
 
-	expr->acc.access = pet_nested_remove_from_map(expr->acc.access);
+	if (expr->acc.access) {
+		expr->acc.access = pet_nested_remove_from_map(expr->acc.access);
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = pet_nested_remove_from_multi_pw_aff(expr->acc.index);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;

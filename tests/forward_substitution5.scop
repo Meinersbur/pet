@@ -26,13 +26,11 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> c[] }'
         index: '{ S_0[] -> c[] }'
         reference: __pet_ref_0
         read: 0
         write: 1
       - type: access
-        relation: '{ S_0[] -> N[] }'
         index: '{ S_0[] -> N[] }'
         reference: __pet_ref_1
         read: 1
@@ -47,7 +45,6 @@ statements:
       operation: +=
       arguments:
       - type: access
-        relation: '{ S_1[] -> N[] }'
         index: '{ S_1[] -> N[] }'
         reference: __pet_ref_2
         read: 1
@@ -64,14 +61,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_2[] -> [i0]] -> a[i0] : i0 >= 0 }'
         index: '{ [S_2[] -> [i0]] -> a[((i0) : i0 >= 0)] }'
         reference: __pet_ref_4
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_2[] -> c[] }'
           index: '{ S_2[] -> c[] }'
           reference: __pet_ref_3
           read: 1

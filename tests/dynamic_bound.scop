@@ -28,7 +28,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> N[] }'
         index: '{ S_0[] -> N[] }'
         reference: __pet_ref_0
         read: 0
@@ -45,7 +44,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[] -> M[] }'
         index: '{ S_1[] -> M[] }'
         reference: __pet_ref_1
         read: 0
@@ -63,7 +61,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_2[i, j] -> a[i, j] }'
         index: '{ S_2[i, j] -> a[(i), (j)] }'
         reference: __pet_ref_4
         read: 0
@@ -72,26 +69,22 @@ statements:
         operation: +
         arguments:
         - type: access
-          relation: '{ S_2[i, j] -> [i] }'
           index: '{ S_2[i, j] -> [(i)] }'
           reference: __pet_ref_5
           read: 1
           write: 0
         - type: access
-          relation: '{ S_2[i, j] -> [j] }'
           index: '{ S_2[i, j] -> [(j)] }'
           reference: __pet_ref_6
           read: 1
           write: 0
   arguments:
   - type: access
-    relation: '{ S_2[i, j] -> N[] }'
     index: '{ S_2[i, j] -> N[] }'
     reference: __pet_ref_2
     read: 1
     write: 0
   - type: access
-    relation: '{ S_2[i, j] -> M[] }'
     index: '{ S_2[i, j] -> M[] }'
     reference: __pet_ref_3
     read: 1
@@ -107,32 +100,27 @@ statements:
       name: h
       arguments:
       - type: access
-        relation: '{ S_3[i, j] -> [i] }'
         index: '{ S_3[i, j] -> [(i)] }'
         reference: __pet_ref_9
         read: 1
         write: 0
       - type: access
-        relation: '{ S_3[i, j] -> [j] }'
         index: '{ S_3[i, j] -> [(j)] }'
         reference: __pet_ref_10
         read: 1
         write: 0
       - type: access
-        relation: '{ S_3[i, j] -> a[i, j] }'
         index: '{ S_3[i, j] -> a[(i), (j)] }'
         reference: __pet_ref_11
         read: 1
         write: 0
   arguments:
   - type: access
-    relation: '{ S_3[i, j] -> N[] }'
     index: '{ S_3[i, j] -> N[] }'
     reference: __pet_ref_7
     read: 1
     write: 0
   - type: access
-    relation: '{ S_3[i, j] -> M[] }'
     index: '{ S_3[i, j] -> M[] }'
     reference: __pet_ref_8
     read: 1

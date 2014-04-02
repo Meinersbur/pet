@@ -29,9 +29,14 @@ extern "C" {
  * acc.index represents the index expression, while acc.access
  * represents the corresponding access relation.
  * The output dimension of the index expression may be smaller
- * than the number of dimensions of the accessed array.
+ * than the number of dimensions of the accessed array (recorded
+ * in acc.depth).
  * The target space of the access relation, on the other hand,
  * is equal to the array space.
+ * acc.access may be NULL if it can be derived directly from
+ * acc.index and acc.depth in construct_access_relation.
+ * That is, acc.access may be NULL if there are no additional
+ * constraints on the access relations.
  * Both acc.index and acc.access usually map an iteration space
  * to a (partial) data space.
  * If the access has arguments, however, then the domain of the
@@ -70,6 +75,7 @@ struct pet_expr {
 			isl_id *ref_id;
 			isl_map *access;
 			isl_multi_pw_aff *index;
+			int depth;
 			int read;
 			int write;
 		} acc;

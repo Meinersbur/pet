@@ -28,7 +28,6 @@ statements:
       name: f1
       arguments:
       - type: access
-        relation: '{ S_0[i, j, k, l] -> s_a[s[i, j] -> a[k, l]] }'
         index: '{ S_0[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k), (l)]] }'
         reference: __pet_ref_0
         read: 1
@@ -44,8 +43,8 @@ statements:
       name: f2
       arguments:
       - type: access
-        relation: '{ S_1[i, j, k, l] -> s_a[s[i, j] -> a[k, o3]] }'
         index: '{ S_1[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k)]] }'
+        depth: 4
         reference: __pet_ref_1
         read: 0
         write: 1
@@ -60,8 +59,8 @@ statements:
       name: f3
       arguments:
       - type: access
-        relation: '{ S_2[i, j, k, l] -> s_a[s[i, j] -> a[o2, o3]] }'
         index: '{ S_2[i, j, k, l] -> s_a[s[(i), (j)] -> a[]] }'
+        depth: 4
         reference: __pet_ref_2
         read: 0
         write: 1

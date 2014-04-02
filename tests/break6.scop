@@ -46,7 +46,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> i[] }'
         index: '{ S_0[] -> i[] }'
         reference: __pet_ref_0
         read: 0
@@ -63,7 +62,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[t] -> __pet_test_0[t] }'
         index: '{ S_1[t] -> __pet_test_0[(t)] }'
         reference: __pet_ref_3
         read: 0
@@ -72,7 +70,6 @@ statements:
         operation: <
         arguments:
         - type: access
-          relation: '{ S_1[t] -> i[] }'
           index: '{ S_1[t] -> i[] }'
           reference: __pet_ref_4
           read: 1
@@ -81,13 +78,11 @@ statements:
           value: 100
   arguments:
   - type: access
-    relation: '{ S_1[t] -> __pet_test_0[-1 + t] : t >= 1 }'
     index: '{ S_1[t] -> __pet_test_0[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_1
     read: 1
     write: 0
   - type: access
-    relation: '{ S_1[t] -> __pet_test_1[-1 + t] : t >= 1 }'
     index: '{ S_1[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_2
     read: 1
@@ -102,14 +97,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_2[t] -> [i1]] -> a[i1] : i1 >= 0 }'
         index: '{ [S_2[t] -> [i1]] -> a[((i1) : i1 >= 0)] }'
         reference: __pet_ref_8
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_2[t] -> i[] }'
           index: '{ S_2[t] -> i[] }'
           reference: __pet_ref_7
           read: 1
@@ -118,13 +111,11 @@ statements:
         value: 0
   arguments:
   - type: access
-    relation: '{ S_2[t] -> __pet_test_0[t] }'
     index: '{ S_2[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_5
     read: 1
     write: 0
   - type: access
-    relation: '{ S_2[t] -> __pet_test_1[-1 + t] : t >= 1 }'
     index: '{ S_2[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_6
     read: 1
@@ -139,7 +130,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_3[t] -> __pet_test_1[t] }'
         index: '{ S_3[t] -> __pet_test_1[(t)] }'
         reference: __pet_ref_11
         read: 0
@@ -148,13 +138,11 @@ statements:
         name: f
   arguments:
   - type: access
-    relation: '{ S_3[t] -> __pet_test_0[t] }'
     index: '{ S_3[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_9
     read: 1
     write: 0
   - type: access
-    relation: '{ S_3[t] -> __pet_test_1[-1 + t] : t >= 1 }'
     index: '{ S_3[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_10
     read: 1
@@ -169,14 +157,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_4[t] -> [i1]] -> a[i1] : i1 >= 0 }'
         index: '{ [S_4[t] -> [i1]] -> a[((i1) : i1 >= 0)] }'
         reference: __pet_ref_15
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_4[t] -> i[] }'
           index: '{ S_4[t] -> i[] }'
           reference: __pet_ref_14
           read: 1
@@ -185,13 +171,11 @@ statements:
         value: 1
   arguments:
   - type: access
-    relation: '{ S_4[t] -> __pet_test_0[t] }'
     index: '{ S_4[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_12
     read: 1
     write: 0
   - type: access
-    relation: '{ S_4[t] -> __pet_test_1[t] }'
     index: '{ S_4[t] -> __pet_test_1[(t)] }'
     reference: __pet_ref_13
     read: 1
@@ -206,7 +190,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_5[t] -> __pet_test_2[t] }'
         index: '{ S_5[t] -> __pet_test_2[(t)] }'
         reference: __pet_ref_18
         read: 0
@@ -215,13 +198,11 @@ statements:
         name: f
   arguments:
   - type: access
-    relation: '{ S_5[t] -> __pet_test_0[t] }'
     index: '{ S_5[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_16
     read: 1
     write: 0
   - type: access
-    relation: '{ S_5[t] -> __pet_test_1[t] }'
     index: '{ S_5[t] -> __pet_test_1[(t)] }'
     reference: __pet_ref_17
     read: 1
@@ -236,7 +217,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_6[t] -> __pet_test_3[t] }'
         index: '{ S_6[t] -> __pet_test_3[(t)] }'
         reference: __pet_ref_21
         read: 0
@@ -245,13 +225,11 @@ statements:
         operation: '?:'
         arguments:
         - type: access
-          relation: '{ S_6[t] -> __pet_test_1[t] }'
           index: '{ S_6[t] -> __pet_test_1[(t)] }'
           reference: __pet_ref_22
           read: 1
           write: 0
         - type: access
-          relation: '{ S_6[t] -> [1] }'
           index: '{ S_6[t] -> [(1)] }'
           reference: __pet_ref_23
           read: 1
@@ -264,20 +242,17 @@ statements:
           write: 0
           arguments:
           - type: access
-            relation: '{ S_6[t] -> __pet_test_1[t] }'
             index: '{ S_6[t] -> __pet_test_1[(t)] }'
             reference: __pet_ref_24
             read: 1
             write: 0
   arguments:
   - type: access
-    relation: '{ S_6[t] -> __pet_test_0[t] }'
     index: '{ S_6[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_19
     read: 1
     write: 0
   - type: access
-    relation: '{ S_6[t] -> __pet_test_1[-1 + t] : t >= 1 }'
     index: '{ S_6[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_20
     read: 1
@@ -292,14 +267,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_7[t] -> [i1]] -> a[i1] : i1 >= 0 }'
         index: '{ [S_7[t] -> [i1]] -> a[((i1) : i1 >= 0)] }'
         reference: __pet_ref_30
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_7[t] -> i[] }'
           index: '{ S_7[t] -> i[] }'
           reference: __pet_ref_29
           read: 1
@@ -308,19 +281,16 @@ statements:
         value: 2
   arguments:
   - type: access
-    relation: '{ S_7[t] -> __pet_test_0[t] }'
     index: '{ S_7[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_26
     read: 1
     write: 0
   - type: access
-    relation: '{ S_7[t] -> __pet_test_1[-1 + t] : t >= 1 }'
     index: '{ S_7[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_27
     read: 1
     write: 0
   - type: access
-    relation: '{ S_7[t] -> __pet_test_3[t] }'
     index: '{ S_7[t] -> __pet_test_3[(t)] }'
     reference: __pet_ref_28
     read: 1
@@ -335,7 +305,6 @@ statements:
       operation: +=
       arguments:
       - type: access
-        relation: '{ S_8[t] -> i[] }'
         index: '{ S_8[t] -> i[] }'
         reference: __pet_ref_33
         read: 0
@@ -344,13 +313,11 @@ statements:
         value: 1
   arguments:
   - type: access
-    relation: '{ S_8[t] -> __pet_test_0[t] }'
     index: '{ S_8[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_31
     read: 1
     write: 0
   - type: access
-    relation: '{ S_8[t] -> __pet_test_1[t] }'
     index: '{ S_8[t] -> __pet_test_1[(t)] }'
     reference: __pet_ref_32
     read: 1

@@ -470,14 +470,25 @@ static int emit_expr_type(yaml_emitter_t *emitter, enum pet_expr_type type)
 }
 
 /* Print the fields of the access expression "expr" to "emitter".
+ *
+ * If the depth of the access is equal to the depth that can be derived from
+ * the index expression, then there is no need to print it.
  */
 static int emit_access_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 {
-	if (emit_string(emitter, "relation") < 0)
-		return -1;
-	if (emit_map(emitter, expr->acc.access) < 0)
-		return -1;
+	int depth;
+
+	if (expr->acc.access) {
+		if (emit_string(emitter, "relation") < 0)
+			return -1;
+		if (emit_map(emitter, expr->acc.access) < 0)
+			return -1;
+	}
 	if (emit_named_multi_pw_aff(emitter, "index", expr->acc.index) < 0)
+		return -1;
+	depth = isl_multi_pw_aff_dim(expr->acc.index, isl_dim_out);
+	if (expr->acc.depth != depth &&
+	    emit_named_int(emitter, "depth", expr->acc.depth) < 0)
 		return -1;
 	if (expr->acc.ref_id &&
 	    emit_named_id(emitter, "reference", expr->acc.ref_id) < 0)

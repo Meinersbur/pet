@@ -29,7 +29,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S1[x1] -> s[] }'
         index: '[n] -> { S1[x1] -> s[] }'
         reference: __pet_ref_0
         read: 0
@@ -61,7 +60,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S_1[x1] -> x2[] }'
         index: '[n] -> { S_1[x1] -> x2[] }'
         reference: __pet_ref_2
         read: 0
@@ -78,7 +76,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S_2[x1, t] -> __pet_test_0[x1, t] }'
         index: '[n] -> { S_2[x1, t] -> __pet_test_0[(x1), (t)] }'
         reference: __pet_ref_4
         read: 0
@@ -87,20 +84,17 @@ statements:
         name: P
         arguments:
         - type: access
-          relation: '[n] -> { S_2[x1, t] -> [x1] }'
           index: '[n] -> { S_2[x1, t] -> [(x1)] }'
           reference: __pet_ref_5
           read: 1
           write: 0
         - type: access
-          relation: '[n] -> { S_2[x1, t] -> x2[] }'
           index: '[n] -> { S_2[x1, t] -> x2[] }'
           reference: __pet_ref_6
           read: 1
           write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S_2[x1, t] -> __pet_test_0[x1, -1 + t] : t >= 1 }'
     index: '[n] -> { S_2[x1, t] -> __pet_test_0[(x1), ((-1 + t) : t >= 1)] }'
     reference: __pet_ref_3
     read: 1
@@ -115,7 +109,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S2[x1, t] -> s[] }'
         index: '[n] -> { S2[x1, t] -> s[] }'
         reference: __pet_ref_8
         read: 0
@@ -124,14 +117,12 @@ statements:
         name: g
         arguments:
         - type: access
-          relation: '[n] -> { S2[x1, t] -> s[] }'
           index: '[n] -> { S2[x1, t] -> s[] }'
           reference: __pet_ref_9
           read: 1
           write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S2[x1, t] -> __pet_test_0[x1, t] }'
     index: '[n] -> { S2[x1, t] -> __pet_test_0[(x1), (t)] }'
     reference: __pet_ref_7
     read: 1
@@ -146,20 +137,17 @@ statements:
       operation: +=
       arguments:
       - type: access
-        relation: '[n] -> { S_4[x1, t] -> x2[] }'
         index: '[n] -> { S_4[x1, t] -> x2[] }'
         reference: __pet_ref_11
         read: 0
         write: 1
       - type: access
-        relation: '[n] -> { S_4[x1, t] -> [n] }'
         index: '[n] -> { S_4[x1, t] -> [(n)] }'
         reference: __pet_ref_12
         read: 1
         write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S_4[x1, t] -> __pet_test_0[x1, t] }'
     index: '[n] -> { S_4[x1, t] -> __pet_test_0[(x1), (t)] }'
     reference: __pet_ref_10
     read: 1
@@ -189,7 +177,6 @@ statements:
       name: h
       arguments:
       - type: access
-        relation: '[n] -> { R[x1] -> s[] }'
         index: '[n] -> { R[x1] -> s[] }'
         reference: __pet_ref_14
         read: 1

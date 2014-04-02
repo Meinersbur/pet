@@ -28,7 +28,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> i[] }'
         index: '{ S_0[] -> i[] }'
         reference: __pet_ref_0
         read: 0
@@ -45,7 +44,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[t] -> __pet_test_0[0] }'
         index: '{ S_1[t] -> __pet_test_0[(0)] }'
         reference: __pet_ref_2
         read: 0
@@ -54,7 +52,6 @@ statements:
         operation: <
         arguments:
         - type: access
-          relation: '{ S_1[t] -> i[] }'
           index: '{ S_1[t] -> i[] }'
           reference: __pet_ref_3
           read: 1
@@ -63,7 +60,6 @@ statements:
           value: 100
   arguments:
   - type: access
-    relation: '{ S_1[t] -> __pet_test_0[t''] : 1 = 0 }'
     index: '{ S_1[t] -> __pet_test_0[(0 : 1 = 0)] }'
     reference: __pet_ref_1
     read: 1
@@ -78,14 +74,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_2[t] -> [i1]] -> a[i1] : i1 >= 0 }'
         index: '{ [S_2[t] -> [i1]] -> a[((i1) : i1 >= 0)] }'
         reference: __pet_ref_6
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_2[t] -> i[] }'
           index: '{ S_2[t] -> i[] }'
           reference: __pet_ref_5
           read: 1
@@ -94,7 +88,6 @@ statements:
         value: 0
   arguments:
   - type: access
-    relation: '{ S_2[t] -> __pet_test_0[0] }'
     index: '{ S_2[t] -> __pet_test_0[(0)] }'
     reference: __pet_ref_4
     read: 1
@@ -109,14 +102,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_3[t] -> [i1]] -> a[o0] : 1 = 0 }'
         index: '{ [S_3[t] -> [i1]] -> a[(0 : 1 = 0)] }'
         reference: __pet_ref_9
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_3[t] -> i[] }'
           index: '{ S_3[t] -> i[] }'
           reference: __pet_ref_8
           read: 1
@@ -125,7 +116,6 @@ statements:
         value: 1
   arguments:
   - type: access
-    relation: '{ S_3[t] -> __pet_test_0[t''] : 1 = 0 }'
     index: '{ S_3[t] -> __pet_test_0[(0 : 1 = 0)] }'
     reference: __pet_ref_7
     read: 1
@@ -140,7 +130,6 @@ statements:
       operation: +=
       arguments:
       - type: access
-        relation: '{ S_4[t] -> i[] }'
         index: '{ S_4[t] -> i[] }'
         reference: __pet_ref_11
         read: 0
@@ -149,7 +138,6 @@ statements:
         value: 1
   arguments:
   - type: access
-    relation: '{ S_4[t] -> __pet_test_0[t''] : 1 = 0 }'
     index: '{ S_4[t] -> __pet_test_0[(0 : 1 = 0)] }'
     reference: __pet_ref_10
     read: 1

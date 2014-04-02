@@ -28,7 +28,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> i[] }'
         index: '{ S_0[] -> i[] }'
         reference: __pet_ref_0
         read: 0
@@ -45,13 +44,11 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[] -> i[] }'
         index: '{ S_1[] -> i[] }'
         reference: __pet_ref_1
         read: 0
         write: 1
       - type: access
-        relation: '{ S_1[] -> i[] }'
         index: '{ S_1[] -> i[] }'
         reference: __pet_ref_2
         read: 1
@@ -66,7 +63,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_2[t] -> __pet_test_0[t] }'
         index: '{ S_2[t] -> __pet_test_0[(t)] }'
         reference: __pet_ref_4
         read: 0
@@ -75,7 +71,6 @@ statements:
         operation: <
         arguments:
         - type: access
-          relation: '{ S_2[t] -> i[] }'
           index: '{ S_2[t] -> i[] }'
           reference: __pet_ref_5
           read: 1
@@ -84,7 +79,6 @@ statements:
           value: 10
   arguments:
   - type: access
-    relation: '{ S_2[t] -> __pet_test_0[-1 + t] : t >= 1 }'
     index: '{ S_2[t] -> __pet_test_0[((-1 + t) : t >= 1)] }'
     reference: __pet_ref_3
     read: 1
@@ -99,7 +93,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_3[t] -> a[] }'
         index: '{ S_3[t] -> a[] }'
         reference: __pet_ref_7
         read: 0
@@ -108,7 +101,6 @@ statements:
         value: 5
   arguments:
   - type: access
-    relation: '{ S_3[t] -> __pet_test_0[t] }'
     index: '{ S_3[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_6
     read: 1
@@ -123,7 +115,6 @@ statements:
       operation: +=
       arguments:
       - type: access
-        relation: '{ S_4[t] -> i[] }'
         index: '{ S_4[t] -> i[] }'
         reference: __pet_ref_9
         read: 0
@@ -132,7 +123,6 @@ statements:
         value: 1
   arguments:
   - type: access
-    relation: '{ S_4[t] -> __pet_test_0[t] }'
     index: '{ S_4[t] -> __pet_test_0[(t)] }'
     reference: __pet_ref_8
     read: 1

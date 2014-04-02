@@ -30,14 +30,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ [S_0[] -> [i0]] -> A[i0] : i0 >= 0 }'
         index: '{ [S_0[] -> [i0]] -> A[((i0) : i0 >= 0)] }'
         reference: __pet_ref_1
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '{ S_0[] -> s_a[s[] -> a[]] }'
           index: '{ S_0[] -> s_a[s[] -> a[]] }'
           reference: __pet_ref_0
           read: 1

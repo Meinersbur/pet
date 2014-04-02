@@ -18,7 +18,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[N] -> { S_0[] -> a[] }'
         index: '[N] -> { S_0[] -> a[] }'
         reference: __pet_ref_0
         read: 0

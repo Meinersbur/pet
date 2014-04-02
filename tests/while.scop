@@ -24,7 +24,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S1[x] -> s[] }'
         index: '[n] -> { S1[x] -> s[] }'
         reference: __pet_ref_0
         read: 0
@@ -41,7 +40,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S_1[x, t] -> __pet_test_0[x, t] }'
         index: '[n] -> { S_1[x, t] -> __pet_test_0[(x), (t)] }'
         reference: __pet_ref_2
         read: 0
@@ -50,20 +48,17 @@ statements:
         name: P
         arguments:
         - type: access
-          relation: '[n] -> { S_1[x, t] -> [x] }'
           index: '[n] -> { S_1[x, t] -> [(x)] }'
           reference: __pet_ref_3
           read: 1
           write: 0
         - type: access
-          relation: '[n] -> { S_1[x, t] -> s[] }'
           index: '[n] -> { S_1[x, t] -> s[] }'
           reference: __pet_ref_4
           read: 1
           write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S_1[x, t] -> __pet_test_0[x, -1 + t] : t >= 1 }'
     index: '[n] -> { S_1[x, t] -> __pet_test_0[(x), ((-1 + t) : t >= 1)] }'
     reference: __pet_ref_1
     read: 1
@@ -78,7 +73,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { S2[x, t] -> s[] }'
         index: '[n] -> { S2[x, t] -> s[] }'
         reference: __pet_ref_6
         read: 0
@@ -87,14 +81,12 @@ statements:
         name: g
         arguments:
         - type: access
-          relation: '[n] -> { S2[x, t] -> s[] }'
           index: '[n] -> { S2[x, t] -> s[] }'
           reference: __pet_ref_7
           read: 1
           write: 0
   arguments:
   - type: access
-    relation: '[n] -> { S2[x, t] -> __pet_test_0[x, t] }'
     index: '[n] -> { S2[x, t] -> __pet_test_0[(x), (t)] }'
     reference: __pet_ref_5
     read: 1
@@ -109,7 +101,6 @@ statements:
       name: h
       arguments:
       - type: access
-        relation: '[n] -> { R[x] -> s[] }'
         index: '[n] -> { R[x] -> s[] }'
         reference: __pet_ref_8
         read: 1

@@ -22,6 +22,7 @@ statements:
       - type: access
         relation: '[N] -> { S_0[] -> A[o0] : o0 >= 0 and o0 <= -1 + N }'
         index: '{ S_0[] -> A[] }'
+        depth: 1
         reference: __pet_ref_0
         read: 0
         write: 0
@@ -35,7 +36,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[] -> A[0] }'
         index: '{ S_1[] -> A[(0)] }'
         reference: __pet_ref_1
         read: 0

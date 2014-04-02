@@ -387,11 +387,39 @@ static __isl_give pet_expr *extract_expr_double(isl_ctx *ctx,
 
 /* Extract pet_expr_access specific fields from "node" and
  * update "expr" accordingly.
+ *
+ * The depth of the access is initialized by pet_expr_access_set_index.
+ * Any explicitly specified depth therefore needs to be set after
+ * setting the index expression.  Similiarly, the access relation (if any)
+ * needs to be set after setting the depth.
  */
 static __isl_give pet_expr *extract_expr_access(isl_ctx *ctx,
 	yaml_document_t *document, yaml_node_t *node, __isl_take pet_expr *expr)
 {
 	yaml_node_pair_t *pair;
+	int depth = -1;
+	isl_multi_pw_aff *index = NULL;
+
+	for (pair = node->data.mapping.pairs.start;
+	     pair < node->data.mapping.pairs.top; ++pair) {
+		yaml_node_t *key, *value;
+
+		key = yaml_document_get_node(document, pair->key);
+		value = yaml_document_get_node(document, pair->value);
+
+		if (key->type != YAML_SCALAR_NODE)
+			isl_die(ctx, isl_error_invalid, "expecting scalar key",
+				return pet_expr_free(expr));
+
+		if (!strcmp((char *) key->data.scalar.value, "index"))
+			index = extract_multi_pw_aff(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "depth"))
+			depth = extract_int(ctx, document, value);
+	}
+
+	expr = pet_expr_access_set_index(expr, index);
+	if (depth >= 0)
+		expr = pet_expr_access_set_depth(expr, depth);
 
 	for (pair = node->data.mapping.pairs.start;
 	     pair < node->data.mapping.pairs.top; ++pair) {
@@ -407,9 +435,6 @@ static __isl_give pet_expr *extract_expr_access(isl_ctx *ctx,
 		if (!strcmp((char *) key->data.scalar.value, "relation"))
 			expr = pet_expr_access_set_access(expr,
 				    extract_map(ctx, document, value));
-		if (!strcmp((char *) key->data.scalar.value, "index"))
-			expr = pet_expr_access_set_index(expr,
-				    extract_multi_pw_aff(ctx, document, value));
 		if (!strcmp((char *) key->data.scalar.value, "reference"))
 			expr = pet_expr_access_set_ref_id(expr,
 				    extract_id(ctx, document, value));

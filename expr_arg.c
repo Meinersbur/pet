@@ -183,7 +183,7 @@ error:
  * "dim" is the dimension of the iteration domain.
  *
  * Besides actually removing the argument, we also need to make sure that
- * we eliminate any reference from the access relation and that
+ * we eliminate any reference from the access relation (if any) and that
  * we adjust the references to the remaining arguments.
  *
  * If "expr" has a single argument, then we compute the pullback over
@@ -216,9 +216,15 @@ __isl_give pet_expr *pet_expr_access_project_out_arg(__isl_take pet_expr *expr,
 					isl_dim_in, dim + pos, 1))
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"cannot project out", return pet_expr_free(expr));
-	expr->acc.access = isl_map_eliminate(expr->acc.access,
+	if (expr->acc.access) {
+		expr->acc.access =
+		    isl_map_eliminate(expr->acc.access,
 						isl_dim_in, dim + pos, 1);
-	if (!expr->acc.access || !expr->acc.index)
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	space = isl_multi_pw_aff_get_domain_space(expr->acc.index);

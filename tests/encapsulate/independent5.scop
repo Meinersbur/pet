@@ -44,14 +44,12 @@ statements:
     declared: 1
     variable:
       type: access
-      relation: '[n] -> { S_6[i] -> j[] }'
       index: '[n] -> { S_6[i] -> j[] }'
       reference: __pet_ref_1
       read: 0
       write: 1
     initialization:
       type: access
-      relation: '[n] -> { S_6[i] -> C[i] }'
       index: '[n] -> { S_6[i] -> C[(i)] }'
       reference: __pet_ref_2
       read: 1
@@ -61,13 +59,11 @@ statements:
       operation: <
       arguments:
       - type: access
-        relation: '[n] -> { S_6[i] -> j[] }'
         index: '[n] -> { S_6[i] -> j[] }'
         reference: __pet_ref_3
         read: 1
         write: 0
       - type: access
-        relation: '[n] -> { S_6[i] -> [n] }'
         index: '[n] -> { S_6[i] -> [(n)] }'
         reference: __pet_ref_4
         read: 1
@@ -82,20 +78,17 @@ statements:
         operation: +=
         arguments:
         - type: access
-          relation: '[n] -> { [S_6[i] -> [i1]] -> B[i1] : i1 >= 0 }'
           index: '[n] -> { [S_6[i] -> [i1]] -> B[((i1) : i1 >= 0)] }'
           reference: __pet_ref_6
           read: 1
           write: 1
           arguments:
           - type: access
-            relation: '[n] -> { S_6[i] -> A[i] }'
             index: '[n] -> { S_6[i] -> A[(i)] }'
             reference: __pet_ref_5
             read: 1
             write: 0
         - type: access
-          relation: '[n] -> { S_6[i] -> j[] }'
           index: '[n] -> { S_6[i] -> j[] }'
           reference: __pet_ref_7
           read: 1

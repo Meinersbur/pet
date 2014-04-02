@@ -37,7 +37,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[i, j] -> s_f_a[s_f[s[] -> f[i]] -> a[j]] }'
         index: '{ S_0[i, j] -> s_f_a[s_f[s[] -> f[(i)]] -> a[(j)]] }'
         reference: __pet_ref_0
         read: 0
@@ -46,13 +45,11 @@ statements:
         operation: '*'
         arguments:
         - type: access
-          relation: '{ S_0[i, j] -> [i] }'
           index: '{ S_0[i, j] -> [(i)] }'
           reference: __pet_ref_1
           read: 1
           write: 0
         - type: access
-          relation: '{ S_0[i, j] -> [j] }'
           index: '{ S_0[i, j] -> [(j)] }'
           reference: __pet_ref_2
           read: 1
@@ -67,7 +64,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[] -> s_b[s[] -> b[]] }'
         index: '{ S_1[] -> s_b[s[] -> b[]] }'
         reference: __pet_ref_3
         read: 0

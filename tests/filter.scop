@@ -22,7 +22,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[] -> a[] }'
         index: '{ S_0[] -> a[] }'
         reference: __pet_ref_1
         read: 0
@@ -31,7 +30,6 @@ statements:
         value: 5
   arguments:
   - type: access
-    relation: '[index] -> { S_0[] -> test[index] : index >= 0 }'
     index: '[index] -> { S_0[] -> test[((index) : index >= 0)] }'
     reference: __pet_ref_0
     read: 1

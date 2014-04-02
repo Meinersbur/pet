@@ -22,7 +22,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_0[i] -> j[] }'
         index: '{ S_0[i] -> j[] }'
         reference: __pet_ref_0
         read: 0
@@ -39,7 +38,6 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '{ S_1[i] -> a[i] }'
         index: '{ S_1[i] -> a[(i)] }'
         reference: __pet_ref_1
         read: 0
@@ -48,7 +46,6 @@ statements:
         operation: '?:'
         arguments:
         - type: access
-          relation: '{ S_1[i] -> j[] }'
           index: '{ S_1[i] -> j[] }'
           reference: __pet_ref_2
           read: 1

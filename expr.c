@@ -147,42 +147,48 @@ __isl_give pet_expr *pet_expr_alloc(isl_ctx *ctx, enum pet_expr_type type)
 	return expr;
 }
 
-/* Construct an access pet_expr from an access relation and an index expression.
- * By default, it is considered to be a read access.
+/* Construct an access pet_expr from an index expression.
+ * By default, the access is considered to be a read access.
+ * The initial depth is set from the index expression and
+ * may still be updated by the caller before the access relation
+ * is created.
  */
-__isl_give pet_expr *pet_expr_from_access_and_index( __isl_take isl_map *access,
-	__isl_take isl_multi_pw_aff *index)
+__isl_give pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
 {
-	isl_ctx *ctx = isl_map_get_ctx(access);
+	isl_ctx *ctx;
 	pet_expr *expr;
 
-	if (!index || !access)
-		goto error;
+	if (!index)
+		return NULL;
+	ctx = isl_multi_pw_aff_get_ctx(index);
 	expr = pet_expr_alloc(ctx, pet_expr_access);
 	if (!expr)
 		goto error;
 
-	expr->acc.access = access;
-	expr->acc.index = index;
 	expr->acc.read = 1;
 	expr->acc.write = 0;
 
+	expr = pet_expr_access_set_index(expr, index);
+
 	return expr;
 error:
-	isl_map_free(access);
 	isl_multi_pw_aff_free(index);
 	return NULL;
 }
 
-/* Construct an access pet_expr from an index expression.
- * By default, the access is considered to be a read access.
+/* Construct an access pet_expr from an access relation and an index expression.
+ * By default, it is considered to be a read access.
  */
-__isl_give pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index)
+__isl_give pet_expr *pet_expr_from_access_and_index(__isl_take isl_map *access,
+	__isl_take isl_multi_pw_aff *index)
 {
-	isl_map *access;
+	int depth;
+	pet_expr *expr;
 
-	access = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
-	return pet_expr_from_access_and_index(access, index);
+	expr = pet_expr_from_index(index);
+	depth = isl_map_dim(access, isl_dim_out);
+	expr = pet_expr_access_set_depth(expr, depth);
+	return pet_expr_access_set_access(expr, access);
 }
 
 /* Extend the range of "access" with "n" dimensions, retaining
@@ -214,18 +220,24 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 	return access;
 }
 
-/* Finalize the construction of an access expression by setting
- * the depth of the accessed array.
+/* Does the access expression "expr" have an explicit access relation?
+ */
+static int has_access_relation(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+
+	if (expr->acc.access)
+		return 1;
+
+	return 0;
+}
+
+/* Replace the depth of the access expr "expr" by "depth".
  *
- * The index expression may have been updated by
- * pet_expr_access_subscript and/or pet_expr_access_member
- * without the access relation having been updated accordingly.
- * We perform this update here, taking into account the depth
- * of the accessed array.
- *
- * If the number of indices is smaller than the depth of the array,
- * then we assume that all elements of the remaining dimensions
- * are accessed.
+ * To avoid inconsistencies between the depth and the access relation,
+ * we currently do not allow the depth to change once the access relation
+ * has been set or computed.
  */
 __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 	int depth)
@@ -233,24 +245,21 @@ __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 	isl_map *access;
 	int dim;
 
+	if (!expr)
+		return NULL;
+	if (expr->acc.depth == depth)
+		return expr;
+	if (has_access_relation(expr))
+		isl_die(pet_expr_get_ctx(expr), isl_error_unsupported,
+			"depth cannot be changed after access relation "
+			"has been set or computed", return pet_expr_free(expr));
+
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
+	expr->acc.depth = depth;
 
-	access = isl_map_from_multi_pw_aff(pet_expr_access_get_index(expr));
-	if (!access)
-		return pet_expr_free(expr);
-
-	dim = isl_map_dim(access, isl_dim_out);
-	if (dim > depth)
-		isl_die(isl_map_get_ctx(access), isl_error_internal,
-			"number of indices greater than depth",
-			access = isl_map_free(access));
-
-	if (dim != depth)
-		access = extend_range(access, depth - dim);
-
-	return pet_expr_access_set_access(expr, access);
+	return expr;
 }
 
 /* Construct a pet_expr that kills the elements specified by
@@ -449,6 +458,12 @@ error:
 	return NULL;
 }
 
+/* Return an independent duplicate of "expr".
+ *
+ * In case of an access expression, make sure the depth of the duplicate is set
+ * before the access relation (if any) is set and after the index expression
+ * is set.
+ */
 static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 {
 	int i;
@@ -468,10 +483,12 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 		if (expr->acc.ref_id)
 			dup = pet_expr_access_set_ref_id(dup,
 						isl_id_copy(expr->acc.ref_id));
-		dup = pet_expr_access_set_access(dup,
-						isl_map_copy(expr->acc.access));
 		dup = pet_expr_access_set_index(dup,
 					isl_multi_pw_aff_copy(expr->acc.index));
+		dup = pet_expr_access_set_depth(dup, expr->acc.depth);
+		if (expr->acc.access)
+			dup = pet_expr_access_set_access(dup,
+				    isl_map_copy(expr->acc.access));
 		dup = pet_expr_access_set_read(dup, expr->acc.read);
 		dup = pet_expr_access_set_write(dup, expr->acc.write);
 		break;
@@ -774,10 +791,10 @@ int pet_expr_is_scalar_access(__isl_keep pet_expr *expr)
 		return -1;
 	if (expr->type != pet_expr_access)
 		return 0;
-	if (isl_map_range_is_wrapping(expr->acc.access))
+	if (isl_multi_pw_aff_range_is_wrapping(expr->acc.index))
 		return 0;
 
-	return isl_map_dim(expr->acc.access, isl_dim_out) == 0;
+	return expr->acc.depth == 0;
 }
 
 /* Are "mpa1" and "mpa2" obviously equal to each other, up to reordering
@@ -798,6 +815,66 @@ static int multi_pw_aff_is_equal(__isl_keep isl_multi_pw_aff *mpa1,
 	isl_multi_pw_aff_free(mpa2);
 
 	return equal;
+}
+
+/* Construct an access relation from the index expression and
+ * the array depth of the access expression "expr".
+ *
+ * If the number of indices is smaller than the depth of the array,
+ * then we assume that all elements of the remaining dimensions
+ * are accessed.
+ */
+static __isl_give isl_map *construct_access_relation(__isl_keep pet_expr *expr)
+{
+	isl_map *access;
+	int dim;
+	int read, write;
+
+	if (!expr)
+		return NULL;
+
+	access = isl_map_from_multi_pw_aff(pet_expr_access_get_index(expr));
+	if (!access)
+		return NULL;
+
+	dim = isl_map_dim(access, isl_dim_out);
+	if (dim > expr->acc.depth)
+		isl_die(isl_map_get_ctx(access), isl_error_internal,
+			"number of indices greater than depth",
+			access = isl_map_free(access));
+
+	if (dim != expr->acc.depth)
+		access = extend_range(access, expr->acc.depth - dim);
+
+	return access;
+}
+
+/* Ensure that "expr" has an explicit access relation.
+ *
+ * If "expr" does not already have an access relation, then create
+ * one based on the index expression and the array depth.
+ *
+ * We do not cow since adding an explicit access relation
+ * does not change the meaning of the expression.
+ */
+static __isl_give pet_expr *introduce_access_relation(
+	__isl_take pet_expr *expr)
+{
+	isl_map *access;
+	int dim;
+
+	if (!expr)
+		return NULL;
+	if (has_access_relation(expr))
+		return expr;
+
+	access = construct_access_relation(expr);
+	if (!access)
+		return pet_expr_free(expr);
+
+	expr->acc.access = access;
+
+	return expr;
 }
 
 /* Return 1 if the two pet_exprs are equivalent.
@@ -836,13 +913,25 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 			return 0;
 		if (expr1->acc.ref_id != expr2->acc.ref_id)
 			return 0;
-		if (!expr1->acc.access || !expr2->acc.access)
-			return 0;
-		if (!isl_map_is_equal(expr1->acc.access, expr2->acc.access))
-			return 0;
 		if (!expr1->acc.index || !expr2->acc.index)
 			return 0;
 		if (!multi_pw_aff_is_equal(expr1->acc.index, expr2->acc.index))
+			return 0;
+		if (expr1->acc.depth != expr2->acc.depth)
+			return 0;
+		if (has_access_relation(expr1) != has_access_relation(expr2)) {
+			int equal;
+			expr1 = pet_expr_copy(expr1);
+			expr2 = pet_expr_copy(expr2);
+			expr1 = introduce_access_relation(expr1);
+			expr2 = introduce_access_relation(expr2);
+			equal = pet_expr_is_equal(expr1, expr2);
+			pet_expr_free(expr1);
+			pet_expr_free(expr2);
+			return equal;
+		}
+		if (expr1->acc.access &&
+		    !isl_map_is_equal(expr1->acc.access, expr2->acc.access))
 			return 0;
 		break;
 	case pet_expr_op:
@@ -1102,7 +1191,7 @@ int pet_expr_writes(__isl_keep pet_expr *expr, __isl_keep isl_id *id)
 }
 
 /* Move the "n" dimensions of "src_type" starting at "src_pos" of
- * index expression and access relation of "expr"
+ * index expression and access relation of "expr" (if any)
  * to dimensions of "dst_type" at "dst_pos".
  */
 __isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,
@@ -1116,17 +1205,22 @@ __isl_give pet_expr *pet_expr_access_move_dims(__isl_take pet_expr *expr,
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access pet_expr", return pet_expr_free(expr));
 
-	expr->acc.access = isl_map_move_dims(expr->acc.access,
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_move_dims(expr->acc.access,
 				dst_type, dst_pos, src_type, src_pos, n);
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_move_dims(expr->acc.index,
 				dst_type, dst_pos, src_type, src_pos, n);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
 }
 
-/* Replace the index expression and access relation of "expr"
+/* Replace the index expression and access relation (if any) of "expr"
  * by their preimages under the function represented by "ma".
  */
 __isl_give pet_expr *pet_expr_access_pullback_multi_aff(
@@ -1139,11 +1233,16 @@ __isl_give pet_expr *pet_expr_access_pullback_multi_aff(
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access pet_expr", goto error);
 
-	expr->acc.access = isl_map_preimage_domain_multi_aff(expr->acc.access,
-						isl_multi_aff_copy(ma));
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_preimage_domain_multi_aff(
+				    expr->acc.access, isl_multi_aff_copy(ma));
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_pullback_multi_aff(expr->acc.index,
 						ma);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1153,7 +1252,7 @@ error:
 	return NULL;
 }
 
-/* Replace the index expression and access relation of "expr"
+/* Replace the index expression and access relation (if any) of "expr"
  * by their preimages under the function represented by "mpa".
  */
 __isl_give pet_expr *pet_expr_access_pullback_multi_pw_aff(
@@ -1166,11 +1265,16 @@ __isl_give pet_expr *pet_expr_access_pullback_multi_pw_aff(
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access pet_expr", goto error);
 
-	expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
 				expr->acc.access, isl_multi_pw_aff_copy(mpa));
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_pullback_multi_pw_aff(
 				expr->acc.index, mpa);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1194,7 +1298,7 @@ __isl_give isl_multi_pw_aff *pet_expr_access_get_index(
 	return isl_multi_pw_aff_copy(expr->acc.index);
 }
 
-/* Align the parameters of expr->acc.index and expr->acc.access.
+/* Align the parameters of expr->acc.index and expr->acc.access (if set).
  */
 __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 {
@@ -1204,6 +1308,9 @@ __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
+
+	if (!has_access_relation(expr))
+		return expr;
 
 	expr->acc.access = isl_map_align_params(expr->acc.access,
 				isl_multi_pw_aff_get_space(expr->acc.index));
@@ -1229,6 +1336,7 @@ int pet_expr_is_sub_access(__isl_keep pet_expr *expr1,
 {
 	isl_id *id1, *id2;
 	int i, n1, n2;
+	int is_subset;
 
 	if (!expr1 || !expr2)
 		return 0;
@@ -1263,7 +1371,23 @@ int pet_expr_is_sub_access(__isl_keep pet_expr *expr1,
 	if (id1 != id2)
 		return 0;
 
-	return isl_map_is_subset(expr1->acc.access, expr2->acc.access);
+	expr1 = pet_expr_copy(expr1);
+	expr2 = pet_expr_copy(expr2);
+	expr1 = introduce_access_relation(expr1);
+	expr2 = introduce_access_relation(expr2);
+	if (!expr1 || !expr2)
+		goto error;
+
+	is_subset = isl_map_is_subset(expr1->acc.access, expr2->acc.access);
+
+	pet_expr_free(expr1);
+	pet_expr_free(expr2);
+
+	return is_subset;
+error:
+	pet_expr_free(expr1);
+	pet_expr_free(expr2);
+	return -1;
 }
 
 /* Given a set in the iteration space "domain", extend it to live in the space
@@ -1284,7 +1408,8 @@ static __isl_give isl_set *add_arguments(__isl_take isl_set *domain, int n)
 	return isl_map_wrap(map);
 }
 
-/* Add extra conditions to the domains of all access relations in "expr".
+/* Add extra conditions to the domains of all access relations in "expr",
+ * introducing access relations if they are not already present.
  *
  * The conditions are not added to the index expression.  Instead, they
  * are used to try and simplify the index expression.
@@ -1305,24 +1430,29 @@ __isl_give pet_expr *pet_expr_restrict(__isl_take pet_expr *expr,
 			goto error;
 	}
 
-	if (expr->type == pet_expr_access) {
-		cond = add_arguments(cond, expr->n_arg);
-		expr->acc.access = isl_map_intersect_domain(expr->acc.access,
-							    isl_set_copy(cond));
-		expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index,
-							    isl_set_copy(cond));
-		if (!expr->acc.access || !expr->acc.index)
-			goto error;
+	if (expr->type != pet_expr_access) {
+		isl_set_free(cond);
+		return expr;
 	}
 
-	isl_set_free(cond);
+	expr = introduce_access_relation(expr);
+	if (!expr)
+		goto error;
+
+	cond = add_arguments(cond, expr->n_arg);
+	expr->acc.access = isl_map_intersect_domain(expr->acc.access,
+						    isl_set_copy(cond));
+	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, cond);
+	if (!expr->acc.access || !expr->acc.index)
+		return pet_expr_free(expr);
+
 	return expr;
 error:
 	isl_set_free(cond);
 	return pet_expr_free(expr);
 }
 
-/* Modify the access relation and index expression
+/* Modify the access relation (if any) and index expression
  * of the given access expression
  * based on the given iteration space transformation.
  * In particular, precompose the access relation and index expression
@@ -1359,12 +1489,17 @@ __isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 		update = isl_multi_pw_aff_product(update, id);
 	}
 
-	expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_preimage_domain_multi_pw_aff(
 					    expr->acc.access,
 					    isl_multi_pw_aff_copy(update));
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_pullback_multi_pw_aff(
 					    expr->acc.index, update);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1401,8 +1536,8 @@ __isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
 	return pet_expr_update_domain(expr, mpa);
 }
 
-/* Add all parameters in "space" to the access relation and index expression
- * of "expr".
+/* Add all parameters in "space" to the access relation (if any)
+ * and index expression of "expr".
  */
 static __isl_give pet_expr *align_params(__isl_take pet_expr *expr, void *user)
 {
@@ -1415,11 +1550,16 @@ static __isl_give pet_expr *align_params(__isl_take pet_expr *expr, void *user)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	expr->acc.access = isl_map_align_params(expr->acc.access,
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_align_params(expr->acc.access,
 						isl_space_copy(space));
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_align_params(expr->acc.index,
 						isl_space_copy(space));
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1478,7 +1618,7 @@ static __isl_give pet_expr *insert_access_arg(__isl_take pet_expr *expr,
  *
  * If "test" is an affine expression, we simply add the conditions
  * on the expression having the value "satisfied" to all access relations
- * and index expressions.
+ * (introducing access relations if they are missing) and index expressions.
  *
  * Otherwise, we add a filter to "expr" (which is then assumed to be
  * an access expression) corresponding to "test" being equal to "satisfied".
@@ -1512,6 +1652,10 @@ __isl_give pet_expr *pet_expr_filter(__isl_take pet_expr *expr,
 	if (expr->type != pet_expr_access)
 		isl_die(ctx, isl_error_invalid,
 			"can only filter access expressions", goto error);
+
+	expr = introduce_access_relation(expr);
+	if (!expr)
+		goto error;
 
 	space = isl_space_domain(isl_multi_pw_aff_get_space(expr->acc.index));
 	id = isl_multi_pw_aff_get_tuple_id(test, isl_dim_out);
@@ -1569,7 +1713,7 @@ __isl_give pet_expr *pet_expr_add_ref_ids(__isl_take pet_expr *expr, int *n_ref)
 }
 
 /* Reset the user pointer on all parameter and tuple ids in
- * the access relation and the index expressions
+ * the access relation (if any) and the index expression
  * of the access expression "expr".
  */
 static __isl_give pet_expr *access_anonymize(__isl_take pet_expr *expr,
@@ -1582,9 +1726,14 @@ static __isl_give pet_expr *access_anonymize(__isl_take pet_expr *expr,
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	expr->acc.access = isl_map_reset_user(expr->acc.access);
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_reset_user(expr->acc.access);
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_reset_user(expr->acc.index);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1603,7 +1752,7 @@ struct pet_access_gist_data {
 };
 
 /* Given an expression "expr" of type pet_expr_access, compute
- * the gist of the associated access relation and index expression
+ * the gist of the associated access relation (if any) and index expression
  * with respect to data->domain and the bounds on the values of the arguments
  * of the expression.
  *
@@ -1630,10 +1779,15 @@ static __isl_give pet_expr *access_gist(__isl_take pet_expr *expr, void *user)
 		domain = pet_value_bounds_apply(domain, expr->n_arg, expr->args,
 						data->value_bounds);
 
-	expr->acc.access = isl_map_gist_domain(expr->acc.access,
+	if (expr->acc.access) {
+		expr->acc.access = isl_map_gist_domain(expr->acc.access,
 						isl_set_copy(domain));
+		if (!expr->acc.access)
+			expr->acc.index =
+				isl_multi_pw_aff_free(expr->acc.index);
+	}
 	expr->acc.index = isl_multi_pw_aff_gist(expr->acc.index, domain);
-	if (!expr->acc.access || !expr->acc.index)
+	if (!expr->acc.index)
 		return pet_expr_free(expr);
 
 	return expr;
@@ -1708,7 +1862,8 @@ error:
 	return NULL;
 }
 
-/* Replace the index expression of "expr" by "index".
+/* Replace the index expression of "expr" by "index" and
+ * set the array depth accordingly.
  */
 __isl_give pet_expr *pet_expr_access_set_index(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *index)
@@ -1721,6 +1876,7 @@ __isl_give pet_expr *pet_expr_access_set_index(__isl_take pet_expr *expr,
 			"not an access expression", goto error);
 	isl_multi_pw_aff_free(expr->acc.index);
 	expr->acc.index = index;
+	expr->acc.depth = isl_multi_pw_aff_dim(index, isl_dim_out);
 
 	return expr;
 error:
@@ -1803,13 +1959,25 @@ __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 __isl_give isl_map *pet_expr_access_get_dependent_access(
 	__isl_keep pet_expr *expr)
 {
+	isl_map *access;
+
 	if (!expr)
 		return NULL;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return NULL);
 
-	return isl_map_copy(expr->acc.access);
+	if (expr->acc.access)
+		return isl_map_copy(expr->acc.access);
+
+	expr = pet_expr_copy(expr);
+	expr = introduce_access_relation(expr);
+	if (!expr)
+		return NULL;
+	access = isl_map_copy(expr->acc.access);
+	pet_expr_free(expr);
+
+	return access;
 }
 
 /* Return the relation mapping domain iterations to all possibly
@@ -2843,13 +3011,17 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 			isl_id_dump(expr->acc.ref_id);
 			fprintf(stderr, "%*s", indent, "");
 		}
-		isl_map_dump(expr->acc.access);
-		fprintf(stderr, "%*s", indent, "");
 		isl_multi_pw_aff_dump(expr->acc.index);
+		fprintf(stderr, "%*sdepth: %d\n", indent + 2,
+				"", expr->acc.depth);
 		fprintf(stderr, "%*sread: %d\n", indent + 2,
 				"", expr->acc.read);
 		fprintf(stderr, "%*swrite: %d\n", indent + 2,
 				"", expr->acc.write);
+		if (expr->acc.access) {
+			fprintf(stderr, "%*saccess: ", indent + 2, "");
+			isl_map_dump(expr->acc.access);
+		}
 		for (i = 0; i < expr->n_arg; ++i)
 			pet_expr_dump_with_indent(expr->args[i], indent + 2);
 		break;

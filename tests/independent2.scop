@@ -23,14 +23,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        relation: '[n] -> { [S_0[i, j] -> [i2]] -> B[i2, j] : i2 >= 0 }'
         index: '[n] -> { [S_0[i, j] -> [i2]] -> B[((i2) : i2 >= 0), (j)] }'
         reference: __pet_ref_1
         read: 0
         write: 1
         arguments:
         - type: access
-          relation: '[n] -> { S_0[i, j] -> A[i] }'
           index: '[n] -> { S_0[i, j] -> A[(i)] }'
           reference: __pet_ref_0
           read: 1
@@ -39,13 +37,11 @@ statements:
         operation: +
         arguments:
         - type: access
-          relation: '[n] -> { S_0[i, j] -> [i] }'
           index: '[n] -> { S_0[i, j] -> [(i)] }'
           reference: __pet_ref_2
           read: 1
           write: 0
         - type: access
-          relation: '[n] -> { S_0[i, j] -> [j] }'
           index: '[n] -> { S_0[i, j] -> [(j)] }'
           reference: __pet_ref_3
           read: 1
