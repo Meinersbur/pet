@@ -70,6 +70,8 @@ libpet_la_SOURCES = \
 	skip.h \
 	skip.c \
 	state.h \
+	summary.h \
+	summary.c \
 	value_bounds.h \
 	value_bounds.c \
 	version.h \
