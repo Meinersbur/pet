@@ -137,6 +137,8 @@ __isl_give isl_space *pet_expr_access_get_domain_space(
 	__isl_keep pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr);
 
+__isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr);
+
 __isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);
@@ -175,8 +177,8 @@ __isl_give pet_expr *pet_expr_anonymize(__isl_take pet_expr *expr);
 __isl_give pet_expr *pet_expr_gist(__isl_take pet_expr *expr,
 	__isl_keep isl_set *context, __isl_keep isl_union_map *value_bounds);
 
-__isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
-	__isl_take isl_map *access);
+__isl_give isl_union_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
+	__isl_take isl_union_map *access);
 
 __isl_give pet_expr *pet_expr_access_subscript(__isl_take pet_expr *base,
 	__isl_take pet_expr *index);

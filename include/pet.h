@@ -185,14 +185,28 @@ __isl_give isl_multi_pw_aff *pet_expr_access_get_index(
 	__isl_keep pet_expr *expr);
 
 /* Return the potential read access relation of access expression "expr". */
-__isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr);
-/* Return the definite access relation of access expression "expr". */
-__isl_give isl_map *pet_expr_access_get_must_access(__isl_keep pet_expr *expr);
-/* Return the argument dependent access relation of access expression "expr". */
-__isl_give isl_map *pet_expr_access_get_dependent_access(
+__isl_give isl_union_map *pet_expr_access_get_may_read(
+	__isl_keep pet_expr *expr);
+/* Return the potential write access relation of access expression "expr". */
+__isl_give isl_union_map *pet_expr_access_get_may_write(
+	__isl_keep pet_expr *expr);
+/* Return the definite write access relation of access expression "expr". */
+__isl_give isl_union_map *pet_expr_access_get_must_write(
+	__isl_keep pet_expr *expr);
+/* Return the argument dependent potential read access relation of "expr". */
+__isl_give isl_union_map *pet_expr_access_get_dependent_may_read(
+	__isl_keep pet_expr *expr);
+/* Return the argument dependent potential write access relation of "expr". */
+__isl_give isl_union_map *pet_expr_access_get_dependent_may_write(
+	__isl_keep pet_expr *expr);
+/* Return the argument dependent definite write access relation of "expr". */
+__isl_give isl_union_map *pet_expr_access_get_dependent_must_write(
 	__isl_keep pet_expr *expr);
 /* Return the tagged potential read access relation of access "expr". */
-__isl_give isl_map *pet_expr_access_get_tagged_may_access(
+__isl_give isl_union_map *pet_expr_access_get_tagged_may_read(
+	__isl_keep pet_expr *expr);
+/* Return the tagged potential write access relation of access "expr". */
+__isl_give isl_union_map *pet_expr_access_get_tagged_may_write(
 	__isl_keep pet_expr *expr);
 
 /* Return the name of the function called by "expr". */

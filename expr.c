@@ -1931,8 +1931,8 @@ error:
  *
  *	[D[i] -> id[]] -> A[a]
  */
-__isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
-	__isl_take isl_map *access)
+__isl_give isl_union_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
+	__isl_take isl_union_map *access)
 {
 	isl_space *space;
 	isl_multi_aff *add_tag;
@@ -1941,14 +1941,14 @@ __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression",
-			return isl_map_free(access));
+			return isl_union_map_free(access));
 
 	id = isl_id_copy(expr->acc.ref_id);
 	space = pet_expr_access_get_domain_space(expr);
 	space = isl_space_from_domain(space);
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 	add_tag = isl_multi_aff_domain_map(space);
-	access = isl_map_preimage_domain_multi_aff(access, add_tag);
+	access = isl_union_map_preimage_domain_multi_aff(access, add_tag);
 
 	return access;
 }
@@ -1956,7 +1956,7 @@ __isl_give isl_map *pet_expr_tag_access(__isl_keep pet_expr *expr,
 /* Return the relation mapping pairs of domain iterations and argument
  * values to the corresponding accessed data elements.
  */
-__isl_give isl_map *pet_expr_access_get_dependent_access(
+static __isl_give isl_map *pet_expr_access_get_dependent_access(
 	__isl_keep pet_expr *expr)
 {
 	isl_map *access;
@@ -1978,6 +1978,76 @@ __isl_give isl_map *pet_expr_access_get_dependent_access(
 	pet_expr_free(expr);
 
 	return access;
+}
+
+/* Return an empty access relation for access expression "expr".
+ */
+static __isl_give isl_union_map *empty_access_relation(
+	__isl_keep pet_expr *expr)
+{
+	return isl_union_map_empty(pet_expr_access_get_parameter_space(expr));
+}
+
+/* Return the may read access relation associated to "expr"
+ * that maps pairs of domain iterations and argument values
+ * to the corresponding accessed data elements.
+ *
+ * Since the accesses are currently represented by a single access relation,
+ * we return the entire access relation if "expr" is a read and
+ * an empty relation if it is not.
+ */
+__isl_give isl_union_map *pet_expr_access_get_dependent_may_read(
+	__isl_keep pet_expr *expr)
+{
+	isl_map *access;
+
+	if (!expr)
+		return NULL;
+	if (!pet_expr_access_is_read(expr))
+		return empty_access_relation(expr);
+	access = pet_expr_access_get_dependent_access(expr);
+	return isl_union_map_from_map(access);
+}
+
+/* Return the may write access relation associated to "expr"
+ * that maps pairs of domain iterations and argument values
+ * to the corresponding accessed data elements.
+ *
+ * Since the accesses are currently represented by a single access relation,
+ * we return the entire access relation if "expr" is a write and
+ * an empty relation if it is not.
+ */
+__isl_give isl_union_map *pet_expr_access_get_dependent_may_write(
+	__isl_keep pet_expr *expr)
+{
+	isl_map *access;
+
+	if (!expr)
+		return NULL;
+	if (!pet_expr_access_is_write(expr))
+		return empty_access_relation(expr);
+	access = pet_expr_access_get_dependent_access(expr);
+	return isl_union_map_from_map(access);
+}
+
+/* Return the must write access relation associated to "expr"
+ * that maps pairs of domain iterations and argument values
+ * to the corresponding accessed data elements.
+ *
+ * Since the accesses are currently represented by a single access relation,
+ * we return the entire access relation when "expr" is a write.
+ */
+__isl_give isl_union_map *pet_expr_access_get_dependent_must_write(
+	__isl_keep pet_expr *expr)
+{
+	isl_map *access;
+
+	if (!expr)
+		return NULL;
+	if (!pet_expr_access_is_write(expr))
+		return empty_access_relation(expr);
+	access = pet_expr_access_get_dependent_access(expr);
+	return isl_union_map_from_map(access);
 }
 
 /* Return the relation mapping domain iterations to all possibly
@@ -2009,6 +2079,40 @@ __isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr)
 	return access;
 }
 
+/* Return the relation mapping domain iterations to all possibly
+ * read data elements.
+ *
+ * Since the accesses are currently represented by a single access relation,
+ * we return the may access relation if "expr" is a read and
+ * an empty relation if it is not.
+ */
+__isl_give isl_union_map *pet_expr_access_get_may_read(
+	__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (!pet_expr_access_is_read(expr))
+		return empty_access_relation(expr);
+	return isl_union_map_from_map(pet_expr_access_get_may_access(expr));
+}
+
+/* Return the relation mapping domain iterations to all possibly
+ * written data elements.
+ *
+ * Since the accesses are currently represented by a single access relation,
+ * we return the may access relation if "expr" is a write and
+ * an empty relation if it is not.
+ */
+__isl_give isl_union_map *pet_expr_access_get_may_write(
+	__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (!pet_expr_access_is_write(expr))
+		return empty_access_relation(expr);
+	return isl_union_map_from_map(pet_expr_access_get_may_access(expr));
+}
+
 /* Return a relation mapping domain iterations to definitely
  * accessed data elements, assuming the statement containing
  * the expression is executed.
@@ -2016,7 +2120,8 @@ __isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr)
  * If there are no arguments, then all elements are accessed.
  * Otherwise, we conservatively return an empty relation.
  */
-__isl_give isl_map *pet_expr_access_get_must_access(__isl_keep pet_expr *expr)
+static __isl_give isl_map *pet_expr_access_get_must_access(
+	__isl_keep pet_expr *expr)
 {
 	isl_space *space;
 
@@ -2035,19 +2140,55 @@ __isl_give isl_map *pet_expr_access_get_must_access(__isl_keep pet_expr *expr)
 	return isl_map_empty(space);
 }
 
-/* Return the relation mapping domain iterations to all possibly
- * accessed data elements, with its domain tagged with the reference
- * identifier.
+/* Return a relation mapping domain iterations to definitely
+ * written data elements, assuming the statement containing
+ * the expression is executed.
+ *
+ * Since the accesses are currently represented by a single access relation,
+ * we return the must access relation if "expr" is a write and
+ * an empty relation if it is not.
  */
-__isl_give isl_map *pet_expr_access_get_tagged_may_access(
+__isl_give isl_union_map *pet_expr_access_get_must_write(
 	__isl_keep pet_expr *expr)
 {
-	isl_map *access;
+	if (!expr)
+		return NULL;
+	if (!pet_expr_access_is_write(expr))
+		return empty_access_relation(expr);
+	return isl_union_map_from_map(pet_expr_access_get_must_access(expr));
+}
+
+/* Return the relation mapping domain iterations to all possibly
+ * read data elements, with its domain tagged with the reference
+ * identifier.
+ */
+__isl_give isl_union_map *pet_expr_access_get_tagged_may_read(
+	__isl_keep pet_expr *expr)
+{
+	isl_union_map *access;
 
 	if (!expr)
 		return NULL;
 
-	access = pet_expr_access_get_may_access(expr);
+	access = pet_expr_access_get_may_read(expr);
+	access = pet_expr_tag_access(expr, access);
+
+	return access;
+}
+
+/* Return the relation mapping domain iterations to all possibly
+ * written data elements, with its domain tagged with the reference
+ * identifier.
+ */
+__isl_give isl_union_map *pet_expr_access_get_tagged_may_write(
+	__isl_keep pet_expr *expr)
+{
+	isl_union_map *access;
+
+	if (!expr)
+		return NULL;
+
+	access = pet_expr_access_get_may_write(expr);
 	access = pet_expr_tag_access(expr, access);
 
 	return access;

@@ -2352,12 +2352,14 @@ static __isl_give isl_union_map *expr_collect_access(__isl_keep pet_expr *expr,
 	int tag, __isl_take isl_union_map *accesses, __isl_keep isl_set *domain)
 {
 	isl_map *access;
+	isl_union_map *umap;
 
 	access = pet_expr_access_get_may_access(expr);
 	access = isl_map_intersect_domain(access, isl_set_copy(domain));
+	umap = isl_union_map_from_map(access);
 	if (tag)
-		access = pet_expr_tag_access(expr, access);
-	return isl_union_map_add_map(accesses, access);
+		umap = pet_expr_tag_access(expr, umap);
+	return isl_union_map_union(accesses, umap);
 }
 
 /* Internal data structure for expr_collect_accesses.
