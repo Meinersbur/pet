@@ -2002,10 +2002,14 @@ static enum pet_expr_access_type internalize_type(
 }
 
 /* Replace the access relation of the given "type" of "expr" by "access".
+ * If the access relation is non-empty and the type is a read or a write,
+ * then also mark the access expression itself as a read or a write.
  */
 __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
 	enum pet_expr_access_type type, __isl_take isl_union_map *access)
 {
+	int empty;
+
 	expr = pet_expr_cow(expr);
 	if (!expr || !access)
 		goto error;
@@ -2015,6 +2019,20 @@ __isl_give pet_expr *pet_expr_access_set_access(__isl_take pet_expr *expr,
 	type = internalize_type(type);
 	isl_union_map_free(expr->acc.access[type]);
 	expr->acc.access[type] = access;
+
+	if (expr->acc.kill)
+		return expr;
+
+	empty = isl_union_map_is_empty(access);
+	if (empty < 0)
+		return pet_expr_free(expr);
+	if (empty)
+		return expr;
+
+	if (type == pet_expr_access_may_read)
+		expr = pet_expr_access_set_read(expr, 1);
+	else
+		expr = pet_expr_access_set_write(expr, 1);
 
 	return expr;
 error:
