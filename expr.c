@@ -515,6 +515,9 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 		break;
 	case pet_expr_call:
 		dup = pet_expr_call_set_name(dup, expr->c.name);
+		if (expr->c.summary)
+			dup = pet_expr_call_set_summary(dup,
+				    pet_function_summary_copy(expr->c.summary));
 		break;
 	case pet_expr_cast:
 		dup = pet_expr_cast_set_type_name(dup, expr->type_name);
@@ -571,6 +574,7 @@ __isl_null pet_expr *pet_expr_free(__isl_take pet_expr *expr)
 		break;
 	case pet_expr_call:
 		free(expr->c.name);
+		pet_function_summary_free(expr->c.summary);
 		break;
 	case pet_expr_cast:
 		free(expr->type_name);
@@ -2381,6 +2385,54 @@ __isl_give pet_expr *pet_expr_call_set_name(__isl_take pet_expr *expr,
 	return expr;
 }
 
+/* Does the call expression "expr" have an associated function summary?
+ */
+int pet_expr_call_has_summary(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_call)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a call expression", return -1);
+
+	return expr->c.summary != NULL;
+}
+
+/* Return a copy of the function summary associated to
+ * the call expression "expr".
+ */
+__isl_give pet_function_summary *pet_expr_call_get_summary(
+	__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return NULL;
+	if (expr->type != pet_expr_call)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a call expression", return NULL);
+
+	return pet_function_summary_copy(expr->c.summary);
+}
+
+/* Replace the function summary associated to the call expression "expr"
+ * by "summary".
+ */
+__isl_give pet_expr *pet_expr_call_set_summary(__isl_take pet_expr *expr,
+	__isl_take pet_function_summary *summary)
+{
+	expr = pet_expr_cow(expr);
+	if (!expr || !summary)
+		goto error;
+	if (expr->type != pet_expr_call)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not a call expression", goto error);
+	pet_function_summary_free(expr->c.summary);
+	expr->c.summary = summary;
+	return expr;
+error:
+	pet_function_summary_free(summary);
+	return pet_expr_free(expr);
+}
+
 /* Replace the type of the cast performed by "expr" by "name".
  */
 __isl_give pet_expr *pet_expr_cast_set_type_name(__isl_take pet_expr *expr,
@@ -3313,6 +3365,12 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 		fprintf(stderr, "%s/%d\n", expr->c.name, expr->n_arg);
 		for (i = 0; i < expr->n_arg; ++i)
 			pet_expr_dump_with_indent(expr->args[i], indent + 2);
+		if (expr->c.summary) {
+			fprintf(stderr, "%*s", indent, "");
+			fprintf(stderr, "summary:\n");
+			pet_function_summary_dump_with_indent(expr->c.summary,
+								indent + 2);
+		}
 		break;
 	case pet_expr_cast:
 		fprintf(stderr, "(%s)\n", expr->type_name);

@@ -5,6 +5,7 @@
 
 #include "context.h"
 #include "expr_access_type.h"
+#include "summary.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -67,6 +68,10 @@ extern "C" {
  * Since a kill can never be a read (or a write), the killed access
  * relation is stored in the same location as the may read access relation.
  *
+ * A function call is represented by the name of the called function and
+ * an optional function summary (the value NULL indicating that there is
+ * no function summary).
+ *
  * A double is represented as both an (approximate) value "val" and
  * a string representation "s".
  */
@@ -94,6 +99,7 @@ struct pet_expr {
 		enum pet_op_type op;
 		struct {
 			char *name;
+			pet_function_summary *summary;
 		} c;
 		char *type_name;
 		struct {
@@ -198,6 +204,12 @@ __isl_give pet_expr *pet_expr_access_subscript(__isl_take pet_expr *base,
 	__isl_take pet_expr *index);
 __isl_give pet_expr *pet_expr_access_member(__isl_take pet_expr *base,
 	__isl_take isl_id *member);
+
+int pet_expr_call_has_summary(__isl_keep pet_expr *expr);
+__isl_give pet_function_summary *pet_expr_call_get_summary(
+	__isl_keep pet_expr *expr);
+__isl_give pet_expr *pet_expr_call_set_summary(__isl_take pet_expr *expr,
+	__isl_take pet_function_summary *summary);
 
 int pet_expr_get_type_size(__isl_keep pet_expr *expr);
 __isl_give pet_expr *pet_expr_set_type_size(__isl_take pet_expr *expr,
