@@ -93,6 +93,7 @@ pet_scop_cmp_CFLAGS = $(AM_CFLAGS) @LIBYAML_CPPFLAGS@
 pet_scop_cmp_LDFLAGS = @LIBYAML_LDFLAGS@
 pet_scop_cmp_LDADD = libpet.la $(LIB_ISL) -lyaml
 pet_scop_cmp_SOURCES = \
+	dummy.cc \
 	scop_yaml.h \
 	parse.c \
 	pet_scop_cmp.c
@@ -101,6 +102,7 @@ pet_codegen_CFLAGS = $(AM_CFLAGS)
 pet_codegen_LDFLAGS =
 pet_codegen_LDADD = libpet.la $(LIB_ISL)
 pet_codegen_SOURCES = \
+	dummy.cc \
 	pet_codegen.c
 
 pet_check_code_CFLAGS = $(AM_CFLAGS)
