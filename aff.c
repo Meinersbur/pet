@@ -34,6 +34,64 @@
 
 #include "aff.h"
 
+/* Internal data structure for pet_union_map_move_dims.
+ *
+ * dst_type, dst_pos, src_type, src_pos and n are the arguments
+ * to the isl_map_move_dims calls
+ * res collects the results.
+ */
+struct pet_union_map_move_dims_data {
+	enum isl_dim_type dst_type;
+	unsigned dst_pos;
+	enum isl_dim_type src_type;
+	unsigned src_pos;
+	unsigned n;
+
+	isl_union_map *res;
+};
+
+/* Call isl_map_move_dims on "map" using the arguments in "data" and
+ * add the result to data->res.
+ */
+static int map_move_dims(__isl_take isl_map *map, void *user)
+{
+	struct pet_union_map_move_dims_data *data = user;
+
+	map = isl_map_move_dims(map, data->dst_type, data->dst_pos,
+				data->src_type, data->src_pos, data->n);
+	data->res = isl_union_map_add_map(data->res, map);
+
+	return 0;
+}
+
+/* Call isl_map_move_dims with the given arguments on each of the maps
+ * in "umap" and return the union of the results.
+ *
+ * This function can only meaningfully be called on a union map
+ * where all maps have the same space for both dst_type and src_type.
+ * One of these should then be isl_dim_param as otherwise the union map
+ * could only contain a single map.
+ */
+__isl_give isl_union_map *pet_union_map_move_dims(
+	__isl_take isl_union_map *umap,
+	enum isl_dim_type dst_type, unsigned dst_pos,
+	enum isl_dim_type src_type, unsigned src_pos, unsigned n)
+{
+	isl_space *space;
+	struct pet_union_map_move_dims_data data =
+		{ dst_type, dst_pos, src_type, src_pos, n };
+
+	space = isl_union_map_get_space(umap);
+	if (src_type == isl_dim_param)
+		space = isl_space_drop_dims(space, src_type, src_pos, n);
+	data.res = isl_union_map_empty(space);
+	if (isl_union_map_foreach_map(umap, &map_move_dims, &data) < 0)
+		data.res = isl_union_map_free(data.res);
+
+	isl_union_map_free(umap);
+	return data.res;
+}
+
 /* Return a function that projects "space" onto its first "n" dimensions,
  * with anonymous target space.
  */
