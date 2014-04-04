@@ -1539,7 +1539,7 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 /* Try and construct a pet_tree corresponding to (part of)
  * a sequence of statements.
  *
- * "block" is set if the sequence respresents the children of
+ * "block" is set if the sequence represents the children of
  * a compound statement.
  * "skip_declarations" is set if we should skip initial declarations
  * in the sequence of statements.
