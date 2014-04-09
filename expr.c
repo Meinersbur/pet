@@ -1299,8 +1299,6 @@ error:
 __isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 	__isl_keep isl_multi_pw_aff *update)
 {
-	isl_space *space;
-
 	expr = pet_expr_cow(expr);
 	if (!expr)
 		return NULL;
@@ -1310,12 +1308,12 @@ __isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 
 	update = isl_multi_pw_aff_copy(update);
 
-	space = isl_map_get_space(expr->acc.access);
-	space = isl_space_domain(space);
-	if (!isl_space_is_wrapping(space))
-		isl_space_free(space);
-	else {
+	if (expr->n_arg > 0) {
+		isl_space *space;
 		isl_multi_pw_aff *id;
+
+		space = isl_map_get_space(expr->acc.access);
+		space = isl_space_domain(space);
 		space = isl_space_unwrap(space);
 		space = isl_space_range(space);
 		space = isl_space_map_from_set(space);
