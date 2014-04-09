@@ -1312,7 +1312,7 @@ __isl_give pet_expr *pet_expr_access_update_domain(__isl_take pet_expr *expr,
 		isl_space *space;
 		isl_multi_pw_aff *id;
 
-		space = isl_map_get_space(expr->acc.access);
+		space = isl_multi_pw_aff_get_space(expr->acc.index);
 		space = isl_space_domain(space);
 		space = isl_space_unwrap(space);
 		space = isl_space_range(space);
