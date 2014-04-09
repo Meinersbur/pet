@@ -301,6 +301,18 @@ struct pet_scop *pet_scop_empty(__isl_take isl_space *space)
 	return scop_alloc(space, 0);
 }
 
+/* Given either an iteration domain or a wrapped map with
+ * the iteration domain in the domain and some arguments
+ * in the range, return the iteration domain.
+ * That is, drop the arguments if there are any.
+ */
+static __isl_give isl_set *drop_arguments(__isl_take isl_set *domain)
+{
+	if (isl_set_is_wrapping(domain))
+		domain = isl_map_domain(isl_set_unwrap(domain));
+	return domain;
+}
+
 /* Return the constraints on the iteration domain in the access relation
  * "access".
  * If the corresponding access expression has arguments then the domain
@@ -309,13 +321,7 @@ struct pet_scop *pet_scop_empty(__isl_take isl_space *space)
  */
 static __isl_give isl_set *access_domain(__isl_take isl_map *access)
 {
-	isl_set *domain;
-
-	domain = isl_map_domain(access);
-	if (isl_set_is_wrapping(domain))
-		domain = isl_map_domain(isl_set_unwrap(domain));
-
-	return domain;
+	return drop_arguments(isl_map_domain(access));
 }
 
 /* Update "context" with the constraints imposed on the outer iteration
@@ -2447,9 +2453,7 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 	if (must && pet_tree_get_type(stmt->body) != pet_tree_expr)
 		return data.accesses;
 
-	data.domain = isl_set_copy(stmt->domain);
-	if (isl_set_is_wrapping(data.domain))
-		data.domain = isl_map_domain(isl_set_unwrap(data.domain));
+	data.domain = drop_arguments(isl_set_copy(stmt->domain));
 
 	if (kill) {
 		pet_expr *body, *arg;
