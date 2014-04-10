@@ -682,7 +682,8 @@ struct PetASTConsumer : public ASTConsumer {
 	}
 };
 
-static const char *ResourceDir = CLANG_PREFIX"/lib/clang/"CLANG_VERSION_STRING;
+static const char *ResourceDir =
+	CLANG_PREFIX "/lib/clang/" CLANG_VERSION_STRING;
 
 static const char *implicit_functions[] = {
 	"min", "max", "intMod", "intCeil", "intFloor", "ceild", "floord"
