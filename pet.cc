@@ -847,6 +847,22 @@ static void create_diagnostics(CompilerInstance *Clang)
 
 #endif
 
+#ifdef CREATEPREPROCESSOR_TAKES_TUKIND
+
+static void create_preprocessor(CompilerInstance *Clang)
+{
+	Clang->createPreprocessor(TU_Complete);
+}
+
+#else
+
+static void create_preprocessor(CompilerInstance *Clang)
+{
+	Clang->createPreprocessor();
+}
+
+#endif
+
 #ifdef ADDPATH_TAKES_4_ARGUMENTS
 
 void add_path(HeaderSearchOptions &HSO, string Path)
@@ -914,7 +930,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
 	for (int i = 0; i < options->n_define; ++i)
 		PO.addMacroDef(options->defines[i]);
-	Clang->createPreprocessor();
+	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 	add_predefines(PP);
 
