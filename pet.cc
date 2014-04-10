@@ -38,6 +38,7 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#include <llvm/ADT/OwningPtr.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/Host.h>
