@@ -126,7 +126,6 @@ struct pet_stmt *pet_stmt_from_pet_tree(__isl_take isl_set *domain,
 	return stmt;
 error:
 	isl_set_free(domain);
-	isl_id_free(label);
 	pet_tree_free(tree);
 	return NULL;
 }
