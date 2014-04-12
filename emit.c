@@ -469,6 +469,31 @@ static int emit_expr_type(yaml_emitter_t *emitter, enum pet_expr_type type)
 	return 0;
 }
 
+/* Print the fields of the access expression "expr" to "emitter".
+ */
+static int emit_access_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
+{
+	if (emit_string(emitter, "relation") < 0)
+		return -1;
+	if (emit_map(emitter, expr->acc.access) < 0)
+		return -1;
+	if (emit_named_multi_pw_aff(emitter, "index", expr->acc.index) < 0)
+		return -1;
+	if (expr->acc.ref_id &&
+	    emit_named_id(emitter, "reference", expr->acc.ref_id) < 0)
+		return -1;
+	if (emit_string(emitter, "read") < 0)
+		return -1;
+	if (emit_int(emitter, expr->acc.read) < 0)
+		return -1;
+	if (emit_string(emitter, "write") < 0)
+		return -1;
+	if (emit_int(emitter, expr->acc.write) < 0)
+		return -1;
+
+	return 0;
+}
+
 static int emit_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 {
 	yaml_event_t event;
@@ -502,23 +527,7 @@ static int emit_expr(yaml_emitter_t *emitter, __isl_keep pet_expr *expr)
 			return -1;
 		break;
 	case pet_expr_access:
-		if (emit_string(emitter, "relation") < 0)
-			return -1;
-		if (emit_map(emitter, expr->acc.access) < 0)
-			return -1;
-		if (emit_named_multi_pw_aff(emitter,
-					    "index", expr->acc.index) < 0)
-			return -1;
-		if (expr->acc.ref_id &&
-		    emit_named_id(emitter, "reference", expr->acc.ref_id) < 0)
-			return -1;
-		if (emit_string(emitter, "read") < 0)
-			return -1;
-		if (emit_int(emitter, expr->acc.read) < 0)
-			return -1;
-		if (emit_string(emitter, "write") < 0)
-			return -1;
-		if (emit_int(emitter, expr->acc.write) < 0)
+		if (emit_access_expr(emitter, expr) < 0)
 			return -1;
 		break;
 	case pet_expr_op:
