@@ -7,10 +7,13 @@ Requirements:
 	(only needed if you want to compile the pet executable)
 - LLVM/clang libraries, 2.9 or higher (http://clang.llvm.org/get_started.html)
 	Unless you have some other reasons for wanting to use the svn version,
-	it's best to install the latest release (3.3).
+	it's best to install the latest release (3.4).
 	The svn version occasionally introduces incompatibilities.
 	Nevertheless, if you encounter any such incompatibilities, please
 	report them so that they can be fixed.
+	However, development versions from before the latest release
+	are not supported.
+
 	Also, if you are following the instructions on how to build
 	the svn version, make sure you also install LLVM
 	(through "make install").  You may want to specify an installation
@@ -23,8 +26,9 @@ Requirements:
 	You will then have to add this option manually to CXXFLAGS while
 	configuring pet.
 
-	The ubuntu package libclang-dev (3.0-3) is not sufficient as it does
-	not contain the required libraries.
+	If you want to use the ubuntu package libclang-dev, then you need
+	version 3.2 (ubuntu raring) or later.
+	Older versions of this package did not include the required libraries.
 
 Preparing:
 
