@@ -1,3 +1,18 @@
+version: 0.05
+date: Mon Apr 14 11:14:39 CEST 2014
+changes:
+	- support recent clangs
+	- support more types of operations in statements
+	- add printing of (transformed) statement bodies
+	- add reference identifiers
+	- keep track of index expressions
+	- support multiple scops
+	- support member accesses
+	- improved support for autodetecting scops
+	- support macro statements
+	- support enum constants
+	- support pencil independent pragma
+---
 version: 0.04
 date: Wed Jun 26 10:25:53 CEST 2013
 changes:
