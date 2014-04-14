@@ -1823,7 +1823,7 @@ __isl_give isl_map *pet_expr_access_get_must_access(__isl_keep pet_expr *expr)
 	if (expr->n_arg == 0)
 		return pet_expr_access_get_dependent_access(expr);
 
-	space = isl_map_get_space(expr->acc.access);
+	space = isl_multi_pw_aff_get_space(expr->acc.index);
 	space = isl_space_domain_factor_domain(space);
 
 	return isl_map_empty(space);
