@@ -1516,7 +1516,7 @@ static __isl_give pet_expr *access_add_ref_id(__isl_take pet_expr *expr,
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	ctx = isl_map_get_ctx(expr->acc.access);
+	ctx = pet_expr_get_ctx(expr);
 	snprintf(name, sizeof(name), "__pet_ref_%d", (*n_ref)++);
 	expr->acc.ref_id = isl_id_alloc(ctx, name, NULL);
 	if (!expr->acc.ref_id)
