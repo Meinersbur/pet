@@ -56,6 +56,13 @@ extern "C" {
  * the set of integers.  That is, the access represents a value that
  * is equal to the index.
  *
+ * An access expresssion is marked "read" if it represents a read and
+ * marked "write" if it represents a write.  A single access expression
+ * may be marked both read and write.
+ * It may also be marked neither read or write, in which case it
+ * is the argument of a kill operation and represents the set of
+ * killed array elements.
+ *
  * A double is represented as both an (approximate) value "val" and
  * a string representation "s".
  */
