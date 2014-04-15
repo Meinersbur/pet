@@ -104,8 +104,6 @@ enum pet_expr_type pet_str_type(const char *str);
 enum pet_op_type pet_str_op(const char *str);
 
 __isl_give pet_expr *pet_expr_alloc(isl_ctx *ctx, enum pet_expr_type type);
-__isl_give pet_expr *pet_expr_from_access_and_index(__isl_take isl_map *access,
-	__isl_take isl_multi_pw_aff *index);
 __isl_give pet_expr *pet_expr_kill_from_access_and_index(
 	__isl_take isl_map *access, __isl_take isl_multi_pw_aff *index);
 __isl_give pet_expr *pet_expr_new_unary(enum pet_op_type op,

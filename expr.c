@@ -176,21 +176,6 @@ error:
 	return NULL;
 }
 
-/* Construct an access pet_expr from an access relation and an index expression.
- * By default, it is considered to be a read access.
- */
-__isl_give pet_expr *pet_expr_from_access_and_index(__isl_take isl_map *access,
-	__isl_take isl_multi_pw_aff *index)
-{
-	int depth;
-	pet_expr *expr;
-
-	expr = pet_expr_from_index(index);
-	depth = isl_map_dim(access, isl_dim_out);
-	expr = pet_expr_access_set_depth(expr, depth);
-	return pet_expr_access_set_access(expr, access);
-}
-
 /* Extend the range of "access" with "n" dimensions, retaining
  * the tuple identifier on this range.
  *
@@ -268,14 +253,18 @@ __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_kill_from_access_and_index(
 	__isl_take isl_map *access, __isl_take isl_multi_pw_aff *index)
 {
+	int depth;
 	pet_expr *expr;
 
 	if (!access || !index)
 		goto error;
 
-	expr = pet_expr_from_access_and_index(access, index);
+	expr = pet_expr_from_index(index);
 	expr = pet_expr_access_set_read(expr, 0);
 	expr = pet_expr_access_set_kill(expr, 1);
+	depth = isl_map_dim(access, isl_dim_out);
+	expr = pet_expr_access_set_depth(expr, depth);
+	expr = pet_expr_access_set_access(expr, access);
 	return pet_expr_new_unary(pet_op_kill, expr);
 error:
 	isl_map_free(access);
