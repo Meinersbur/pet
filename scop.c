@@ -38,6 +38,7 @@
 
 #include "aff.h"
 #include "expr.h"
+#include "expr_access_type.h"
 #include "filter.h"
 #include "loc.h"
 #include "nest.h"
@@ -2364,18 +2365,14 @@ static __isl_give isl_union_map *expr_collect_access(__isl_keep pet_expr *expr,
 
 /* Internal data structure for expr_collect_accesses.
  *
- * "read" is set if we want to collect read accesses.
- * "write" is set if we want to collect write accesses.
- * "must" is set if we only want definite accesses.
+ * "type" is the type of accesses we want to collect.
  * "tag" is set if the access relations should be tagged with
  * the corresponding reference identifiers.
  * "domain" are constraints on the domain of the access relations.
  * "accesses" collects the results.
  */
 struct pet_expr_collect_accesses_data {
-	int read;
-	int write;
-	int must;
+	enum pet_expr_access_type type;
 	int tag;
 	isl_set *domain;
 
@@ -2383,17 +2380,18 @@ struct pet_expr_collect_accesses_data {
 };
 
 /* Add the access relation of the access expression "expr"
- * to data->accesses if the access expression is a read and data->read is set
- * and/or it is a write and data->write is set.
+ * to data->accesses if the access expression is a read and we are collecting
+ * reads and/or it is a write and we are collecting writes.
  * The domains of the access relations are intersected with data->domain.
  * If data->tag is set, then the access relations are tagged with
  * the corresponding reference identifiers.
  *
- * If data->must is set, then we only add the accesses that are definitely
- * performed.  Otherwise, we add all potential accesses.
- * In particular, if the access has any arguments, then if data->must is
- * set we currently skip the access completely.  If data->must is not set,
- * we project out the values of the access arguments.
+ * If data->type is pet_expr_access_must_write, then we only add
+ * the accesses that are definitely performed.  Otherwise, we add
+ * all potential accesses.
+ * In particular, if the access has any arguments, then in case of
+ * pet_expr_access_must_write we currently skip the access completely.
+ * In other cases, we project out the values of the access arguments.
  */
 static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 {
@@ -2407,42 +2405,51 @@ static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 
 	if (pet_expr_is_affine(expr))
 		return 0;
-	if (data->must && expr->n_arg != 0)
+	if (data->type == pet_expr_access_must_write && expr->n_arg != 0)
 		return 0;
 
-	if ((data->read && expr->acc.read) || (data->write && expr->acc.write))
+	if ((data->type == pet_expr_access_may_read && expr->acc.read) ||
+	    ((data->type == pet_expr_access_may_write ||
+	      data->type == pet_expr_access_must_write) && expr->acc.write))
 		data->accesses = expr_collect_access(expr, data->tag,
 						data->accesses, data->domain);
 
 	return data->accesses ? 0 : -1;
 }
 
-/* Collect and return all read access relations (if "read" is set)
- * and/or all write access relations (if "write" is set) in "stmt".
+/* Collect and return all access relations of the given "type" in "stmt".
  * If "tag" is set, then the access relations are tagged with
  * the corresponding reference identifiers.
- * If "kill" is set, then "stmt" is a kill statement and we simply
- * add the argument of the kill operation.
+ * If "type" is pet_expr_access_killed, then "stmt" is a kill statement and
+ * we simply add the argument of the kill operation.
  *
- * If "must" is set, then we only add the accesses that are definitely
- * performed.  Otherwise, we add all potential accesses.
- * In particular, if the statement has any arguments, then if "must" is
- * set we currently skip the statement completely.  If "must" is not set,
+ * If we are looking for definite accesses (pet_expr_access_must_write
+ * or pet_expr_access_killed), then we only add the accesses that are
+ * definitely performed.  Otherwise, we add all potential accesses.
+ * In particular, if the statement has any arguments, then if we are looking
+ * for definite accesses we currently skip the statement completely.  Othewise,
  * we project out the values of the statement arguments.
  * If the statement body is not an expression tree, then we cannot
  * know for sure if/when the accesses inside the tree are performed.
- * We therefore ignore such statements when "must" is set.
+ * We therefore ignore such statements when we are looking for
+ * definite accesses.
  */
 static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
-	int read, int write, int kill, int must, int tag,
-	__isl_take isl_space *dim)
+	enum pet_expr_access_type type, int tag, __isl_take isl_space *dim)
 {
-	struct pet_expr_collect_accesses_data data = { read, write, must, tag };
+	struct pet_expr_collect_accesses_data data = { type, tag };
+	int must;
 
 	if (!stmt)
 		return NULL;
 
 	data.accesses = isl_union_map_empty(dim);
+
+	if (type == pet_expr_access_must_write ||
+	    type == pet_expr_access_killed)
+		must = 1;
+	else
+		must = 0;
 
 	if (must && stmt->n_arg > 0)
 		return data.accesses;
@@ -2451,7 +2458,7 @@ static __isl_give isl_union_map *stmt_collect_accesses(struct pet_stmt *stmt,
 
 	data.domain = drop_arguments(isl_set_copy(stmt->domain));
 
-	if (kill) {
+	if (type == pet_expr_access_killed) {
 		pet_expr *body, *arg;
 
 		body = pet_tree_expr_get_expr(stmt->body);
@@ -2591,18 +2598,19 @@ __isl_give isl_union_map *pet_scop_compute_outer_to_any(struct pet_scop *scop)
 	return compute_to_inner(scop, 1, 0);
 }
 
-/* Collect and return all read access relations (if "read" is set)
- * and/or all write access relations (if "write" is set) in "scop".
- * If "kill" is set, then we only add the arguments of kill operations.
- * If "must" is set, then we only add the accesses that are definitely
- * performed.  Otherwise, we add all potential accesses.
+/* Collect and return all access relations of the given "type" in "scop".
+ * If "type" is pet_expr_access_killed, then we only add the arguments of
+ * kill operations.
+ * If we are looking for definite accesses (pet_expr_access_must_write
+ * or pet_expr_access_killed), then we only add the accesses that are
+ * definitely performed.  Otherwise, we add all potential accesses.
  * If "tag" is set, then the access relations are tagged with
  * the corresponding reference identifiers.
  * For accesses to structures, the returned access relation accesses
  * all individual fields in the structures.
  */
 static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
-	int read, int write, int kill, int must, int tag)
+	enum pet_expr_access_type type, int tag)
 {
 	int i;
 	isl_union_map *accesses;
@@ -2619,12 +2627,11 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 		isl_union_map *accesses_i;
 		isl_space *space;
 
-		if (kill && !pet_stmt_is_kill(stmt))
+		if (type == pet_expr_access_killed && !pet_stmt_is_kill(stmt))
 			continue;
 
 		space = isl_set_get_space(scop->context);
-		accesses_i = stmt_collect_accesses(stmt, read, write, kill,
-							must, tag, space);
+		accesses_i = stmt_collect_accesses(stmt, type, tag, space);
 		accesses = isl_union_map_union(accesses, accesses_i);
 	}
 
@@ -2645,28 +2652,28 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
  */
 __isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 1, 0, 0, 0, 0);
+	return scop_collect_accesses(scop, pet_expr_access_may_read, 0);
 }
 
 /* Collect all potential write access relations.
  */
 __isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 0, 0, 0);
+	return scop_collect_accesses(scop, pet_expr_access_may_write, 0);
 }
 
 /* Collect all definite write access relations.
  */
 __isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 0, 1, 0);
+	return scop_collect_accesses(scop, pet_expr_access_must_write, 0);
 }
 
 /* Collect all definite kill access relations.
  */
 __isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 0, 1, 1, 0);
+	return scop_collect_accesses(scop, pet_expr_access_killed, 0);
 }
 
 /* Collect all tagged potential read access relations.
@@ -2674,7 +2681,7 @@ __isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop)
 __isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 1, 0, 0, 0, 1);
+	return scop_collect_accesses(scop, pet_expr_access_may_read, 1);
 }
 
 /* Collect all tagged potential write access relations.
@@ -2682,7 +2689,7 @@ __isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
 __isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 0, 0, 1);
+	return scop_collect_accesses(scop, pet_expr_access_may_write, 1);
 }
 
 /* Collect all tagged definite write access relations.
@@ -2690,7 +2697,7 @@ __isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
 __isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 1, 0, 1, 1);
+	return scop_collect_accesses(scop, pet_expr_access_must_write, 1);
 }
 
 /* Collect all tagged definite kill access relations.
@@ -2698,7 +2705,7 @@ __isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
 __isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
 	struct pet_scop *scop)
 {
-	return scop_collect_accesses(scop, 0, 0, 1, 1, 1);
+	return scop_collect_accesses(scop, pet_expr_access_killed, 1);
 }
 
 /* Collect and return the union of iteration domains in "scop".
