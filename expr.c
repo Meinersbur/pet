@@ -1089,9 +1089,9 @@ __isl_give isl_space *pet_expr_access_get_parameter_space(
 	return space;
 }
 
-/* Return the domain space of "expr", without the arguments (if any).
+/* Return the domain space of "expr", including the arguments (if any).
  */
-__isl_give isl_space *pet_expr_access_get_domain_space(
+__isl_give isl_space *pet_expr_access_get_augmented_domain_space(
 	__isl_keep pet_expr *expr)
 {
 	isl_space *space;
@@ -1104,6 +1104,18 @@ __isl_give isl_space *pet_expr_access_get_domain_space(
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);
 	space = isl_space_domain(space);
+
+	return space;
+}
+
+/* Return the domain space of "expr", without the arguments (if any).
+ */
+__isl_give isl_space *pet_expr_access_get_domain_space(
+	__isl_keep pet_expr *expr)
+{
+	isl_space *space;
+
+	space = pet_expr_access_get_augmented_domain_space(expr);
 	if (isl_space_is_wrapping(space))
 		space = isl_space_domain(isl_space_unwrap(space));
 
