@@ -2496,6 +2496,68 @@ int pet_stmt_is_assume(struct pet_stmt *stmt)
 	return pet_tree_is_assume(stmt->body);
 }
 
+/* Helper function to add a domain gisted copy of "map" (wrt "set") to "umap".
+ */
+static __isl_give isl_union_map *add_gisted(__isl_take isl_union_map *umap,
+	__isl_keep isl_map *map, __isl_keep isl_set *set)
+{
+	isl_map *gist;
+
+	gist = isl_map_copy(map);
+	gist = isl_map_gist_domain(gist, isl_set_copy(set));
+	return isl_union_map_add_map(umap, gist);
+}
+
+/* Compute a mapping from all arrays (of structs) in scop
+ * to their innermost members.
+ *
+ * If "from_outermost" is set, then the domain only consists
+ * of outermost arrays.
+ */
+static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
+	int from_outermost)
+{
+	int i;
+	isl_union_map *to_inner;
+
+	if (!scop)
+		return NULL;
+
+	to_inner = isl_union_map_empty(isl_set_get_space(scop->context));
+
+	for (i = 0; i < scop->n_array; ++i) {
+		struct pet_array *array = scop->arrays[i];
+		isl_set *set;
+		isl_map *map;
+
+		if (array->element_is_record)
+			continue;
+
+		set = isl_set_copy(array->extent);
+		map = isl_set_identity(isl_set_copy(set));
+
+		while (set && isl_set_is_wrapping(set)) {
+			isl_id *id;
+			isl_map *wrapped;
+
+			if (!from_outermost)
+				to_inner = add_gisted(to_inner, map, set);
+
+			id = isl_set_get_tuple_id(set);
+			wrapped = isl_set_unwrap(set);
+			wrapped = isl_map_domain_map(wrapped);
+			wrapped = isl_map_set_tuple_id(wrapped, isl_dim_in, id);
+			map = isl_map_apply_domain(map, wrapped);
+			set = isl_map_domain(isl_map_copy(map));
+		}
+
+		map = isl_map_gist_domain(map, set);
+		to_inner = isl_union_map_add_map(to_inner, map);
+	}
+
+	return to_inner;
+}
+
 /* Compute a mapping from all arrays (of structs) in scop
  * to their innermost arrays.
  *
@@ -2505,48 +2567,18 @@ int pet_stmt_is_assume(struct pet_stmt *stmt)
  * contains a mapping from the elements of any intermediate array of structs
  * to all corresponding elements of the innermost nested arrays.
  */
-static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop)
+static __isl_give isl_union_map *pet_scop_compute_any_to_inner(
+	struct pet_scop *scop)
 {
-	int i;
-	isl_union_map *to_inner;
+	return compute_to_inner(scop, 0);
+}
 
-	to_inner = isl_union_map_empty(isl_set_get_space(scop->context));
-
-	for (i = 0; i < scop->n_array; ++i) {
-		struct pet_array *array = scop->arrays[i];
-		isl_set *set;
-		isl_map *map, *gist;
-
-		if (array->element_is_record)
-			continue;
-
-		set = isl_set_copy(array->extent);
-		map = isl_set_identity(isl_set_copy(set));
-
-		gist = isl_map_copy(map);
-		gist = isl_map_gist_domain(gist, isl_set_copy(set));
-		to_inner = isl_union_map_add_map(to_inner, gist);
-
-		while (set && isl_set_is_wrapping(set)) {
-			isl_id *id;
-			isl_map *wrapped;
-
-			id = isl_set_get_tuple_id(set);
-			wrapped = isl_set_unwrap(set);
-			wrapped = isl_map_domain_map(wrapped);
-			wrapped = isl_map_set_tuple_id(wrapped, isl_dim_in, id);
-			map = isl_map_apply_domain(map, wrapped);
-			set = isl_map_domain(isl_map_copy(map));
-			gist = isl_map_copy(map);
-			gist = isl_map_gist_domain(gist, isl_set_copy(set));
-			to_inner = isl_union_map_add_map(to_inner, gist);
-		}
-
-		isl_set_free(set);
-		isl_map_free(map);
-	}
-
-	return to_inner;
+/* Compute a mapping from all outermost arrays (of structs) in scop
+ * to their innermost members.
+ */
+__isl_give isl_union_map *pet_scop_compute_outer_to_inner(struct pet_scop *scop)
+{
+	return compute_to_inner(scop, 1);
 }
 
 /* Collect and return all read access relations (if "read" is set)
@@ -2593,7 +2625,7 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	}
 	accesses = isl_union_map_intersect_range(accesses, arrays);
 
-	to_inner = compute_to_inner(scop);
+	to_inner = pet_scop_compute_any_to_inner(scop);
 	accesses = isl_union_map_apply_range(accesses, to_inner);
 
 	return accesses;
