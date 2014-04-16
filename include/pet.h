@@ -562,6 +562,10 @@ __isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop);
  */
 __isl_give isl_union_map *pet_scop_compute_outer_to_inner(
 	struct pet_scop *scop);
+/* Compute a mapping from all outermost arrays (of structs) in scop
+ * to their members, including the outermost arrays themselves.
+ */
+__isl_give isl_union_map *pet_scop_compute_outer_to_any(struct pet_scop *scop);
 
 #if defined(__cplusplus)
 }

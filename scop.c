@@ -2509,13 +2509,15 @@ static __isl_give isl_union_map *add_gisted(__isl_take isl_union_map *umap,
 }
 
 /* Compute a mapping from all arrays (of structs) in scop
- * to their innermost members.
+ * to their members.
  *
  * If "from_outermost" is set, then the domain only consists
  * of outermost arrays.
+ * If "to_innermost" is set, then the range only consists
+ * of innermost arrays.
  */
 static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
-	int from_outermost)
+	int from_outermost, int to_innermost)
 {
 	int i;
 	isl_union_map *to_inner;
@@ -2530,7 +2532,7 @@ static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
 		isl_set *set;
 		isl_map *map;
 
-		if (array->element_is_record)
+		if (to_innermost && array->element_is_record)
 			continue;
 
 		set = isl_set_copy(array->extent);
@@ -2570,7 +2572,7 @@ static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
 static __isl_give isl_union_map *pet_scop_compute_any_to_inner(
 	struct pet_scop *scop)
 {
-	return compute_to_inner(scop, 0);
+	return compute_to_inner(scop, 0, 1);
 }
 
 /* Compute a mapping from all outermost arrays (of structs) in scop
@@ -2578,7 +2580,15 @@ static __isl_give isl_union_map *pet_scop_compute_any_to_inner(
  */
 __isl_give isl_union_map *pet_scop_compute_outer_to_inner(struct pet_scop *scop)
 {
-	return compute_to_inner(scop, 1);
+	return compute_to_inner(scop, 1, 1);
+}
+
+/* Compute a mapping from all outermost arrays (of structs) in scop
+ * to their members, including the outermost arrays themselves.
+ */
+__isl_give isl_union_map *pet_scop_compute_outer_to_any(struct pet_scop *scop)
+{
+	return compute_to_inner(scop, 1, 0);
 }
 
 /* Collect and return all read access relations (if "read" is set)
