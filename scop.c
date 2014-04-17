@@ -2520,9 +2520,9 @@ static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop)
 		if (array->element_is_record)
 			continue;
 
-		map = isl_set_identity(isl_set_copy(array->extent));
+		set = isl_set_copy(array->extent);
+		map = isl_set_identity(isl_set_copy(set));
 
-		set = isl_map_domain(isl_map_copy(map));
 		gist = isl_map_copy(map);
 		gist = isl_map_gist_domain(gist, isl_set_copy(set));
 		to_inner = isl_union_map_add_map(to_inner, gist);
