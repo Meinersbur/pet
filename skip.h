@@ -63,14 +63,13 @@ void pet_skip_info_if_extract_index(struct pet_skip_info *skip,
 void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 	__isl_keep isl_pw_aff *cond, __isl_keep pet_context *pc,
 	struct pet_state *state);
-struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
-	struct pet_scop *scop);
 
 void pet_skip_info_seq_init(struct pet_skip_info *skip, isl_ctx *ctx,
 	struct pet_scop *scop1, struct pet_scop *scop2);
 void pet_skip_info_seq_extract(struct pet_skip_info *skip,
 	__isl_keep pet_context *pc, struct pet_state *state);
-struct pet_scop *pet_skip_info_seq_add(struct pet_skip_info *skip,
+
+struct pet_scop *pet_skip_info_add(struct pet_skip_info *skip,
 	struct pet_scop *scop);
 
 #if defined(__cplusplus)

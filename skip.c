@@ -343,7 +343,7 @@ struct pet_scop *pet_skip_info_add_type(struct pet_skip_info *skip,
 /* Add the computed skip conditions to "main" and
  * add the scops for computing the conditions.
  */
-struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
+struct pet_scop *pet_skip_info_add(struct pet_skip_info *skip,
 	struct pet_scop *scop)
 {
 	scop = pet_skip_info_add_scops(skip, scop);
@@ -482,17 +482,4 @@ void pet_skip_info_seq_extract(struct pet_skip_info *skip,
 	pet_skip_info_seq_extract_type(skip, pet_skip_later, pc, state);
 	if (skip->equal)
 		drop_skip_later(skip->u.s.scop1, skip->u.s.scop2);
-}
-
-/* Add the computed skip conditions to "main" and
- * add the scops for computing the conditions.
- */
-struct pet_scop *pet_skip_info_seq_add(struct pet_skip_info *skip,
-	struct pet_scop *scop)
-{
-	scop = pet_skip_info_add_scops(skip, scop);
-	scop = pet_skip_info_add_type(skip, scop, pet_skip_now);
-	scop = pet_skip_info_add_type(skip, scop, pet_skip_later);
-
-	return scop;
 }

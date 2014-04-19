@@ -1894,7 +1894,7 @@ static struct pet_scop *scop_from_conditional_assignment(
  * This is handled using a pet_skip_info object.
  * On initialization, the object checks if skip conditions need
  * to be computed.  If so, it does so in pet_skip_info_if_extract_index and
- * adds them in pet_skip_info_if_add.
+ * adds them in pet_skip_info_add.
  */
 static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 	__isl_take pet_context *pc, struct pet_state *state)
@@ -1935,7 +1935,7 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
 
 	scop = pet_scop_add_seq(state->ctx, scop, scop_then);
 
-	scop = pet_skip_info_if_add(&skip, scop);
+	scop = pet_skip_info_add(&skip, scop);
 
 	pet_context_free(pc);
 	return scop;
@@ -1952,7 +1952,7 @@ static struct pet_scop *scop_from_non_affine_if(__isl_keep pet_tree *tree,
  * This is handled using a pet_skip_info_if object.
  * On initialization, the object checks if skip conditions need
  * to be computed.  If so, it does so in pet_skip_info_if_extract_cond and
- * adds them in pet_skip_info_if_add.
+ * adds them in pet_skip_info_add.
  */
 static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 	__isl_take isl_pw_aff *cond, __isl_take pet_context *pc,
@@ -2000,7 +2000,7 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
 	scop = pet_scop_resolve_nested(scop);
 	scop = pet_scop_restrict_context(scop, valid);
 
-	scop = pet_skip_info_if_add(&skip, scop);
+	scop = pet_skip_info_add(&skip, scop);
 
 	pet_context_free(pc);
 	return scop;
@@ -2266,7 +2266,7 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  * This is handled using a pet_skip_info object.
  * On initialization, the object checks if skip conditions need
  * to be computed.  If so, it does so in pet_skip_info_seq_extract and
- * adds them in pet_skip_info_seq_add.
+ * adds them in pet_skip_info_add.
  *
  * If "block" is set, then we need to insert kill statements at
  * the end of the block for any array that has been declared by
@@ -2322,7 +2322,7 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		}
 		scop = pet_scop_add_seq(ctx, scop, scop_i);
 
-		scop = pet_skip_info_seq_add(&skip, scop);
+		scop = pet_skip_info_add(&skip, scop);
 
 		if (!scop)
 			break;
