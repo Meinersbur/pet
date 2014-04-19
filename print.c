@@ -724,7 +724,7 @@ static __isl_give isl_printer *print_pet_tree(__isl_take isl_printer *p,
  * The access expressions in "stmt" are replaced by the isl_ast_expr
  * associated to its reference identifier in "ref2expr".
  *
- * If the statement is an assume statement, then we print nothing.
+ * If the statement is an assume or a kill statement, then we print nothing.
  */
 __isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
 	__isl_take isl_printer *p, __isl_keep isl_id_to_ast_expr *ref2expr)
@@ -732,6 +732,8 @@ __isl_give isl_printer *pet_stmt_print_body(struct pet_stmt *stmt,
 	if (!stmt)
 		return isl_printer_free(p);
 	if (pet_stmt_is_assume(stmt))
+		return p;
+	if (pet_stmt_is_kill(stmt))
 		return p;
 	p = print_pet_tree(p, stmt->body, 0, ref2expr);
 
