@@ -278,6 +278,26 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 	isl_multi_pw_aff_free(test);
 }
 
+/* Add the scops for computing the skip conditions to "main".
+ */
+struct pet_scop *pet_skip_info_add_scops(struct pet_skip_info *skip,
+	struct pet_scop *main)
+{
+	if (!skip->skip[pet_skip_now] && !skip->skip[pet_skip_later])
+		return main;
+
+	if (skip->skip[pet_skip_now])
+		main = pet_scop_add_par(skip->ctx, main,
+					skip->scop[pet_skip_now]);
+	if (skip->skip[pet_skip_later])
+		main = pet_scop_add_par(skip->ctx, main,
+					skip->scop[pet_skip_later]);
+	skip->scop[pet_skip_now] = NULL;
+	skip->scop[pet_skip_later] = NULL;
+
+	return main;
+}
+
 /* Adjust the schedule of the scop for computing the skip condition
  * of the given type with the given offset.
  */
@@ -290,8 +310,7 @@ static void pet_skip_info_if_prefix(struct pet_skip_info *skip,
 	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
 }
 
-/* Add the computed skip condition of the give type to "main" and
- * add the scop for computing the condition.
+/* Add the computed skip condition of the give type to "main".
  *
  * If equal is set, then we only computed a skip condition for pet_skip_now,
  * but we also need to set it as main's pet_skip_later.
@@ -301,9 +320,6 @@ struct pet_scop *pet_skip_info_add_type(struct pet_skip_info *skip,
 {
 	if (!skip->skip[type])
 		return main;
-
-	main = pet_scop_add_par(skip->ctx, main, skip->scop[type]);
-	skip->scop[type] = NULL;
 
 	if (skip->equal)
 		main = pet_scop_set_skip(main, pet_skip_later,
@@ -323,6 +339,7 @@ struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
 {
 	pet_skip_info_if_prefix(skip, pet_skip_now, offset);
 	pet_skip_info_if_prefix(skip, pet_skip_later, offset);
+	scop = pet_skip_info_add_scops(skip, scop);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_now);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_later);
 
@@ -483,6 +500,7 @@ struct pet_scop *pet_skip_info_seq_add(struct pet_skip_info *skip,
 {
 	pet_skip_info_seq_prefix(skip, pet_skip_now, offset);
 	pet_skip_info_seq_prefix(skip, pet_skip_later, offset);
+	scop = pet_skip_info_add_scops(skip, scop);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_now);
 	scop = pet_skip_info_add_type(skip, scop, pet_skip_later);
 
