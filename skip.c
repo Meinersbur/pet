@@ -279,21 +279,42 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 }
 
 /* Add the scops for computing the skip conditions to "main".
+ *
+ * If two scops are added, then they can be executed in parallel,
+ * but both scops need to be executed after the original statement.
+ * However, if "main" has any skip conditions, then they do not
+ * apply to the scops for computing skip conditions, so we temporarily
+ * remove the skip conditions while adding the scops.
  */
 struct pet_scop *pet_skip_info_add_scops(struct pet_skip_info *skip,
 	struct pet_scop *main)
 {
+	int has_skip_now;
+	isl_multi_pw_aff *skip_now;
+	struct pet_scop *scop_skip;
+
 	if (!skip->skip[pet_skip_now] && !skip->skip[pet_skip_later])
 		return main;
 
-	if (skip->skip[pet_skip_now])
-		main = pet_scop_add_par(skip->ctx, main,
-					skip->scop[pet_skip_now]);
-	if (skip->skip[pet_skip_later])
-		main = pet_scop_add_par(skip->ctx, main,
+	has_skip_now = pet_scop_has_skip(main, pet_skip_now);
+	if (has_skip_now)
+		skip_now = pet_scop_get_skip(main, pet_skip_now);
+	pet_scop_reset_skip(main, pet_skip_now);
+
+	if (skip->skip[pet_skip_now] && skip->skip[pet_skip_later])
+		scop_skip = pet_scop_add_par(skip->ctx,
+					skip->scop[pet_skip_now],
 					skip->scop[pet_skip_later]);
+	else if (skip->skip[pet_skip_now])
+		scop_skip = skip->scop[pet_skip_now];
+	else
+		scop_skip = skip->scop[pet_skip_later];
+	main = pet_scop_add_seq(skip->ctx, main, scop_skip);
 	skip->scop[pet_skip_now] = NULL;
 	skip->scop[pet_skip_later] = NULL;
+
+	if (has_skip_now)
+		main = pet_scop_set_skip(main, pet_skip_now, skip_now);
 
 	return main;
 }
