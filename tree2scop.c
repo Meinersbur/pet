@@ -1178,6 +1178,24 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	return enforce_subset(dom, cond);
 }
 
+/* Construct a pet_scop for the initialization of the iterator
+ * of the for loop "tree" within the context "pc" (i.e., the context
+ * of the loop).
+ */
+static __isl_give pet_scop *scop_from_for_init(__isl_keep pet_tree *tree,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	pet_expr *expr_iv, *init;
+	int type_size;
+
+	expr_iv = pet_expr_copy(tree->u.l.iv);
+	type_size = pet_expr_get_type_size(expr_iv);
+	init = pet_expr_copy(tree->u.l.init);
+	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
+	return scop_from_expr(init, state->n_stmt++,
+					pet_tree_get_loc(tree), pc);
+}
+
 /* Extract the for loop "tree" as a while loop within the context "pc_init".
  * In particular, "pc_init" represents the context of the loop,
  * whereas "pc" represents the context of the body of the loop and
@@ -1211,7 +1229,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 {
 	int declared;
 	isl_id *iv;
-	pet_expr *expr_iv, *init, *inc;
+	pet_expr *expr_iv, *inc;
 	struct pet_scop *scop_init, *scop;
 	int type_size;
 	struct pet_array *array;
@@ -1222,12 +1240,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 
 	declared = tree->u.l.declared;
 
-	expr_iv = pet_expr_copy(tree->u.l.iv);
-	type_size = pet_expr_get_type_size(expr_iv);
-	init = pet_expr_copy(tree->u.l.init);
-	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
-	scop_init = scop_from_expr(init, state->n_stmt++,
-					pet_tree_get_loc(tree), pc_init);
+	scop_init = scop_from_for_init(tree, pc_init, state);
 
 	expr_iv = pet_expr_copy(tree->u.l.iv);
 	type_size = pet_expr_get_type_size(expr_iv);
