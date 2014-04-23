@@ -2,14 +2,20 @@ start: 33
 end: 208
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[i, j] : 0 <= i <= 99 and j >= 0 and ((i <= 9 and
-  j <= 99) or (i >= 10 and j <= i)); S_1[i, j] : 10 <= i <= 99 and 0 <= j <= 99 and
-  j < i; S_2[]; S_4[] }", child: { sequence: [ { filter: "{ S_0[i, j]; S_1[i, j] }",
-  child: { schedule: "L_0[{ S_0[i, j] -> [(i)]; S_1[i, j] -> [(i)] }]", child: { schedule:
-  "L_1[{ S_0[i, j] -> [(j)]; S_1[i, j] -> [(j)] }]", child: { sequence: [ { filter:
-  "{ S_0[i, j] }" }, { filter: "{ S_1[i, j] }" } ] } } } }, { filter: "{ S_3[]; S_2[];
-  S_4[] }", child: { set: [ { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" }, { filter:
-  "{ S_4[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_5[i] : 0 <= i <= 99; S_0[]; S_7[]; S_3[i, j] : 10 <= i <=
+  99 and 0 <= j <= 99 and j < i; S_8[]; S_6[]; S_2[i, j] : 0 <= i <= 99 and j >= 0
+  and ((i <= 9 and j <= 99) or (i >= 10 and j <= i)); S_4[i, j] : i <= 99 and ((i
+  <= 9 and 0 <= j < i) or (i >= 10 and 0 <= j < i) or (0 <= i <= 9 and i < j <= 99));
+  S_4[i, j = i] : 0 <= i <= 9; S_1[i] : 0 <= i <= 99 }", child: { sequence: [ { filter:
+  "{ S_0[] }" }, { filter: "{ S_5[i]; S_3[i, j]; S_2[i, j]; S_4[i, j]; S_1[i] }",
+  child: { schedule: "L_0[{ S_3[i, j] -> [(i)]; S_4[i, j] -> [(i)]; S_5[i] -> [(i)];
+  S_1[i] -> [(i)]; S_2[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_1[i]
+  }" }, { filter: "{ S_3[i, j]; S_2[i, j]; S_4[i, j] }", child: { schedule: "L_1[{
+  S_3[i, j] -> [(j)]; S_4[i, j] -> [(j)]; S_2[i, j] -> [(j)] }]", child: { sequence:
+  [ { filter: "{ S_2[i, j] }" }, { filter: "{ S_3[i, j] }" }, { filter: "{ S_4[i,
+  j] }" } ] } } }, { filter: "{ S_5[i] }" } ] } } }, { filter: "{ S_7[]; S_8[]; S_6[]
+  }", child: { set: [ { filter: "{ S_6[] }" }, { filter: "{ S_7[] }" }, { filter:
+  "{ S_8[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : 0 <= i0 <= 99 }'
@@ -24,8 +30,38 @@ arrays:
   element_type: int
   element_size: 4
 statements:
+- line: 6
+  domain: '{ S_0[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '{ S_0[] -> i[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 0
+- line: 7
+  domain: '{ S_1[i] : 0 <= i <= 99 }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '{ S_1[i] -> j[] }'
+        reference: __pet_ref_1
+        read: 0
+        write: 1
+      - type: int
+        value: 0
 - line: 8
-  domain: '{ S_0[i, j] : 0 <= i <= 99 and j >= 0 and ((i <= 9 and j <= 99) or (i >=
+  domain: '{ S_2[i, j] : 0 <= i <= 99 and j >= 0 and ((i <= 9 and j <= 99) or (i >=
     10 and j <= i)) }'
   body:
     type: expression
@@ -34,14 +70,14 @@ statements:
       operation: =
       arguments:
       - type: access
-        index: '{ S_0[i, j] -> a[(i)] }'
-        reference: __pet_ref_0
+        index: '{ S_2[i, j] -> a[(i)] }'
+        reference: __pet_ref_2
         read: 0
         write: 1
       - type: int
         value: 0
 - line: 13
-  domain: '{ S_1[i, j] : 10 <= i <= 99 and 0 <= j <= 99 and j < i }'
+  domain: '{ S_3[i, j] : 10 <= i <= 99 and 0 <= j <= 99 and j < i }'
   body:
     type: expression
     expr:
@@ -49,17 +85,54 @@ statements:
       operation: =
       arguments:
       - type: access
-        index: '{ S_1[i, j] -> a[(i)] }'
-        reference: __pet_ref_1
+        index: '{ S_3[i, j] -> a[(i)] }'
+        reference: __pet_ref_3
         read: 0
         write: 1
       - type: access
-        index: '{ S_1[i, j] -> [(i + j)] }'
-        reference: __pet_ref_2
+        index: '{ S_3[i, j] -> [(i + j)] }'
+        reference: __pet_ref_4
+        read: 1
+        write: 0
+- line: 7
+  domain: '{ S_4[i, j] : i <= 99 and ((i <= 9 and 0 <= j < i) or (i >= 10 and 0 <=
+    j < i) or (0 <= i <= 9 and i < j <= 99)); S_4[i, j = i] : 0 <= i <= 9 }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '{ S_4[i, j] -> j[] }'
+        reference: __pet_ref_5
+        read: 0
+        write: 1
+      - type: access
+        index: '{ S_4[i, j] -> [(1 + j)] }'
+        reference: __pet_ref_6
+        read: 1
+        write: 0
+- line: 6
+  domain: '{ S_5[i] : 0 <= i <= 99 }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '{ S_5[i] -> i[] }'
+        reference: __pet_ref_7
+        read: 0
+        write: 1
+      - type: access
+        index: '{ S_5[i] -> [(1 + i)] }'
+        reference: __pet_ref_8
         read: 1
         write: 0
 - line: -1
-  domain: '{ S_2[] }'
+  domain: '{ S_6[] }'
   body:
     type: expression
     expr:
@@ -67,12 +140,12 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_2[] -> i[] }'
-        index: '{ S_2[] -> i[] }'
-        reference: __pet_ref_3
+        killed: '{ S_6[] -> i[] }'
+        index: '{ S_6[] -> i[] }'
+        reference: __pet_ref_9
         kill: 1
 - line: -1
-  domain: '{ S_3[] }'
+  domain: '{ S_7[] }'
   body:
     type: expression
     expr:
@@ -80,12 +153,12 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_3[] -> j[] }'
-        index: '{ S_3[] -> j[] }'
-        reference: __pet_ref_4
+        killed: '{ S_7[] -> j[] }'
+        index: '{ S_7[] -> j[] }'
+        reference: __pet_ref_10
         kill: 1
 - line: -1
-  domain: '{ S_4[] }'
+  domain: '{ S_8[] }'
   body:
     type: expression
     expr:
@@ -93,8 +166,8 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_4[] -> a[o0] : 0 <= o0 <= 99 }'
-        index: '{ S_4[] -> a[] }'
+        killed: '{ S_8[] -> a[o0] : 0 <= o0 <= 99 }'
+        index: '{ S_8[] -> a[] }'
         depth: 1
-        reference: __pet_ref_5
+        reference: __pet_ref_11
         kill: 1

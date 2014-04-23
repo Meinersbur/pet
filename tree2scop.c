@@ -1454,6 +1454,42 @@ static struct pet_scop *set_independence(struct pet_scop *scop,
 	return scop;
 }
 
+/* Add a scop for assigning to the variable corresponding to the loop
+ * iterator the result of adding the increment to the loop iterator
+ * at the end of a loop body "scop" within the context "pc".
+ * "tree" represents the for loop.
+ *
+ * The increment is of the form
+ *
+ *	iv = iv + inc
+ *
+ * Note that "iv" on the right hand side will be evaluated in terms
+ * of the (possibly virtual) loop iterator, i.e., the inner dimension
+ * of the domain, while "iv" on the left hand side will not be evaluated
+ * (because it is a write) and will continue to refer to the original
+ * variable.
+ */
+static __isl_give pet_scop *add_iterator_assignment(__isl_take pet_scop *scop,
+	__isl_keep pet_tree *tree, __isl_keep pet_context *pc,
+	struct pet_state *state)
+{
+	int type_size;
+	pet_expr *expr, *iv, *inc;
+
+	iv = pet_expr_copy(tree->u.l.iv);
+	type_size = pet_expr_get_type_size(iv);
+	iv = pet_expr_access_set_write(iv, 0);
+	iv = pet_expr_access_set_read(iv, 1);
+	inc = pet_expr_copy(tree->u.l.inc);
+	expr = pet_expr_new_binary(type_size, pet_op_add, iv, inc);
+	iv = pet_expr_copy(tree->u.l.iv);
+	expr = pet_expr_new_binary(type_size, pet_op_assign, iv, expr);
+
+	scop = scop_add_inc(scop, expr, pet_tree_get_loc(tree), pc, state);
+
+	return scop;
+}
+
 /* Construct a pet_scop for a for tree with static affine initialization
  * and constant increment within the context "pc".
  * The domain of "pc" has already been extended with an (at this point
@@ -1522,6 +1558,12 @@ static struct pet_scop *set_independence(struct pet_scop *scop,
  * can be evaluated.
  * If the loop condition is non-affine, then we only consider validity
  * of the initial value.
+ *
+ * If the loop iterator was not declared inside the loop header,
+ * then the variable corresponding to this loop iterator is assigned
+ * the result of adding the increment at the end of the loop body.
+ * The assignment of the initial value is taken care of by
+ * scop_from_affine_for_init.
  *
  * If the body contains any break, then we keep track of it in "skip"
  * (if the skip condition is affine) or it is handled in scop_add_break
@@ -1671,6 +1713,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (is_non_affine) {
 		scop = pet_scop_reset_context(scop);
 	}
+	if (!tree->u.l.declared)
+		scop = add_iterator_assignment(scop, tree, pc, state);
 	scop = pet_scop_reset_skips(scop);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {
@@ -1709,6 +1753,35 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	return scop;
 }
 
+/* Construct a pet_scop for a for tree with static affine initialization
+ * and constant increment within the context "pc_init".
+ * In particular, "pc_init" represents the context of the loop,
+ * whereas the domain of "pc" has already been extended with an (at this point
+ * unbounded) inner loop iterator corresponding to the current for loop.
+ *
+ * If the loop iterator was not declared inside the loop header,
+ * then add an assignment of the initial value to the loop iterator
+ * before the loop.  The construction of a pet_scop for the loop itself,
+ * including updates to the loop iterator, is handled by scop_from_affine_for.
+ */
+static __isl_give pet_scop *scop_from_affine_for_init(__isl_keep pet_tree *tree,
+	__isl_take isl_pw_aff *init_val, __isl_take isl_pw_aff *pa_inc,
+	__isl_take isl_val *inc, __isl_keep pet_context *pc_init,
+	__isl_take pet_context *pc, struct pet_state *state)
+{
+	pet_scop *scop_init, *scop;
+
+	if (!tree->u.l.declared)
+		scop_init = scop_from_for_init(tree, pc_init, state);
+
+	scop = scop_from_affine_for(tree, init_val, pa_inc, inc, pc, state);
+
+	if (!tree->u.l.declared)
+		scop = pet_scop_add_seq(state->ctx, scop_init, scop);
+
+	return scop;
+}
+
 /* Construct a pet_scop for a for statement within the context of "pc".
  *
  * We update the context to reflect the writes to the loop variable and
@@ -1716,7 +1789,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
  *
  * Then we check if the initialization of the for loop
  * is a static affine value and the increment is a constant.
- * If so, we construct the pet_scop using scop_from_affine_for.
+ * If so, we construct the pet_scop using scop_from_affine_for_init.
  * Otherwise, we treat the for loop as a while loop
  * in scop_from_non_affine_for.
  *
@@ -1754,8 +1827,8 @@ static struct pet_scop *scop_from_for(__isl_keep pet_tree *tree,
 		goto error;
 	if (!isl_pw_aff_involves_nan(pa_inc) &&
 	    !isl_pw_aff_involves_nan(init_val) && !isl_val_is_nan(inc))
-		return scop_from_affine_for(tree, init_val, pa_inc, inc,
-						pc, state);
+		return scop_from_affine_for_init(tree, init_val, pa_inc, inc,
+						init_pc, pc, state);
 
 	isl_pw_aff_free(pa_inc);
 	isl_pw_aff_free(init_val);
