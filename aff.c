@@ -326,3 +326,41 @@ __isl_give isl_pw_aff *pet_boolean(enum pet_op_type type,
 			"not a boolean operator", return NULL);
 	}
 }
+
+/* Return an isl_val equal to
+ *
+ *	2^width
+ */
+static __isl_give isl_val *wrap_mod(isl_ctx *ctx, unsigned width)
+{
+	return isl_val_2exp(isl_val_int_from_ui(ctx, width));
+}
+
+/* Compute
+ *
+ *	aff mod 2^width
+ */
+__isl_give isl_aff *pet_wrap_aff(__isl_take isl_aff *aff, unsigned width)
+{
+	isl_val *mod;
+
+	mod = wrap_mod(isl_aff_get_ctx(aff), width);
+	aff = isl_aff_mod_val(aff, mod);
+
+	return aff;
+}
+
+/* Compute
+ *
+ *	pwaff mod 2^width
+ */
+__isl_give isl_pw_aff *pet_wrap_pw_aff(__isl_take isl_pw_aff *pwaff,
+	unsigned width)
+{
+	isl_val *mod;
+
+	mod = wrap_mod(isl_pw_aff_get_ctx(pwaff), width);
+	pwaff = isl_pw_aff_mod_val(pwaff, mod);
+
+	return pwaff;
+}

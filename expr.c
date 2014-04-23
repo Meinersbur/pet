@@ -3051,24 +3051,6 @@ static __isl_give isl_pw_aff *extract_affine_cond(__isl_keep pet_expr *expr,
 	return isl_pw_aff_cond(cond, lhs, rhs);
 }
 
-/* Compute
- *
- *	pwaff mod 2^width
- */
-static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff, unsigned width)
-{
-	isl_ctx *ctx;
-	isl_val *mod;
-
-	ctx = isl_pw_aff_get_ctx(pwaff);
-	mod = isl_val_int_from_ui(ctx, width);
-	mod = isl_val_2exp(mod);
-
-	pwaff = isl_pw_aff_mod_val(pwaff, mod);
-
-	return pwaff;
-}
-
 /* Limit the domain of "pwaff" to those elements where the function
  * value satisfies
  *
@@ -3179,7 +3161,7 @@ static __isl_give isl_pw_aff *extract_affine_from_op(__isl_keep pet_expr *expr,
 
 	type_size = pet_expr_get_type_size(expr);
 	if (type_size > 0)
-		res = wrap(res, type_size);
+		res = pet_wrap_pw_aff(res, type_size);
 	else
 		res = signed_overflow(res, -type_size);
 

@@ -1105,22 +1105,16 @@ static __isl_give isl_multi_aff *compute_wrapping(__isl_take isl_space *space,
 	__isl_keep pet_expr *iv)
 {
 	int dim;
-	isl_ctx *ctx;
-	isl_val *mod;
 	isl_aff *aff;
 	isl_multi_aff *ma;
 
 	dim = isl_space_dim(space, isl_dim_set);
 
-	ctx = isl_space_get_ctx(space);
-	mod = isl_val_int_from_ui(ctx, pet_expr_get_type_size(iv));
-	mod = isl_val_2exp(mod);
-
 	space = isl_space_map_from_set(space);
 	ma = isl_multi_aff_identity(space);
 
 	aff = isl_multi_aff_get_aff(ma, dim - 1);
-	aff = isl_aff_mod_val(aff, mod);
+	aff = pet_wrap_aff(aff, pet_expr_get_type_size(iv));
 	ma = isl_multi_aff_set_aff(ma, dim - 1, aff);
 
 	return ma;
