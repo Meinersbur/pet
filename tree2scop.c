@@ -593,6 +593,32 @@ static struct pet_scop *scop_from_non_affine_condition(
 	return scop_from_evaluated_expr(expr, stmt_nr, loc, pc);
 }
 
+/* Add a scop for evaluating the loop increment "inc" add the end
+ * of a loop body "scop" within the context "pc".
+ *
+ * The skip conditions resulting from continue statements inside
+ * the body do not apply to "inc", but those resulting from break
+ * statements do need to get applied.
+ */
+static struct pet_scop *scop_add_inc(struct pet_scop *scop,
+	__isl_take pet_expr *inc, __isl_take pet_loc *loc,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	struct pet_scop *scop_inc;
+
+	scop_inc = scop_from_expr(inc, state->n_stmt++, loc, pc);
+	scop_inc = pet_scop_prefix(scop_inc, 2);
+	if (pet_scop_has_skip(scop, pet_skip_later)) {
+		isl_multi_pw_aff *skip;
+		skip = pet_scop_get_skip(scop, pet_skip_later);
+		scop = pet_scop_set_skip(scop, pet_skip_now, skip);
+	} else
+		pet_scop_reset_skip(scop, pet_skip_now);
+	scop = pet_scop_add_seq(state->ctx, scop, scop_inc);
+
+	return scop;
+}
+
 /* Construct a generic while scop, with iteration domain
  * { [t] : t >= 0 } around the scop for "tree_body" within the context "pc".
  * The domain of "pc" has already been extended with this infinite loop
@@ -671,17 +697,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
 	if (expr_inc) {
-		struct pet_scop *scop_inc;
-		scop_inc = scop_from_expr(expr_inc, state->n_stmt++, loc, pc);
-		scop_inc = pet_scop_prefix(scop_inc, 2);
-		if (pet_scop_has_skip(scop_body, pet_skip_later)) {
-			isl_multi_pw_aff *skip;
-			skip = pet_scop_get_skip(scop_body, pet_skip_later);
-			scop_body = pet_scop_set_skip(scop_body,
-							pet_skip_now, skip);
-		} else
-			pet_scop_reset_skip(scop_body, pet_skip_now);
-		scop_body = pet_scop_add_seq(ctx, scop_body, scop_inc);
+		scop_body = scop_add_inc(scop_body, expr_inc, loc, pc, state);
 	} else
 		pet_loc_free(loc);
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain), sched);
