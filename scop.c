@@ -935,7 +935,8 @@ error:
  * That is, make sure "scop" is not executed when the condition holds.
  *
  * If "skip" is an affine expression, we add the conditions under
- * which the expression is zero to the iteration domains.
+ * which the expression is zero to the context and the skip conditions
+ * of "scop".
  * Otherwise, we add a filter on the variable attaining the value zero.
  */
 static struct pet_scop *restrict_skip(struct pet_scop *scop,
