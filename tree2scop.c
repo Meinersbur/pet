@@ -624,15 +624,21 @@ static struct pet_scop *scop_add_inc(struct pet_scop *scop,
 {
 	struct pet_scop *scop_inc;
 
-	scop_inc = scop_from_expr(inc, state->n_stmt++, loc, pc);
-	scop_inc = pet_scop_prefix(scop_inc, 2);
+	pc = pet_context_copy(pc);
+
 	if (pet_scop_has_skip(scop, pet_skip_later)) {
 		isl_multi_pw_aff *skip;
 		skip = pet_scop_get_skip(scop, pet_skip_later);
 		scop = pet_scop_set_skip(scop, pet_skip_now, skip);
+		if (pet_scop_has_affine_skip(scop, pet_skip_now))
+			pc = apply_affine_continue(pc, scop);
 	} else
 		pet_scop_reset_skip(scop, pet_skip_now);
+	scop_inc = scop_from_expr(inc, state->n_stmt++, loc, pc);
+	scop_inc = pet_scop_prefix(scop_inc, 2);
 	scop = pet_scop_add_seq(state->ctx, scop, scop_inc);
+
+	pet_context_free(pc);
 
 	return scop;
 }

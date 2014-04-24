@@ -1,0 +1,159 @@
+start: 40
+end: 146
+indent: "\t"
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ __pet_test_0[0] }'
+  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  element_type: int
+  element_size: 4
+  uniquely_defined: 1
+- context: '{  :  }'
+  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 8
+  domain: '{ S_0[] }'
+  schedule: '{ S_0[] -> [0, 0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_0[] -> i[] }'
+        index: '{ S_0[] -> i[] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: call
+        name: f
+- line: 8
+  domain: '{ [S_1[0] -> [1]] }'
+  schedule: '{ S_1[t] -> [0, 1, t, 0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ S_1[t] -> __pet_test_0[0] }'
+        index: '{ S_1[t] -> __pet_test_0[(0)] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+      - type: op
+        operation: <
+        arguments:
+        - type: access
+          relation: '{ S_1[t] -> i[] }'
+          index: '{ S_1[t] -> i[] }'
+          reference: __pet_ref_3
+          read: 1
+          write: 0
+        - type: int
+          value: 100
+  arguments:
+  - type: access
+    relation: '{ S_1[t] -> __pet_test_0[t''] : 1 = 0 }'
+    index: '{ S_1[t] -> __pet_test_0[(0 : 1 = 0)] }'
+    reference: __pet_ref_1
+    read: 1
+    write: 0
+- line: 9
+  domain: '{ [S_2[0] -> [1]] }'
+  schedule: '{ S_2[t] -> [0, 1, t, 1, 0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ [S_2[t] -> [i1]] -> a[i1] : i1 >= 0 }'
+        index: '{ [S_2[t] -> [i1]] -> a[((i1) : i1 >= 0)] }'
+        reference: __pet_ref_6
+        read: 0
+        write: 1
+        arguments:
+        - type: access
+          relation: '{ S_2[t] -> i[] }'
+          index: '{ S_2[t] -> i[] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
+      - type: int
+        value: 0
+  arguments:
+  - type: access
+    relation: '{ S_2[t] -> __pet_test_0[0] }'
+    index: '{ S_2[t] -> __pet_test_0[(0)] }'
+    reference: __pet_ref_4
+    read: 1
+    write: 0
+- line: 12
+  domain: '{ [S_3[t] -> [__pet_test_0]] : 1 = 0 }'
+  schedule: '{ S_3[t] -> [0, 1, t, 1, 2] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        relation: '{ [S_3[t] -> [i1]] -> a[o0] : 1 = 0 }'
+        index: '{ [S_3[t] -> [i1]] -> a[(0 : 1 = 0)] }'
+        reference: __pet_ref_9
+        read: 0
+        write: 1
+        arguments:
+        - type: access
+          relation: '{ S_3[t] -> i[] }'
+          index: '{ S_3[t] -> i[] }'
+          reference: __pet_ref_8
+          read: 1
+          write: 0
+      - type: int
+        value: 1
+  arguments:
+  - type: access
+    relation: '{ S_3[t] -> __pet_test_0[t''] : 1 = 0 }'
+    index: '{ S_3[t] -> __pet_test_0[(0 : 1 = 0)] }'
+    reference: __pet_ref_7
+    read: 1
+    write: 0
+- line: 8
+  domain: '{ [S_4[t] -> [__pet_test_0]] : 1 = 0 }'
+  schedule: '{ S_4[t] -> [0, 1, t, 2] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: +=
+      arguments:
+      - type: access
+        relation: '{ S_4[t] -> i[] }'
+        index: '{ S_4[t] -> i[] }'
+        reference: __pet_ref_11
+        read: 0
+        write: 1
+      - type: int
+        value: 1
+  arguments:
+  - type: access
+    relation: '{ S_4[t] -> __pet_test_0[t''] : 1 = 0 }'
+    index: '{ S_4[t] -> __pet_test_0[(0 : 1 = 0)] }'
+    reference: __pet_ref_10
+    read: 1
+    write: 0
+implications:
+- satisfied: 1
+  extension: '{ __pet_test_0[t] -> __pet_test_0[0] : t >= 0 }'
