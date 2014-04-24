@@ -593,6 +593,24 @@ static struct pet_scop *scop_from_non_affine_condition(
 	return scop_from_evaluated_expr(expr, stmt_nr, loc, pc);
 }
 
+/* Given that "scop" has an affine skip condition of type pet_skip_now,
+ * apply this skip condition to the domain of "pc".
+ * That is, remove the elements satisfying the skip condition from
+ * the domain of "pc".
+ */
+static __isl_give pet_context *apply_affine_continue(__isl_take pet_context *pc,
+	struct pet_scop *scop)
+{
+	isl_set *domain, *skip;
+
+	skip = pet_scop_get_affine_skip_domain(scop, pet_skip_now);
+	domain = pet_context_get_domain(pc);
+	domain = isl_set_subtract(domain, skip);
+	pc = pet_context_intersect_domain(pc, domain);
+
+	return pc;
+}
+
 /* Add a scop for evaluating the loop increment "inc" add the end
  * of a loop body "scop" within the context "pc".
  *
@@ -2105,24 +2123,6 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
 	for (i = 0; i < scop->n_array; ++i)
 		scop->arrays[i]->exposed = 1;
 	return scop;
-}
-
-/* Given that "scop" has an affine skip condition of type pet_skip_now,
- * apply this skip condition to the domain of "pc".
- * That is, remove the elements satisfying the skip condition from
- * the domain of "pc".
- */
-static __isl_give pet_context *apply_affine_continue(__isl_take pet_context *pc,
-	struct pet_scop *scop)
-{
-	isl_set *domain, *skip;
-
-	skip = pet_scop_get_affine_skip_domain(scop, pet_skip_now);
-	domain = pet_context_get_domain(pc);
-	domain = isl_set_subtract(domain, skip);
-	pc = pet_context_intersect_domain(pc, domain);
-
-	return pc;
 }
 
 /* Try and construct a pet_scop corresponding to (part of)
