@@ -2730,6 +2730,8 @@ __isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop)
 
 	for (i = 0; i < scop->n_stmt; ++i) {
 		domain_i = isl_set_copy(scop->stmts[i]->domain);
+		if (scop->stmts[i]->n_arg > 0)
+			domain_i = isl_map_domain(isl_set_unwrap(domain_i));
 		domain = isl_union_set_add_set(domain, domain_i);
 	}
 
