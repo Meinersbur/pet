@@ -906,12 +906,108 @@ static __isl_give pet_expr *plug_in_summaries(__isl_take pet_expr *expr,
 	return pet_expr_map_call(expr, &call_plug_in_summary, pc);
 }
 
+/* Given an access expression "expr", check that it is an affine
+ * access expression and set *only_affine to 1.
+ * If "expr" is not an affine access expression, then set *only_affine to 0
+ * and abort.
+ */
+static int check_only_affine(__isl_keep pet_expr *expr, void *user)
+{
+	int *only_affine = user;
+	int is_affine;
+
+	is_affine = pet_expr_is_affine(expr);
+	if (is_affine < 0)
+		return -1;
+	if (!is_affine) {
+		*only_affine = 0;
+		return -1;
+	}
+	*only_affine = 1;
+
+	return 0;
+}
+
+/* Does "expr" have any affine access subexpression and no other
+ * access subexpressions?
+ *
+ * only_affine is initialized to -1 and set to 1 as soon as one affine
+ * access subexpression has been found and to 0 if some other access
+ * subexpression has been found.  In this latter case, the search is
+ * aborted.
+ */
+static isl_bool has_only_affine_access_sub_expr(__isl_keep pet_expr *expr)
+{
+	int only_affine = -1;
+
+	if (pet_expr_foreach_access_expr(expr, &check_only_affine,
+					&only_affine) < 0 &&
+	    only_affine != 0)
+		return isl_bool_error;
+
+	return only_affine > 0;
+}
+
+/* Try and replace "expr" by an affine access expression by essentially
+ * evaluating operations and/or special calls on affine access expressions.
+ * It therefore only makes sense to do this if "expr" is a call or an operation
+ * and if it has at least one affine access subexpression and no other
+ * access subexpressions.
+ */
+static __isl_give pet_expr *expr_plug_in_affine(__isl_take pet_expr *expr,
+	void *user)
+{
+	enum pet_expr_type type;
+	pet_context *pc = user;
+	isl_pw_aff *pa;
+	isl_bool contains_access;
+
+	type = pet_expr_get_type(expr);
+	if (type != pet_expr_call && type != pet_expr_op)
+		return expr;
+	contains_access = has_only_affine_access_sub_expr(expr);
+	if (contains_access < 0)
+		return pet_expr_free(expr);
+	if (!contains_access)
+		return expr;
+
+	pa = pet_expr_extract_affine(expr, pc);
+	if (!pa)
+		return pet_expr_free(expr);
+	if (isl_pw_aff_involves_nan(pa)) {
+		isl_pw_aff_free(pa);
+		return expr;
+	}
+
+	pet_expr_free(expr);
+	expr = pet_expr_from_index(isl_multi_pw_aff_from_pw_aff(pa));
+
+	return expr;
+}
+
+/* Detect affine subexpressions in "expr".
+ *
+ * The detection is performed top-down in order to be able
+ * to exploit the min/max optimization in comparisons.
+ * That is, if some subexpression is of the form max(a,b) <= min(c,d)
+ * and if the affine expressions were being detected bottom-up, then
+ * affine expressions for max(a,b) and min(c,d) would be constructed
+ * first and it would no longer be possible to optimize the extraction
+ * of the comparison as a <= c && a <= d && b <= c && b <= d.
+ */
+static __isl_give pet_expr *plug_in_affine(__isl_take pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	return pet_expr_map_top_down(expr, &expr_plug_in_affine, pc);
+}
+
 /* Evaluate "expr" in the context of "pc".
  *
  * In particular, we first make sure that all the access expressions
  * inside "expr" have the same domain as "pc".
  * Then, we plug in affine expressions for scalar reads,
- * plug in the arguments of all access expressions in "expr" and
+ * plug in the arguments of all access expressions in "expr" as well
+ * as any other affine expressions that may appear inside "expr" and
  * plug in the access relations from the summary functions associated
  * to call expressions.
  */
@@ -921,6 +1017,7 @@ __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	expr = pet_expr_insert_domain(expr, pet_context_get_space(pc));
 	expr = plug_in_affine_read(expr, pc);
 	expr = pet_expr_plug_in_args(expr, pc);
+	expr = plug_in_affine(expr, pc);
 	expr = plug_in_summaries(expr, pc);
 	return expr;
 }

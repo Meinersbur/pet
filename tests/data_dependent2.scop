@@ -90,16 +90,11 @@ statements:
       - type: op
         operation: +
         arguments:
-        - type: op
-          operation: +
-          arguments:
-          - type: int
-            value: 5
-          - type: access
-            index: '{ S_2[i, j] -> [(j)] }'
-            reference: __pet_ref_5
-            read: 1
-            write: 0
+        - type: access
+          index: '{ S_2[i, j] -> [(5 + j)] }'
+          reference: __pet_ref_5
+          read: 1
+          write: 0
         - type: access
           index: '{ S_2[i, j] -> N[] }'
           reference: __pet_ref_6

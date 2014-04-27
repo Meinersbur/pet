@@ -37,35 +37,11 @@ statements:
         reference: __pet_ref_0
         read: 0
         write: 1
-      - type: op
-        operation: +
-        arguments:
-        - type: op
-          operation: +
-          arguments:
-          - type: op
-            operation: +
-            arguments:
-            - type: access
-              index: '{ S_0[i, j, k, l] -> [(i)] }'
-              reference: __pet_ref_1
-              read: 1
-              write: 0
-            - type: access
-              index: '{ S_0[i, j, k, l] -> [(j)] }'
-              reference: __pet_ref_2
-              read: 1
-              write: 0
-          - type: access
-            index: '{ S_0[i, j, k, l] -> [(k)] }'
-            reference: __pet_ref_3
-            read: 1
-            write: 0
-        - type: access
-          index: '{ S_0[i, j, k, l] -> [(l)] }'
-          reference: __pet_ref_4
-          read: 1
-          write: 0
+      - type: access
+        index: '{ S_0[i, j, k, l] -> [(i + j + k + l)] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0
 - line: -1
   domain: '{ S_1[] }'
   body:
@@ -78,5 +54,5 @@ statements:
         killed: '{ S_1[] -> s[o0, o1] : 0 <= o0 <= 9 and 0 <= o1 <= 19 }'
         index: '{ S_1[] -> s[] }'
         depth: 2
-        reference: __pet_ref_5
+        reference: __pet_ref_2
         kill: 1

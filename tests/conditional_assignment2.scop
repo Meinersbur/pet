@@ -73,16 +73,11 @@ statements:
         reference: __pet_ref_1
         read: 0
         write: 1
-      - type: op
-        operation: +
-        arguments:
-        - type: access
-          index: '[M, N] -> { S_1[i] -> [(i)] }'
-          reference: __pet_ref_2
-          read: 1
-          write: 0
-        - type: int
-          value: 1
+      - type: access
+        index: '[M, N] -> { S_1[i] -> [(1 + i)] }'
+        reference: __pet_ref_2
+        read: 1
+        write: 0
 - line: 25
   domain: '[M, N] -> { S_2[i, j] : 0 <= i < N and 0 <= j < M }'
   body:

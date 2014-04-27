@@ -69,19 +69,11 @@ statements:
         reference: __pet_ref_4
         read: 0
         write: 1
-      - type: op
-        operation: +
-        arguments:
-        - type: access
-          index: '{ S_2[i, j] -> [(i)] }'
-          reference: __pet_ref_5
-          read: 1
-          write: 0
-        - type: access
-          index: '{ S_2[i, j] -> [(j)] }'
-          reference: __pet_ref_6
-          read: 1
-          write: 0
+      - type: access
+        index: '{ S_2[i, j] -> [((i + j) : j <= 2147483647 - i)] }'
+        reference: __pet_ref_5
+        read: 1
+        write: 0
   arguments:
   - type: access
     index: '{ S_2[i, j] -> N[] }'
@@ -103,28 +95,28 @@ statements:
       arguments:
       - type: access
         index: '{ S_3[i, j] -> [(i)] }'
-        reference: __pet_ref_9
+        reference: __pet_ref_8
         read: 1
         write: 0
       - type: access
         index: '{ S_3[i, j] -> [(j)] }'
-        reference: __pet_ref_10
+        reference: __pet_ref_9
         read: 1
         write: 0
       - type: access
         index: '{ S_3[i, j] -> a[(i), (j)] }'
-        reference: __pet_ref_11
+        reference: __pet_ref_10
         read: 1
         write: 0
   arguments:
   - type: access
     index: '{ S_3[i, j] -> N[] }'
-    reference: __pet_ref_7
+    reference: __pet_ref_6
     read: 1
     write: 0
   - type: access
     index: '{ S_3[i, j] -> M[] }'
-    reference: __pet_ref_8
+    reference: __pet_ref_7
     read: 1
     write: 0
 - line: -1
@@ -138,7 +130,7 @@ statements:
       - type: access
         killed: '{ S_4[] -> N[] }'
         index: '{ S_4[] -> N[] }'
-        reference: __pet_ref_12
+        reference: __pet_ref_11
         kill: 1
 - line: -1
   domain: '{ S_5[] }'
@@ -151,7 +143,7 @@ statements:
       - type: access
         killed: '{ S_5[] -> M[] }'
         index: '{ S_5[] -> M[] }'
-        reference: __pet_ref_13
+        reference: __pet_ref_12
         kill: 1
 - line: -1
   domain: '{ S_6[] }'
@@ -165,5 +157,5 @@ statements:
         killed: '{ S_6[] -> a[o0, o1] : 0 <= o0 <= 99 and 0 <= o1 <= 99 }'
         index: '{ S_6[] -> a[] }'
         depth: 2
-        reference: __pet_ref_14
+        reference: __pet_ref_13
         kill: 1

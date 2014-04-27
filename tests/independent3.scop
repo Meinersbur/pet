@@ -1,7 +1,7 @@
 start: 44
 end: 209
 indent: "\t"
-context: '[n] -> {  : 0 <= n <= 2147483647 }'
+context: '[n] -> {  : 0 <= n <= 1073741824 }'
 schedule: '{ domain: "[n] -> { S_2[i, j] : 0 <= i < n and 0 <= j < n; S_0[i, j] :
   0 <= i < n and 0 <= j < n; S_3[i, j] : 0 <= i < n and 0 <= j < n; S_1[i, j] : 0
   <= i < n and 0 <= j < n }", child: { schedule: "[n] -> L_0[{ S_2[i, j] -> [(i)];
@@ -51,19 +51,11 @@ statements:
         reference: __pet_ref_1
         read: 0
         write: 1
-      - type: op
-        operation: +
-        arguments:
-        - type: access
-          index: '[n] -> { S_1[i, j] -> [(i)] }'
-          reference: __pet_ref_2
-          read: 1
-          write: 0
-        - type: access
-          index: '[n] -> { S_1[i, j] -> [(j)] }'
-          reference: __pet_ref_3
-          read: 1
-          write: 0
+      - type: access
+        index: '[n] -> { S_1[i, j] -> [(i + j)] }'
+        reference: __pet_ref_2
+        read: 1
+        write: 0
 - line: 8
   domain: '[n] -> { S_3[i, j] : 0 <= i < n and 0 <= j < n }'
   body:
@@ -74,18 +66,18 @@ statements:
       arguments:
       - type: access
         index: '[n] -> { [S_3[i, j] -> [i2]] -> B[(i), ((i2) : i2 >= 0)] }'
-        reference: __pet_ref_5
+        reference: __pet_ref_4
         read: 0
         write: 1
         arguments:
         - type: access
           index: '[n] -> { S_3[i, j] -> A[(i), (j)] }'
-          reference: __pet_ref_4
+          reference: __pet_ref_3
           read: 1
           write: 0
       - type: access
         index: '[n] -> { S_3[i, j] -> t[] }'
-        reference: __pet_ref_6
+        reference: __pet_ref_5
         read: 1
         write: 0
 - line: 7
@@ -99,7 +91,7 @@ statements:
       - type: access
         killed: '[n] -> { S_2[i, j] -> t[] }'
         index: '[n] -> { S_2[i, j] -> t[] }'
-        reference: __pet_ref_7
+        reference: __pet_ref_6
         kill: 1
 independences:
 - filter: '[n] -> { S_2[i, j] -> S_2[i'' = i, j''] : j'' > j; S_0[i, j] -> S_1[i''

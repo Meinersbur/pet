@@ -41,34 +41,11 @@ statements:
         reference: __pet_ref_0
         read: 0
         write: 1
-      - type: op
-        operation: '?:'
-        arguments:
-        - type: op
-          operation: '>'
-          arguments:
-          - type: access
-            index: '[N] -> { S_0[i, j] -> [(i)] }'
-            reference: __pet_ref_1
-            read: 1
-            write: 0
-          - type: int
-            value: 0
-        - type: op
-          operation: '-'
-          arguments:
-          - type: access
-            index: '[N] -> { S_0[i, j] -> [(i)] }'
-            reference: __pet_ref_2
-            read: 1
-            write: 0
-          - type: int
-            value: 1
-        - type: access
-          index: '[N] -> { S_0[i, j] -> [(i)] }'
-          reference: __pet_ref_3
-          read: 1
-          write: 0
+      - type: access
+        index: '[N] -> { S_0[i, j] -> [((-1 + i) : i > 0; (0) : i = 0)] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0
 - line: 10
   domain: '[N] -> { S_1[i, j] : i >= 0 and i <= j < N }'
   body:
@@ -79,12 +56,12 @@ statements:
       arguments:
       - type: access
         index: '[N] -> { S_1[i, j] -> a[(i), (j)] }'
-        reference: __pet_ref_4
+        reference: __pet_ref_2
         read: 0
         write: 1
       - type: access
         index: '[N] -> { S_1[i, j] -> a[((-1 + i) : i > 0; (0) : i = 0), (0)] }'
-        reference: __pet_ref_5
+        reference: __pet_ref_3
         read: 1
         write: 0
 - line: -1
@@ -98,7 +75,7 @@ statements:
       - type: access
         killed: '[N] -> { S_2[] -> i[] }'
         index: '[N] -> { S_2[] -> i[] }'
-        reference: __pet_ref_6
+        reference: __pet_ref_4
         kill: 1
 - line: -1
   domain: '[N] -> { S_3[] }'
@@ -111,7 +88,7 @@ statements:
       - type: access
         killed: '[N] -> { S_3[] -> j[] }'
         index: '[N] -> { S_3[] -> j[] }'
-        reference: __pet_ref_7
+        reference: __pet_ref_5
         kill: 1
 - line: -1
   domain: '[N] -> { S_4[] }'
@@ -124,5 +101,5 @@ statements:
       - type: access
         killed: '[N] -> { S_4[] -> ind[] }'
         index: '[N] -> { S_4[] -> ind[] }'
-        reference: __pet_ref_8
+        reference: __pet_ref_6
         kill: 1

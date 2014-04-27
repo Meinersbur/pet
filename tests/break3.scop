@@ -86,19 +86,11 @@ statements:
         reference: __pet_ref_5
         read: 0
         write: 1
-      - type: op
-        operation: +
-        arguments:
-        - type: access
-          index: '{ S_2[i, j] -> [(i)] }'
-          reference: __pet_ref_6
-          read: 1
-          write: 0
-        - type: access
-          index: '{ S_2[i, j] -> [(j)] }'
-          reference: __pet_ref_7
-          read: 1
-          write: 0
+      - type: access
+        index: '{ S_2[i, j] -> [(i + j)] }'
+        reference: __pet_ref_6
+        read: 1
+        write: 0
   arguments:
   - type: access
     index: '{ S_2[i, j] -> __pet_test_0[(i), (j)] }'
@@ -116,7 +108,7 @@ statements:
       - type: access
         killed: '{ S_3[] -> i[] }'
         index: '{ S_3[] -> i[] }'
-        reference: __pet_ref_8
+        reference: __pet_ref_7
         kill: 1
 - line: -1
   domain: '{ S_4[] }'
@@ -129,7 +121,7 @@ statements:
       - type: access
         killed: '{ S_4[] -> j[] }'
         index: '{ S_4[] -> j[] }'
-        reference: __pet_ref_9
+        reference: __pet_ref_8
         kill: 1
 - line: -1
   domain: '{ S_5[] }'
@@ -143,7 +135,7 @@ statements:
         killed: '{ S_5[] -> a[o0] : 0 <= o0 <= 99 }'
         index: '{ S_5[] -> a[] }'
         depth: 1
-        reference: __pet_ref_10
+        reference: __pet_ref_9
         kill: 1
 implications:
 - satisfied: 0
