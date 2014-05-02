@@ -1256,6 +1256,30 @@ __isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr)
 	return space;
 }
 
+/* Modify all subexpressions of "expr" by calling "fn" on them.
+ * The subexpressions are traversed in depth first preorder.
+ */
+__isl_give pet_expr *pet_expr_map_top_down(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	int i, n;
+
+	if (!expr)
+		return NULL;
+
+	expr = fn(expr, user);
+
+	n = pet_expr_get_n_arg(expr);
+	for (i = 0; i < n; ++i) {
+		pet_expr *arg = pet_expr_get_arg(expr, i);
+		arg = pet_expr_map_top_down(arg, fn, user);
+		expr = pet_expr_set_arg(expr, i, arg);
+	}
+
+	return expr;
+}
+
 /* Modify all expressions of type "type" in "expr" by calling "fn" on them.
  */
 static __isl_give pet_expr *pet_expr_map_expr_of_type(__isl_take pet_expr *expr,
