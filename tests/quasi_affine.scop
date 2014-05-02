@@ -1,11 +1,11 @@
-start: 84
-end: 218
+start: 88
+end: 222
 indent: "\t"
-context: '[N, in] -> {  : N <= 2147483647 and N >= 0 and in <= 2147483647 and in >=
-  -2147483648 }'
+context: '[N, in] -> {  : N <= 2147483646 and N >= -1 and in <= 2147483647 and in
+  >= -2147483648 }'
 arrays:
-- context: '[N] -> {  : N >= 0 }'
-  extent: '[N, in] -> { A[i0] : i0 <= -1 + N and i0 >= 0 }'
+- context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
+  extent: '[N, in] -> { A[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -14,7 +14,7 @@ arrays:
   element_size: 4
 statements:
 - line: 14
-  domain: '[N, in] -> { S_0[] }'
+  domain: '[N, in] -> { S_0[] : N >= 0 }'
   schedule: '[N] -> { S_0[] -> [0, 0] }'
   body:
     type: expression
@@ -58,7 +58,7 @@ statements:
             read: 1
             write: 0
 - line: 18
-  domain: '[N, in] -> { S_2[] }'
+  domain: '[N, in] -> { S_2[] : N >= 0 }'
   schedule: '[N] -> { S_2[] -> [0, 2] }'
   body:
     type: expression

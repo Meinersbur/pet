@@ -6,7 +6,7 @@ void foo()
 {
 	int i;
 	int in;
-	int A[N];
+	int A[N + 1];
 	int out;
 
 #pragma scop
