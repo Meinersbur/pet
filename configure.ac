@@ -140,6 +140,8 @@ AC_TRY_COMPILE([#include <clang/Frontend/CompilerInstance.h>], [
 	Clang->createPreprocessor(TU_Complete);
 ], [AC_DEFINE([CREATEPREPROCESSOR_TAKES_TUKIND], [],
 [Define if CompilerInstance::createPreprocessor takes TranslationUnitKind])])
+AC_EGREP_HEADER([DecayedType], [clang/AST/Type.h],
+	[AC_DEFINE([HAVE_DECAYEDTYPE], [], [Define if DecayedType is defined])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

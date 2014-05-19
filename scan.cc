@@ -1813,18 +1813,58 @@ error:
 	return NULL;
 }
 
+#ifdef HAVE_DECAYEDTYPE
+
+/* If "type" is a decayed type, then set *decayed to true and
+ * return the original type.
+ */
+static const Type *undecay(const Type *type, bool *decayed)
+{
+	*decayed = isa<DecayedType>(type);
+	if (*decayed)
+		type = cast<DecayedType>(type)->getOriginalType().getTypePtr();
+	return type;
+}
+
+#else
+
+/* If "type" is a decayed type, then set *decayed to true and
+ * return the original type.
+ * Since this version of clang does not define a DecayedType,
+ * we cannot obtain the original type even if it had been decayed and
+ * we set *decayed to false.
+ */
+static const Type *undecay(const Type *type, bool *decayed)
+{
+	*decayed = false;
+	return type;
+}
+
+#endif
+
 /* Figure out the size of the array at position "pos" and all
  * subsequent positions from "type" and update the corresponding
  * argument of "expr" accordingly.
+ *
+ * The initial type (when pos is zero) may be a pointer type decayed
+ * from an array type, if this initial type is the type of a function
+ * argument.  This only happens if the original array type has
+ * a constant size in the outer dimension as otherwise we get
+ * a VariableArrayType.  Try and obtain this original type (if available) and
+ * take the outer array size into account if it was marked static.
  */
 __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 	const Type *type, int pos)
 {
 	const ArrayType *atype;
 	pet_expr *size;
+	bool decayed = false;
 
 	if (!expr)
 		return NULL;
+
+	if (pos == 0)
+		type = undecay(type, &decayed);
 
 	if (type->isPointerType()) {
 		type = type->getPointeeType().getTypePtr();
@@ -1835,6 +1875,11 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 
 	type = type->getCanonicalTypeInternal().getTypePtr();
 	atype = cast<ArrayType>(type);
+
+	if (decayed && atype->getSizeModifier() != ArrayType::Static) {
+		type = atype->getElementType().getTypePtr();
+		return set_upper_bounds(expr, type, pos + 1);
+	}
 
 	if (type->isConstantArrayType()) {
 		const ConstantArrayType *ca = cast<ConstantArrayType>(atype);
