@@ -2793,13 +2793,16 @@ static __isl_give isl_pw_aff *extract_affine_mul(__isl_keep pet_expr *expr,
 
 	lhs_cst = isl_pw_aff_is_cst(lhs);
 	rhs_cst = isl_pw_aff_is_cst(rhs);
-	if (lhs_cst < 0 || rhs_cst < 0 || (!lhs_cst && !rhs_cst)) {
-		isl_pw_aff_free(lhs);
-		isl_pw_aff_free(rhs);
-		return non_affine(pet_context_get_space(pc));
-	}
+	if (lhs_cst >= 0 && rhs_cst >= 0 && (lhs_cst || rhs_cst))
+		return isl_pw_aff_mul(lhs, rhs);
 
-	return isl_pw_aff_mul(lhs, rhs);
+	isl_pw_aff_free(lhs);
+	isl_pw_aff_free(rhs);
+
+	if (lhs_cst < 0 || rhs_cst < 0)
+		return NULL;
+
+	return non_affine(pet_context_get_space(pc));
 }
 
 /* Extract an affine expression from a negation operation.
