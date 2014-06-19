@@ -1127,7 +1127,7 @@ static int is_assigned(__isl_keep pet_expr *expr, __isl_keep pet_tree *tree)
 /* Are all nested access parameters in "pa" allowed given "tree".
  * In particular, is none of them written by anywhere inside "tree".
  *
- * If "tree" has any continue nodes in the current loop level,
+ * If "tree" has any continue or break nodes in the current loop level,
  * then no nested access parameters are allowed.
  * In particular, if there is any nested access in a guard
  * for a piece of code containing a "continue", then we want to introduce
@@ -1145,7 +1145,7 @@ static int is_nested_allowed(__isl_keep isl_pw_aff *pa,
 	if (!pet_nested_any_in_pw_aff(pa))
 		return 1;
 
-	if (pet_tree_has_continue(tree))
+	if (pet_tree_has_continue_or_break(tree))
 		return 0;
 
 	nparam = isl_pw_aff_dim(pa, isl_dim_param);

@@ -1446,10 +1446,10 @@ __isl_give pet_tree *pet_tree_update_domain(__isl_take pet_tree *tree,
 	return tree;
 }
 
-/* Does "tree" contain a continue node (not contained in any loop
- * subtree of "tree"?
+/* Does "tree" contain a continue or break node (not contained in any loop
+ * subtree of "tree")?
  */
-int pet_tree_has_continue(__isl_keep pet_tree *tree)
+int pet_tree_has_continue_or_break(__isl_keep pet_tree *tree)
 {
 	int i;
 	int found;
@@ -1461,8 +1461,8 @@ int pet_tree_has_continue(__isl_keep pet_tree *tree)
 	case pet_tree_error:
 		return -1;
 	case pet_tree_continue:
-		return 1;
 	case pet_tree_break:
+		return 1;
 	case pet_tree_decl:
 	case pet_tree_decl_init:
 	case pet_tree_expr:
@@ -1472,18 +1472,19 @@ int pet_tree_has_continue(__isl_keep pet_tree *tree)
 		return 0;
 	case pet_tree_block:
 		for (i = 0; i < tree->u.b.n; ++i) {
-			found = pet_tree_has_continue(tree->u.b.child[i]);
+			found =
+			    pet_tree_has_continue_or_break(tree->u.b.child[i]);
 			if (found < 0 || found)
 				return found;
 		}
 		return 0;
 	case pet_tree_if:
-		return pet_tree_has_continue(tree->u.i.then_body);
+		return pet_tree_has_continue_or_break(tree->u.i.then_body);
 	case pet_tree_if_else:
-		found = pet_tree_has_continue(tree->u.i.then_body);
+		found = pet_tree_has_continue_or_break(tree->u.i.then_body);
 		if (found < 0 || found)
 			return found;
-		return pet_tree_has_continue(tree->u.i.else_body);
+		return pet_tree_has_continue_or_break(tree->u.i.else_body);
 	}
 }
 

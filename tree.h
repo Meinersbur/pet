@@ -139,7 +139,7 @@ __isl_give pet_tree *pet_tree_map_expr(__isl_take pet_tree *tree,
 	void *user);
 
 int pet_tree_writes(__isl_keep pet_tree *tree, __isl_keep isl_id *id);
-int pet_tree_has_continue(__isl_keep pet_tree *tree);
+int pet_tree_has_continue_or_break(__isl_keep pet_tree *tree);
 
 __isl_give pet_tree *pet_tree_align_params(__isl_take pet_tree *tree,
 	__isl_take isl_space *space);
