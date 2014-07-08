@@ -278,19 +278,30 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 	isl_multi_pw_aff_free(test);
 }
 
+/* Adjust the schedule of the scop for computing the skip condition
+ * of the given type with the given offset.
+ */
+static void pet_skip_info_if_prefix(struct pet_skip_info *skip,
+	enum pet_skip type, int offset)
+{
+	if (!skip->skip[type])
+		return;
+
+	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
+}
+
 /* Add the computed skip condition of the give type to "main" and
- * add the scop for computing the condition at the given offset.
+ * add the scop for computing the condition.
  *
  * If equal is set, then we only computed a skip condition for pet_skip_now,
  * but we also need to set it as main's pet_skip_later.
  */
 struct pet_scop *pet_skip_info_if_add_type(struct pet_skip_info *skip,
-	struct pet_scop *main, enum pet_skip type, int offset)
+	struct pet_scop *main, enum pet_skip type)
 {
 	if (!skip->skip[type])
 		return main;
 
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
 	main = pet_scop_add_par(skip->ctx, main, skip->scop[type]);
 	skip->scop[type] = NULL;
 
@@ -310,8 +321,10 @@ struct pet_scop *pet_skip_info_if_add_type(struct pet_skip_info *skip,
 struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
 	struct pet_scop *scop, int offset)
 {
-	scop = pet_skip_info_if_add_type(skip, scop, pet_skip_now, offset);
-	scop = pet_skip_info_if_add_type(skip, scop, pet_skip_later, offset);
+	pet_skip_info_if_prefix(skip, pet_skip_now, offset);
+	pet_skip_info_if_prefix(skip, pet_skip_later, offset);
+	scop = pet_skip_info_if_add_type(skip, scop, pet_skip_now);
+	scop = pet_skip_info_if_add_type(skip, scop, pet_skip_later);
 
 	return scop;
 }
