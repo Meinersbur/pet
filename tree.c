@@ -1510,7 +1510,7 @@ void pet_tree_dump_with_indent(__isl_keep pet_tree *tree, int indent)
 	fprintf(stderr, "end: %d\n", pet_loc_get_end(tree->loc));
 	if (tree->label) {
 		print_indent(indent);
-		fprintf(stderr, "end: ");
+		fprintf(stderr, "label: ");
 		isl_id_dump(tree->label);
 	}
 	switch (tree->type) {
