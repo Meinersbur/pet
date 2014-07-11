@@ -281,7 +281,7 @@ static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n)
 	ctx = isl_space_get_ctx(space);
 	scop = pet_scop_alloc(ctx);
 	if (!scop)
-		return NULL;
+		goto error;
 
 	scop->context = isl_set_universe(isl_space_copy(space));
 	scop->context_value = isl_set_universe(isl_space_params(space));
@@ -293,6 +293,9 @@ static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n)
 	scop->n_stmt = n;
 
 	return scop;
+error:
+	isl_space_free(space);
+	return NULL;
 }
 
 /* Construct a pet_scop in the given space containing 0 statements.
