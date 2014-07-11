@@ -575,6 +575,7 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	if (has_var_break)
 		id_test = pet_scop_get_skip_id(scop, pet_skip_later);
 
+	scop = pet_scop_reset_skips(scop);
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched);
 	if (has_affine_break) {
 		domain = apply_affine_break(domain, skip, 1, 0, NULL);
@@ -855,6 +856,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		scop_body = scop_add_inc(scop_body, expr_inc, loc, pc, state);
 	} else
 		pet_loc_free(loc);
+	scop_body = pet_scop_reset_skips(scop_body);
 	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain), sched);
 
 	if (has_affine_break) {
@@ -1645,6 +1647,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		scop = pet_scop_reset_context(scop);
 		scop = pet_scop_prefix(scop, 1);
 	}
+	scop = pet_scop_reset_skips(scop);
 	scop = pet_scop_embed(scop, isl_set_copy(domain), sched);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {

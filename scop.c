@@ -1560,10 +1560,6 @@ error:
 
 /* Adjust the context and statement schedules according to an embedding
  * in a loop with iteration domain "dom" and schedule "sched".
- *
- * Any skip conditions within the loop have no effect outside of the loop.
- * The caller is responsible for making sure skip[pet_skip_later] has been
- * taken into account.
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_aff *sched)
@@ -1575,9 +1571,6 @@ struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 
 	if (!scop)
 		goto error;
-
-	pet_scop_reset_skip(scop, pet_skip_now);
-	pet_scop_reset_skip(scop, pet_skip_later);
 
 	scop->context = context_embed(scop->context, dom);
 	if (!scop->context)
@@ -2041,6 +2034,16 @@ void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type)
 
 	isl_multi_pw_aff_free(ext->skip[type]);
 	ext->skip[type] = NULL;
+}
+
+/* Drop all skip conditions on "scop".
+ */
+struct pet_scop *pet_scop_reset_skips(struct pet_scop *scop)
+{
+	pet_scop_reset_skip(scop, pet_skip_now);
+	pet_scop_reset_skip(scop, pet_skip_later);
+
+	return scop;
 }
 
 /* Make the skip condition (if any) depend on the value of "test" being
