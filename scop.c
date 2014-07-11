@@ -2030,7 +2030,7 @@ __isl_give pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	return pet_expr_from_index(pet_scop_get_skip(scop, type));
 }
 
-/* Drop the the skip condition scop->skip[type].
+/* Drop the skip condition scop->skip[type].
  */
 void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type)
 {
