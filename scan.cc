@@ -1537,24 +1537,15 @@ __isl_give pet_tree *PetScan::extract(IfStmt *stmt)
 }
 
 /* Try and construct a pet_tree for a label statement.
- * We currently only allow labels on expression statements.
  */
 __isl_give pet_tree *PetScan::extract(LabelStmt *stmt)
 {
 	isl_id *label;
 	pet_tree *tree;
-	Stmt *sub;
-
-	sub = stmt->getSubStmt();
-	if (!isa<Expr>(sub)) {
-		unsupported(stmt);
-		return NULL;
-	}
 
 	label = isl_id_alloc(ctx, stmt->getName(), NULL);
 
-	tree = extract(extract_expr(cast<Expr>(sub)), stmt->getSourceRange(),
-			true);
+	tree = extract(stmt->getSubStmt());
 	tree = pet_tree_set_label(tree, label);
 	return tree;
 }
