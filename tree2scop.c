@@ -418,19 +418,21 @@ static __isl_give isl_set *apply_affine_break(__isl_take isl_set *domain,
 	return isl_set_subtract(domain, after(skip, sign));
 }
 
-/* Create an affine expression on the domain space of "pc" that
- * is equal to the final dimension of this domain.
+/* Create a single-dimensional multi-affine expression on the domain space
+ * of "pc" that is equal to the final dimension of this domain.
  */
-static __isl_give isl_aff *map_to_last(__isl_keep pet_context *pc)
+static __isl_give isl_multi_aff *map_to_last(__isl_keep pet_context *pc)
 {
 	int pos;
 	isl_space *space;
 	isl_local_space *ls;
+	isl_aff *aff;
 
 	space = pet_context_get_space(pc);
 	pos = isl_space_dim(space, isl_dim_set) - 1;
 	ls = isl_local_space_from_space(space);
-	return isl_aff_var_on_domain(ls, isl_dim_set, pos);
+	aff = isl_aff_var_on_domain(ls, isl_dim_set, pos);
+	return isl_multi_aff_from_aff(aff);
 }
 
 /* Create an affine expression that maps elements
@@ -557,7 +559,7 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 	isl_id *id_test;
 	isl_set *domain;
 	isl_set *skip;
-	isl_aff *sched;
+	isl_multi_aff *sched;
 	struct pet_scop *scop;
 	int has_affine_break;
 	int has_var_break;
@@ -820,7 +822,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	isl_multi_pw_aff *test_index;
 	isl_set *domain;
 	isl_set *skip;
-	isl_aff *sched;
+	isl_multi_aff *sched;
 	struct pet_scop *scop, *scop_body;
 	int has_affine_break;
 	int has_var_break;
@@ -1507,7 +1509,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	struct pet_state *state)
 {
 	isl_set *domain;
-	isl_aff *sched;
+	isl_multi_aff *sched;
 	isl_set *cond = NULL;
 	isl_set *skip = NULL;
 	isl_id *id_test = NULL, *id_break_test;
@@ -1608,7 +1610,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	domain = isl_set_intersect(domain, cond);
 	sched = map_to_last(pc);
 	if (isl_val_is_neg(inc))
-		sched = isl_aff_neg(sched);
+		sched = isl_multi_aff_neg(sched);
 
 	valid_cond_next = valid_on_next(valid_cond, isl_set_copy(domain),
 					isl_val_copy(inc));

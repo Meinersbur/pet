@@ -1562,12 +1562,12 @@ error:
  * in a loop with iteration domain "dom" and schedule "sched".
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
-	__isl_take isl_aff *sched)
+	__isl_take isl_multi_aff *sched)
 {
 	int i;
 	isl_map *sched_map;
 
-	sched_map = isl_map_from_aff(sched);
+	sched_map = isl_map_from_multi_aff(sched);
 
 	if (!scop)
 		goto error;
