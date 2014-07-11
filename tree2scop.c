@@ -849,7 +849,6 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop = pet_scop_prefix(scop, 0);
-	scop = pet_scop_embed(scop, isl_set_copy(domain), isl_aff_copy(sched));
 	scop_body = pet_scop_reset_context(scop_body);
 	scop_body = pet_scop_prefix(scop_body, 1);
 	if (expr_inc) {
@@ -857,7 +856,6 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	} else
 		pet_loc_free(loc);
 	scop_body = pet_scop_reset_skips(scop_body);
-	scop_body = pet_scop_embed(scop_body, isl_set_copy(domain), sched);
 
 	if (has_affine_break) {
 		domain = apply_affine_break(domain, skip, 1, 0, NULL);
@@ -872,8 +870,10 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		scop_body = scop_add_break(scop_body, id_break_test,
 					isl_set_copy(domain), isl_val_one(ctx));
 	}
-	scop = scop_add_while(scop, scop_body, id_test, domain,
+	scop = scop_add_while(scop, scop_body, id_test, isl_set_copy(domain),
 				isl_val_one(ctx));
+
+	scop = pet_scop_embed(scop, domain, sched);
 
 	pet_context_free(pc);
 	return scop;
@@ -1631,8 +1631,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 				isl_set_copy(domain), test_index,
 				state->int_size);
 		scop_cond = pet_scop_prefix(scop_cond, 0);
-		scop_cond = pet_scop_embed(scop_cond, isl_set_copy(domain),
-					    isl_aff_copy(sched));
 	}
 
 	scop = scop_from_tree(tree->u.l.body, pc, state);
@@ -1648,7 +1646,6 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 		scop = pet_scop_prefix(scop, 1);
 	}
 	scop = pet_scop_reset_skips(scop);
-	scop = pet_scop_embed(scop, isl_set_copy(domain), sched);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {
 		domain = apply_affine_break(domain, skip, isl_val_sgn(inc),
@@ -1660,18 +1657,21 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (has_var_break)
 		scop = scop_add_break(scop, id_break_test, isl_set_copy(domain),
 					isl_val_copy(inc));
-	if (is_non_affine) {
-		scop = scop_add_while(scop_cond, scop, id_test, domain,
+	if (is_non_affine)
+		scop = scop_add_while(scop_cond, scop, id_test,
+					isl_set_copy(domain),
 					isl_val_copy(inc));
+	else
+		scop = set_independence(scop, tree, domain, isl_val_sgn(inc),
+					pc, state);
+	scop = pet_scop_embed(scop, domain, sched);
+	if (is_non_affine) {
 		isl_set_free(valid_inc);
 	} else {
 		valid_inc = isl_set_intersect(valid_inc, valid_cond_next);
 		valid_inc = isl_set_intersect(valid_inc, valid_cond_init);
 		valid_inc = isl_set_project_out(valid_inc, isl_dim_set, pos, 1);
 		scop = pet_scop_restrict_context(scop, valid_inc);
-		scop = set_independence(scop, tree, domain, isl_val_sgn(inc),
-					pc, state);
-		isl_set_free(domain);
 	}
 
 	isl_val_free(inc);
