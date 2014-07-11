@@ -418,9 +418,11 @@ static __isl_give isl_set *apply_affine_break(__isl_take isl_set *domain,
 /* Create a single-dimensional multi-affine expression on the domain space
  * of "pc" that is equal to the final dimension of this domain.
  * "loop_nr" is the sequence number of the corresponding loop.
+ * If "id" is not NULL, then it is used as the output tuple name.
+ * Otherwise, the name is constructed as L_<loop_nr>.
  */
 static __isl_give isl_multi_aff *map_to_last(__isl_keep pet_context *pc,
-	int loop_nr)
+	int loop_nr, __isl_keep isl_id *id)
 {
 	int pos;
 	isl_space *space;
@@ -436,8 +438,12 @@ static __isl_give isl_multi_aff *map_to_last(__isl_keep pet_context *pc,
 	aff = isl_aff_var_on_domain(ls, isl_dim_set, pos);
 	ma = isl_multi_aff_from_aff(aff);
 
-	snprintf(name, sizeof(name), "L_%d", loop_nr);
-	label = isl_id_alloc(pet_context_get_ctx(pc), name, NULL);
+	if (id) {
+		label = isl_id_copy(id);
+	} else {
+		snprintf(name, sizeof(name), "L_%d", loop_nr);
+		label = isl_id_alloc(pet_context_get_ctx(pc), name, NULL);
+	}
 	ma = isl_multi_aff_set_tuple_id(ma, isl_dim_out, label);
 
 	return ma;
@@ -539,6 +545,7 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 
 /* Construct a pet_scop for an infinite loop around the given body
  * within the context "pc".
+ * "loop_id" is the label on the loop or NULL if there is no such label.
  *
  * The domain of "pc" has already been extended with an infinite loop
  *
@@ -561,7 +568,8 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
  *	{ [outer,0]; [outer,t] : t >= 1 and not skip }
  */
 static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
-	__isl_keep pet_context *pc, struct pet_state *state)
+	__isl_keep isl_id *loop_id, __isl_keep pet_context *pc,
+	struct pet_state *state)
 {
 	isl_ctx *ctx;
 	isl_id *id_test;
@@ -574,7 +582,7 @@ static struct pet_scop *scop_from_infinite_loop(__isl_keep pet_tree *body,
 
 	ctx = pet_tree_get_ctx(body);
 	domain = pet_context_get_domain(pc);
-	sched = map_to_last(pc, state->n_loop++);
+	sched = map_to_last(pc, state->n_loop++, loop_id);
 
 	scop = scop_from_tree(body, pc, state);
 
@@ -623,7 +631,7 @@ static struct pet_scop *scop_from_infinite_for(__isl_keep pet_tree *tree,
 
 	pc = pet_context_add_infinite_loop(pc);
 
-	scop = scop_from_infinite_loop(tree->u.l.body, pc, state);
+	scop = scop_from_infinite_loop(tree->u.l.body, tree->label, pc, state);
 
 	pet_context_free(pc);
 
@@ -658,7 +666,7 @@ static struct pet_scop *scop_from_affine_while(__isl_keep pet_tree *tree,
 	dom = isl_pw_aff_non_zero_set(pa);
 	local = isl_set_add_dims(isl_set_copy(dom), isl_dim_set, 1);
 	pc = pet_context_intersect_domain(pc, local);
-	scop = scop_from_infinite_loop(tree->u.l.body, pc, state);
+	scop = scop_from_infinite_loop(tree->u.l.body, tree->label, pc, state);
 	scop = pet_scop_restrict(scop, dom);
 	scop = pet_scop_restrict_context(scop, valid);
 
@@ -787,6 +795,7 @@ static struct pet_scop *scop_add_inc(struct pet_scop *scop,
 
 /* Construct a generic while scop, with iteration domain
  * { [t] : t >= 0 } around the scop for "tree_body" within the context "pc".
+ * "loop_id" is the label on the loop or NULL if there is no such label.
  * The domain of "pc" has already been extended with this infinite loop
  *
  *	{ [t] : t >= 0 }
@@ -821,8 +830,8 @@ static struct pet_scop *scop_add_inc(struct pet_scop *scop,
  */
 static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	__isl_take pet_loc *loc, __isl_keep pet_tree *tree_body,
-	__isl_take pet_expr *expr_inc, __isl_take pet_context *pc,
-	struct pet_state *state)
+	__isl_keep isl_id *loop_id, __isl_take pet_expr *expr_inc,
+	__isl_take pet_context *pc, struct pet_state *state)
 {
 	isl_ctx *ctx;
 	isl_id *id_test, *id_break_test;
@@ -846,7 +855,7 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 	scop = pet_scop_add_boolean_array(scop, isl_set_copy(domain),
 					test_index, state->int_size);
 
-	sched = map_to_last(pc, state->n_loop++);
+	sched = map_to_last(pc, state->n_loop++, loop_id);
 
 	scop_body = scop_from_tree(tree_body, pc, state);
 
@@ -930,8 +939,8 @@ static struct pet_scop *scop_from_while(__isl_keep pet_tree *tree,
 		return scop_from_affine_while(tree, pa, pc, state);
 	isl_pw_aff_free(pa);
 	return scop_from_non_affine_while(pet_expr_copy(tree->u.l.cond),
-				pet_tree_get_loc(tree), tree->u.l.body, NULL,
-				pc, state);
+				pet_tree_get_loc(tree), tree->u.l.body,
+				tree->label, NULL, pc, state);
 error:
 	pet_context_free(pc);
 	return NULL;
@@ -1224,8 +1233,8 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	inc = pet_expr_new_binary(type_size, pet_op_add_assign, expr_iv, inc);
 
 	scop = scop_from_non_affine_while(pet_expr_copy(tree->u.l.cond),
-			pet_tree_get_loc(tree), tree->u.l.body, inc,
-			pet_context_copy(pc), state);
+			pet_tree_get_loc(tree), tree->u.l.body, tree->label,
+			inc, pet_context_copy(pc), state);
 
 	scop = pet_scop_add_seq(state->ctx, scop_init, scop);
 
@@ -1610,7 +1619,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 				    isl_set_copy(domain), isl_val_copy(inc));
 	cond = isl_set_align_params(cond, isl_set_get_space(domain));
 	domain = isl_set_intersect(domain, cond);
-	sched = map_to_last(pc, state->n_loop++);
+	sched = map_to_last(pc, state->n_loop++, tree->label);
 	if (isl_val_is_neg(inc))
 		sched = isl_multi_aff_neg(sched);
 
