@@ -4,12 +4,12 @@ indent: "\t"
 context: '[N] -> {  : N <= 1073741823 and N >= 0 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 statements:
 - line: 10
-  domain: '[N] -> { S_0[i] : i <= -1 + N and i >= 0 and i <= -11 + 2N }'
+  domain: '[N] -> { S_0[i] : i >= 0 and i <= -1 + N and i <= -11 + 2N }'
   schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: expression

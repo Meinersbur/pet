@@ -4,8 +4,8 @@ indent: "\t"
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
 arrays:
 - context: '{  :  }'
-  extent: '[N] -> { __pet_test_0[i, t] : N = 0 and i <= 9 and i >= 1 and t >= 0; __pet_test_0[0,
-    t] : t >= 0 }'
+  extent: '[N] -> { __pet_test_0[i, t] : N = 0 and i <= 9 and i >= 0 and t >= 0; __pet_test_0[0,
+    t] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0) }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -16,9 +16,9 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '[N] -> { [S_0[i, t] -> [1]] : N = 0 and i <= 9 and i >= 1 and t >= 0; [S_0[0,
-    t] -> [1]] : t >= 0 }'
-  schedule: '{ S_0[i, t] -> [0, i, 0, t, 0] }'
+  domain: '[N] -> { [S_0[i, t] -> [1]] : N = 0 and i <= 9 and i >= 0 and t >= 0; [S_0[0,
+    t] -> [1]] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0) }'
+  schedule: '[N] -> { S_0[i, t] -> [0, i, 0, t, 0] }'
   body:
     type: expression
     expr:
@@ -39,9 +39,9 @@ statements:
     read: 1
     write: 0
 - line: 11
-  domain: '[N] -> { [S_1[i, t] -> [1]] : N = 0 and i <= 9 and i >= 1 and t >= 0; [S_1[0,
-    t] -> [1]] : t >= 0 }'
-  schedule: '{ S_1[i, t] -> [0, i, 0, t, 1] }'
+  domain: '[N] -> { [S_1[i, t] -> [1]] : N = 0 and i <= 9 and i >= 0 and t >= 0; [S_1[0,
+    t] -> [1]] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0) }'
+  schedule: '[N] -> { S_1[i, t] -> [0, i, 0, t, 1] }'
   body:
     type: expression
     expr:
@@ -62,7 +62,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '[N] -> { S_2[i] : N = 0 and i <= 9 and i >= 1; S_2[0] : N = 0 }'
+  domain: '[N] -> { S_2[i] : N = 0 and i <= 9 and i >= 0 }'
   schedule: '[N] -> { S_2[i] -> [0, i, 2] }'
   body:
     type: expression
@@ -80,5 +80,6 @@ statements:
 implications:
 - satisfied: 1
   extension: '[N] -> { __pet_test_0[i, t] -> __pet_test_0[i, t''] : N = 0 and t''
-    <= t and i >= 1 and i <= 9 and t'' >= 0; __pet_test_0[0, t] -> __pet_test_0[0,
-    t''] : t'' <= t and t'' >= 0 }'
+    <= t and i >= 0 and i <= 9 and t'' >= 0; __pet_test_0[0, t] -> __pet_test_0[0,
+    t''] : (N >= 1 and t'' >= 0 and t'' <= t) or (N <= -1 and t'' >= 0 and t'' <=
+    t) }'

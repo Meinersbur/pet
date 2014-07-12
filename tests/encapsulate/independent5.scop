@@ -22,7 +22,7 @@ arrays:
   element_size: 4
 statements:
 - line: 6
-  domain: '[n] -> { S_7[i] : i <= -1 + n and i >= 0 }'
+  domain: '[n] -> { S_7[i] : i >= 0 and i <= -1 + n }'
   schedule: '[n] -> { S_7[i] -> [0, i, 0] }'
   body:
     type: expression
@@ -36,7 +36,7 @@ statements:
         reference: __pet_ref_0
         kill: 1
 - line: 6
-  domain: '[n] -> { S_6[i] : i <= -1 + n and i >= 0 }'
+  domain: '[n] -> { S_6[i] : i >= 0 and i <= -1 + n }'
   schedule: '[n] -> { S_6[i] -> [0, i, 1] }'
   body:
     type: for
@@ -93,7 +93,7 @@ statements:
           read: 1
           write: 0
 - line: 6
-  domain: '[n] -> { S_8[i] : i <= -1 + n and i >= 0 }'
+  domain: '[n] -> { S_8[i] : i >= 0 and i <= -1 + n }'
   schedule: '[n] -> { S_8[i] -> [0, i, 2] }'
   body:
     type: expression

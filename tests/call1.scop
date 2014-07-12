@@ -5,7 +5,7 @@ context: '[n] -> {  : exists (e0 = floor((n)/4): 4e0 = n and n >= 0 and n <= 214
   }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0] : i0 <= -1 + n and i0 >= 0 }'
+  extent: '[n] -> { A[i0] : i0 >= 0 and i0 <= -1 + n }'
   element_type: int
   element_size: 4
 statements:
@@ -24,8 +24,8 @@ statements:
         read: 1
         write: 0
 - line: 12
-  domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i <= -4 + n and
-    i >= 0) }'
+  domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i >= 0 and i <=
+    -4 + n) }'
   schedule: '[n] -> { S_1[i] -> [1, i] }'
   body:
     type: expression

@@ -33,7 +33,7 @@ statements:
         read: 1
         write: 0
 - line: 16
-  domain: '[N, in] -> { S_1[i] : i <= N and i >= 1 }'
+  domain: '[N, in] -> { S_1[i] : i >= 1 and i <= N }'
   schedule: '[N] -> { S_1[i] -> [0, 1, i, 0] }'
   body:
     type: expression

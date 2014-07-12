@@ -4,7 +4,7 @@ indent: "\t"
 context: '[N] -> {  : N <= 2147483647 and N >= 0 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0, i1] : i1 >= 0 and i0 >= 0 and i1 <= -1 + N }'
+  extent: '[N] -> { a[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -13,7 +13,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '[N] -> { S_0[i, j] : j >= i and i >= 0 and j <= -1 + N }'
+  domain: '[N] -> { S_0[i, j] : j >= i and j <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: expression
@@ -55,7 +55,7 @@ statements:
           read: 1
           write: 0
 - line: 10
-  domain: '[N] -> { S_1[i, j] : j >= i and i >= 0 and j <= -1 + N }'
+  domain: '[N] -> { S_1[i, j] : j >= i and j <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_1[i, j] -> [0, i, j, 1] }'
   body:
     type: expression

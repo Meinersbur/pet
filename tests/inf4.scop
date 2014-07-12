@@ -4,16 +4,16 @@ indent: '    '
 context: '[N] -> {  : N >= 8 and N <= 16 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { b[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { b[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 statements:
 - line: 12
-  domain: '[N] -> { S_0[i, j] : j >= 0 and i >= 0 and j <= -1 + N }'
+  domain: '[N] -> { S_0[i, j] : j >= 0 and j <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_0[i, j] -> [0, i, 0, j] }'
   body:
     type: expression
@@ -29,7 +29,7 @@ statements:
       - type: int
         value: 0
 - line: 14
-  domain: '[N] -> { S_1[i, j] : j >= 0 and i >= 0 and j <= -1 + N }'
+  domain: '[N] -> { S_1[i, j] : j >= 0 and j <= -1 + N and i >= 0 }'
   schedule: '[N] -> { S_1[i, j] -> [0, i, 1, j] }'
   body:
     type: expression

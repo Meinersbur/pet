@@ -4,7 +4,7 @@ indent: "\t"
 context: '[n] -> {  : n >= 4 and n <= 2147483647 }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0] : i0 <= -1 + n and i0 >= 0 }'
+  extent: '[n] -> { A[i0] : i0 >= 0 and i0 <= -1 + n }'
   element_type: int
   element_size: 4
 statements:

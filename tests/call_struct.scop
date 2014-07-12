@@ -71,10 +71,10 @@ statements:
         arguments:
         - type: access
           may_write: '{ S_1[i] -> s_c_f_a[s_c_f[s_c[s[1] -> c[2 + i]] -> f[o2]] ->
-            a[o3]] : o3 >= 0 and o3 <= 9 and o2 <= 9 and o2 >= 0; S_1[i] -> s_c_b[s_c[s[1]
+            a[o3]] : o3 >= 0 and o2 <= 9 and o2 >= 0 and o3 <= 9; S_1[i] -> s_c_b[s_c[s[1]
             -> c[3 + i]] -> b[]] }'
           must_write: '{ S_1[i] -> s_c_f_a[s_c_f[s_c[s[1] -> c[2 + i]] -> f[o2]] ->
-            a[o3]] : o3 >= 0 and o3 <= 9 and o2 <= 9 and o2 >= 0; S_1[i] -> s_c_b[s_c[s[1]
+            a[o3]] : o3 >= 0 and o2 <= 9 and o2 >= 0 and o3 <= 9; S_1[i] -> s_c_b[s_c[s[1]
             -> c[3 + i]] -> b[]] }'
           index: '{ S_1[i] -> s_c[s[(1)] -> c[(i)]] }'
           reference: __pet_ref_1

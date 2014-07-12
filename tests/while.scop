@@ -4,7 +4,7 @@ indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 arrays:
 - context: '{  :  }'
-  extent: '[n] -> { __pet_test_0[x, t] : x <= -1 + n and x >= 0 and t >= 0 }'
+  extent: '[n] -> { __pet_test_0[x, t] : x <= -1 + n and t >= 0 and x >= 0 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -15,7 +15,7 @@ arrays:
   element_size: 4
 statements:
 - line: 12
-  domain: '[n] -> { S1[x] : x <= -1 + n and x >= 0 }'
+  domain: '[n] -> { S1[x] : x >= 0 and x <= -1 + n }'
   schedule: '[n] -> { S1[x] -> [0, x, 0] }'
   body:
     type: expression
@@ -31,7 +31,7 @@ statements:
       - type: call
         name: f
 - line: 13
-  domain: '[n] -> { [S_1[x, t] -> [1]] : x <= -1 + n and x >= 0 and t >= 0 }'
+  domain: '[n] -> { [S_1[x, t] -> [1]] : x <= -1 + n and t >= 0 and x >= 0 }'
   schedule: '[n] -> { S_1[x, t] -> [0, x, 1, t, 0] }'
   body:
     type: expression
@@ -64,7 +64,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '[n] -> { [S2[x, t] -> [1]] : x <= -1 + n and x >= 0 and t >= 0 }'
+  domain: '[n] -> { [S2[x, t] -> [1]] : x <= -1 + n and t >= 0 and x >= 0 }'
   schedule: '[n] -> { S2[x, t] -> [0, x, 1, t, 1, 0] }'
   body:
     type: expression
@@ -92,7 +92,7 @@ statements:
     read: 1
     write: 0
 - line: 16
-  domain: '[n] -> { R[x] : x <= -1 + n and x >= 0 }'
+  domain: '[n] -> { R[x] : x >= 0 and x <= -1 + n }'
   schedule: '[n] -> { R[x] -> [0, x, 2] }'
   body:
     type: expression

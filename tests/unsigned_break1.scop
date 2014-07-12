@@ -9,7 +9,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[k] : k >= 252 and k <= 257 }'
+  domain: '{ S_0[k] : k <= 257 and k >= 252 }'
   schedule: '{ S_0[k] -> [0, k, 0] }'
   body:
     type: expression
@@ -25,7 +25,7 @@ statements:
       - type: int
         value: 5
 - line: 11
-  domain: '{ S_1[k] : exists (e0 = floor((-1 + k)/256): k >= 252 and k <= 257 and
+  domain: '{ S_1[k] : exists (e0 = floor((-1 + k)/256): k <= 257 and k >= 252 and
     256e0 >= -256 + k and 256e0 <= -2 + k) }'
   schedule: '{ S_1[k] -> [0, k, 2] }'
   body:

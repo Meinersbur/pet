@@ -10,7 +10,7 @@ arrays:
   element_size: 4
   uniquely_defined: 1
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 - context: '{  :  }'

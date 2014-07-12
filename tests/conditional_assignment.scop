@@ -5,21 +5,21 @@ context: '[N, M] -> {  : N >= 0 and M >= 0 and N <= 2147483647 and M <= 21474836
   }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, M] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
-    9 }'
+  extent: '[N, M] -> { A[i0, i1] : i1 <= 9 and i1 >= 0 and i0 >= 0 and i0 <= -1 +
+    N }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, M] -> { C[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N, M] -> { C[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 - context: '[M, N] -> {  : N >= 0 and M >= 0 }'
-  extent: '[N, M] -> { in1[i0, i1] : i1 <= -1 + M and i1 >= 0 and i0 <= -1 + N and
-    i0 >= 0 }'
+  extent: '[N, M] -> { in1[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
+    -1 + M }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, M] -> { in2[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N, M] -> { in2[i0] : i0 >= 0 and i0 <= -1 + N }'
   value_bounds: '{ [i0] : i0 >= -1 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -29,7 +29,7 @@ arrays:
   element_size: 4
 statements:
 - line: 21
-  domain: '[N, M] -> { S_0[i] : i <= -1 + N and i >= 0 }'
+  domain: '[N, M] -> { S_0[i] : i >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_0[i] -> [0, i, 0] }'
   body:
     type: expression
@@ -53,8 +53,8 @@ statements:
         - type: int
           value: 1
 - line: 23
-  domain: '[N, M] -> { S_1[i, j] : j <= -1 + M and j >= 0 and i <= -1 + N and i >=
-    0 }'
+  domain: '[N, M] -> { S_1[i, j] : i >= 0 and i <= -1 + N and j >= 0 and j <= -1 +
+    M }'
   schedule: '[N, M] -> { S_1[i, j] -> [0, i, 1, j] }'
   body:
     type: expression
@@ -84,7 +84,7 @@ statements:
           read: 1
           write: 0
 - line: 24
-  domain: '[N, M] -> { S_2[i] : i <= -1 + N and i >= 0 }'
+  domain: '[N, M] -> { S_2[i] : i >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_2[i] -> [0, i, 2] }'
   body:
     type: expression
@@ -123,7 +123,7 @@ statements:
       - type: int
         value: 0
 - line: 28
-  domain: '[N, M] -> { S_4[i] : i <= -1 + N and i >= 0 }'
+  domain: '[N, M] -> { S_4[i] : i >= 0 and i <= -1 + N }'
   schedule: '[N] -> { S_4[i] -> [2, i] }'
   body:
     type: expression

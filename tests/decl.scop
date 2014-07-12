@@ -10,21 +10,21 @@ arrays:
   element_size: 4
   declared: 1
 - context: '[K] -> {  : K >= 0 }'
-  extent: '[N, K, M] -> { A[i0, i1] : i1 >= 0 and i0 >= 0 and i1 <= -1 + K }'
+  extent: '[N, K, M] -> { A[i0, i1] : i1 >= 0 and i1 <= -1 + K and i0 >= 0 }'
   element_type: float
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, K, M] -> { B[i0, i1] : i1 >= 0 and i0 >= 0 and i1 <= -1 + N }'
+  extent: '[N, K, M] -> { B[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 }'
   element_type: float
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, K, M] -> { C[i0, i1] : i1 >= 0 and i0 >= 0 and i1 <= -1 + N }'
+  extent: '[N, K, M] -> { C[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 }'
   element_type: float
   element_size: 4
 statements:
 - line: 8
-  domain: '[N, K, M] -> { S_0[i, j] : j <= -1 + N and j >= 0 and i <= -1 + M and i
-    >= 0 }'
+  domain: '[N, K, M] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >= 0 and j <= -1
+    + N }'
   schedule: '[M, N] -> { S_0[i, j] -> [0, i, j, 0] }'
   body:
     type: expression
@@ -40,8 +40,8 @@ statements:
       - type: int
         value: 0
 - line: 10
-  domain: '[N, K, M] -> { S_1[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
-    j >= 0 and i <= -1 + M and i >= 0 }'
+  domain: '[N, K, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
+    -1 + N and k >= 0 and k <= -1 + K }'
   schedule: '[M, N, K] -> { S_1[i, j, k] -> [0, i, j, 1, k, 0, 0] }'
   body:
     type: expression
@@ -55,8 +55,8 @@ statements:
         reference: __pet_ref_1
         kill: 1
 - line: 10
-  domain: '[N, K, M] -> { S_2[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
-    j >= 0 and i <= -1 + M and i >= 0 }'
+  domain: '[N, K, M] -> { S_2[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
+    -1 + N and k >= 0 and k <= -1 + K }'
   schedule: '[M, N, K] -> { S_2[i, j, k] -> [0, i, j, 1, k, 0, 1] }'
   body:
     type: expression
@@ -83,8 +83,8 @@ statements:
           read: 1
           write: 0
 - line: 11
-  domain: '[N, K, M] -> { S_4[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
-    j >= 0 and i <= -1 + M and i >= 0 }'
+  domain: '[N, K, M] -> { S_4[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
+    -1 + N and k >= 0 and k <= -1 + K }'
   schedule: '[M, N, K] -> { S_4[i, j, k] -> [0, i, j, 1, k, 1] }'
   body:
     type: expression
@@ -103,8 +103,8 @@ statements:
         read: 1
         write: 0
 - line: 10
-  domain: '[N, K, M] -> { S_3[i, j, k] : k <= -1 + K and k >= 0 and j <= -1 + N and
-    j >= 0 and i <= -1 + M and i >= 0 }'
+  domain: '[N, K, M] -> { S_3[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <=
+    -1 + N and k >= 0 and k <= -1 + K }'
   schedule: '[M, N, K] -> { S_3[i, j, k] -> [0, i, j, 1, k, 2] }'
   body:
     type: expression

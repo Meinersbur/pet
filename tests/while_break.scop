@@ -134,7 +134,7 @@ statements:
 - line: 21
   domain: '[N] -> { [S_5[t] -> [1]] : N = 0 and t >= 0; [S_5[0] -> [1]] : N <= -1
     or N >= 1 }'
-  schedule: '{ S_5[t] -> [2, t, 0] }'
+  schedule: '[N] -> { S_5[t] -> [2, t, 0] }'
   body:
     type: expression
     expr:
@@ -150,15 +150,15 @@ statements:
         name: f
   arguments:
   - type: access
-    index: '[N] -> { S_5[t] -> __pet_test_1[((-1 + t) : (N = 0 and t >= 1) or (t =
-      1 and N >= 1) or (t = 1 and N <= -1))] }'
+    index: '[N] -> { S_5[t] -> __pet_test_1[((-1 + t) : (t = 1 and N <= -1) or (t
+      = 1 and N >= 1) or (N = 0 and t >= 1))] }'
     reference: __pet_ref_8
     read: 1
     write: 0
 - line: 22
   domain: '[N] -> { [S_6[t] -> [1]] : N = 0 and t >= 0; [S_6[0] -> [1]] : N <= -1
     or N >= 1 }'
-  schedule: '{ S_6[t] -> [2, t, 1, 0] }'
+  schedule: '[N] -> { S_6[t] -> [2, t, 1, 0] }'
   body:
     type: expression
     expr:

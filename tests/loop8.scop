@@ -1,10 +1,10 @@
 start: 38
 end: 109
 indent: "\t"
-context: '[N] -> {  : N >= 1 and N <= 2147483647 }'
+context: '[N] -> {  : N <= 2147483647 and N >= 1 }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 statements:

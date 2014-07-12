@@ -9,7 +9,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[k] : k >= 252 and k <= 261 }'
+  domain: '{ S_0[k] : k <= 261 and k >= 252 }'
   schedule: '{ S_0[k] -> [0, k] }'
   body:
     type: expression

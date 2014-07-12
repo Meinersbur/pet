@@ -4,7 +4,7 @@ indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 arrays:
 - context: '{  :  }'
-  extent: '[n] -> { __pet_test_0[x1, t] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
+  extent: '[n] -> { __pet_test_0[x1, t] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -19,7 +19,7 @@ arrays:
   element_size: 4
 statements:
 - line: 13
-  domain: '[n] -> { S1[x1] : x1 <= -1 + n and x1 >= 0 }'
+  domain: '[n] -> { S1[x1] : x1 >= 0 and x1 <= -1 + n }'
   schedule: '[n] -> { S1[x1] -> [0, x1, 0] }'
   body:
     type: expression
@@ -35,7 +35,7 @@ statements:
       - type: call
         name: f
 - line: 14
-  domain: '[n] -> { S_1[x1] : x1 <= -1 + n and x1 >= 0 }'
+  domain: '[n] -> { S_1[x1] : x1 >= 0 and x1 <= -1 + n }'
   schedule: '[n] -> { S_1[x1] -> [0, x1, 1, 0] }'
   body:
     type: expression
@@ -51,7 +51,7 @@ statements:
       - type: int
         value: 0
 - line: 14
-  domain: '[n] -> { [S_2[x1, t] -> [1]] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
+  domain: '[n] -> { [S_2[x1, t] -> [1]] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
   schedule: '[n] -> { S_2[x1, t] -> [0, x1, 1, 1, t, 0] }'
   body:
     type: expression
@@ -84,7 +84,7 @@ statements:
     read: 1
     write: 0
 - line: 15
-  domain: '[n] -> { [S2[x1, t] -> [1]] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
+  domain: '[n] -> { [S2[x1, t] -> [1]] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
   schedule: '[n] -> { S2[x1, t] -> [0, x1, 1, 1, t, 1, 0] }'
   body:
     type: expression
@@ -112,7 +112,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '[n] -> { [S_4[x1, t] -> [1]] : x1 <= -1 + n and x1 >= 0 and t >= 0 }'
+  domain: '[n] -> { [S_4[x1, t] -> [1]] : x1 <= -1 + n and t >= 0 and x1 >= 0 }'
   schedule: '[n] -> { S_4[x1, t] -> [0, x1, 1, 1, t, 2] }'
   body:
     type: expression
@@ -137,7 +137,7 @@ statements:
     read: 1
     write: 0
 - line: 17
-  domain: '[n] -> { R[x1] : x1 <= -1 + n and x1 >= 0 }'
+  domain: '[n] -> { R[x1] : x1 >= 0 and x1 <= -1 + n }'
   schedule: '[n] -> { R[x1] -> [0, x1, 2] }'
   body:
     type: expression

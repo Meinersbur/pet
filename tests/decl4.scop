@@ -4,13 +4,13 @@ indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { a[i0] : i0 <= -1 + n and i0 >= 0 }'
+  extent: '[n] -> { a[i0] : i0 >= 0 and i0 <= -1 + n }'
   element_type: float
   element_size: 4
   declared: 1
   exposed: 1
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { b[i0] : i0 <= -1 + n and i0 >= 0 }'
+  extent: '[n] -> { b[i0] : i0 >= 0 and i0 <= -1 + n }'
   element_type: float
   element_size: 4
   declared: 1
@@ -25,13 +25,13 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_0[] -> a[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_0[] -> a[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_0[] -> a[] }'
         depth: 1
         reference: __pet_ref_0
         kill: 1
 - line: 7
-  domain: '[n] -> { S_1[i] : i <= -1 + n and i >= 0 }'
+  domain: '[n] -> { S_1[i] : i >= 0 and i <= -1 + n }'
   schedule: '[n] -> { S_1[i] -> [1, i, 0] }'
   body:
     type: expression
@@ -40,13 +40,13 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_1[i] -> b[o0] : o0 >= 0 and o0 <= -1 + n }'
+        killed: '[n] -> { S_1[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
         index: '[n] -> { S_1[i] -> b[] }'
         depth: 1
         reference: __pet_ref_1
         kill: 1
 - line: 7
-  domain: '[n] -> { S_2[i] : i <= -1 + n and i >= 0 }'
+  domain: '[n] -> { S_2[i] : i >= 0 and i <= -1 + n }'
   schedule: '[n] -> { S_2[i] -> [1, i, 1] }'
   body:
     type: expression
@@ -55,7 +55,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_2[i] -> b[o0] : o0 >= 0 and o0 <= -1 + n }'
+        killed: '[n] -> { S_2[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
         index: '[n] -> { S_2[i] -> b[] }'
         depth: 1
         reference: __pet_ref_2
