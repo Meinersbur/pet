@@ -187,11 +187,7 @@ static int check_name(__isl_take isl_map *map, void *user)
 	return 0;
 }
 
-/* Read a schedule, a context and (optionally) build options,
- * generate an AST and print the result in a form that is readable
- * by pet.
- *
- * In particular, print out the following code
+/* Given an AST "tree", print out the following code
  *
  *	void foo(<parameters>/)
  *	{
@@ -200,10 +196,76 @@ static int check_name(__isl_take isl_map *map, void *user)
  *		AST
  *	#pragma endscop
  *	}
+ *
+ * where the declarations are derived from the spaces in "domain".
+ */
+static void print_tree(__isl_take isl_union_set *domain,
+	__isl_take isl_ast_node *tree)
+{
+	int i, n;
+	isl_ctx *ctx;
+	isl_space *space;
+	isl_printer *p;
+	isl_ast_print_options *print_options;
+
+	if (!domain || !tree)
+		goto error;
+
+	ctx = isl_union_set_get_ctx(domain);
+
+	p = isl_printer_to_file(ctx, stdout);
+	p = isl_printer_set_output_format(p, ISL_FORMAT_C);
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "void foo(");
+
+	space = isl_union_set_get_space(domain);
+	n = isl_space_dim(space, isl_dim_param);
+	for (i = 0; i < n; ++i) {
+		const char *name;
+
+		if (i)
+			p = isl_printer_print_str(p, ", ");
+		name = isl_space_get_dim_name(space, isl_dim_param, i);
+		p = isl_printer_print_str(p, "int ");
+		p = isl_printer_print_str(p, name);
+	}
+	isl_space_free(space);
+
+	p = isl_printer_print_str(p, ")");
+	p = isl_printer_end_line(p);
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "{");
+	p = isl_printer_end_line(p);
+	p = isl_printer_start_line(p);
+	p = isl_printer_indent(p, 2);
+	p = print_declarations(p, domain);
+	p = isl_printer_indent(p, -2);
+	p = isl_printer_print_str(p, "#pragma scop");
+	p = isl_printer_end_line(p);
+
+	p = isl_printer_indent(p, 2);
+	print_options = isl_ast_print_options_alloc(ctx);
+	p = isl_ast_node_print(tree, p, print_options);
+	p = isl_printer_indent(p, -2);
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "#pragma endscop");
+	p = isl_printer_end_line(p);
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "}");
+	p = isl_printer_end_line(p);
+	isl_printer_free(p);
+
+error:
+	isl_union_set_free(domain);
+	isl_ast_node_free(tree);
+}
+
+/* Read a schedule, a context and (optionally) build options,
+ * generate an AST and print the result in a form that is readable
+ * by pet.
  */
 int main(int argc, char **argv)
 {
-	int i, n;
 	isl_ctx *ctx;
 	isl_set *context;
 	isl_union_set *domain;
@@ -211,8 +273,6 @@ int main(int argc, char **argv)
 	isl_ast_build *build;
 	isl_ast_node *tree;
 	struct options *options;
-	isl_ast_print_options *print_options;
-	isl_printer *p;
 
 	options = options_new_with_defaults();
 	assert(options);
@@ -227,57 +287,17 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	context = isl_set_read_from_file(ctx, stdin);
-	context = isl_set_align_params(context,
-					isl_union_map_get_space(schedule));
 
 	domain = isl_union_map_domain(isl_union_map_copy(schedule));
-
-	p = isl_printer_to_file(ctx, stdout);
-	p = isl_printer_set_output_format(p, ISL_FORMAT_C);
-	p = isl_printer_start_line(p);
-	p = isl_printer_print_str(p, "void foo(");
-
-	n = isl_set_dim(context, isl_dim_param);
-	for (i = 0; i < n; ++i) {
-		const char *name;
-		if (i)
-			p = isl_printer_print_str(p, ", ");
-		name = isl_set_get_dim_name(context, isl_dim_param, i);
-		p = isl_printer_print_str(p, "int ");
-		p = isl_printer_print_str(p, name);
-	}
-
-	p = isl_printer_print_str(p, ")");
-	p = isl_printer_end_line(p);
-	p = isl_printer_start_line(p);
-	p = isl_printer_print_str(p, "{");
-	p = isl_printer_end_line(p);
-	p = isl_printer_start_line(p);
-	p = isl_printer_indent(p, 2);
-	p = print_declarations(p, domain);
-	p = isl_printer_indent(p, -2);
-	p = isl_printer_print_str(p, "#pragma scop");
-	p = isl_printer_end_line(p);
+	domain = isl_union_set_align_params(domain, isl_set_get_space(context));
 
 	build = isl_ast_build_from_context(context);
 	build = set_options(build, options, schedule);
 	tree = isl_ast_build_node_from_schedule_map(build, schedule);
 	isl_ast_build_free(build);
 
-	p = isl_printer_indent(p, 2);
-	print_options = isl_ast_print_options_alloc(ctx);
-	p = isl_ast_node_print(tree, p, print_options);
-	p = isl_printer_indent(p, -2);
-	p = isl_printer_start_line(p);
-	p = isl_printer_print_str(p, "#pragma endscop");
-	p = isl_printer_end_line(p);
-	p = isl_printer_start_line(p);
-	p = isl_printer_print_str(p, "}");
-	p = isl_printer_end_line(p);
-	isl_printer_free(p);
+	print_tree(domain, tree);
 
-	isl_ast_node_free(tree);
-	isl_union_set_free(domain);
 	isl_ctx_free(ctx);
 	return 0;
 }
