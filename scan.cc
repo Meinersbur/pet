@@ -2016,6 +2016,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
  *	size >= 0
  *
  * to array->context.
+ *
+ * The domain of "size" is assumed to be zero-dimensional.
  */
 static struct pet_array *update_size(struct pet_array *array, int pos,
 	__isl_take isl_pw_aff *size)
@@ -2198,7 +2200,8 @@ static int is_infty(__isl_keep pet_expr *expr)
  * The arguments of the size expression that have a value different from
  * infinity are then converted to an affine expression
  * within the context "pc" and incorporated into the size of "array".
- * If we are unable to convert a size expression to an affine expression,
+ * If we are unable to convert a size expression to an affine expression or
+ * if the size is not a (symbolic) constant,
  * then we leave the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
@@ -2219,13 +2222,20 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 
 		arg = pet_expr_get_arg(expr, i);
 		if (!is_infty(arg)) {
+			int dim;
+
 			size = pet_expr_extract_affine(arg, pc);
+			dim = isl_pw_aff_dim(size, isl_dim_in);
 			if (!size)
 				array = pet_array_free(array);
-			else if (isl_pw_aff_involves_nan(size))
+			else if (isl_pw_aff_involves_nan(size) ||
+			    isl_pw_aff_involves_dims(size, isl_dim_in, 0, dim))
 				isl_pw_aff_free(size);
-			else
+			else {
+				size = isl_pw_aff_drop_dims(size,
+							    isl_dim_in, i, dim);
 				array = update_size(array, i, size);
+			}
 		}
 		pet_expr_free(arg);
 	}
