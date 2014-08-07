@@ -3,7 +3,8 @@
 EXEEXT=@EXEEXT@
 srcdir=@ISL_SRCDIR@
 
-for i in $srcdir/test_inputs/codegen/*.st; do
+for i in $srcdir/test_inputs/codegen/*.st \
+		$srcdir/test_inputs/codegen/cloog/*.st; do
 	echo $i;
 	for opt in "" "--separate" "--atomic" \
 		"--isl-no-ast-build-atomic-upper-bound"; do
@@ -14,7 +15,6 @@ for i in $srcdir/test_inputs/codegen/*.st; do
 done
 
 for i in $srcdir/test_inputs/codegen/*.in \
-		$srcdir/test_inputs/codegen/cloog/*.in \
 		$srcdir/test_inputs/codegen/omega/*.in \
 		$srcdir/test_inputs/codegen/pldi2012/*.in; do
 	echo $i;
