@@ -290,16 +290,18 @@ __isl_give pet_expr *pet_expr_kill_from_access_and_index(
 	expr = pet_expr_access_set_depth(expr, depth);
 	expr = pet_expr_access_set_access(expr, pet_expr_access_killed,
 					isl_union_map_from_map(access));
-	return pet_expr_new_unary(pet_op_kill, expr);
+	return pet_expr_new_unary(0, pet_op_kill, expr);
 error:
 	isl_map_free(access);
 	isl_multi_pw_aff_free(index);
 	return NULL;
 }
 
-/* Construct a unary pet_expr that performs "op" on "arg".
+/* Construct a unary pet_expr that performs "op" on "arg",
+ * where the result is represented using a type of "type_size" bits
+ * (may be zero if unknown or if the type is not an integer).
  */
-__isl_give pet_expr *pet_expr_new_unary(enum pet_op_type op,
+__isl_give pet_expr *pet_expr_new_unary(int type_size, enum pet_op_type op,
 	__isl_take pet_expr *arg)
 {
 	isl_ctx *ctx;
@@ -314,6 +316,7 @@ __isl_give pet_expr *pet_expr_new_unary(enum pet_op_type op,
 		goto error;
 
 	expr->op = op;
+	expr->type_size = type_size;
 	expr->args[pet_un_arg] = arg;
 
 	return expr;

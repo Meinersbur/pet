@@ -618,6 +618,7 @@ static __isl_give pet_expr *mark_write(__isl_take pet_expr *access)
  */
 __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 {
+	int type_size;
 	pet_expr *arg;
 	enum pet_op_type op;
 
@@ -635,7 +636,8 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 		arg = pet_expr_access_set_read(arg, 1);
 	}
 
-	return pet_expr_new_unary(op, arg);
+	type_size = get_type_size(expr->getType(), ast_context);
+	return pet_expr_new_unary(type_size, op, arg);
 }
 
 /* Construct a pet_expr representing a binary operator expression.
@@ -798,7 +800,7 @@ __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
  */
 __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 {
-	return pet_expr_new_unary(pet_op_assume, extract_expr(expr));
+	return pet_expr_new_unary(0, pet_op_assume, extract_expr(expr));
 }
 
 /* Construct a pet_expr corresponding to the function call argument "expr".
@@ -852,7 +854,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	}
 
 	if (is_addr)
-		res = pet_expr_new_unary(pet_op_address_of, res);
+		res = pet_expr_new_unary(0, pet_op_address_of, res);
 	return res;
 }
 
@@ -1223,8 +1225,11 @@ __isl_give pet_expr *PetScan::extract_compound_increment(
 	}
 
 	expr = extract_expr(op->getRHS());
-	if (neg)
-		expr = pet_expr_new_unary(pet_op_minus, expr);
+	if (neg) {
+		int type_size;
+		type_size = get_type_size(op->getType(), ast_context);
+		expr = pet_expr_new_unary(type_size, pet_op_minus, expr);
+	}
 
 	return expr;
 }
