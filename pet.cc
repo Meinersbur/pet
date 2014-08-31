@@ -38,7 +38,11 @@
 #include <map>
 #include <vector>
 #include <iostream>
+#ifdef HAVE_ADT_OWNINGPTR_H
 #include <llvm/ADT/OwningPtr.h>
+#else
+#include <memory>
+#endif
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/Host.h>
@@ -95,6 +99,10 @@
 using namespace std;
 using namespace clang;
 using namespace clang::driver;
+
+#ifdef HAVE_ADT_OWNINGPTR_H
+#define unique_ptr	llvm::OwningPtr
+#endif
 
 /* Called if we found something we didn't expect in one of the pragmas.
  * We'll provide more informative warnings later.
@@ -766,11 +774,11 @@ static CompilerInvocation *construct_invocation(const char *filename,
 	DiagnosticsEngine &Diags)
 {
 	const char *binary = CLANG_PREFIX"/bin/clang";
-	const llvm::OwningPtr<Driver> driver(construct_driver(binary, Diags));
+	const unique_ptr<Driver> driver(construct_driver(binary, Diags));
 	std::vector<const char *> Argv;
 	Argv.push_back(binary);
 	Argv.push_back(filename);
-	const llvm::OwningPtr<Compilation> compilation(
+	const unique_ptr<Compilation> compilation(
 		driver->BuildCompilation(llvm::ArrayRef<const char *>(Argv)));
 	JobList &Jobs = compilation->getJobs();
 	if (Jobs.size() < 1)
