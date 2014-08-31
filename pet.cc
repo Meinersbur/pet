@@ -885,6 +885,23 @@ void add_path(HeaderSearchOptions &HSO, string Path)
 
 #endif
 
+#ifdef HAVE_SETMAINFILEID
+
+static void create_main_file_id(SourceManager &SM, const FileEntry *file)
+{
+	SM.setMainFileID(SM.createFileID(file, SourceLocation(),
+					SrcMgr::C_User));
+}
+
+#else
+
+static void create_main_file_id(SourceManager &SM, const FileEntry *file)
+{
+	SM.createMainFileID(file);
+}
+
+#endif
+
 /* Add pet specific predefines to the preprocessor.
  *
  * We mimic the way <command line> is handled inside clang.
@@ -947,7 +964,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	if (!file)
 		isl_die(ctx, isl_error_unknown, "unable to open file",
 			do { delete Clang; return -1; } while (0));
-	Clang->getSourceManager().createMainFileID(file);
+	create_main_file_id(Clang->getSourceManager(), file);
 
 	Clang->createASTContext();
 	PetASTConsumer consumer(ctx, PP, Clang->getASTContext(), Diags,

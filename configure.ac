@@ -148,6 +148,9 @@ AC_TRY_COMPILE([#include <clang/Frontend/CompilerInstance.h>], [
 [Define if CompilerInstance::createPreprocessor takes TranslationUnitKind])])
 AC_EGREP_HEADER([DecayedType], [clang/AST/Type.h],
 	[AC_DEFINE([HAVE_DECAYEDTYPE], [], [Define if DecayedType is defined])])
+AC_EGREP_HEADER([setMainFileID], [clang/Basic/SourceManager.h],
+	[AC_DEFINE([HAVE_SETMAINFILEID], [],
+	[Define if SourceManager has a setMainFileID method])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
