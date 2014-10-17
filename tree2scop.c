@@ -245,6 +245,15 @@ static struct pet_scop *scop_from_decl(__isl_keep pet_tree *tree,
 	return scop;
 }
 
+/* Construct a pet_scop for an expression statement within the context "pc".
+ */
+static struct pet_scop *scop_from_tree_expr(__isl_keep pet_tree *tree,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	return scop_from_unevaluated_tree(pet_tree_copy(tree),
+						state->n_stmt++, pc);
+}
+
 /* Return those elements in the space of "cond" that come after
  * (based on "sign") an element in "cond" in the final dimension.
  */
@@ -2357,8 +2366,7 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 	case pet_tree_decl_init:
 		return scop_from_decl(tree, pc, state);
 	case pet_tree_expr:
-		return scop_from_unevaluated_tree(pet_tree_copy(tree),
-					state->n_stmt++, pc);
+		return scop_from_tree_expr(tree, pc, state);
 	case pet_tree_if:
 	case pet_tree_if_else:
 		scop = scop_from_if(tree, pc, state);
