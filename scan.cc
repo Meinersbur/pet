@@ -2238,7 +2238,7 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 				isl_pw_aff_free(size);
 			else {
 				size = isl_pw_aff_drop_dims(size,
-							    isl_dim_in, i, dim);
+							    isl_dim_in, 0, dim);
 				array = update_size(array, i, size);
 			}
 		}
