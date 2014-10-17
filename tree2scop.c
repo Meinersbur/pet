@@ -32,6 +32,8 @@
  * Leiden University.
  */
 
+#include <string.h>
+
 #include <isl/id_to_pw_aff.h>
 
 #include "aff.h"
@@ -245,11 +247,130 @@ static struct pet_scop *scop_from_decl(__isl_keep pet_tree *tree,
 	return scop;
 }
 
+/* Does "tree" represent a kill statement?
+ * That is, is it an expression statement that "calls" __pencil_kill?
+ */
+static int is_pencil_kill(__isl_keep pet_tree *tree)
+{
+	pet_expr *expr;
+	const char *name;
+
+	if (!tree)
+		return -1;
+	if (tree->type != pet_tree_expr)
+		return 0;
+	expr = tree->u.e.expr;
+	if (pet_expr_get_type(expr) != pet_expr_call)
+		return 0;
+	name = pet_expr_call_get_name(expr);
+	if (!name)
+		return -1;
+	return !strcmp(name, "__pencil_kill");
+}
+
+/* Add a kill to "scop" that kills what is accessed by
+ * the access expression "expr".
+ *
+ * If the access expression has any arguments (after evaluation
+ * in the context of "pc"), then we ignore it, since we cannot
+ * tell which elements are definitely killed.
+ *
+ * Otherwise, we extend the index expression to the dimension
+ * of the accessed array and intersect with the extent of the array and
+ * add a kill expression that kills these array elements is added to "scop".
+ */
+static struct pet_scop *scop_add_kill(struct pet_scop *scop,
+	__isl_take pet_expr *expr, __isl_take pet_loc *loc,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	int dim1, dim2;
+	isl_id *id;
+	isl_multi_pw_aff *index;
+	isl_map *map;
+	pet_expr *kill;
+	struct pet_array *array;
+	struct pet_scop *scop_i;
+
+	expr = pet_context_evaluate_expr(pc, expr);
+	if (!expr)
+		goto error;
+	if (expr->n_arg != 0) {
+		pet_expr_free(expr);
+		return scop;
+	}
+	array = extract_array(expr, pc, state);
+	if (!array)
+		goto error;
+	index = pet_expr_access_get_index(expr);
+	pet_expr_free(expr);
+	map = isl_map_from_multi_pw_aff(isl_multi_pw_aff_copy(index));
+	id = isl_map_get_tuple_id(map, isl_dim_out);
+	dim1 = isl_set_dim(array->extent, isl_dim_set);
+	dim2 = isl_map_dim(map, isl_dim_out);
+	map = isl_map_add_dims(map, isl_dim_out, dim1 - dim2);
+	map = isl_map_set_tuple_id(map, isl_dim_out, id);
+	map = isl_map_intersect_range(map, isl_set_copy(array->extent));
+	pet_array_free(array);
+	kill = pet_expr_kill_from_access_and_index(map, index);
+	scop_i = scop_from_evaluated_expr(kill, state->n_stmt++, loc, pc);
+	scop = pet_scop_add_par(state->ctx, scop, scop_i);
+
+	return scop;
+error:
+	pet_expr_free(expr);
+	return pet_scop_free(scop);
+}
+
+/* For each argument of the __pencil_kill call in "tree" that
+ * represents an access, add a kill statement to "scop" killing the accessed
+ * elements.
+ */
+static struct pet_scop *scop_from_pencil_kill(__isl_keep pet_tree *tree,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	pet_expr *call;
+	struct pet_scop *scop;
+	int i, n;
+
+	call = tree->u.e.expr;
+
+	scop = pet_scop_empty(pet_context_get_space(pc));
+
+	n = pet_expr_get_n_arg(call);
+	for (i = 0; i < n; ++i) {
+		pet_expr *arg;
+		pet_loc *loc;
+
+		arg = pet_expr_get_arg(call, i);
+		if (!arg)
+			return pet_scop_free(scop);
+		if (pet_expr_get_type(arg) != pet_expr_access) {
+			pet_expr_free(arg);
+			continue;
+		}
+		loc = pet_tree_get_loc(tree);
+		scop = scop_add_kill(scop, arg, loc, pc, state);
+	}
+
+	return scop;
+}
+
 /* Construct a pet_scop for an expression statement within the context "pc".
+ *
+ * If the expression calls __pencil_kill, then it needs to be converted
+ * into zero or more kill statements.
+ * Otherwise, a scop is extracted directly from the tree.
  */
 static struct pet_scop *scop_from_tree_expr(__isl_keep pet_tree *tree,
 	__isl_keep pet_context *pc, struct pet_state *state)
 {
+	int is_kill;
+
+	is_kill = is_pencil_kill(tree);
+	if (is_kill < 0)
+		return NULL;
+	if (is_kill)
+		return scop_from_pencil_kill(tree, pc, state);
 	return scop_from_unevaluated_tree(pet_tree_copy(tree),
 						state->n_stmt++, pc);
 }

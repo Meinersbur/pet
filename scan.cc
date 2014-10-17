@@ -925,6 +925,10 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
  *
  * In the special case of a "call" to __pencil_assume,
  * construct an assume expression instead.
+ *
+ * In the case of a "call" to __pencil_kill, the arguments
+ * are neither read nor written (only killed), so there
+ * is no need to check for writes to these arguments.
  */
 __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
@@ -932,6 +936,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	FunctionDecl *fd;
 	string name;
 	unsigned n_arg;
+	bool is_kill;
 
 	fd = expr->getDirectCallee();
 	if (!fd) {
@@ -944,6 +949,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 
 	if (n_arg == 1 && name == "__pencil_assume")
 		return extract_assume(expr->getArg(0));
+	is_kill = name == "__pencil_kill";
 
 	res = pet_expr_new_call(ctx, name.c_str(), n_arg);
 	if (!res)
@@ -952,7 +958,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	for (int i = 0; i < n_arg; ++i) {
 		Expr *arg = expr->getArg(i);
 		res = pet_expr_set_arg(res, i,
-			    PetScan::extract_argument(fd, i, arg, 1));
+			    PetScan::extract_argument(fd, i, arg, !is_kill));
 	}
 
 	fd = get_summary_function(expr);
