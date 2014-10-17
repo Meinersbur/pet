@@ -164,7 +164,7 @@ private:
 	__isl_give pet_expr *set_summary(__isl_take pet_expr *expr,
 		clang::FunctionDecl *fd);
 	__isl_give pet_expr *extract_argument(clang::FunctionDecl *fd, int pos,
-		clang::Expr *expr);
+		clang::Expr *expr, bool detect_writes);
 	__isl_give pet_expr *extract_expr(const llvm::APInt &val);
 	__isl_give pet_expr *extract_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_expr(clang::UnaryOperator *expr);

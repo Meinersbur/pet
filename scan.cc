@@ -813,9 +813,10 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
  * We assume here that if the function is declared to take a pointer
  * to a const type, then the function will perform a read
  * and that otherwise, it will perform a write.
+ * We only perform this check if "detect_writes" is set.
  */
 __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
-	Expr *expr)
+	Expr *expr, bool detect_writes)
 {
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
@@ -841,7 +842,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	     sc == Stmt::MemberExprClass) &&
 	    array_depth(expr->getType().getTypePtr()) > 0)
 		is_partial = 1;
-	if ((is_addr || is_partial) &&
+	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
 		ParmVarDecl *parm;
 		if (!fd->hasPrototype()) {
@@ -951,7 +952,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	for (int i = 0; i < n_arg; ++i) {
 		Expr *arg = expr->getArg(i);
 		res = pet_expr_set_arg(res, i,
-					PetScan::extract_argument(fd, i, arg));
+			    PetScan::extract_argument(fd, i, arg, 1));
 	}
 
 	fd = get_summary_function(expr);
