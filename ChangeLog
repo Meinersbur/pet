@@ -1,3 +1,11 @@
+version: 0.06
+date: Sun Oct 26 09:47:01 CET 2014
+changes:
+	- support recent clangs
+	- break up access relations into may_read/may_write/must_write
+	- analyze called function if body is available
+	- support summary functions
+---
 version: 0.05
 date: Mon Apr 14 11:14:39 CEST 2014
 changes:
