@@ -866,6 +866,8 @@ static __isl_give isl_union_map *patch(__isl_take isl_union_map *access,
 	isl_map *map;
 
 	map = isl_map_from_multi_pw_aff(pet_expr_access_get_index(expr));
+	map = isl_map_align_params(map, isl_union_map_get_space(access));
+	access = isl_union_map_align_params(access, isl_map_get_space(map));
 	data.prefix = map;
 	data.add = add;
 	data.res = isl_union_map_empty(isl_union_map_get_space(access));
