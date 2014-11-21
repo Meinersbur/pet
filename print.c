@@ -40,20 +40,46 @@
 #include "print.h"
 #include "scop.h"
 
-/* Given an access expression, check if any of its arguments
- * are not themselves access expressions.
+/* Return the dimension of the domain of the embedded map
+ * in the domain of "mpa".
+ */
+static int domain_domain_dim(__isl_keep isl_multi_pw_aff *mpa)
+{
+	int dim;
+	isl_space *space;
+
+	space = isl_multi_pw_aff_get_space(mpa);
+	space = isl_space_unwrap(isl_space_domain(space));
+	dim = isl_space_dim(space, isl_dim_in);
+	isl_space_free(space);
+
+	return dim;
+}
+
+/* Given an access expression, check if any of the arguments
+ * for which an isl_ast_expr would be constructed by
+ * pet_expr_build_nested_ast_exprs are not themselves access expressions.
  * If so, set *found and abort the search.
  */
 static int depends_on_expressions(__isl_keep pet_expr *expr, void *user)
 {
-	int i;
+	int i, dim;
 	int *found = user;
 
-	for (i = 0; i < expr->n_arg; ++i)
+	if (expr->n_arg == 0)
+		return 0;
+
+	dim = domain_domain_dim(expr->acc.index);
+
+	for (i = 0; i < expr->n_arg; ++i) {
+		if (!isl_multi_pw_aff_involves_dims(expr->acc.index,
+						    isl_dim_in, dim + i, 1))
+			continue;
 		if (expr->args[i]->type != pet_expr_access) {
 			*found = 1;
 			return -1;
 		}
+	}
 
 	return 0;
 }
@@ -181,20 +207,28 @@ static __isl_give isl_ast_expr *pet_expr_build_ast_expr(
  * expressions of "expr" to the corresponding isl_ast_expr.
  * The identifiers reference the corresponding arguments of "expr".
  * The same identifiers are used in parametrize_nested_exprs.
+ * Note that we only need to construct isl_ast_expr objects for
+ * those arguments that actually appear in the index expression of "expr".
  */
 static __isl_give isl_id_to_ast_expr *pet_expr_build_nested_ast_exprs(
 	__isl_keep pet_expr *expr, struct pet_build_ast_expr_data *data)
 {
-	int i;
+	int i, dim;
 	isl_ctx *ctx = isl_ast_build_get_ctx(data->build);
 	isl_id_to_ast_expr *id2expr;
 
+	dim = domain_domain_dim(expr->acc.index);
 	id2expr = isl_id_to_ast_expr_alloc(ctx, expr->n_arg);
 
 	for (i = 0; i < expr->n_arg; ++i) {
-		isl_id *id = isl_id_alloc(ctx, NULL, expr->args[i]);
+		isl_id *id;
 		isl_ast_expr *ast_expr;
 
+		if (!isl_multi_pw_aff_involves_dims(expr->acc.index,
+						    isl_dim_in, dim + i, 1))
+			continue;
+
+		id = isl_id_alloc(ctx, NULL, expr->args[i]);
 		ast_expr = pet_expr_build_ast_expr(expr->args[i], data);
 		id2expr = isl_id_to_ast_expr_set(id2expr, id, ast_expr);
 	}
