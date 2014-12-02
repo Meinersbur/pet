@@ -32,6 +32,7 @@
  * Leiden University.
  */
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <isl/id_to_pw_aff.h>
@@ -2516,6 +2517,30 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 					isl_id_copy(tree->label), pc, state);
 }
 
+/* If "tree" has a label that is of the form S_<nr>, then make
+ * sure that state->n_stmt is greater than nr to ensure that
+ * we will not generate S_<nr> ourselves.
+ */
+static int set_first_stmt(__isl_keep pet_tree *tree, void *user)
+{
+	struct pet_state *state = user;
+	const char *name;
+	int nr;
+
+	if (!tree)
+		return -1;
+	if (!tree->label)
+		return 0;
+	name = isl_id_get_name(tree->label);
+	if (strncmp(name, "S_", 2) != 0)
+		return 0;
+	nr = atoi(name + 2);
+	if (nr >= state->n_stmt)
+		state->n_stmt = nr + 1;
+
+	return 0;
+}
+
 /* Construct a pet_scop that corresponds to the pet_tree "tree".
  * "int_size" is the number of bytes need to represent an integer.
  * "extract_array" is a callback that we can use to create a pet_array
@@ -2523,6 +2548,8 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
  *
  * Initialize the global state, construct a context and then
  * construct the pet_scop by recursively visiting the tree.
+ *
+ * state.n_stmt is initialized to point beyond any explicit S_<nr> label.
  */
 struct pet_scop *pet_scop_from_pet_tree(__isl_take pet_tree *tree, int int_size,
 	struct pet_array *(*extract_array)(__isl_keep pet_expr *access,
@@ -2539,6 +2566,8 @@ struct pet_scop *pet_scop_from_pet_tree(__isl_take pet_tree *tree, int int_size,
 	state.int_size = int_size;
 	state.extract_array = extract_array;
 	state.user = user;
+	if (pet_tree_foreach_sub_tree(tree, &set_first_stmt, &state) < 0)
+		tree = pet_tree_free(tree);
 
 	scop = scop_from_tree(tree, pc, &state);
 	scop = pet_scop_set_loc(scop, pet_tree_get_loc(tree));
