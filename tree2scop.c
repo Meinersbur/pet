@@ -2329,6 +2329,10 @@ static struct pet_scop *scop_from_tree_macro(__isl_take pet_tree *tree,
  * of all dynamic control, then this pet_scop is discarded and
  * a new pet_scop is created with a single statement representing
  * the entire "tree".
+ * However, if the scop contains any active continue or break,
+ * then we need to include the loop containing the continue or break
+ * in the encapsulation.  We therefore postpone the encapsulation
+ * until we have constructed a pet_scop for this enclosing loop.
  */
 static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 	__isl_keep pet_context *pc, struct pet_state *state)
@@ -2374,7 +2378,8 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 		return NULL;
 
 	if (!pet_options_get_encapsulate_dynamic_control(ctx) ||
-	    !pet_scop_has_data_dependent_conditions(scop))
+	    !pet_scop_has_data_dependent_conditions(scop) ||
+	    pet_scop_has_var_skip(scop, pet_skip_now))
 		return scop;
 
 	pet_scop_free(scop);

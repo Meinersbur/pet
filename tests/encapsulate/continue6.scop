@@ -1,0 +1,193 @@
+start: 41
+end: 382
+indent: "\t"
+context: '{  :  }'
+arrays:
+- context: '{  :  }'
+  extent: '{ j[] }'
+  element_type: int
+  element_size: 4
+  declared: 1
+- context: '{  :  }'
+  extent: '{ A[i0] : i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ x[] }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 8
+  domain: '{ S_4[i] : i >= 0 and i <= 99 }'
+  schedule: '{ S_4[i] -> [0, i, 0, 0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[i] -> j[] }'
+        index: '{ S_4[i] -> j[] }'
+        reference: __pet_ref_0
+        kill: 1
+- line: 8
+  domain: '{ S_3[i] : i >= 0 and i <= 99 }'
+  schedule: '{ S_3[i] -> [0, i, 0, 1] }'
+  body:
+    type: for
+    declared: 1
+    variable:
+      type: access
+      index: '{ S_3[i] -> j[] }'
+      reference: __pet_ref_1
+      read: 0
+      write: 1
+    initialization:
+      type: int
+      value: 0
+    condition:
+      type: op
+      operation: <
+      arguments:
+      - type: access
+        index: '{ S_3[i] -> j[] }'
+        reference: __pet_ref_2
+        read: 1
+        write: 0
+      - type: int
+        value: 100
+    increment:
+      type: int
+      value: 1
+    body:
+      type: block
+      block: 1
+      children:
+      - type: if
+        condition:
+          type: access
+          index: '{ [S_3[i] -> [i1]] -> A[((i1) : i1 >= 0)] }'
+          reference: __pet_ref_4
+          read: 1
+          write: 0
+          arguments:
+          - type: access
+            index: '{ S_3[i] -> j[] }'
+            reference: __pet_ref_3
+            read: 1
+            write: 0
+        then:
+          type: block
+          block: 1
+          children:
+          - type: expression
+            expr:
+              type: op
+              operation: +=
+              arguments:
+              - type: access
+                index: '{ S_3[i] -> x[] }'
+                reference: __pet_ref_5
+                read: 1
+                write: 1
+              - type: int
+                value: 0
+          - type: continue
+      - type: expression
+        expr:
+          type: op
+          operation: =
+          arguments:
+          - type: access
+            index: '{ S_3[i] -> x[] }'
+            reference: __pet_ref_6
+            read: 0
+            write: 1
+          - type: int
+            value: 1
+- line: 8
+  domain: '{ S_5[i] : i >= 0 and i <= 99 }'
+  schedule: '{ S_5[i] -> [0, i, 0, 2] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_5[i] -> j[] }'
+        index: '{ S_5[i] -> j[] }'
+        reference: __pet_ref_7
+        kill: 1
+- line: 17
+  domain: '{ S_6[i, j] : exists (e0 = floor((j)/2): 2e0 = j and i <= 99 and i >= 0
+    and j <= 99 and j >= 0) }'
+  schedule: '{ S_6[i, j] -> [0, i, 1, j, 0, 0] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: +=
+      arguments:
+      - type: access
+        index: '{ S_6[i, j] -> x[] }'
+        reference: __pet_ref_8
+        read: 1
+        write: 1
+      - type: int
+        value: 0
+- line: 20
+  domain: '{ S_7[i, j] : exists (e0 = floor((-1 + j)/2): 2e0 = -1 + j and i <= 99
+    and i >= 0 and j <= 99 and j >= 0) }'
+  schedule: '{ S_7[i, j] -> [0, i, 1, j, 1] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '{ S_7[i, j] -> x[] }'
+        reference: __pet_ref_9
+        read: 0
+        write: 1
+      - type: int
+        value: 1
+- line: 23
+  domain: '{ S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  schedule: '{ S_10[i, j] -> [0, i, 2, j, 0] }'
+  body:
+    type: if-else
+    condition:
+      type: access
+      index: '{ S_10[i, j] -> A[(j)] }'
+      reference: __pet_ref_10
+      read: 1
+      write: 0
+    then:
+      type: expression
+      expr:
+        type: op
+        operation: +=
+        arguments:
+        - type: access
+          index: '{ S_10[i, j] -> x[] }'
+          reference: __pet_ref_11
+          read: 1
+          write: 1
+        - type: int
+          value: 0
+    else:
+      type: expression
+      expr:
+        type: op
+        operation: =
+        arguments:
+        - type: access
+          index: '{ S_10[i, j] -> x[] }'
+          reference: __pet_ref_12
+          read: 0
+          write: 1
+        - type: int
+          value: 1
