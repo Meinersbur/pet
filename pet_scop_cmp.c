@@ -84,5 +84,5 @@ int main(int argc, char **argv)
 	fclose(file1);
 	isl_ctx_free(ctx);
 
-	return equal ? 0 : 1;
+	return equal >= 0 && equal ? 0 : 1;
 }
