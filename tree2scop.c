@@ -1822,6 +1822,8 @@ static int is_conditional_assignment(__isl_keep pet_tree *tree,
  *
  * where a is some array or scalar access, construct a pet_scop
  * corresponding to this conditional assignment within the context "pc".
+ * "cond_pa" is an affine expression with nested accesses representing
+ * the condition.
  *
  * The constructed pet_scop then corresponds to the expression
  *
@@ -1831,28 +1833,19 @@ static int is_conditional_assignment(__isl_keep pet_tree *tree,
  * while all access relation in g(...) are intersected with the complement.
  */
 static struct pet_scop *scop_from_conditional_assignment(
-	__isl_keep pet_tree *tree, __isl_take pet_context *pc,
-	struct pet_state *state)
+	__isl_keep pet_tree *tree, __isl_take isl_pw_aff *cond_pa,
+	__isl_take pet_context *pc, struct pet_state *state)
 {
 	int type_size;
-	isl_pw_aff *pa;
 	isl_set *cond, *comp;
 	isl_multi_pw_aff *index;
 	pet_expr *expr1, *expr2;
 	pet_expr *pe_cond, *pe_then, *pe_else, *pe, *pe_write;
-	pet_context *pc_nested;
 	struct pet_scop *scop;
 
-	pe_cond = pet_expr_copy(tree->u.i.cond);
-	pe_cond = pet_context_evaluate_expr(pc, pe_cond);
-	pc_nested = pet_context_copy(pc);
-	pc_nested = pet_context_set_allow_nested(pc_nested, 1);
-	pa = pet_expr_extract_affine_condition(pe_cond, pc_nested);
-	pet_context_free(pc_nested);
-	pet_expr_free(pe_cond);
-	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(pa));
-	comp = isl_pw_aff_zero_set(isl_pw_aff_copy(pa));
-	index = isl_multi_pw_aff_from_pw_aff(pa);
+	cond = isl_pw_aff_non_zero_set(isl_pw_aff_copy(cond_pa));
+	comp = isl_pw_aff_zero_set(isl_pw_aff_copy(cond_pa));
+	index = isl_multi_pw_aff_from_pw_aff(cond_pa);
 
 	expr1 = tree->u.i.then_body->u.e.expr;
 	expr2 = tree->u.i.else_body->u.e.expr;
@@ -2017,6 +2010,9 @@ static struct pet_scop *scop_from_affine_if(__isl_keep pet_tree *tree,
  *
  * If the condition fits the pattern of a conditional assignment,
  * then it is handled by scop_from_conditional_assignment.
+ * Note that the condition is only considered for a conditional assignment
+ * if it is not static-affine.  However, it should still convert
+ * to an affine expression when nesting is allowed.
  *
  * Otherwise, we check if the condition is affine.
  * If so, we construct the scop in scop_from_affine_if.
@@ -2055,9 +2051,6 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 	if (has_else)
 		pc = pet_context_clear_writes_in_tree(pc, tree->u.i.else_body);
 
-	if (is_conditional_assignment(tree, pc))
-		return scop_from_conditional_assignment(tree, pc, state);
-
 	cond_expr = pet_expr_copy(tree->u.i.cond);
 	cond_expr = pet_context_evaluate_expr(pc, cond_expr);
 	pc_nested = pet_context_copy(pc);
@@ -2075,6 +2068,9 @@ static struct pet_scop *scop_from_if(__isl_keep pet_tree *tree,
 		isl_pw_aff_free(cond);
 		return scop_from_non_affine_if(tree, pc, state);
 	}
+
+	if (is_conditional_assignment(tree, pc))
+		return scop_from_conditional_assignment(tree, cond, pc, state);
 
 	if ((!is_nested_allowed(cond, tree->u.i.then_body) ||
 	     (has_else && !is_nested_allowed(cond, tree->u.i.else_body)))) {
