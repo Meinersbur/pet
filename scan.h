@@ -200,6 +200,7 @@ private:
 
 	void report(clang::Stmt *stmt, unsigned id);
 	void unsupported(clang::Stmt *stmt);
+	void report_unsupported_statement_type(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
 	void report_missing_summary_function(clang::Stmt *stmt);

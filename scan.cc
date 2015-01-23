@@ -228,6 +228,16 @@ void PetScan::unsupported(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report an unsupported statement type, unless autodetect is set.
+ */
+void PetScan::report_unsupported_statement_type(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+				   "this type of statement is not supported");
+	report(stmt, id);
+}
+
 /* Report a missing prototype, unless autodetect is set.
  */
 void PetScan::report_prototype_required(Stmt *stmt)
@@ -1621,7 +1631,7 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 		tree = extract(cast<DeclStmt>(stmt));
 		break;
 	default:
-		unsupported(stmt);
+		report_unsupported_statement_type(stmt);
 		return NULL;
 	}
 
