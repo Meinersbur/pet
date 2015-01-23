@@ -339,6 +339,10 @@ int pet_tree_foreach_expr(__isl_keep pet_tree *tree,
 /* Call "fn" on each access subexpression in the nodes of "tree" */
 int pet_tree_foreach_access_expr(__isl_keep pet_tree *tree,
 	int (*fn)(__isl_keep pet_expr *expr, void *user), void *user);
+/* Modify all call subexpressions in the nodes of "tree" through "fn". */
+__isl_give pet_tree *pet_tree_map_call_expr(__isl_take pet_tree *tree,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user);
 
 void pet_tree_dump(__isl_keep pet_tree *tree);
 
