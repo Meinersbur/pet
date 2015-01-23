@@ -126,8 +126,6 @@ __isl_give pet_expr *pet_expr_new_ternary(__isl_take pet_expr *cond,
 	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs);
 __isl_give pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 	unsigned n_arg);
-__isl_give pet_expr *pet_expr_new_cast(const char *type_name,
-	__isl_take pet_expr *arg);
 __isl_give pet_expr *pet_expr_new_double(isl_ctx *ctx, double d, const char *s);
 __isl_give pet_expr *pet_expr_new_int(__isl_take isl_val *v);
 
