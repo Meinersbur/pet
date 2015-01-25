@@ -46,20 +46,20 @@ struct less_name {
 	}
 };
 
-/* A sorted set of RecordDecl pointers.  The actual order is not important,
- * only that it is consistent across platforms.
- */
-typedef std::set<clang::RecordDecl *, less_name> lex_recorddecl_set;
-
-/* The PetTypes structure collects a set of RecordDecl pointers.
+/* The PetTypes structure collects a set of RecordDecl and
+ * TypedefNameDecl pointers.
  * The pointers are sorted using a fixed order.  The actual order
  * is not important, only that it is consistent across platforms.
  */
 struct PetTypes {
 	std::set<clang::RecordDecl *, less_name> records;
+	std::set<clang::TypedefNameDecl *, less_name> typedefs;
 
 	void insert(clang::RecordDecl *decl) {
 		records.insert(decl);
+	}
+	void insert(clang::TypedefNameDecl *decl) {
+		typedefs.insert(decl);
 	}
 };
 

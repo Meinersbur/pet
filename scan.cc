@@ -1,6 +1,6 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
- * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2291,8 +2291,9 @@ static bool has_printable_definition(RecordDecl *decl)
  * based on the type of the variable.  The upper bounds are converted
  * to affine expressions within the context "pc".
  *
- * If the base type is that of a record with a top-level definition and
- * if "types" is not null, then the RecordDecl corresponding to the type
+ * If the base type is that of a record with a top-level definition or
+ * of a typedef and if "types" is not null, then the RecordDecl or
+ * TypedefType corresponding to the type
  * is added to "types".
  *
  * If the base type is that of a record with no top-level definition,
@@ -2329,12 +2330,16 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 
 	name = base.getAsString();
 
-	if (types && base->isRecordType()) {
-		RecordDecl *decl = pet_clang_record_decl(base);
-		if (has_printable_definition(decl))
-			types->insert(decl);
-		else
-			name = "<subfield>";
+	if (types) {
+		if (isa<TypedefType>(base)) {
+			types->insert(cast<TypedefType>(base)->getDecl());
+		} else if (base->isRecordType()) {
+			RecordDecl *decl = pet_clang_record_decl(base);
+			if (has_printable_definition(decl))
+				types->insert(decl);
+			else
+				name = "<subfield>";
+		}
 	}
 
 	array->element_type = strdup(name.c_str());
@@ -2403,9 +2408,12 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
 	std::set<TypeDecl *> &types_done);
+static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
+	TypedefNameDecl *decl, Preprocessor &PP, PetTypes &types,
+	std::set<TypeDecl *> &types_done);
 
-/* For each of the fields of "decl" that is itself a record type,
- * add a corresponding pet_type to "scop".
+/* For each of the fields of "decl" that is itself a record type
+ * or a typedef, add a corresponding pet_type to "scop".
  */
 static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
@@ -2414,13 +2422,21 @@ static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl::field_iterator it;
 
 	for (it = decl->field_begin(); it != decl->field_end(); ++it) {
-		RecordDecl *record;
 		QualType type = it->getType();
 
-		if (!type->isRecordType())
-			continue;
-		record = pet_clang_record_decl(type);
-		scop = add_type(ctx, scop, record, PP, types, types_done);
+		if (isa<TypedefType>(type)) {
+			TypedefNameDecl *typedefdecl;
+
+			typedefdecl = cast<TypedefType>(type)->getDecl();
+			scop = add_type(ctx, scop, typedefdecl,
+				PP, types, types_done);
+		} else if (type->isRecordType()) {
+			RecordDecl *record;
+
+			record = pet_clang_record_decl(type);
+			scop = add_type(ctx, scop, record,
+				PP, types, types_done);
+		}
 	}
 
 	return scop;
@@ -2468,6 +2484,53 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	return scop;
 }
 
+/* Add a pet_type corresponding to "decl" to "scop", provided
+ * it is a member of types.typedefs and it has not been added before
+ * (i.e., it is not a member of "types_done").
+ *
+ * If the underlying type is a structure, then we print the typedef
+ * ourselves since clang does not print the definition of the structure
+ * in the typedef.  We also make sure in this case that the types of
+ * the fields in the structure are added first.
+ */
+static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
+	TypedefNameDecl *decl, Preprocessor &PP, PetTypes &types,
+	std::set<TypeDecl *> &types_done)
+{
+	string s;
+	llvm::raw_string_ostream S(s);
+	QualType qt = decl->getUnderlyingType();
+
+	if (types.typedefs.find(decl) == types.typedefs.end())
+		return scop;
+	if (types_done.find(decl) != types_done.end())
+		return scop;
+
+	if (qt->isRecordType()) {
+		RecordDecl *rec = pet_clang_record_decl(qt);
+
+		add_field_types(ctx, scop, rec, PP, types, types_done);
+		S << "typedef ";
+		rec->print(S, PrintingPolicy(PP.getLangOpts()));
+		S << " ";
+		S << decl->getName();
+	} else {
+		decl->print(S, PrintingPolicy(PP.getLangOpts()));
+	}
+	S.str();
+
+	scop->types[scop->n_type] = pet_type_alloc(ctx,
+				    decl->getName().str().c_str(), s.c_str());
+	if (!scop->types[scop->n_type])
+		return pet_scop_free(scop);
+
+	types_done.insert(decl);
+
+	scop->n_type++;
+
+	return scop;
+}
+
 /* Construct a list of pet_arrays, one for each array (or scalar)
  * accessed inside "scop", add this list to "scop" and return the result.
  * The upper bounds of the arrays are converted to affine expressions
@@ -2477,7 +2540,8 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * the contexts of all arrays, i.e., constraints on the parameters
  * that ensure that the arrays have a valid (non-negative) size.
  *
- * If any of the extracted arrays refers to a member access,
+ * If any of the extracted arrays refers to a member access or
+ * has a typedef'd type as base type,
  * then also add the required types to "scop".
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
@@ -2488,7 +2552,8 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	array_desc_set::iterator it;
 	PetTypes types;
 	std::set<TypeDecl *> types_done;
-	lex_recorddecl_set::iterator types_it;
+	std::set<clang::RecordDecl *, less_name>::iterator records_it;
+	std::set<clang::TypedefNameDecl *, less_name>::iterator typedefs_it;
 	int n_array;
 	struct pet_array **scop_arrays;
 
@@ -2520,7 +2585,7 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 			goto error;
 	}
 
-	n = types.records.size();
+	n = types.records.size() + types.typedefs.size();
 	if (n == 0)
 		return scop;
 
@@ -2528,9 +2593,13 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	if (!scop->types)
 		goto error;
 
-	for (types_it = types.records.begin();
-	     types_it != types.records.end(); ++types_it)
-		scop = add_type(ctx, scop, *types_it, PP, types, types_done);
+	for (records_it = types.records.begin();
+	     records_it != types.records.end(); ++records_it)
+		scop = add_type(ctx, scop, *records_it, PP, types, types_done);
+
+	for (typedefs_it = types.typedefs.begin();
+	     typedefs_it != types.typedefs.end(); ++typedefs_it)
+		scop = add_type(ctx, scop, *typedefs_it, PP, types, types_done);
 
 	return scop;
 error:
