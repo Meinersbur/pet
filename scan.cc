@@ -2412,7 +2412,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
  */
 static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
-	lex_recorddecl_set &types_done)
+	std::set<TypeDecl *> &types_done)
 {
 	string s;
 	llvm::raw_string_ostream S(s);
@@ -2470,7 +2470,7 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	array_desc_set arrays;
 	array_desc_set::iterator it;
 	PetTypes types;
-	lex_recorddecl_set types_done;
+	std::set<TypeDecl *> types_done;
 	lex_recorddecl_set::iterator types_it;
 	int n_array;
 	struct pet_array **scop_arrays;
