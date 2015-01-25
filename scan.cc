@@ -2299,7 +2299,7 @@ static bool has_printable_definition(RecordDecl *decl)
  * then we replace it by "<subfield>".
  */
 struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
-	lex_recorddecl_set *types, __isl_keep pet_context *pc)
+	PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
 	QualType qt = get_array_type(decl);
@@ -2358,8 +2358,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
  * Additionally, keep track of all required types in "types".
  */
 struct pet_array *PetScan::extract_array(isl_ctx *ctx,
-	vector<ValueDecl *> decls, lex_recorddecl_set *types,
-	__isl_keep pet_context *pc)
+	vector<ValueDecl *> decls, PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
 	vector<ValueDecl *>::iterator it;
@@ -2402,7 +2401,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 }
 
 /* Add a pet_type corresponding to "decl" to "scop", provided
- * it is a member of "types" and it has not been added before
+ * it is a member of types.records and it has not been added before
  * (i.e., it is not a member of "types_done").
  *
  * Since we want the user to be able to print the types
@@ -2412,14 +2411,14 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
  * on the types of all record subfields.
  */
 static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
-	RecordDecl *decl, Preprocessor &PP, lex_recorddecl_set &types,
+	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
 	lex_recorddecl_set &types_done)
 {
 	string s;
 	llvm::raw_string_ostream S(s);
 	RecordDecl::field_iterator it;
 
-	if (types.find(decl) == types.end())
+	if (types.records.find(decl) == types.records.end())
 		return scop;
 	if (types_done.find(decl) != types_done.end())
 		return scop;
@@ -2467,10 +2466,10 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	__isl_keep pet_context *pc)
 {
-	int i;
+	int i, n;
 	array_desc_set arrays;
 	array_desc_set::iterator it;
-	lex_recorddecl_set types;
+	PetTypes types;
 	lex_recorddecl_set types_done;
 	lex_recorddecl_set::iterator types_it;
 	int n_array;
@@ -2504,14 +2503,16 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 			goto error;
 	}
 
-	if (types.size() == 0)
+	n = types.records.size();
+	if (n == 0)
 		return scop;
 
-	scop->types = isl_alloc_array(ctx, struct pet_type *, types.size());
+	scop->types = isl_alloc_array(ctx, struct pet_type *, n);
 	if (!scop->types)
 		goto error;
 
-	for (types_it = types.begin(); types_it != types.end(); ++types_it)
+	for (types_it = types.records.begin();
+	     types_it != types.records.end(); ++types_it)
 		scop = add_type(ctx, scop, *types_it, PP, types, types_done);
 
 	return scop;

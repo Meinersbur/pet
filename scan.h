@@ -51,6 +51,18 @@ struct less_name {
  */
 typedef std::set<clang::RecordDecl *, less_name> lex_recorddecl_set;
 
+/* The PetTypes structure collects a set of RecordDecl pointers.
+ * The pointers are sorted using a fixed order.  The actual order
+ * is not important, only that it is consistent across platforms.
+ */
+struct PetTypes {
+	std::set<clang::RecordDecl *, less_name> records;
+
+	void insert(clang::RecordDecl *decl) {
+		records.insert(decl);
+	}
+};
+
 struct PetScan {
 	clang::Preprocessor &PP;
 	clang::ASTContext &ast_context;
@@ -105,7 +117,7 @@ struct PetScan {
 		clang::IntegerLiteral *expr);
 	__isl_give pet_expr *get_array_size(const clang::Type *type);
 	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
-		lex_recorddecl_set *types, __isl_keep pet_context *pc);
+		PetTypes *types, __isl_keep pet_context *pc);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
@@ -116,7 +128,7 @@ private:
 		__isl_keep pet_context *pc);
 	struct pet_array *extract_array(isl_ctx *ctx,
 		std::vector<clang::ValueDecl *> decls,
-		lex_recorddecl_set *types, __isl_keep pet_context *pc);
+		PetTypes *types, __isl_keep pet_context *pc);
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		const clang::Type *type, int pos);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
