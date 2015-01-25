@@ -37,11 +37,11 @@ struct Independent {
 	unsigned line;
 };
 
-/* Compare two RecordDecl pointers based on their names.
+/* Compare two TypeDecl pointers based on their names.
  */
 struct less_name {
-	bool operator()(const clang::RecordDecl *x,
-			const clang::RecordDecl *y) {
+	bool operator()(const clang::TypeDecl *x,
+			const clang::TypeDecl *y) {
 		return x->getNameAsString().compare(y->getNameAsString()) < 0;
 	}
 };
