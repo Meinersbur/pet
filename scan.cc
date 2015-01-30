@@ -2401,9 +2401,9 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 	return array;
 }
 
-/* Add a pet_type corresponding to "decl" to "scop, provided
+/* Add a pet_type corresponding to "decl" to "scop", provided
  * it is a member of "types" and it has not been added before
- * (i.e., it is not a member of "types_done".
+ * (i.e., it is not a member of "types_done").
  *
  * Since we want the user to be able to print the types
  * in the order in which they appear in the scop, we need to
@@ -2461,7 +2461,7 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * the contexts of all arrays, i.e., constraints on the parameters
  * that ensure that the arrays have a valid (non-negative) size.
  *
- * If the any of the extracted arrays refers to a member access,
+ * If any of the extracted arrays refers to a member access,
  * then also add the required types to "scop".
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
