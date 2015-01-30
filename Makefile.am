@@ -25,7 +25,8 @@ TEST_EXTENSIONS = .sh
 include_HEADERS = include/pet.h
 
 CLEANFILES = \
-	gitversion.h
+	gitversion.h \
+	test.scop
 
 DISTCLEANFILES = \
 	pet-uninstalled.sh \
