@@ -32,6 +32,8 @@
  * Leiden University.
  */ 
 
+#include "config.h"
+
 #include <string.h>
 #include <set>
 #include <map>
@@ -60,8 +62,6 @@
 #include "scop_plus.h"
 #include "tree.h"
 #include "tree2scop.h"
-
-#include "config.h"
 
 using namespace std;
 using namespace clang;
