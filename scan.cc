@@ -2400,28 +2400,18 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 	return array;
 }
 
-/* Add a pet_type corresponding to "decl" to "scop", provided
- * it is a member of types.records and it has not been added before
- * (i.e., it is not a member of "types_done").
- *
- * Since we want the user to be able to print the types
- * in the order in which they appear in the scop, we need to
- * make sure that types of fields in a structure appear before
- * that structure.  We therefore call ourselves recursively
- * on the types of all record subfields.
- */
 static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
+	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
+	std::set<TypeDecl *> &types_done);
+
+/* For each of the fields of "decl" that is itself a record type,
+ * add a corresponding pet_type to "scop".
+ */
+static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
 	std::set<TypeDecl *> &types_done)
 {
-	string s;
-	llvm::raw_string_ostream S(s);
 	RecordDecl::field_iterator it;
-
-	if (types.records.find(decl) == types.records.end())
-		return scop;
-	if (types_done.find(decl) != types_done.end())
-		return scop;
 
 	for (it = decl->field_begin(); it != decl->field_end(); ++it) {
 		RecordDecl *record;
@@ -2432,6 +2422,33 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 		record = pet_clang_record_decl(type);
 		scop = add_type(ctx, scop, record, PP, types, types_done);
 	}
+
+	return scop;
+}
+
+/* Add a pet_type corresponding to "decl" to "scop", provided
+ * it is a member of types.records and it has not been added before
+ * (i.e., it is not a member of "types_done").
+ *
+ * Since we want the user to be able to print the types
+ * in the order in which they appear in the scop, we need to
+ * make sure that types of fields in a structure appear before
+ * that structure.  We therefore call ourselves recursively
+ * through add_field_types on the types of all record subfields.
+ */
+static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
+	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
+	std::set<TypeDecl *> &types_done)
+{
+	string s;
+	llvm::raw_string_ostream S(s);
+
+	if (types.records.find(decl) == types.records.end())
+		return scop;
+	if (types_done.find(decl) != types_done.end())
+		return scop;
+
+	add_field_types(ctx, scop, decl, PP, types, types_done);
 
 	if (strlen(decl->getName().str().c_str()) == 0)
 		return scop;
