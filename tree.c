@@ -660,7 +660,7 @@ __isl_give pet_tree *pet_tree_block_get_child(__isl_keep pet_tree *tree,
 	return pet_tree_copy(tree->u.b.child[pos]);
 }
 
-/* Does "tree" represent a declaration (with or without initialization?
+/* Does "tree" represent a declaration (with or without initialization)?
  */
 int pet_tree_is_decl(__isl_keep pet_tree *tree)
 {
