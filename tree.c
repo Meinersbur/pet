@@ -1121,8 +1121,9 @@ struct pet_tree_map_access_expr_data {
 	void *user;
 };
 
-/* Modify all top-level expressions in the nodes of "tree"
- * by calling "fn" on them.
+/* This function is called on each top-level expressions in the nodes
+ * of a tree.  Modify all access subexpressions of the top-level
+ * expression by calling data->fn on them.
  *
  * This is a wrapper around pet_expr_map_access for use as a callback
  * to pet_tree_map_expr.
