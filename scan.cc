@@ -164,6 +164,22 @@ static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
 }
 #endif
 
+#ifdef GETTYPEINFORETURNSTYPEINFO
+
+static int size_in_bytes(ASTContext &context, QualType type)
+{
+	return context.getTypeInfo(type).Width / 8;
+}
+
+#else
+
+static int size_in_bytes(ASTContext &context, QualType type)
+{
+	return context.getTypeInfo(type).first / 8;
+}
+
+#endif
+
 /* Check if the element type corresponding to the given array type
  * has a const qualifier.
  */
@@ -1860,7 +1876,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	pc = pet_context_alloc(domain);
 	pc = pet_context_add_parameters(pc, tree,
 						&::get_array_size, &body_scan);
-	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
+	int_size = size_in_bytes(ast_context, ast_context.IntTy);
 	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, &body_scan, pc);
 	scop = scan_arrays(scop, pc);
@@ -1961,7 +1977,7 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 	pet_context *pc;
 	pet_scop *scop;
 
-	int_size = ast_context.getTypeInfo(ast_context.IntTy).first / 8;
+	int_size = size_in_bytes(ast_context, ast_context.IntTy);
 
 	domain = isl_set_universe(isl_space_set_alloc(ctx, 0, 0));
 	pc = pet_context_alloc(domain);
@@ -2323,7 +2339,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 
 	array->element_type = strdup(name.c_str());
 	array->element_is_record = base->isRecordType();
-	array->element_size = decl->getASTContext().getTypeInfo(base).first / 8;
+	array->element_size = size_in_bytes(decl->getASTContext(), base);
 
 	return array;
 }

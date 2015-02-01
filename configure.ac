@@ -161,6 +161,9 @@ AC_EGREP_HEADER([setMainFileID], [clang/Basic/SourceManager.h],
 AC_CHECK_HEADER([llvm/ADT/OwningPtr.h],
 	[AC_DEFINE([HAVE_ADT_OWNINGPTR_H], [],
 		   [Define if llvm/ADT/OwningPtr.h exists])])
+AC_EGREP_HEADER([TypeInfo getTypeInfo], [clang/AST/ASTContext.h],
+	[AC_DEFINE([GETTYPEINFORETURNSTYPEINFO], [],
+		[Define if getTypeInfo returns TypeInfo object])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
