@@ -91,9 +91,16 @@ AC_EGREP_HEADER([void HandleTopLevelDecl\(], [clang/AST/ASTConsumer.h],
 		   [Return type of HandleTopLevelDeclReturn])
 	 AC_DEFINE([HandleTopLevelDeclContinue], [true],
 		   [Return type of HandleTopLevelDeclReturn])])
+create_requires_bool=false
 AC_EGREP_HEADER([isEnclosingLocal,], [clang/AST/Expr.h],
-	[AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_BOOL], [],
-	    [Define if DeclRefExpr::Create takes isEnclosingLocal argument])])
+	[create_requires_bool=true])
+AC_EGREP_HEADER([RefersToEnclosingVariableOrCapture,], [clang/AST/Expr.h],
+	[create_requires_bool=true])
+if test "$create_requires_bool" = "true"; then
+	AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_BOOL], [],
+	    [Define if DeclRefExpr::Create takes
+	     isEnclosingLocal/RefersToEnclosingVariableOrCapture argument])
+fi
 AC_EGREP_HEADER([HasTemplateKWAndArgsInfo], [clang/AST/Expr.h],
 	[AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION], [],
 		[Define if DeclRefExpr::Create takes SourceLocation argument])])
