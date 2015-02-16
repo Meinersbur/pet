@@ -92,9 +92,16 @@ AC_EGREP_HEADER([void HandleTopLevelDecl\(], [clang/AST/ASTConsumer.h],
 		   [Return type of HandleTopLevelDeclReturn])
 	 AC_DEFINE([HandleTopLevelDeclContinue], [true],
 		   [Return type of HandleTopLevelDeclReturn])])
+create_requires_bool=false
 AC_EGREP_HEADER([isEnclosingLocal,], [clang/AST/Expr.h],
-	[AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_BOOL], [],
-	    [Define if DeclRefExpr::Create takes isEnclosingLocal argument])])
+	[create_requires_bool=true])
+AC_EGREP_HEADER([RefersToEnclosingVariableOrCapture,], [clang/AST/Expr.h],
+	[create_requires_bool=true])
+if test "$create_requires_bool" = "true"; then
+	AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_BOOL], [],
+	    [Define if DeclRefExpr::Create takes
+	     isEnclosingLocal/RefersToEnclosingVariableOrCapture argument])
+fi
 AC_EGREP_HEADER([HasTemplateKWAndArgsInfo], [clang/AST/Expr.h],
 	[AC_DEFINE([DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION], [],
 		[Define if DeclRefExpr::Create takes SourceLocation argument])])
@@ -162,6 +169,12 @@ AC_EGREP_HEADER([setMainFileID], [clang/Basic/SourceManager.h],
 AC_CHECK_HEADER([llvm/ADT/OwningPtr.h],
 	[AC_DEFINE([HAVE_ADT_OWNINGPTR_H], [],
 		   [Define if llvm/ADT/OwningPtr.h exists])])
+AC_EGREP_HEADER([TypeInfo getTypeInfo], [clang/AST/ASTContext.h],
+	[AC_DEFINE([GETTYPEINFORETURNSTYPEINFO], [],
+		[Define if getTypeInfo returns TypeInfo object])])
+AC_EGREP_HEADER([TypedefNameDecl], [clang/AST/Type.h], [],
+	[AC_DEFINE([TypedefNameDecl], [TypedefDecl],
+	[Define to TypedefDecl for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

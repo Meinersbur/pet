@@ -660,7 +660,7 @@ __isl_give pet_tree *pet_tree_block_get_child(__isl_keep pet_tree *tree,
 	return pet_tree_copy(tree->u.b.child[pos]);
 }
 
-/* Does "tree" represent a declaration (with or without initialization?
+/* Does "tree" represent a declaration (with or without initialization)?
  */
 int pet_tree_is_decl(__isl_keep pet_tree *tree)
 {
@@ -1111,28 +1111,33 @@ __isl_give pet_tree *pet_tree_map_expr(__isl_take pet_tree *tree,
 	return tree;
 }
 
-/* Intermediate data structure for map_access_expr.
+/* Intermediate data structure for map_expr.
  *
- * "fn" is the function that needs to be called on each access subexpression.
+ * "map" is a function that modifies subexpressions of a given type.
+ * "fn" is the function that needs to be called on each of those subexpressions.
  * "user" is the user argument to be passed to "fn".
  */
-struct pet_tree_map_access_expr_data {
+struct pet_tree_map_expr_data {
+	__isl_give pet_expr *(*map)(__isl_take pet_expr *expr,
+		__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr,
+		void *user), void *user);
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user);
 	void *user;
 };
 
-/* Modify all top-level expressions in the nodes of "tree"
- * by calling "fn" on them.
+/* This function is called on each top-level expressions in the nodes
+ * of a tree.  Call data->map to modify subexpressions of the top-level
+ * expression by calling data->fn on them.
  *
- * This is a wrapper around pet_expr_map_access for use as a callback
+ * This is a wrapper around data->map for use as a callback
  * to pet_tree_map_expr.
  */
-static __isl_give pet_expr *map_access_expr(__isl_take pet_expr *expr,
+static __isl_give pet_expr *map_expr(__isl_take pet_expr *expr,
 	void *user)
 {
-	struct pet_tree_map_access_expr_data *data = user;
+	struct pet_tree_map_expr_data *data = user;
 
-	return pet_expr_map_access(expr, data->fn, data->user);
+	return data->map(expr, data->fn, data->user);
 }
 
 /* Modify all access subexpressions in the nodes of "tree"
@@ -1145,9 +1150,24 @@ __isl_give pet_tree *pet_tree_map_access_expr(__isl_take pet_tree *tree,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user)
 {
-	struct pet_tree_map_access_expr_data data = { fn, user };
+	struct pet_tree_map_expr_data data = { &pet_expr_map_access, fn, user };
 
-	return pet_tree_map_expr(tree, &map_access_expr, &data);
+	return pet_tree_map_expr(tree, &map_expr, &data);
+}
+
+/* Modify all call subexpressions in the nodes of "tree"
+ * by calling "fn" on them.
+ *
+ * We run over all expressions in the nodes of "tree" and call "fn"
+ * on each call subexpression of those expressions.
+ */
+__isl_give pet_tree *pet_tree_map_call_expr(__isl_take pet_tree *tree,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	struct pet_tree_map_expr_data data = { &pet_expr_map_call, fn, user };
+
+	return pet_tree_map_expr(tree, &map_expr, &data);
 }
 
 /* Wrapper around pet_expr_align_params

@@ -37,19 +37,31 @@ struct Independent {
 	unsigned line;
 };
 
-/* Compare two RecordDecl pointers based on their names.
+/* Compare two TypeDecl pointers based on their names.
  */
 struct less_name {
-	bool operator()(const clang::RecordDecl *x,
-			const clang::RecordDecl *y) {
+	bool operator()(const clang::TypeDecl *x,
+			const clang::TypeDecl *y) {
 		return x->getNameAsString().compare(y->getNameAsString()) < 0;
 	}
 };
 
-/* A sorted set of RecordDecl pointers.  The actual order is not important,
- * only that it is consistent across platforms.
+/* The PetTypes structure collects a set of RecordDecl and
+ * TypedefNameDecl pointers.
+ * The pointers are sorted using a fixed order.  The actual order
+ * is not important, only that it is consistent across platforms.
  */
-typedef std::set<clang::RecordDecl *, less_name> lex_recorddecl_set;
+struct PetTypes {
+	std::set<clang::RecordDecl *, less_name> records;
+	std::set<clang::TypedefNameDecl *, less_name> typedefs;
+
+	void insert(clang::RecordDecl *decl) {
+		records.insert(decl);
+	}
+	void insert(clang::TypedefNameDecl *decl) {
+		typedefs.insert(decl);
+	}
+};
 
 struct PetScan {
 	clang::Preprocessor &PP;
@@ -105,7 +117,7 @@ struct PetScan {
 		clang::IntegerLiteral *expr);
 	__isl_give pet_expr *get_array_size(const clang::Type *type);
 	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
-		lex_recorddecl_set *types, __isl_keep pet_context *pc);
+		PetTypes *types, __isl_keep pet_context *pc);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
@@ -116,7 +128,7 @@ private:
 		__isl_keep pet_context *pc);
 	struct pet_array *extract_array(isl_ctx *ctx,
 		std::vector<clang::ValueDecl *> decls,
-		lex_recorddecl_set *types, __isl_keep pet_context *pc);
+		PetTypes *types, __isl_keep pet_context *pc);
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		const clang::Type *type, int pos);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
@@ -200,6 +212,7 @@ private:
 
 	void report(clang::Stmt *stmt, unsigned id);
 	void unsupported(clang::Stmt *stmt);
+	void report_unsupported_statement_type(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
 	void report_missing_summary_function(clang::Stmt *stmt);
