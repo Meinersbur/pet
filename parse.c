@@ -172,6 +172,19 @@ static __isl_give isl_multi_pw_aff *extract_multi_pw_aff(isl_ctx *ctx,
 					    (char *) node->data.scalar.value);
 }
 
+/* Extract an isl_schedule from "node".
+ */
+static __isl_give isl_schedule *extract_schedule(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	if (node->type != YAML_SCALAR_NODE)
+		isl_die(ctx, isl_error_invalid, "expecting scalar node",
+			return NULL);
+
+	return isl_schedule_read_from_str(ctx,
+					    (char *) node->data.scalar.value);
+}
+
 /* Extract a pet_type from "node".
  */
 static struct pet_type *extract_type(isl_ctx *ctx,
@@ -1243,8 +1256,6 @@ static struct pet_stmt *extract_stmt(isl_ctx *ctx, yaml_document_t *document,
 			end = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "domain"))
 			stmt->domain = extract_set(ctx, document, value);
-		if (!strcmp((char *) key->data.scalar.value, "schedule"))
-			stmt->schedule = extract_map(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "body"))
 			stmt->body = extract_tree(ctx, document, value);
 
@@ -1473,6 +1484,8 @@ static struct pet_scop *extract_scop(isl_ctx *ctx, yaml_document_t *document,
 			scop->context = extract_set(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "context_value"))
 			scop->context_value = extract_set(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "schedule"))
+			scop->schedule = extract_schedule(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "types"))
 			scop = extract_types(ctx, document, value, scop);
 		if (!strcmp((char *) key->data.scalar.value, "arrays"))

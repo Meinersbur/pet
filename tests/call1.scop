@@ -3,15 +3,18 @@ end: 245
 indent: "\t"
 context: '[n] -> {  : exists (e0 = floor((n)/4): 4e0 = n and n >= 0 and n <= 2147483647)
   }'
+schedule: '{ domain: "[n] -> { S_0[]; S_1[i] : exists (e0 = floor((i)/4): 4e0 = i
+  and i >= 0 and i <= -1 + n) }", child: { sequence: [ { filter: "[n] -> { S_0[] }"
+  }, { filter: "[n] -> { S_1[i] }", child: { schedule: "[n] -> L_0[{ S_1[i] -> [(i)]
+  }]" } } ] } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0] : i0 <= -1 + n and i0 >= 0 }'
+  extent: '[n] -> { A[i0] : i0 >= 0 and i0 <= -1 + n }'
   element_type: int
   element_size: 4
 statements:
 - line: 10
   domain: '[n] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -24,9 +27,8 @@ statements:
         read: 1
         write: 0
 - line: 12
-  domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i <= -4 + n and
-    i >= 0) }'
-  schedule: '[n] -> { S_1[i] -> [1, i] }'
+  domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i >= 0 and i <=
+    -4 + n) }'
   body:
     type: expression
     expr:

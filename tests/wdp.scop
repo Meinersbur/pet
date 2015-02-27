@@ -2,33 +2,45 @@ start: 248
 end: 619
 indent: "\t"
 context: '[N] -> {  : N >= 8 and N <= 16 }'
+schedule: '{ domain: "[N] -> { S_3[i] : i >= 0 and i <= -1 + N; S_4[i] : i >= 0 and
+  i <= -1 + N; S_6[i] : i >= 0 and i <= -1 + N; S_7[i] : i >= 0 and i <= -1 + N; S_1[i]
+  : N <= 2147483646 and i >= 0 and i <= N; S_5[i] : i >= 0 and i <= -1 + N; S_0[i]
+  : i >= 0 and i <= -1 + N; S_2[i] : N <= 2147483645 and i >= 0 and i <= 1 + N }",
+  child: { sequence: [ { filter: "[N] -> { S_0[i] }", child: { schedule: "[N] -> L_0[{
+  S_0[i] -> [(i)] }]" } }, { filter: "[N] -> { S_1[i] }", child: { schedule: "[N]
+  -> L_1[{ S_1[i] -> [(i)] }]" } }, { filter: "[N] -> { S_2[i] }", child: { schedule:
+  "[N] -> L_2[{ S_2[i] -> [(i)] }]" } }, { filter: "[N] -> { S_3[i]; S_4[i]; S_6[i];
+  S_7[i]; S_5[i] }", child: { schedule: "[N] -> L_3[{ S_3[i] -> [(i)]; S_5[i] -> [(i)];
+  S_7[i] -> [(i)]; S_6[i] -> [(i)]; S_4[i] -> [(i)] }]", child: { sequence: [ { filter:
+  "[N] -> { S_3[i] }" }, { filter: "[N] -> { S_4[i] }" }, { filter: "[N] -> { S_5[i]
+  }" }, { filter: "[N] -> { S_6[i] }" }, { filter: "[N] -> { S_7[i] }" } ] } } } ]
+  } }'
 arrays:
 - context: '{  :  }'
-  extent: '[N] -> { __pet_test_0[i] : i <= -1 + N and i >= 0 }'
+  extent: '[N] -> { __pet_test_0[i] : i >= 0 and i <= -1 + N }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
-- context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
+- context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
   extent: '[N] -> { t[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { x[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { x[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
-- context: '[N] -> {  : N >= -1 and N <= 2147483646 }'
+- context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
   extent: '[N] -> { y[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
   element_size: 4
-- context: '[N] -> {  : N >= -2 and N <= 2147483645 }'
+- context: '[N] -> {  : N <= 2147483645 and N >= -2 }'
   extent: '[N] -> { z[i0] : i0 <= 1 + N and i0 >= 0 }'
   element_type: int
   element_size: 4
 statements:
 - line: 19
-  domain: '[N] -> { S_0[i] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_0[i] -> [0, i] }'
+  domain: '[N] -> { S_0[i] : i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:
@@ -44,7 +56,6 @@ statements:
         name: _Source_x
 - line: 22
   domain: '[N] -> { S_1[i] : i <= N and i >= 0 }'
-  schedule: '[N] -> { S_1[i] -> [1, i] }'
   body:
     type: expression
     expr:
@@ -69,7 +80,6 @@ statements:
           write: 1
 - line: 25
   domain: '[N] -> { S_2[i] : i <= 1 + N and i >= 0 }'
-  schedule: '[N] -> { S_2[i] -> [2, i] }'
   body:
     type: expression
     expr:
@@ -84,8 +94,7 @@ statements:
       - type: call
         name: _Source_z
 - line: 29
-  domain: '[N] -> { [S_3[i] -> [0]] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_3[i] -> [3, i, 0] }'
+  domain: '[N] -> { [S_3[i] -> [0]] : i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:
@@ -112,8 +121,7 @@ statements:
     read: 1
     write: 0
 - line: 30
-  domain: '[N] -> { S_4[i] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_4[i] -> [3, i, 1, 0] }'
+  domain: '[N] -> { S_4[i] : i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:
@@ -144,8 +152,7 @@ statements:
         - type: int
           value: 100
 - line: 31
-  domain: '[N] -> { [S_5[i] -> [1]] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_5[i] -> [3, i, 1, 1, 0] }'
+  domain: '[N] -> { [S_5[i] -> [1]] : i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:
@@ -172,8 +179,7 @@ statements:
     read: 1
     write: 0
 - line: 32
-  domain: '[N] -> { [S_6[i] -> [1]] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_6[i] -> [3, i, 1, 1, 1] }'
+  domain: '[N] -> { [S_6[i] -> [1]] : i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:
@@ -200,8 +206,7 @@ statements:
     read: 1
     write: 0
 - line: 34
-  domain: '[N] -> { S_7[i] : i <= -1 + N and i >= 0 }'
-  schedule: '[N] -> { S_7[i] -> [3, i, 2] }'
+  domain: '[N] -> { S_7[i] : i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:

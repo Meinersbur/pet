@@ -2,6 +2,8 @@ start: 40
 end: 101
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[k] : k >= 252 }", child: { schedule: "L_0[{ S_0[k] ->
+  [(k)] }]" } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -10,7 +12,6 @@ arrays:
 statements:
 - line: 8
   domain: '{ S_0[k] : k >= 252 }'
-  schedule: '{ S_0[k] -> [0, k] }'
   body:
     type: expression
     expr:

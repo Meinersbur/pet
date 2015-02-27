@@ -2,6 +2,7 @@ start: 41
 end: 82
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -18,7 +19,6 @@ arrays:
 statements:
 - line: 6
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:

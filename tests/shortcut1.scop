@@ -2,6 +2,7 @@ start: 26
 end: 91
 indent: "\t"
 context: '[N] -> {  : N >= -429496729 and N <= 2147483647 }'
+schedule: '{ domain: "[N] -> { S_0[] : N <= 99 and N >= 1 }" }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { a[] }'
@@ -10,7 +11,6 @@ arrays:
 statements:
 - line: 6
   domain: '[N] -> { S_0[] : N <= 99 and N >= 1 }'
-  schedule: '[N] -> { S_0[] -> [0] }'
   body:
     type: expression
     expr:

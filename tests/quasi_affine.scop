@@ -3,6 +3,10 @@ end: 222
 indent: "\t"
 context: '[N, in] -> {  : N <= 2147483646 and N >= -1 and in <= 2147483647 and in
   >= -2147483648 }'
+schedule: '{ domain: "[N] -> { S_0[] : N >= 0; S_1[i] : i >= 1 and i <= N; S_2[] :
+  N >= 0 }", child: { sequence: [ { filter: "[N] -> { S_0[] }" }, { filter: "[N] ->
+  { S_1[i] }", child: { schedule: "[N] -> L_0[{ S_1[i] -> [(i)] }]" } }, { filter:
+  "[N] -> { S_2[] }" } ] } }'
 arrays:
 - context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
   extent: '[N, in] -> { A[i0] : i0 <= N and i0 >= 0 }'
@@ -15,7 +19,6 @@ arrays:
 statements:
 - line: 14
   domain: '[N, in] -> { S_0[] : N >= 0 }'
-  schedule: '[N] -> { S_0[] -> [0, 0] }'
   body:
     type: expression
     expr:
@@ -33,8 +36,7 @@ statements:
         read: 1
         write: 0
 - line: 16
-  domain: '[N, in] -> { S_1[i] : i <= N and i >= 1 }'
-  schedule: '[N] -> { S_1[i] -> [0, 1, i, 0] }'
+  domain: '[N, in] -> { S_1[i] : i >= 1 and i <= N }'
   body:
     type: expression
     expr:
@@ -59,7 +61,6 @@ statements:
             write: 0
 - line: 18
   domain: '[N, in] -> { S_2[] : N >= 0 }'
-  schedule: '[N] -> { S_2[] -> [0, 2] }'
   body:
     type: expression
     expr:

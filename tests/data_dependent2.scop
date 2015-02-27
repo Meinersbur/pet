@@ -2,6 +2,14 @@ start: 59
 end: 206
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_3[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9;
+  S_2[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9; S_1[i] : i >= 0 and i <= 9
+  }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[i, j]; S_2[i,
+  j]; S_1[i] }", child: { schedule: "L_0[{ S_1[i] -> [(i)]; S_3[i, j] -> [(i)]; S_2[i,
+  j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_1[i] }" }, { filter: "{ S_3[i,
+  j]; S_2[i, j] }", child: { schedule: "L_1[{ S_3[i, j] -> [(j)]; S_2[i, j] -> [(j)]
+  }]", child: { sequence: [ { filter: "{ S_2[i, j] }" }, { filter: "{ S_3[i, j] }"
+  } ] } } } ] } } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[i] : i >= 0 and i <= 9 }'
@@ -20,7 +28,6 @@ arrays:
 statements:
 - line: 10
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -36,7 +43,6 @@ statements:
         value: 5
 - line: 12
   domain: '{ S_1[i] : i >= 0 and i <= 9 }'
-  schedule: '{ S_1[i] -> [1, i, 0] }'
   body:
     type: expression
     expr:
@@ -59,8 +65,7 @@ statements:
         - type: int
           value: 4
 - line: 14
-  domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
-  schedule: '{ S_2[i, j] -> [1, i, 1, j, 0] }'
+  domain: '{ [S_2[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
   body:
     type: expression
     expr:
@@ -97,8 +102,7 @@ statements:
     read: 1
     write: 0
 - line: 15
-  domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j <= 9 and j >= 0 }'
-  schedule: '{ S_3[i, j] -> [1, i, 1, j, 1] }'
+  domain: '{ [S_3[i, j] -> [1]] : i >= 0 and i <= 9 and j >= 0 and j <= 9 }'
   body:
     type: expression
     expr:

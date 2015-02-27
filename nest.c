@@ -333,10 +333,9 @@ struct pet_stmt *pet_stmt_remove_nested_parameters(struct pet_stmt *stmt)
 
 	if (!stmt)
 		return NULL;
-	stmt->schedule = pet_nested_remove_from_map(stmt->schedule);
 	stmt->body = pet_tree_map_access_expr(stmt->body,
 			    &expr_remove_nested_parameters, NULL);
-	if (!stmt->schedule || !stmt->body)
+	if (!stmt->body)
 		goto error;
 	for (i = 0; i < stmt->n_arg; ++i) {
 		stmt->args[i] = pet_expr_map_access(stmt->args[i],

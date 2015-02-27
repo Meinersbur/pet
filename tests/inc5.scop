@@ -2,6 +2,11 @@ start: 38
 end: 115
 indent: "\t"
 context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
+schedule: '{ domain: "{ S_3[t] : t >= 0; S_0[]; S_2[t] : t >= 0; S_4[t] : t >= 0;
+  S_1[] }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" },
+  { filter: "{ S_3[t]; S_2[t]; S_4[t] }", child: { schedule: "L_0[{ S_2[t] -> [(t)];
+  S_3[t] -> [(t)]; S_4[t] -> [(t)] }]", child: { sequence: [ { filter: "{ S_2[t] }"
+  }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t] }" } ] } } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { __pet_test_0[t] : t >= 0 }'
@@ -10,7 +15,7 @@ arrays:
   element_size: 4
   uniquely_defined: 1
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -20,7 +25,6 @@ arrays:
 statements:
 - line: 7
   domain: '[N] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -36,7 +40,6 @@ statements:
         value: 0
 - line: 8
   domain: '[N] -> { S_1[] }'
-  schedule: '{ S_1[] -> [1, 0] }'
   body:
     type: expression
     expr:
@@ -52,7 +55,6 @@ statements:
         value: 0
 - line: 8
   domain: '[N] -> { [S_2[t] -> [1]] : t >= 0 }'
-  schedule: '{ S_2[t] -> [1, 1, t, 0] }'
   body:
     type: expression
     expr:
@@ -85,7 +87,6 @@ statements:
     write: 0
 - line: 9
   domain: '[N] -> { [S_3[t] -> [1]] : t >= 0 }'
-  schedule: '{ S_3[t] -> [1, 1, t, 1] }'
   body:
     type: expression
     expr:
@@ -116,7 +117,6 @@ statements:
     write: 0
 - line: 8
   domain: '[N] -> { [S_4[t] -> [1]] : t >= 0 }'
-  schedule: '{ S_4[t] -> [1, 1, t, 2] }'
   body:
     type: expression
     expr:

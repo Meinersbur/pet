@@ -278,21 +278,57 @@ void pet_skip_info_if_extract_cond(struct pet_skip_info *skip,
 	isl_multi_pw_aff_free(test);
 }
 
-/* Add the computed skip condition of the give type to "main" and
- * add the scop for computing the condition at the given offset.
+/* Add the scops for computing the skip conditions to "main".
+ *
+ * If two scops are added, then they can be executed in parallel,
+ * but both scops need to be executed after the original statement.
+ * However, if "main" has any skip conditions, then they do not
+ * apply to the scops for computing skip conditions, so we temporarily
+ * remove the skip conditions while adding the scops.
+ */
+struct pet_scop *pet_skip_info_add_scops(struct pet_skip_info *skip,
+	struct pet_scop *main)
+{
+	int has_skip_now;
+	isl_multi_pw_aff *skip_now;
+	struct pet_scop *scop_skip;
+
+	if (!skip->skip[pet_skip_now] && !skip->skip[pet_skip_later])
+		return main;
+
+	has_skip_now = pet_scop_has_skip(main, pet_skip_now);
+	if (has_skip_now)
+		skip_now = pet_scop_get_skip(main, pet_skip_now);
+	pet_scop_reset_skip(main, pet_skip_now);
+
+	if (skip->skip[pet_skip_now] && skip->skip[pet_skip_later])
+		scop_skip = pet_scop_add_par(skip->ctx,
+					skip->scop[pet_skip_now],
+					skip->scop[pet_skip_later]);
+	else if (skip->skip[pet_skip_now])
+		scop_skip = skip->scop[pet_skip_now];
+	else
+		scop_skip = skip->scop[pet_skip_later];
+	main = pet_scop_add_seq(skip->ctx, main, scop_skip);
+	skip->scop[pet_skip_now] = NULL;
+	skip->scop[pet_skip_later] = NULL;
+
+	if (has_skip_now)
+		main = pet_scop_set_skip(main, pet_skip_now, skip_now);
+
+	return main;
+}
+
+/* Add the computed skip condition of the give type to "main".
  *
  * If equal is set, then we only computed a skip condition for pet_skip_now,
  * but we also need to set it as main's pet_skip_later.
  */
-struct pet_scop *pet_skip_info_if_add_type(struct pet_skip_info *skip,
-	struct pet_scop *main, enum pet_skip type, int offset)
+struct pet_scop *pet_skip_info_add_type(struct pet_skip_info *skip,
+	struct pet_scop *main, enum pet_skip type)
 {
 	if (!skip->skip[type])
 		return main;
-
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
-	main = pet_scop_add_par(skip->ctx, main, skip->scop[type]);
-	skip->scop[type] = NULL;
 
 	if (skip->equal)
 		main = pet_scop_set_skip(main, pet_skip_later,
@@ -305,13 +341,14 @@ struct pet_scop *pet_skip_info_if_add_type(struct pet_skip_info *skip,
 }
 
 /* Add the computed skip conditions to "main" and
- * add the scops for computing the conditions at the given offset.
+ * add the scops for computing the conditions.
  */
-struct pet_scop *pet_skip_info_if_add(struct pet_skip_info *skip,
-	struct pet_scop *scop, int offset)
+struct pet_scop *pet_skip_info_add(struct pet_skip_info *skip,
+	struct pet_scop *scop)
 {
-	scop = pet_skip_info_if_add_type(skip, scop, pet_skip_now, offset);
-	scop = pet_skip_info_if_add_type(skip, scop, pet_skip_later, offset);
+	scop = pet_skip_info_add_scops(skip, scop);
+	scop = pet_skip_info_add_type(skip, scop, pet_skip_now);
+	scop = pet_skip_info_add_type(skip, scop, pet_skip_later);
 
 	return scop;
 }
@@ -445,45 +482,4 @@ void pet_skip_info_seq_extract(struct pet_skip_info *skip,
 	pet_skip_info_seq_extract_type(skip, pet_skip_later, pc, state);
 	if (skip->equal)
 		drop_skip_later(skip->u.s.scop1, skip->u.s.scop2);
-}
-
-/* Add the computed skip condition of the given type to "main" and
- * add the scop for computing the condition at the given offset (the statement
- * number).  Within this offset, the condition is computed at position 1
- * to ensure that it is computed after the corresponding statement.
- *
- * If equal is set, then we only computed a skip condition for pet_skip_now,
- * but we also need to set it as main's pet_skip_later.
- */
-struct pet_scop *pet_skip_info_seq_add_type(struct pet_skip_info *skip,
-	struct pet_scop *main, enum pet_skip type, int offset)
-{
-	if (!skip->skip[type])
-		return main;
-
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], 1);
-	skip->scop[type] = pet_scop_prefix(skip->scop[type], offset);
-	main = pet_scop_add_par(skip->ctx, main, skip->scop[type]);
-	skip->scop[type] = NULL;
-
-	if (skip->equal)
-		main = pet_scop_set_skip(main, pet_skip_later,
-				    isl_multi_pw_aff_copy(skip->index[type]));
-
-	main = pet_scop_set_skip(main, type, skip->index[type]);
-	skip->index[type] = NULL;
-
-	return main;
-}
-
-/* Add the computed skip conditions to "main" and
- * add the scops for computing the conditions at the given offset.
- */
-struct pet_scop *pet_skip_info_seq_add(struct pet_skip_info *skip,
-	struct pet_scop *scop, int offset)
-{
-	scop = pet_skip_info_seq_add_type(skip, scop, pet_skip_now, offset);
-	scop = pet_skip_info_seq_add_type(skip, scop, pet_skip_later, offset);
-
-	return scop;
 }

@@ -2,6 +2,7 @@ start: 74
 end: 113
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 types:
 - name: field
   definition: typedef int field
@@ -20,7 +21,6 @@ arrays:
 statements:
 - line: 11
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:

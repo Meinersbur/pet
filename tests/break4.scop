@@ -2,81 +2,113 @@ start: 43
 end: 357
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_11[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_12[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_14[i, j] : i >= 0 and i <= 99
+  and j >= 0 and j <= 99; S_15[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99;
+  S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_13[i, j] : i >= 0 and
+  i <= 99 and j >= 0 and j <= 99; S_6[i, j] : i >= 0 and i <= 99 and j >= 0 and j
+  <= 99; S_3[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_16[i, j] : i >=
+  0 and i <= 99 and j >= 0 and j <= 99; S_8[i, j] : i >= 0 and i <= 99 and j >= 0
+  and j <= 99; S_9[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_17[i, j] :
+  i >= 0 and i <= 99 and j >= 0 and j <= 99; S_0[i, j] : i >= 0 and i <= 99 and j
+  >= 0 and j <= 99; S_2[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_7[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_4[i, j] : i >= 0 and i <= 99 and
+  j >= 0 and j <= 99; S_5[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_1[i,
+  j] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }", child: { schedule: "L_0[{ S_12[i,
+  j] -> [(i)]; S_11[i, j] -> [(i)]; S_17[i, j] -> [(i)]; S_8[i, j] -> [(i)]; S_16[i,
+  j] -> [(i)]; S_6[i, j] -> [(i)]; S_4[i, j] -> [(i)]; S_1[i, j] -> [(i)]; S_13[i,
+  j] -> [(i)]; S_2[i, j] -> [(i)]; S_7[i, j] -> [(i)]; S_14[i, j] -> [(i)]; S_3[i,
+  j] -> [(i)]; S_5[i, j] -> [(i)]; S_15[i, j] -> [(i)]; S_9[i, j] -> [(i)]; S_0[i,
+  j] -> [(i)]; S_10[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_12[i, j] -> [(j)];
+  S_11[i, j] -> [(j)]; S_17[i, j] -> [(j)]; S_8[i, j] -> [(j)]; S_16[i, j] -> [(j)];
+  S_6[i, j] -> [(j)]; S_4[i, j] -> [(j)]; S_1[i, j] -> [(j)]; S_13[i, j] -> [(j)];
+  S_2[i, j] -> [(j)]; S_7[i, j] -> [(j)]; S_14[i, j] -> [(j)]; S_3[i, j] -> [(j)];
+  S_5[i, j] -> [(j)]; S_15[i, j] -> [(j)]; S_9[i, j] -> [(j)]; S_0[i, j] -> [(j)];
+  S_10[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j] }" }, { filter:
+  "{ S_1[i, j] }" }, { filter: "{ S_2[i, j] }" }, { filter: "{ S_3[i, j] }" }, { filter:
+  "{ S_4[i, j] }" }, { filter: "{ S_5[i, j] }" }, { filter: "{ S_6[i, j] }" }, { filter:
+  "{ S_7[i, j] }" }, { filter: "{ S_8[i, j] }" }, { filter: "{ S_9[i, j] }" }, { filter:
+  "{ S_11[i, j]; S_10[i, j] }", child: { set: [ { filter: "{ S_10[i, j] }" }, { filter:
+  "{ S_11[i, j] }" } ] } }, { filter: "{ S_12[i, j]; S_13[i, j] }", child: { set:
+  [ { filter: "{ S_12[i, j] }" }, { filter: "{ S_13[i, j] }" } ] } }, { filter: "{
+  S_14[i, j] }" }, { filter: "{ S_15[i, j]; S_16[i, j] }", child: { set: [ { filter:
+  "{ S_15[i, j] }" }, { filter: "{ S_16[i, j] }" } ] } }, { filter: "{ S_17[i, j]
+  }" } ] } } } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 81 }'
+  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_1[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_1[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_2[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_2[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_3[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_3[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_4[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_4[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_5[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_5[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_6[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_6[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_7[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_7[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_8[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_8[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_9[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_9[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_10[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_11[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_11[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_12[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_12[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -87,8 +119,7 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
+  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -109,8 +140,7 @@ statements:
     read: 1
     write: 0
 - line: 12
-  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 81 }'
-  schedule: '{ S_1[i, j] -> [0, i, j, 1, 0, 0, 0] }'
+  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -131,8 +161,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_2[i, j] -> [0, i, j, 1, 1] }'
+  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -170,8 +199,7 @@ statements:
     read: 1
     write: 0
 - line: 15
-  domain: '{ [S_3[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_3[i, j] -> [0, i, j, 2, 0, 0] }'
+  domain: '{ [S_3[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -197,9 +225,8 @@ statements:
     read: 1
     write: 0
 - line: 16
-  domain: '{ [S_4[i, j] -> [0, 0, 1]] : i >= 0 and i <= 99 and j <= 99 and j >= 0
+  domain: '{ [S_4[i, j] -> [0, 0, 1]] : i >= 0 and i <= 99 and j >= 0 and j <= 99
     }'
-  schedule: '{ S_4[i, j] -> [0, i, j, 2, 0, 1, 0, 0] }'
   body:
     type: expression
     expr:
@@ -230,9 +257,8 @@ statements:
     read: 1
     write: 0
 - line: 18
-  domain: '{ [S_5[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j <= 99 and j >=
-    0 }'
-  schedule: '{ S_5[i, j] -> [0, i, j, 2, 0, 1, 1] }'
+  domain: '{ [S_5[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j >= 0 and j <=
+    99 }'
   body:
     type: expression
     expr:
@@ -268,9 +294,8 @@ statements:
     read: 1
     write: 0
 - line: 19
-  domain: '{ [S_6[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j <= 99 and j >=
-    0 }'
-  schedule: '{ S_6[i, j] -> [0, i, j, 2, 0, 1, 2, 0, 0] }'
+  domain: '{ [S_6[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j >= 0 and j <=
+    99 }'
   body:
     type: expression
     expr:
@@ -306,9 +331,8 @@ statements:
     read: 1
     write: 0
 - line: 22
-  domain: '{ [S_7[i, j] -> [0, 0, 1, 0, 0]] : i >= 0 and i <= 99 and j <= 99 and j
-    >= 0 }'
-  schedule: '{ S_7[i, j] -> [0, i, j, 2, 0, 1, 2, 0, 1] }'
+  domain: '{ [S_7[i, j] -> [0, 0, 1, 0, 0]] : i >= 0 and i <= 99 and j >= 0 and j
+    <= 99 }'
   body:
     type: expression
     expr:
@@ -349,9 +373,8 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_8[i, j] -> [0, 0, 1]] : i >= 0 and i <= 99 and j <= 99 and j >= 0
+  domain: '{ [S_8[i, j] -> [0, 0, 1]] : i >= 0 and i <= 99 and j >= 0 and j <= 99
     }'
-  schedule: '{ S_8[i, j] -> [0, i, j, 2, 0, 1, 2, 1] }'
   body:
     type: expression
     expr:
@@ -405,9 +428,8 @@ statements:
     read: 1
     write: 0
 - line: 23
-  domain: '{ [S_9[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j <= 99 and j >=
-    0 }'
-  schedule: '{ S_9[i, j] -> [0, i, j, 2, 0, 1, 3] }'
+  domain: '{ [S_9[i, j] -> [0, 0, 1, 0]] : i >= 0 and i <= 99 and j >= 0 and j <=
+    99 }'
   body:
     type: expression
     expr:
@@ -443,8 +465,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_10[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_10[i, j] -> [0, i, j, 2, 0, 2] }'
+  domain: '{ [S_10[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -493,8 +514,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_11[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_11[i, j] -> [0, i, j, 2, 0, 2] }'
+  domain: '{ [S_11[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -543,8 +563,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_12[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_12[i, j] -> [0, i, j, 2, 1] }'
+  domain: '{ [S_12[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -588,8 +607,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_13[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_13[i, j] -> [0, i, j, 2, 1] }'
+  domain: '{ [S_13[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -633,8 +651,7 @@ statements:
     read: 1
     write: 0
 - line: 25
-  domain: '{ [S_14[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_14[i, j] -> [0, i, j, 3, 0, 0] }'
+  domain: '{ [S_14[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -660,8 +677,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_15[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_15[i, j] -> [0, i, j, 3, 1] }'
+  domain: '{ [S_15[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -705,8 +721,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_16[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_16[i, j] -> [0, i, j, 3, 1] }'
+  domain: '{ [S_16[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -750,8 +765,7 @@ statements:
     read: 1
     write: 0
 - line: 27
-  domain: '{ [S_17[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_17[i, j] -> [0, i, j, 4] }'
+  domain: '{ [S_17[i, j] -> [0, 0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -789,5 +803,5 @@ statements:
     write: 0
 implications:
 - satisfied: 0
-  extension: '{ __pet_test_12[i, j] -> __pet_test_12[i, j''] : j'' <= j and i >= 0
-    and i <= 99 and j'' >= 0 and j'' <= 99 }'
+  extension: '{ __pet_test_12[i, j] -> __pet_test_12[i, j''] : j'' <= j and i <= 99
+    and i >= 0 and j'' <= 99 and j'' >= 0 }'

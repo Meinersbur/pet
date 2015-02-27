@@ -309,6 +309,37 @@ static int emit_named_multi_pw_aff(yaml_emitter_t *emitter, const char *name,
 	return 0;
 }
 
+/* Print the schedule "schedule" to "emitter".
+ */
+static int emit_schedule(yaml_emitter_t *emitter,
+	__isl_keep isl_schedule *schedule)
+{
+	isl_ctx *ctx = isl_schedule_get_ctx(schedule);
+	isl_printer *p;
+	char *str;
+	int r;
+
+	p = isl_printer_to_str(ctx);
+	p = isl_printer_print_schedule(p, schedule);
+	str = isl_printer_get_str(p);
+	isl_printer_free(p);
+	r = emit_string(emitter, str);
+	free(str);
+	return r;
+}
+
+/* Print the string "name" and the schedule "schedule" to "emitter".
+ */
+static int emit_named_schedule(yaml_emitter_t *emitter, const char *name,
+	__isl_keep isl_schedule *schedule)
+{
+	if (emit_string(emitter, name) < 0)
+		return -1;
+	if (emit_schedule(emitter, schedule) < 0)
+		return -1;
+	return 0;
+}
+
 /* Print "type" to "emitter".
  */
 static int emit_type(yaml_emitter_t *emitter, struct pet_type *type)
@@ -775,11 +806,6 @@ static int emit_stmt(yaml_emitter_t *emitter, struct pet_stmt *stmt)
 	if (emit_set(emitter, stmt->domain) < 0)
 		return -1;
 
-	if (emit_string(emitter, "schedule") < 0)
-		return -1;
-	if (emit_map(emitter, stmt->schedule) < 0)
-		return -1;
-
 	if (emit_string(emitter, "body") < 0)
 		return -1;
 	if (emit_tree(emitter, stmt->body) < 0)
@@ -980,6 +1006,8 @@ static int emit_scop(yaml_emitter_t *emitter, struct pet_scop *scop)
 		return -1;
 	if (!isl_set_plain_is_universe(scop->context_value) &&
 	    emit_named_set(emitter, "context_value", scop->context_value) < 0)
+		return -1;
+	if (emit_named_schedule(emitter, "schedule", scop->schedule) < 0)
 		return -1;
 
 	if (emit_types(emitter, scop->n_type, scop->types) < 0)

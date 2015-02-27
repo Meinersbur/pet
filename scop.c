@@ -35,6 +35,7 @@
 #include <string.h>
 #include <isl/constraint.h>
 #include <isl/union_set.h>
+#include <isl/schedule_node.h>
 
 #include "aff.h"
 #include "expr.h"
@@ -88,7 +89,6 @@ struct pet_stmt *pet_stmt_from_pet_tree(__isl_take isl_set *domain,
 	isl_ctx *ctx;
 	isl_id *label;
 	isl_space *space;
-	isl_map *sched;
 	isl_multi_aff *ma;
 	isl_multi_pw_aff *add_name;
 	char name[50];
@@ -110,7 +110,6 @@ struct pet_stmt *pet_stmt_from_pet_tree(__isl_take isl_set *domain,
 	domain = isl_set_set_tuple_id(domain, label);
 	space = isl_set_get_space(domain);
 	space = pet_nested_remove_from_space(space);
-	sched = isl_map_universe(isl_space_from_domain(isl_space_copy(space)));
 	ma = pet_prefix_projection(space, isl_space_dim(space, isl_dim_set));
 
 	add_name = isl_multi_pw_aff_from_multi_aff(ma);
@@ -118,10 +117,9 @@ struct pet_stmt *pet_stmt_from_pet_tree(__isl_take isl_set *domain,
 
 	stmt->loc = pet_tree_get_loc(tree);
 	stmt->domain = domain;
-	stmt->schedule = sched;
 	stmt->body = tree;
 
-	if (!stmt->domain || !stmt->schedule || !stmt->body)
+	if (!stmt->domain || !stmt->body)
 		return pet_stmt_free(stmt);
 
 	return stmt;
@@ -140,7 +138,6 @@ void *pet_stmt_free(struct pet_stmt *stmt)
 
 	pet_loc_free(stmt->loc);
 	isl_set_free(stmt->domain);
-	isl_map_free(stmt->schedule);
 	pet_tree_free(stmt->body);
 
 	for (i = 0; i < stmt->n_arg; ++i)
@@ -182,8 +179,6 @@ static void stmt_dump(struct pet_stmt *stmt, int indent)
 	fprintf(stderr, "%*s%d\n", indent, "", pet_loc_get_line(stmt->loc));
 	fprintf(stderr, "%*s", indent, "");
 	isl_set_dump(stmt->domain);
-	fprintf(stderr, "%*s", indent, "");
-	isl_map_dump(stmt->schedule);
 	pet_tree_dump_with_indent(stmt->body, indent);
 	for (i = 0; i < stmt->n_arg; ++i)
 		pet_expr_dump_with_indent(stmt->args[i], indent + 2);
@@ -263,20 +258,22 @@ struct pet_scop *pet_scop_alloc(isl_ctx *ctx)
 	return &isl_calloc_type(ctx, struct pet_scop_ext)->scop;
 }
 
-/* Construct a pet_scop in the given space and with room for n statements.
+/* Construct a pet_scop in the given space, with the given schedule and
+ * room for n statements.
  *
  * The context is initialized as a universe set in "space".
  *
  * Since no information on the location is known at this point,
  * scop->loc is initialized with pet_loc_dummy.
  */
-static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n)
+static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n,
+	__isl_take isl_schedule *schedule)
 {
 	isl_ctx *ctx;
 	struct pet_scop *scop;
 
-	if (!space)
-		return NULL;
+	if (!space || !schedule)
+		goto error;
 
 	ctx = isl_space_get_ctx(space);
 	scop = pet_scop_alloc(ctx);
@@ -286,6 +283,7 @@ static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n)
 	scop->context = isl_set_universe(isl_space_copy(space));
 	scop->context_value = isl_set_universe(isl_space_params(space));
 	scop->stmts = isl_calloc_array(ctx, struct pet_stmt *, n);
+	scop->schedule = schedule;
 	if (!scop->context || !scop->stmts)
 		return pet_scop_free(scop);
 
@@ -295,14 +293,20 @@ static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n)
 	return scop;
 error:
 	isl_space_free(space);
+	isl_schedule_free(schedule);
 	return NULL;
 }
 
-/* Construct a pet_scop in the given space containing 0 statements.
+/* Construct a pet_scop in the given space containing 0 statements
+ * (and therefore an empty iteration domain).
  */
 struct pet_scop *pet_scop_empty(__isl_take isl_space *space)
 {
-	return scop_alloc(space, 0);
+	isl_schedule *schedule;
+
+	schedule = isl_schedule_empty(isl_space_copy(space));
+
+	return scop_alloc(space, 0, schedule);
 }
 
 /* Given either an iteration domain or a wrapped map with
@@ -472,16 +476,24 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 }
 
 /* Construct a pet_scop in the given space that contains the given pet_stmt.
+ * The initial schedule consists of only the iteration domain.
  */
 struct pet_scop *pet_scop_from_pet_stmt(__isl_take isl_space *space,
 	struct pet_stmt *stmt)
 {
 	struct pet_scop *scop;
+	isl_set *set;
+	isl_union_set *domain;
+	isl_schedule *schedule;
 
 	if (!stmt)
 		space = isl_space_free(space);
 
-	scop = scop_alloc(space, 1);
+	set = pet_nested_remove_from_set(isl_set_copy(stmt->domain));
+	domain = isl_union_set_from_set(set);
+	schedule = isl_schedule_from_domain(domain);
+
+	scop = scop_alloc(space, 1, schedule);
 	if (!scop)
 		goto error;
 
@@ -861,10 +873,12 @@ static struct pet_scop *scop_collect_independences(isl_ctx *ctx,
 	return scop;
 }
 
-/* Construct a pet_scop that contains the offset information,
+/* Construct a pet_scop with the given schedule
+ * that contains the offset information,
  * arrays, statements and skip information in "scop1" and "scop2".
  */
-static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
+static struct pet_scop *pet_scop_add(isl_ctx *ctx,
+	__isl_take isl_schedule *schedule, struct pet_scop *scop1,
 	struct pet_scop *scop2)
 {
 	int i;
@@ -877,17 +891,20 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 	if (scop1->n_stmt == 0) {
 		scop2 = scop_combine_skips(scop2, scop1, scop2);
 		pet_scop_free(scop1);
+		isl_schedule_free(schedule);
 		return scop2;
 	}
 
 	if (scop2->n_stmt == 0) {
 		scop1 = scop_combine_skips(scop1, scop1, scop2);
 		pet_scop_free(scop2);
+		isl_schedule_free(schedule);
 		return scop1;
 	}
 
 	space = isl_set_get_space(scop1->context);
-	scop = scop_alloc(space, scop1->n_stmt + scop2->n_stmt);
+	scop = scop_alloc(space, scop1->n_stmt + scop2->n_stmt,
+			isl_schedule_copy(schedule));
 	if (!scop)
 		goto error;
 
@@ -926,11 +943,13 @@ static struct pet_scop *pet_scop_add(isl_ctx *ctx, struct pet_scop *scop1,
 
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);
+	isl_schedule_free(schedule);
 	return scop;
 error:
 	pet_scop_free(scop1);
 	pet_scop_free(scop2);
 	pet_scop_free(scop);
+	isl_schedule_free(schedule);
 	return NULL;
 }
 
@@ -973,26 +992,50 @@ error:
 /* Construct a pet_scop that contains the arrays, statements and
  * skip information in "scop1" and "scop2", where the two scops
  * are executed "in sequence".  That is, breaks and continues
- * in scop1 have an effect on scop2.
+ * in scop1 have an effect on scop2 and the schedule of the result
+ * is the sequence of the schedules of "scop1" and "scop2".
  */
 struct pet_scop *pet_scop_add_seq(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
 {
+	isl_schedule *schedule;
+
+	if (!scop1 || !scop2)
+		goto error;
+
 	if (scop1 && pet_scop_has_skip(scop1, pet_skip_now))
 		scop2 = restrict_skip(scop2,
 					pet_scop_get_skip(scop1, pet_skip_now));
-	return pet_scop_add(ctx, scop1, scop2);
+	schedule = isl_schedule_sequence(isl_schedule_copy(scop1->schedule),
+					isl_schedule_copy(scop2->schedule));
+	return pet_scop_add(ctx, schedule, scop1, scop2);
+error:
+	pet_scop_free(scop1);
+	pet_scop_free(scop2);
+	return NULL;
 }
 
 /* Construct a pet_scop that contains the arrays, statements and
  * skip information in "scop1" and "scop2", where the two scops
  * are executed "in parallel".  That is, any break or continue
- * in scop1 has no effect on scop2.
+ * in scop1 has no effect on scop2 and the schedule of the result
+ * is the set of the schedules of "scop1" and "scop2".
  */
 struct pet_scop *pet_scop_add_par(isl_ctx *ctx, struct pet_scop *scop1,
 	struct pet_scop *scop2)
 {
-	return pet_scop_add(ctx, scop1, scop2);
+	isl_schedule *schedule;
+
+	if (!scop1 || !scop2)
+		goto error;
+
+	schedule = isl_schedule_set(isl_schedule_copy(scop1->schedule),
+					isl_schedule_copy(scop2->schedule));
+	return pet_scop_add(ctx, schedule, scop1, scop2);
+error:
+	pet_scop_free(scop1);
+	pet_scop_free(scop2);
+	return NULL;
 }
 
 void *pet_implication_free(struct pet_implication *implication)
@@ -1030,6 +1073,7 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop)
 	pet_loc_free(scop->loc);
 	isl_set_free(scop->context);
 	isl_set_free(scop->context_value);
+	isl_schedule_free(scop->schedule);
 	if (scop->types)
 		for (i = 0; i < scop->n_type; ++i)
 			pet_type_free(scop->types[i]);
@@ -1083,6 +1127,7 @@ void pet_scop_dump(struct pet_scop *scop)
 	
 	isl_set_dump(scop->context);
 	isl_set_dump(scop->context_value);
+	isl_schedule_dump(scop->schedule);
 	for (i = 0; i < scop->n_type; ++i)
 		pet_type_dump(scop->types[i]);
 	for (i = 0; i < scop->n_array; ++i)
@@ -1145,8 +1190,6 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 	if (pet_loc_get_line(stmt1->loc) != pet_loc_get_line(stmt2->loc))
 		return 0;
 	if (!isl_set_is_equal(stmt1->domain, stmt2->domain))
-		return 0;
-	if (!isl_map_is_equal(stmt1->schedule, stmt2->schedule))
 		return 0;
 	if (!pet_tree_is_equal(stmt1->body, stmt2->body))
 		return 0;
@@ -1214,6 +1257,7 @@ int pet_independence_is_equal(struct pet_independence *independence1,
 int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 {
 	int i;
+	int equal;
 
 	if (!scop1 || !scop2)
 		return 0;
@@ -1221,6 +1265,11 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2)
 	if (!isl_set_is_equal(scop1->context, scop2->context))
 		return 0;
 	if (!isl_set_is_equal(scop1->context_value, scop2->context_value))
+		return 0;
+	equal = isl_schedule_plain_is_equal(scop1->schedule, scop2->schedule);
+	if (equal < 0)
+		return -1;
+	if (!equal)
 		return 0;
 
 	if (scop1->n_type != scop2->n_type)
@@ -1378,6 +1427,9 @@ error:
  *
  * The extents of the virtual arrays match the iteration domains,
  * so if the iteration domain changes, we need to change those extents too.
+ *
+ * The domain of the schedule is intersected with (i.e., replaced by)
+ * the union of the updated iteration domains.
  */
 struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
 	__isl_take isl_set *domain)
@@ -1409,76 +1461,16 @@ struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
 			return pet_scop_free(scop);
 	}
 
+	scop->schedule = isl_schedule_intersect_domain(scop->schedule,
+					    pet_scop_collect_domains(scop));
+	if (!scop->schedule)
+		goto error;
+
 	isl_set_free(domain);
 	return scop;
 error:
 	isl_set_free(domain);
 	return pet_scop_free(scop);
-}
-
-/* Prefix the schedule of "stmt" with an extra dimension with constant
- * value "pos".
- */
-struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos)
-{
-	if (!stmt)
-		return NULL;
-
-	stmt->schedule = isl_map_insert_dims(stmt->schedule, isl_dim_out, 0, 1);
-	stmt->schedule = isl_map_fix_si(stmt->schedule, isl_dim_out, 0, pos);
-	if (!stmt->schedule)
-		return pet_stmt_free(stmt);
-
-	return stmt;
-}
-
-/* Prefix the schedules of all statements in "scop" with an extra
- * dimension with constant value "pos".
- */
-struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos)
-{
-	int i;
-
-	if (!scop)
-		return NULL;
-
-	for (i = 0; i < scop->n_stmt; ++i) {
-		scop->stmts[i] = pet_stmt_prefix(scop->stmts[i], pos);
-		if (!scop->stmts[i])
-			return pet_scop_free(scop);
-	}
-
-	return scop;
-}
-
-/* Prefix the schedule of "stmt" with "sched".
- *
- * The domain of "sched" refers the current outer loop iterators and
- * needs to be mapped to the iteration domain of "stmt" first
- * before being prepended to the schedule of "stmt".
- */
-static struct pet_stmt *pet_stmt_embed(struct pet_stmt *stmt,
-	__isl_take isl_map *sched)
-{
-	int n;
-	isl_space *space;
-	isl_multi_aff *ma;
-
-	if (!stmt)
-		goto error;
-
-	space = pet_stmt_get_space(stmt);
-	n = isl_map_dim(sched, isl_dim_in);
-	ma = pet_prefix_projection(space, n);
-	sched = isl_map_preimage_domain_multi_aff(sched, ma);
-	stmt->schedule = isl_map_flat_range_product(sched, stmt->schedule);
-	if (!stmt->schedule)
-		return pet_stmt_free(stmt);
-
-	return stmt;
-error:
-	isl_map_free(sched);
-	return NULL;
 }
 
 /* Update the context with respect to an embedding into a loop
@@ -1558,44 +1550,115 @@ error:
 	return NULL;
 }
 
-/* Adjust the context and statement schedules according to an embedding
- * in a loop with iteration domain "dom" and schedule "sched".
+/* Internal data structure for outer_projection_mupa.
  *
- * Any skip conditions within the loop have no effect outside of the loop.
- * The caller is responsible for making sure skip[pet_skip_later] has been
- * taken into account.
+ * "n" is the number of outer dimensions onto which to project.
+ * "res" collects the result.
+ */
+struct pet_outer_projection_data {
+	int n;
+	isl_union_pw_multi_aff *res;
+};
+
+/* Create a function that maps "set" onto its outer data->n dimensions and
+ * add it to data->res.
+ */
+static int add_outer_projection(__isl_take isl_set *set, void *user)
+{
+	struct pet_outer_projection_data *data = user;
+	int dim;
+	isl_space *space;
+	isl_pw_multi_aff *pma;
+
+	dim = isl_set_dim(set, isl_dim_set);
+	space = isl_set_get_space(set);
+	pma = isl_pw_multi_aff_project_out_map(space,
+					isl_dim_set, data->n, dim - data->n);
+	data->res = isl_union_pw_multi_aff_add_pw_multi_aff(data->res, pma);
+
+	isl_set_free(set);
+
+	return 0;
+}
+
+/* Create and return a function that maps the sets in "domain"
+ * onto their outer "n" dimensions.
+ */
+static __isl_give isl_multi_union_pw_aff *outer_projection_mupa(
+	__isl_take isl_union_set *domain, int n)
+{
+	struct pet_outer_projection_data data;
+	isl_space *space;
+
+	space = isl_union_set_get_space(domain);
+	data.n = n;
+	data.res = isl_union_pw_multi_aff_empty(space);
+	if (isl_union_set_foreach_set(domain, &add_outer_projection, &data) < 0)
+		data.res = isl_union_pw_multi_aff_free(data.res);
+
+	isl_union_set_free(domain);
+	return isl_multi_union_pw_aff_from_union_pw_multi_aff(data.res);
+}
+
+/* Embed "schedule" in a loop with schedule "prefix".
+ * The domain of "prefix" corresponds to the outer dimensions
+ * of the iteration domains.
+ * We therefore construct a projection onto these outer dimensions,
+ * compose it with "prefix" and then add the result as a band schedule.
+ *
+ * If the domain of the schedule is empty, then there is no need
+ * to insert any node.
+ */
+static __isl_give isl_schedule *schedule_embed(
+	__isl_take isl_schedule *schedule, __isl_keep isl_multi_aff *prefix)
+{
+	int n;
+	int empty;
+	isl_union_set *domain;
+	isl_multi_aff *ma;
+	isl_multi_union_pw_aff *mupa;
+
+	domain = isl_schedule_get_domain(schedule);
+	empty = isl_union_set_is_empty(domain);
+	if (empty < 0 || empty) {
+		isl_union_set_free(domain);
+		return empty < 0 ? isl_schedule_free(schedule) : schedule;
+	}
+
+	n = isl_multi_aff_dim(prefix, isl_dim_in);
+	mupa = outer_projection_mupa(domain, n);
+	ma = isl_multi_aff_copy(prefix);
+	mupa = isl_multi_union_pw_aff_apply_multi_aff(mupa, ma);
+	schedule = isl_schedule_insert_partial_schedule(schedule, mupa);
+
+	return schedule;
+}
+
+/* Adjust the context and the schedule according to an embedding
+ * in a loop with iteration domain "dom" and schedule "sched".
  */
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
-	__isl_take isl_aff *sched)
+	__isl_take isl_multi_aff *sched)
 {
 	int i;
-	isl_map *sched_map;
-
-	sched_map = isl_map_from_aff(sched);
 
 	if (!scop)
 		goto error;
-
-	pet_scop_reset_skip(scop, pet_skip_now);
-	pet_scop_reset_skip(scop, pet_skip_later);
 
 	scop->context = context_embed(scop->context, dom);
 	if (!scop->context)
 		goto error;
 
-	for (i = 0; i < scop->n_stmt; ++i) {
-		scop->stmts[i] = pet_stmt_embed(scop->stmts[i],
-				    isl_map_copy(sched_map));
-		if (!scop->stmts[i])
-			goto error;
-	}
+	scop->schedule = schedule_embed(scop->schedule, sched);
+	if (!scop->schedule)
+		goto error;
 
 	isl_set_free(dom);
-	isl_map_free(sched_map);
+	isl_multi_aff_free(sched);
 	return scop;
 error:
 	isl_set_free(dom);
-	isl_map_free(sched_map);
+	isl_multi_aff_free(sched);
 	return pet_scop_free(scop);
 }
 
@@ -2043,6 +2106,16 @@ void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type)
 	ext->skip[type] = NULL;
 }
 
+/* Drop all skip conditions on "scop".
+ */
+struct pet_scop *pet_scop_reset_skips(struct pet_scop *scop)
+{
+	pet_scop_reset_skip(scop, pet_skip_now);
+	pet_scop_reset_skip(scop, pet_skip_later);
+
+	return scop;
+}
+
 /* Make the skip condition (if any) depend on the value of "test" being
  * equal to "satisfied".
  *
@@ -2133,8 +2206,6 @@ static __isl_give isl_space *stmt_collect_params(struct pet_stmt *stmt,
 		return isl_space_free(space);
 
 	space = isl_space_align_params(space, isl_set_get_space(stmt->domain));
-	space = isl_space_align_params(space,
-					isl_map_get_space(stmt->schedule));
 	for (i = 0; i < stmt->n_arg; ++i)
 		if (pet_expr_foreach_access_expr(stmt->args[i],
 					&access_collect_params, &space) < 0)
@@ -2177,15 +2248,17 @@ static __isl_give isl_space *independence_collect_params(
 	return space;
 }
 
-/* Add all parameters in "scop" to "space" and return the result.
+/* Collect all parameters in "scop" in a parameter space and return the result.
  */
-static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
-	__isl_take isl_space *space)
+static __isl_give isl_space *scop_collect_params(struct pet_scop *scop)
 {
+	isl_space *space;
 	int i;
 
 	if (!scop)
-		return isl_space_free(space);
+		return NULL;
+
+	space = isl_set_get_space(scop->context);
 
 	for (i = 0; i < scop->n_array; ++i)
 		space = array_collect_params(scop->arrays[i], space);
@@ -2200,7 +2273,7 @@ static __isl_give isl_space *scop_collect_params(struct pet_scop *scop,
 	return space;
 }
 
-/* Add all parameters in "space" to the domain, schedule and
+/* Add all parameters in "space" to the domain and
  * all access relations in "stmt".
  */
 static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
@@ -2213,8 +2286,6 @@ static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
 
 	stmt->domain = isl_set_align_params(stmt->domain,
 						isl_space_copy(space));
-	stmt->schedule = isl_map_align_params(stmt->schedule,
-						isl_space_copy(space));
 
 	for (i = 0; i < stmt->n_arg; ++i) {
 		stmt->args[i] = pet_expr_align_params(stmt->args[i],
@@ -2224,7 +2295,7 @@ static struct pet_stmt *stmt_propagate_params(struct pet_stmt *stmt,
 	}
 	stmt->body = pet_tree_align_params(stmt->body, isl_space_copy(space));
 
-	if (!stmt->domain || !stmt->schedule || !stmt->body)
+	if (!stmt->domain || !stmt->body)
 		goto error;
 
 	isl_space_free(space);
@@ -2295,6 +2366,13 @@ static struct pet_scop *scop_propagate_params(struct pet_scop *scop,
 	if (!scop)
 		goto error;
 
+	scop->context = isl_set_align_params(scop->context,
+						isl_space_copy(space));
+	scop->schedule = isl_schedule_align_params(scop->schedule,
+						isl_space_copy(space));
+	if (!scop->context || !scop->schedule)
+		goto error;
+
 	for (i = 0; i < scop->n_array; ++i) {
 		scop->arrays[i] = array_propagate_params(scop->arrays[i],
 							isl_space_copy(space));
@@ -2333,15 +2411,9 @@ struct pet_scop *pet_scop_align_params(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 
-	space = isl_set_get_space(scop->context);
-	space = scop_collect_params(scop, space);
+	space = scop_collect_params(scop);
 
-	scop->context = isl_set_align_params(scop->context,
-						isl_space_copy(space));
 	scop = scop_propagate_params(scop, space);
-
-	if (scop && !scop->context)
-		return pet_scop_free(scop);
 
 	return scop;
 }
@@ -2738,42 +2810,6 @@ __isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop)
 	return domain;
 }
 
-/* Collect and return the schedules of the statements in "scop".
- * The range is normalized to the maximal number of scheduling
- * dimensions.
- */
-__isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop)
-{
-	int i, j;
-	isl_map *schedule_i;
-	isl_union_map *schedule;
-	int depth, max_depth = 0;
-
-	if (!scop)
-		return NULL;
-
-	schedule = isl_union_map_empty(isl_set_get_space(scop->context));
-
-	for (i = 0; i < scop->n_stmt; ++i) {
-		depth = isl_map_dim(scop->stmts[i]->schedule, isl_dim_out);
-		if (depth > max_depth)
-			max_depth = depth;
-	}
-
-	for (i = 0; i < scop->n_stmt; ++i) {
-		schedule_i = isl_map_copy(scop->stmts[i]->schedule);
-		depth = isl_map_dim(schedule_i, isl_dim_out);
-		schedule_i = isl_map_add_dims(schedule_i, isl_dim_out,
-						max_depth - depth);
-		for (j = depth; j < max_depth; ++j)
-			schedule_i = isl_map_fix_si(schedule_i,
-							isl_dim_out, j, 0);
-		schedule = isl_union_map_add_map(schedule, schedule_i);
-	}
-
-	return schedule;
-}
-
 /* Add a reference identifier to all access expressions in "stmt".
  * "n_ref" points to an integer that contains the sequence number
  * of the next reference.
@@ -2845,8 +2881,7 @@ static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 		return NULL;
 
 	stmt->domain = isl_set_reset_user(stmt->domain);
-	stmt->schedule = isl_map_reset_user(stmt->schedule);
-	if (!stmt->domain || !stmt->schedule)
+	if (!stmt->domain)
 		return pet_stmt_free(stmt);
 
 	for (i = 0; i < stmt->n_arg; ++i) {
@@ -2906,7 +2941,8 @@ struct pet_scop *pet_scop_anonymize(struct pet_scop *scop)
 
 	scop->context = isl_set_reset_user(scop->context);
 	scop->context_value = isl_set_reset_user(scop->context_value);
-	if (!scop->context || !scop->context_value)
+	scop->schedule = isl_schedule_reset_user(scop->schedule);
+	if (!scop->context || !scop->context_value || !scop->schedule)
 		return pet_scop_free(scop);
 
 	for (i = 0; i < scop->n_array; ++i) {

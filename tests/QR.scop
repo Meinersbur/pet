@@ -1,17 +1,33 @@
 start: 285
 end: 840
 indent: '    '
-context: '[K, N] -> {  : N <= 16 and N >= 8 and K >= 100 and K <= 1000 }'
+context: '[K, N] -> {  : K >= 100 and N <= 16 and N >= 8 and K <= 1000 }'
 context_value: '[K, N] -> {  : K = 256 }'
+schedule: '{ domain: "[N, K] -> { S_2[k, j] : k >= 0 and k <= -1 + K and j >= 0 and
+  j <= -1 + N; S_3[k, j, i] : k >= 0 and k <= -1 + K and j <= 2147483646 and j >=
+  0 and i >= 1 + j and i <= -1 + N; S_0[j, i] : j >= 0 and i >= j and i <= -1 + N;
+  S_1[k, j] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1 + N; S_4[j, i] : j >=
+  0 and i >= j and i <= -1 + N }", child: { sequence: [ { filter: "[N, K] -> { S_0[j,
+  i] }", child: { schedule: "[N] -> L_0[{ S_0[j, i] -> [(j)] }]", child: { schedule:
+  "[N] -> L_1[{ S_0[j, i] -> [(i)] }]" } } }, { filter: "[N, K] -> { S_1[k, j] }",
+  child: { schedule: "[K, N] -> L_2[{ S_1[k, j] -> [(k)] }]", child: { schedule: "[K,
+  N] -> L_3[{ S_1[k, j] -> [(j)] }]" } } }, { filter: "[N, K] -> { S_2[k, j]; S_3[k,
+  j, i] }", child: { schedule: "[K, N] -> L_4[{ S_3[k, j, i] -> [(k)]; S_2[k, j] ->
+  [(k)] }]", child: { schedule: "[K, N] -> L_5[{ S_3[k, j, i] -> [(j)]; S_2[k, j]
+  -> [(j)] }]", child: { sequence: [ { filter: "[K, N] -> { S_2[k, j] }" }, { filter:
+  "[K, N] -> { S_3[k, j, i] }", child: { schedule: "[K, N] -> L_6[{ S_3[k, j, i] ->
+  [(i)] }]" } } ] } } } }, { filter: "[N, K] -> { S_4[j, i] }", child: { schedule:
+  "[N] -> L_7[{ S_4[j, i] -> [(j)] }]", child: { schedule: "[N] -> L_8[{ S_4[j, i]
+  -> [(i)] }]" } } } ] } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, K] -> { R[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 <= -1 + N and i1
-    >= 0 }'
+  extent: '[N, K] -> { R[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 and i0 <=
+    -1 + N }'
   element_type: int
   element_size: 4
 - context: '[N, K] -> {  : K >= 0 and N >= 0 }'
-  extent: '[N, K] -> { X[i0, i1] : i1 <= -1 + N and i1 >= 0 and i0 <= -1 + K and i0
-    >= 0 }'
+  extent: '[N, K] -> { X[i0, i1] : i0 >= 0 and i0 <= -1 + K and i1 >= 0 and i1 <=
+    -1 + N }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -20,8 +36,7 @@ arrays:
   element_size: 4
 statements:
 - line: 19
-  domain: '[N, K] -> { S_0[j, i] : i >= j and j >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_0[j, i] -> [0, j, i] }'
+  domain: '[N, K] -> { S_0[j, i] : i >= j and i <= -1 + N and j >= 0 }'
   body:
     type: expression
     expr:
@@ -36,9 +51,8 @@ statements:
       - type: call
         name: Zero
 - line: 23
-  domain: '[N, K] -> { S_1[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
-    0 }'
-  schedule: '[K, N] -> { S_1[k, j] -> [1, k, j] }'
+  domain: '[N, K] -> { S_1[k, j] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1 +
+    N }'
   body:
     type: expression
     expr:
@@ -53,9 +67,8 @@ statements:
       - type: call
         name: ReadMatrix
 - line: 27
-  domain: '[N, K] -> { S_2[k, j] : j <= -1 + N and j >= 0 and k <= -1 + K and k >=
-    0 }'
-  schedule: '[K, N] -> { S_2[k, j] -> [2, k, j, 0] }'
+  domain: '[N, K] -> { S_2[k, j] : k >= 0 and k <= -1 + K and j >= 0 and j <= -1 +
+    N }'
   body:
     type: expression
     expr:
@@ -97,9 +110,8 @@ statements:
           read: 0
           write: 1
 - line: 29
-  domain: '[N, K] -> { S_3[k, j, i] : i >= 1 + j and j >= 0 and k <= -1 + K and k
-    >= 0 and i <= -1 + N }'
-  schedule: '[K, N] -> { S_3[k, j, i] -> [2, k, j, 1, i] }'
+  domain: '[N, K] -> { S_3[k, j, i] : k <= -1 + K and i <= -1 + N and j >= 0 and i
+    >= 1 + j and k >= 0 }'
   body:
     type: expression
     expr:
@@ -146,8 +158,7 @@ statements:
           read: 0
           write: 1
 - line: 34
-  domain: '[N, K] -> { S_4[j, i] : i >= j and j >= 0 and i <= -1 + N }'
-  schedule: '[N] -> { S_4[j, i] -> [3, j, i] }'
+  domain: '[N, K] -> { S_4[j, i] : i >= j and i <= -1 + N and j >= 0 }'
   body:
     type: expression
     expr:

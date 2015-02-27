@@ -2,9 +2,15 @@ start: 43
 end: 186
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_2[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_1[i, j] : i >= 0 and i <= 99 and
+  j >= 0 and j <= 99 }", child: { schedule: "L_0[{ S_1[i, j] -> [(i)]; S_0[i, j] ->
+  [(i)]; S_2[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_1[i, j] -> [(j)]; S_0[i,
+  j] -> [(j)]; S_2[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j]
+  }" }, { filter: "{ S_1[i, j] }" }, { filter: "{ S_2[i, j] }" } ] } } } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
+  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -15,8 +21,7 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_0[i, j] -> [0, i, j, 0] }'
+  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -37,8 +42,7 @@ statements:
     read: 1
     write: 0
 - line: 11
-  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_1[i, j] -> [0, i, j, 1, 0] }'
+  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -59,8 +63,7 @@ statements:
     read: 1
     write: 0
 - line: 13
-  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j <= 99 and j >= 0 }'
-  schedule: '{ S_2[i, j] -> [0, i, j, 2] }'
+  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
   body:
     type: expression
     expr:
@@ -93,5 +96,5 @@ statements:
     write: 0
 implications:
 - satisfied: 0
-  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i, j''] : j'' <= j and i >= 0 and
-    i <= 99 and j'' >= 0 and j'' <= 99 }'
+  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i, j''] : j'' <= j and i <= 99
+    and i >= 0 and j'' <= 99 and j'' >= 0 }'

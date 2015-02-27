@@ -2,6 +2,8 @@ start: 25
 end: 94
 indent: "\t"
 context: '[m] -> {  : m >= 6 and m <= 2147483647 }'
+schedule: '{ domain: "{ S_0[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[] }"
+  }, { filter: "{ S_1[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[m] -> { n[] }'
@@ -10,7 +12,6 @@ arrays:
 statements:
 - line: 4
   domain: '[m] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -26,7 +27,6 @@ statements:
         value: 5
 - line: 5
   domain: '[m] -> { S_1[] }'
-  schedule: '{ S_1[] -> [1] }'
   body:
     type: expression
     expr:

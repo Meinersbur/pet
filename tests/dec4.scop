@@ -1,17 +1,19 @@
 start: 38
 end: 112
 indent: "\t"
-context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
+context: '[N] -> {  : N <= 2147483647 and N >= 0 }'
+schedule: '{ domain: "[N] -> { S_0[i] : exists (e0 = floor((-2 - N + i)/3): 3e0 =
+  -2 - N + i and N <= 2147483648 and i >= 0 and i <= -1 + N) }", child: { schedule:
+  "[N] -> L_0[{ S_0[i] -> [(-i)] }]" } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 statements:
 - line: 8
   domain: '[N] -> { S_0[i] : exists (e0 = floor((-2 - N + i)/3): 3e0 = -2 - N + i
     and i <= -1 + N and i >= 0) }'
-  schedule: '[N] -> { S_0[i] -> [0, -i] }'
   body:
     type: expression
     expr:

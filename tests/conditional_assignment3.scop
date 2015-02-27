@@ -2,6 +2,9 @@ start: 31
 end: 94
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_2[]; S_1[] }", child: { sequence: [ { filter: "{
+  S_0[] }" }, { filter: "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }"
+  }, { filter: "{ S_2[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[] }'
@@ -16,7 +19,6 @@ arrays:
 statements:
 - line: 7
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0, 0] }'
   body:
     type: expression
     expr:
@@ -32,7 +34,6 @@ statements:
         name: f
 - line: 8
   domain: '{ [S_1[] -> [1]] }'
-  schedule: '{ S_1[] -> [0, 1] }'
   body:
     type: expression
     expr:
@@ -54,7 +55,6 @@ statements:
     write: 0
 - line: 10
   domain: '{ [S_2[] -> [0]] }'
-  schedule: '{ S_2[] -> [0, 1] }'
   body:
     type: expression
     expr:

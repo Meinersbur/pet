@@ -2,15 +2,15 @@ start: 38
 end: 114
 indent: "\t"
 context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
+schedule: '{ domain: "[N] -> {  }" }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 statements:
 - line: 9
   domain: '[N] -> { S_0[i] : 1 = 0 }'
-  schedule: '[N] -> { S_0[i] -> [0, i] }'
   body:
     type: expression
     expr:

@@ -2,6 +2,17 @@ start: 41
 end: 382
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 99; S_5[i] : i >= 0 and i <= 99;
+  S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_6[i, j] : exists (e0 =
+  floor((j)/2): 2e0 = j and i <= 99 and i >= 0 and j <= 99 and j >= 0); S_4[i] : i
+  >= 0 and i <= 99; S_7[i, j] : exists (e0 = floor((-1 + j)/2): 2e0 = -1 + j and i
+  <= 99 and i >= 0 and j <= 99 and j >= 0) }", child: { schedule: "L_0[{ S_3[i] ->
+  [(i)]; S_7[i, j] -> [(i)]; S_6[i, j] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)];
+  S_10[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_4[i] }" }, { filter:
+  "{ S_3[i] }" }, { filter: "{ S_5[i] }" }, { filter: "{ S_6[i, j]; S_7[i, j] }",
+  child: { schedule: "L_2[{ S_6[i, j] -> [(j)]; S_7[i, j] -> [(j)] }]", child: { sequence:
+  [ { filter: "{ S_6[i, j] }" }, { filter: "{ S_7[i, j] }" } ] } } }, { filter: "{
+  S_10[i, j] }", child: { schedule: "L_3[{ S_10[i, j] -> [(j)] }]" } } ] } } }'
 arrays:
 - context: '{  :  }'
   extent: '{ j[] }'
@@ -19,7 +30,6 @@ arrays:
 statements:
 - line: 8
   domain: '{ S_4[i] : i >= 0 and i <= 99 }'
-  schedule: '{ S_4[i] -> [0, i, 0, 0] }'
   body:
     type: expression
     expr:
@@ -33,7 +43,6 @@ statements:
         kill: 1
 - line: 8
   domain: '{ S_3[i] : i >= 0 and i <= 99 }'
-  schedule: '{ S_3[i] -> [0, i, 0, 1] }'
   body:
     type: for
     declared: 1
@@ -108,7 +117,6 @@ statements:
             value: 1
 - line: 8
   domain: '{ S_5[i] : i >= 0 and i <= 99 }'
-  schedule: '{ S_5[i] -> [0, i, 0, 2] }'
   body:
     type: expression
     expr:
@@ -123,7 +131,6 @@ statements:
 - line: 17
   domain: '{ S_6[i, j] : exists (e0 = floor((j)/2): 2e0 = j and i <= 99 and i >= 0
     and j <= 99 and j >= 0) }'
-  schedule: '{ S_6[i, j] -> [0, i, 1, j, 0, 0] }'
   body:
     type: expression
     expr:
@@ -140,7 +147,6 @@ statements:
 - line: 20
   domain: '{ S_7[i, j] : exists (e0 = floor((-1 + j)/2): 2e0 = -1 + j and i <= 99
     and i >= 0 and j <= 99 and j >= 0) }'
-  schedule: '{ S_7[i, j] -> [0, i, 1, j, 1] }'
   body:
     type: expression
     expr:
@@ -156,7 +162,6 @@ statements:
         value: 1
 - line: 23
   domain: '{ S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  schedule: '{ S_10[i, j] -> [0, i, 2, j, 0] }'
   body:
     type: if-else
     condition:

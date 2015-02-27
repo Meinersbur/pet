@@ -2,6 +2,9 @@ start: 50
 end: 174
 indent: '    '
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[i] : i >= 0 and i <= 99; S_1[i] : i >= 0 and i <= 99 }",
+  child: { schedule: "L_0[{ S_1[i] -> [(i)]; S_0[i] -> [(i)] }]", child: { sequence:
+  [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" } ] } } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
@@ -14,7 +17,6 @@ arrays:
 statements:
 - line: 9
   domain: '{ S_0[i] : i >= 0 and i <= 99 }'
-  schedule: '{ S_0[i] -> [0, i, 0] }'
   body:
     type: expression
     expr:
@@ -30,7 +32,6 @@ statements:
         name: f
 - line: 12
   domain: '{ [S_1[i] -> [j]] : i >= 0 and i <= 99 and j <= 1 and j >= 0 }'
-  schedule: '{ S_1[i] -> [0, i, 1, 0] }'
   body:
     type: expression
     expr:

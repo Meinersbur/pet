@@ -2,19 +2,25 @@ start: 42
 end: 206
 indent: "\t"
 context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
+schedule: '{ domain: "[N] -> { S_0[99, t, j] : t >= 0 and j >= 0 and j <= -1 + N;
+  S_1[99, t, j] : t >= 0 and j >= 0 and j <= -1 + N }", child: { schedule: "[N] ->
+  L_0[{ S_1[i, t, j] -> [(i)]; S_0[i, t, j] -> [(i)] }]", child: { schedule: "[N]
+  -> L_1[{ S_1[i, t, j] -> [(t)]; S_0[i, t, j] -> [(t)] }]", child: { sequence: [
+  { filter: "[N] -> { S_0[i, t, j] }", child: { schedule: "[N] -> L_2[{ S_0[i, t,
+  j] -> [(j)] }]" } }, { filter: "[N] -> { S_1[i, t, j] }", child: { schedule: "[N]
+  -> L_3[{ S_1[i, t, j] -> [(j)] }]" } } ] } } } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { b[i0] : i0 <= -1 + N and i0 >= 0 }'
+  extent: '[N] -> { b[i0] : i0 >= 0 and i0 <= -1 + N }'
   element_type: int
   element_size: 4
 statements:
 - line: 9
-  domain: '[N] -> { S_0[99, t, j] : j >= 0 and t >= 0 and j <= -1 + N }'
-  schedule: '[N] -> { S_0[i, t, j] -> [0, i, t, 0, j] }'
+  domain: '[N] -> { S_0[99, t, j] : j >= 0 and j <= -1 + N and t >= 0 }'
   body:
     type: expression
     expr:
@@ -29,8 +35,7 @@ statements:
       - type: int
         value: 0
 - line: 11
-  domain: '[N] -> { S_1[99, t, j] : j >= 0 and t >= 0 and j <= -1 + N }'
-  schedule: '[N] -> { S_1[i, t, j] -> [0, i, t, 1, j] }'
+  domain: '[N] -> { S_1[99, t, j] : j >= 0 and j <= -1 + N and t >= 0 }'
   body:
     type: expression
     expr:

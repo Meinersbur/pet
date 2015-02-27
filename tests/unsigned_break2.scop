@@ -2,9 +2,15 @@ start: 50
 end: 172
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_2[k] : k <= 261 and k >= 252; S_0[k] : (exists (e0 = floor((k)/256):
+  k <= 261 and k >= 252 and 256e0 >= -255 + k and 256e0 <= -2 + k)) or (exists (e0
+  = floor((k)/256): 256e0 = k and k <= 261 and k >= 252)); S_1[k] : k <= 261 and k
+  >= 252 }", child: { schedule: "L_0[{ S_2[k] -> [(k)]; S_1[k] -> [(k)]; S_0[k] ->
+  [(k)] }]", child: { sequence: [ { filter: "{ S_0[k] }" }, { filter: "{ S_1[k] }"
+  }, { filter: "{ S_2[k] }" } ] } } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[k] : k >= 252 and k <= 261 }'
+  extent: '{ __pet_test_0[k] : k <= 261 and k >= 252 }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -15,10 +21,9 @@ arrays:
   element_size: 4
 statements:
 - line: 11
-  domain: '{ [S_0[k] -> [0]] : (exists (e0 = floor((k)/256): 256e0 = k and k <= 261
-    and k >= 252)) or (exists (e0 = floor((k)/256): k <= 261 and k >= 252 and 256e0
-    >= -255 + k and 256e0 <= -2 + k)) }'
-  schedule: '{ S_0[k] -> [0, k, 0] }'
+  domain: '{ [S_0[k] -> [0]] : (exists (e0 = floor((k)/256): k <= 261 and k >= 252
+    and 256e0 >= -255 + k and 256e0 <= -2 + k)) or (exists (e0 = floor((k)/256): 256e0
+    = k and k <= 261 and k >= 252)) }'
   body:
     type: expression
     expr:
@@ -39,8 +44,7 @@ statements:
     read: 1
     write: 0
 - line: 12
-  domain: '{ [S_1[k] -> [0]] : k >= 252 and k <= 261 }'
-  schedule: '{ S_1[k] -> [0, k, 1, 0] }'
+  domain: '{ [S_1[k] -> [0]] : k <= 261 and k >= 252 }'
   body:
     type: expression
     expr:
@@ -61,8 +65,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '{ [S_2[k] -> [0]] : k >= 252 and k <= 261 }'
-  schedule: '{ S_2[k] -> [0, k, 2] }'
+  domain: '{ [S_2[k] -> [0]] : k <= 261 and k >= 252 }'
   body:
     type: expression
     expr:
@@ -87,5 +90,5 @@ statements:
     write: 0
 implications:
 - satisfied: 0
-  extension: '{ __pet_test_0[k] -> __pet_test_0[k''] : k'' <= k and k'' >= 252 and
-    k'' <= 261 }'
+  extension: '{ __pet_test_0[k] -> __pet_test_0[k''] : k'' <= k and k'' <= 261 and
+    k'' >= 252 }'

@@ -2,6 +2,8 @@ start: 65
 end: 127
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_2[]; S_1[] }", child: { sequence: [ { filter: "{
+  S_0[] }" }, { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" } ] } }'
 types:
 - name: s
   definition: "struct s {\n    int a;\n    int b;\n}"
@@ -26,7 +28,6 @@ arrays:
 statements:
 - line: 9
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -42,7 +43,6 @@ statements:
         value: 0
 - line: 10
   domain: '{ S_1[] }'
-  schedule: '{ S_1[] -> [1] }'
   body:
     type: expression
     expr:
@@ -58,7 +58,6 @@ statements:
         value: 1
 - line: 11
   domain: '{ S_2[] }'
-  schedule: '{ S_2[] -> [2] }'
   body:
     type: expression
     expr:

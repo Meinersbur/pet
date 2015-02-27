@@ -32,8 +32,6 @@ struct pet_array *pet_array_free(struct pet_array *array);
 void *pet_implication_free(struct pet_implication *implication);
 void *pet_independence_free(struct pet_independence *independence);
 
-struct pet_stmt *pet_stmt_prefix(struct pet_stmt *stmt, int pos);
-
 struct pet_scop *pet_scop_from_pet_stmt(__isl_take isl_space *space,
 	struct pet_stmt *stmt);
 struct pet_scop *pet_scop_alloc(isl_ctx *ctx);
@@ -47,9 +45,8 @@ int pet_scop_is_equal(struct pet_scop *scop1, struct pet_scop *scop2);
 
 struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
 	__isl_take isl_set *domain);
-struct pet_scop *pet_scop_prefix(struct pet_scop *scop, int pos);
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
-	__isl_take isl_aff *sched);
+	__isl_take isl_multi_aff *sched);
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond);
 struct pet_scop *pet_scop_restrict_context(struct pet_scop *scop,
@@ -84,6 +81,7 @@ __isl_give isl_id *pet_scop_get_skip_id(struct pet_scop *scop,
 __isl_give pet_expr *pet_scop_get_skip_expr(struct pet_scop *scop,
 	enum pet_skip type);
 void pet_scop_reset_skip(struct pet_scop *scop, enum pet_skip type);
+struct pet_scop *pet_scop_reset_skips(struct pet_scop *scop);
 
 struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 	struct pet_array *array);

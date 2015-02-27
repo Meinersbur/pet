@@ -2,6 +2,7 @@ start: 37
 end: 80
 indent: "\t"
 context: '[c] -> {  : c <= 127 and c >= -128 }'
+schedule: '{ domain: "{ S_0[] }" }'
 arrays:
 - context: '{  :  }'
   extent: '[c] -> { a[] }'
@@ -10,7 +11,6 @@ arrays:
 statements:
 - line: 7
   domain: '[c] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:

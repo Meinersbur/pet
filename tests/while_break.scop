@@ -2,6 +2,23 @@ start: 45
 end: 294
 indent: "\t"
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
+schedule: '{ domain: "[N] -> { S_11[t] : t >= 0; S_3[t] : t >= 0; S_8[t] : t >= 0;
+  S_10[t] : t >= 0; S_4[t] : t >= 0; S_6[t] : N = 0 and t >= 0; S_6[0] : N <= -1 or
+  N >= 1; S_7[t] : N = 0 and t >= 0; S_1[t] : N = 0 and t >= 0; S_5[t] : N = 0 and
+  t >= 0; S_5[0] : N <= -1 or N >= 1; S_9[t] : t >= 0; S_2[t] : t >= 0; S_0[t] : N
+  = 0 and t >= 0; S_0[0] : N <= -1 or N >= 1 }", child: { sequence: [ { filter: "[N]
+  -> { S_1[t]; S_0[t] }", child: { schedule: "[N] -> L_0[{ S_0[t] -> [(t)]; S_1[t]
+  -> [(t)] }]", child: { sequence: [ { filter: "[N] -> { S_0[t] }" }, { filter: "[N]
+  -> { S_1[t] }" } ] } } }, { filter: "[N] -> { S_3[t]; S_4[t]; S_2[t] }", child:
+  { schedule: "L_1[{ S_2[t] -> [(t)]; S_3[t] -> [(t)]; S_4[t] -> [(t)] }]", child:
+  { sequence: [ { filter: "{ S_2[t] }" }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t]
+  }" } ] } } }, { filter: "[N] -> { S_6[t]; S_7[t]; S_5[t] }", child: { schedule:
+  "[N] -> L_2[{ S_5[t] -> [(t)]; S_7[t] -> [(t)]; S_6[t] -> [(t)] }]", child: { sequence:
+  [ { filter: "[N] -> { S_5[t] }" }, { filter: "[N] -> { S_6[t] }" }, { filter: "[N]
+  -> { S_7[t] }" } ] } } }, { filter: "[N] -> { S_11[t]; S_8[t]; S_10[t]; S_9[t] }",
+  child: { schedule: "L_3[{ S_10[t] -> [(t)]; S_8[t] -> [(t)]; S_9[t] -> [(t)]; S_11[t]
+  -> [(t)] }]", child: { sequence: [ { filter: "{ S_8[t] }" }, { filter: "{ S_9[t]
+  }" }, { filter: "{ S_10[t] }" }, { filter: "{ S_11[t] }" } ] } } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { __pet_test_0[t] : t >= 0 }'
@@ -35,7 +52,6 @@ arrays:
 statements:
 - line: 10
   domain: '[N] -> { S_0[t] : N = 0 and t >= 0; S_0[0] : N <= -1 or N >= 1 }'
-  schedule: '{ S_0[t] -> [0, t, 0] }'
   body:
     type: expression
     expr:
@@ -51,7 +67,6 @@ statements:
         value: 5
 - line: 13
   domain: '[N] -> { S_1[t] : N = 0 and t >= 0 }'
-  schedule: '[N] -> { S_1[t] -> [0, t, 2] }'
   body:
     type: expression
     expr:
@@ -67,7 +82,6 @@ statements:
         value: 6
 - line: 16
   domain: '[N] -> { [S_2[t] -> [0]] : t >= 0 }'
-  schedule: '{ S_2[t] -> [1, t, 0] }'
   body:
     type: expression
     expr:
@@ -89,7 +103,6 @@ statements:
     write: 0
 - line: 17
   domain: '[N] -> { [S_3[t] -> [0]] : t >= 0 }'
-  schedule: '{ S_3[t] -> [1, t, 1, 0] }'
   body:
     type: expression
     expr:
@@ -111,7 +124,6 @@ statements:
     write: 0
 - line: 19
   domain: '[N] -> { [S_4[t] -> [0]] : t >= 0 }'
-  schedule: '{ S_4[t] -> [1, t, 2] }'
   body:
     type: expression
     expr:
@@ -134,7 +146,6 @@ statements:
 - line: 21
   domain: '[N] -> { [S_5[t] -> [1]] : N = 0 and t >= 0; [S_5[0] -> [1]] : N <= -1
     or N >= 1 }'
-  schedule: '{ S_5[t] -> [2, t, 0] }'
   body:
     type: expression
     expr:
@@ -150,15 +161,14 @@ statements:
         name: f
   arguments:
   - type: access
-    index: '[N] -> { S_5[t] -> __pet_test_1[((-1 + t) : (N = 0 and t >= 1) or (t =
-      1 and N >= 1) or (t = 1 and N <= -1))] }'
+    index: '[N] -> { S_5[t] -> __pet_test_1[((-1 + t) : (t = 1 and N <= -1) or (t
+      = 1 and N >= 1) or (N = 0 and t >= 1))] }'
     reference: __pet_ref_8
     read: 1
     write: 0
 - line: 22
   domain: '[N] -> { [S_6[t] -> [1]] : N = 0 and t >= 0; [S_6[0] -> [1]] : N <= -1
     or N >= 1 }'
-  schedule: '{ S_6[t] -> [2, t, 1, 0] }'
   body:
     type: expression
     expr:
@@ -180,7 +190,6 @@ statements:
     write: 0
 - line: 25
   domain: '[N] -> { [S_7[t] -> [1]] : N = 0 and t >= 0 }'
-  schedule: '[N] -> { S_7[t] -> [2, t, 1, 2] }'
   body:
     type: expression
     expr:
@@ -202,7 +211,6 @@ statements:
     write: 0
 - line: 27
   domain: '[N] -> { [S_8[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_8[t] -> [3, t, 0] }'
   body:
     type: expression
     expr:
@@ -229,7 +237,6 @@ statements:
     write: 0
 - line: 28
   domain: '[N] -> { [S_9[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_9[t] -> [3, t, 1, 0] }'
   body:
     type: expression
     expr:
@@ -256,7 +263,6 @@ statements:
     write: 0
 - line: 29
   domain: '[N] -> { [S_10[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_10[t] -> [3, t, 1, 1, 0] }'
   body:
     type: expression
     expr:
@@ -283,7 +289,6 @@ statements:
     write: 0
 - line: 31
   domain: '[N] -> { [S_11[t] -> [1, 0]] : t >= 0 }'
-  schedule: '{ S_11[t] -> [3, t, 1, 2] }'
   body:
     type: expression
     expr:

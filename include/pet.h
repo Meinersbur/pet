@@ -10,6 +10,7 @@
 #include <isl/printer.h>
 #include <isl/id_to_ast_expr.h>
 #include <isl/id_to_pw_aff.h>
+#include <isl/schedule.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -363,7 +364,6 @@ void pet_tree_dump(__isl_keep pet_tree *tree);
 struct pet_stmt {
 	pet_loc *loc;
 	isl_set *domain;
-	isl_map *schedule;
 	pet_tree *body;
 
 	unsigned n_arg;
@@ -486,6 +486,8 @@ struct pet_independence {
  * context_value describes assignments to the parameters (if any)
  * outside of the scop.
  *
+ * "schedule" is the schedule of the statements in the scop.
+ *
  * The n_type types define types that may be referenced from by the arrays.
  *
  * The n_implication implications describe implications on boolean filters.
@@ -498,6 +500,7 @@ struct pet_scop {
 
 	isl_set *context;
 	isl_set *context_value;
+	isl_schedule *schedule;
 
 	int n_type;
 	struct pet_type **types;
@@ -579,7 +582,6 @@ __isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop);
 /* Collect all tagged definite kill access relations. */
 __isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
 	struct pet_scop *scop);
-__isl_give isl_union_map *pet_scop_collect_schedule(struct pet_scop *scop);
 
 /* Compute a mapping from all outermost arrays (of structs) in scop
  * to their innermost members.

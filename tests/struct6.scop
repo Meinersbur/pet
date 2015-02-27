@@ -2,6 +2,7 @@ start: 51
 end: 91
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 types:
 - name: s
   definition: "struct s {\n    int a;\n}"
@@ -18,7 +19,6 @@ arrays:
 statements:
 - line: 10
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:

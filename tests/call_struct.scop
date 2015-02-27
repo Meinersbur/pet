@@ -2,6 +2,9 @@ start: 295
 end: 407
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[]; S_2[]; S_1[i] : i >= 1 and i <= 3 }", child: { sequence:
+  [ { filter: "{ S_0[] }" }, { filter: "{ S_1[i] }", child: { schedule: "L_0[{ S_1[i]
+  -> [(i)] }]" } }, { filter: "{ S_2[] }" } ] } }'
 types:
 - name: s
   definition: "struct s {\n    struct s0 c[10];\n}"
@@ -38,7 +41,6 @@ arrays:
 statements:
 - line: 30
   domain: '{ S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -59,7 +61,6 @@ statements:
         write: 1
 - line: 32
   domain: '{ S_1[i] : i >= 1 and i <= 3 }'
-  schedule: '{ S_1[i] -> [1, i] }'
   body:
     type: expression
     expr:
@@ -71,10 +72,10 @@ statements:
         arguments:
         - type: access
           may_write: '{ S_1[i] -> s_c_f_a[s_c_f[s_c[s[1] -> c[2 + i]] -> f[o2]] ->
-            a[o3]] : o3 >= 0 and o3 <= 9 and o2 <= 9 and o2 >= 0; S_1[i] -> s_c_b[s_c[s[1]
+            a[o3]] : o3 >= 0 and o2 <= 9 and o2 >= 0 and o3 <= 9; S_1[i] -> s_c_b[s_c[s[1]
             -> c[3 + i]] -> b[]] }'
           must_write: '{ S_1[i] -> s_c_f_a[s_c_f[s_c[s[1] -> c[2 + i]] -> f[o2]] ->
-            a[o3]] : o3 >= 0 and o3 <= 9 and o2 <= 9 and o2 >= 0; S_1[i] -> s_c_b[s_c[s[1]
+            a[o3]] : o3 >= 0 and o2 <= 9 and o2 >= 0 and o3 <= 9; S_1[i] -> s_c_b[s_c[s[1]
             -> c[3 + i]] -> b[]] }'
           index: '{ S_1[i] -> s_c[s[(1)] -> c[(i)]] }'
           reference: __pet_ref_1
@@ -82,7 +83,6 @@ statements:
           write: 1
 - line: 33
   domain: '{ S_2[] }'
-  schedule: '{ S_2[] -> [2] }'
   body:
     type: expression
     expr:

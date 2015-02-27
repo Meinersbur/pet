@@ -2,6 +2,7 @@ start: 46
 end: 102
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_0[] }" }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -14,7 +15,6 @@ arrays:
 statements:
 - line: 7
   domain: '{ [S_0[] -> [test]] : test <= -1 or test >= 1 }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:

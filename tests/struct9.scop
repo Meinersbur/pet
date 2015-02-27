@@ -2,6 +2,18 @@ start: 127
 end: 359
 indent: "\t"
 context: '{  :  }'
+schedule: '{ domain: "{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19
+  and k >= 0 and k <= 29 and l >= 0 and l <= 39; S_2[i, j, k, l] : i >= 0 and i <=
+  9 and j >= 0 and j <= 19 and k >= 0 and k <= 29 and l >= 0 and l <= 39; S_0[i, j,
+  k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0 and k <= 29 and l >=
+  0 and l <= 39 }", child: { schedule: "L_0[{ S_1[i, j, k, l] -> [(i)]; S_2[i, j,
+  k, l] -> [(i)]; S_0[i, j, k, l] -> [(i)] }]", child: { schedule: "L_1[{ S_1[i, j,
+  k, l] -> [(j)]; S_2[i, j, k, l] -> [(j)]; S_0[i, j, k, l] -> [(j)] }]", child: {
+  schedule: "L_2[{ S_1[i, j, k, l] -> [(k)]; S_2[i, j, k, l] -> [(k)]; S_0[i, j, k,
+  l] -> [(k)] }]", child: { schedule: "L_3[{ S_1[i, j, k, l] -> [(l)]; S_2[i, j, k,
+  l] -> [(l)]; S_0[i, j, k, l] -> [(l)] }]", child: { sequence: [ { filter: "{ S_0[i,
+  j, k, l] }" }, { filter: "{ S_1[i, j, k, l] }" }, { filter: "{ S_2[i, j, k, l] }"
+  } ] } } } } } }'
 types:
 - name: s
   definition: "struct s {\n    int a[30][40];\n}"
@@ -18,9 +30,8 @@ arrays:
   element_size: 4
 statements:
 - line: 18
-  domain: '{ S_0[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
-    and k >= 0 and l <= 39 and l >= 0 }'
-  schedule: '{ S_0[i, j, k, l] -> [0, i, j, k, l, 0] }'
+  domain: '{ S_0[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
+    and k <= 29 and l >= 0 and l <= 39 }'
   body:
     type: expression
     expr:
@@ -33,9 +44,8 @@ statements:
         read: 1
         write: 0
 - line: 19
-  domain: '{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
-    and k >= 0 and l <= 39 and l >= 0 }'
-  schedule: '{ S_1[i, j, k, l] -> [0, i, j, k, l, 1] }'
+  domain: '{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
+    and k <= 29 and l >= 0 and l <= 39 }'
   body:
     type: expression
     expr:
@@ -49,9 +59,8 @@ statements:
         read: 0
         write: 1
 - line: 20
-  domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j <= 19 and j >= 0 and k <= 29
-    and k >= 0 and l <= 39 and l >= 0 }'
-  schedule: '{ S_2[i, j, k, l] -> [0, i, j, k, l, 2] }'
+  domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
+    and k <= 29 and l >= 0 and l <= 39 }'
   body:
     type: expression
     expr:

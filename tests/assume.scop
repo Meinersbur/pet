@@ -1,17 +1,19 @@
 start: 64
 end: 206
 indent: '        '
-context: '[S, n, m] -> {  : m >= 1 + n and m <= 2147483648 - n and S >= 0 and S <=
-  2147483647 and n >= -2147483648 and m <= 2147483647 }'
+context: '[S, n, m] -> {  : m >= 1 + n and m <= 2147483648 - n and S <= 2147483647
+  and n >= -2147483648 and m <= 2147483647 and S >= 0 }'
+schedule: '{ domain: "[n] -> { S_0[]; S_1[i] : i >= 0 and i <= -1 + n }", child: {
+  sequence: [ { filter: "[n] -> { S_0[] }" }, { filter: "[n] -> { S_1[i] }", child:
+  { schedule: "[n] -> L_0[{ S_1[i] -> [(i)] }]" } } ] } }'
 arrays:
 - context: '[S] -> {  : S >= 0 }'
-  extent: '[S, n, m] -> { D[i0] : i0 <= -1 + S and i0 >= 0 }'
+  extent: '[S, n, m] -> { D[i0] : i0 >= 0 and i0 <= -1 + S }'
   element_type: int
   element_size: 4
 statements:
 - line: 4
   domain: '[S, n, m] -> { S_0[] }'
-  schedule: '{ S_0[] -> [0] }'
   body:
     type: expression
     expr:
@@ -24,8 +26,7 @@ statements:
         read: 1
         write: 0
 - line: 6
-  domain: '[S, n, m] -> { S_1[i] : i <= -1 + n and i >= 0 }'
-  schedule: '[n] -> { S_1[i] -> [1, i, 0] }'
+  domain: '[S, n, m] -> { S_1[i] : i >= 0 and i <= -1 + n }'
   body:
     type: expression
     expr:
