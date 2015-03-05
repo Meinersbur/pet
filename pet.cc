@@ -695,7 +695,8 @@ static const char *ResourceDir =
 	CLANG_PREFIX "/lib/clang/" CLANG_VERSION_STRING;
 
 static const char *implicit_functions[] = {
-	"min", "max", "intMod", "intCeil", "intFloor", "ceild", "floord",
+	"min", "imin", "umin", "max", "imax", "umax",
+	"intMod", "intCeil", "intFloor", "ceild", "floord",
 	"__pencil_kill"
 };
 

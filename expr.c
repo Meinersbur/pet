@@ -2998,7 +2998,11 @@ struct affine_builtin_decl {
 
 static struct affine_builtin_decl affine_builtins[] = {
 	{ 2, "min" },
+	{ 2, "imin" },
+	{ 2, "umin" },
 	{ 2, "max" },
+	{ 2, "imax" },
+	{ 2, "umax" },
 	{ 2, "intMod" },
 	{ 2, "intFloor" },
 	{ 2, "intCeil" },
@@ -3009,8 +3013,8 @@ static struct affine_builtin_decl affine_builtins[] = {
 /* List of min and max builtin functions.
  */
 static const char *min_max_builtins[] = {
-	"min",
-	"max"
+	"min", "imin", "umin",
+	"max", "imax", "umax"
 };
 
 /* Is a function call to "name" with "n_args" arguments a call to a
@@ -3045,7 +3049,7 @@ static int is_min_or_max_builtin(const char *name)
 
 /* Extract an affine expression from some special function calls.
  * Return NaN if we are unable to extract an affine expression.
- * In particular, we handle "min", "max", "ceild", "floord",
+ * In particular, we handle "{,i,u}min", "{,i,u}max", "ceild", "floord",
  * "intMod", "intFloor" and "intCeil".
  * In case of the latter five, the second argument needs to be
  * a (positive) integer constant.
@@ -3068,7 +3072,7 @@ static __isl_give isl_pw_aff *extract_affine_from_call(
 		aff1 = pet_expr_extract_affine(expr->args[0], pc);
 		aff2 = pet_expr_extract_affine(expr->args[1], pc);
 
-		if (!strcmp(name, "min"))
+		if (strstr(name, "min"))
 			aff1 = isl_pw_aff_min(aff1, aff2);
 		else
 			aff1 = isl_pw_aff_max(aff1, aff2);
