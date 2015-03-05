@@ -3006,6 +3006,13 @@ static struct affine_builtin_decl affine_builtins[] = {
 	{ 2, "ceild" }
 };
 
+/* List of min and max builtin functions.
+ */
+static const char *min_max_builtins[] = {
+	"min",
+	"max"
+};
+
 /* Is a function call to "name" with "n_args" arguments a call to a
  * builtin function for which we can construct an affine expression?
  */
@@ -3019,6 +3026,19 @@ static int is_affine_builtin(int n_args, const char *name)
 		if (decl->n_args == n_args && !strcmp(decl->name, name))
 			return 1;
 	}
+
+	return 0;
+}
+
+/* Is function "name" a known min or max builtin function?
+ */
+static int is_min_or_max_builtin(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(min_max_builtins); ++i)
+		if (!strcmp(min_max_builtins[i], name))
+			return 1;
 
 	return 0;
 }
@@ -3044,7 +3064,7 @@ static __isl_give isl_pw_aff *extract_affine_from_call(
 	if (!is_affine_builtin(n, name))
 		return non_affine(pet_context_get_space(pc));
 
-	if (!strcmp(name, "min") || !strcmp(name, "max")) {
+	if (is_min_or_max_builtin(name)) {
 		aff1 = pet_expr_extract_affine(expr->args[0], pc);
 		aff2 = pet_expr_extract_affine(expr->args[1], pc);
 
