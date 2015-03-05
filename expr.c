@@ -2986,6 +2986,43 @@ static __isl_give isl_pw_aff *extract_affine_from_op(__isl_keep pet_expr *expr,
 	return res;
 }
 
+/* Internal data structure for affine builtin function declarations.
+ *
+ * "n_args" is the number of arguments the function takes.
+ * "name" is the function name.
+ */
+struct affine_builtin_decl {
+	int n_args;
+	const char *name;
+};
+
+static struct affine_builtin_decl affine_builtins[] = {
+	{ 2, "min" },
+	{ 2, "max" },
+	{ 2, "intMod" },
+	{ 2, "intFloor" },
+	{ 2, "intCeil" },
+	{ 2, "floord" },
+	{ 2, "ceild" }
+};
+
+/* Is a function call to "name" with "n_args" arguments a call to a
+ * builtin function for which we can construct an affine expression?
+ */
+static int is_affine_builtin(int n_args, const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(affine_builtins); ++i) {
+		struct affine_builtin_decl *decl = &affine_builtins[i];
+
+		if (decl->n_args == n_args && !strcmp(decl->name, name))
+			return 1;
+	}
+
+	return 0;
+}
+
 /* Extract an affine expression from some special function calls.
  * Return NaN if we are unable to extract an affine expression.
  * In particular, we handle "min", "max", "ceild", "floord",
@@ -3004,13 +3041,7 @@ static __isl_give isl_pw_aff *extract_affine_from_call(
 
 	n = pet_expr_get_n_arg(expr);
 	name = pet_expr_call_get_name(expr);
-	if (!(n == 2 && !strcmp(name, "min")) &&
-	    !(n == 2 && !strcmp(name, "max")) &&
-	    !(n == 2 && !strcmp(name, "intMod")) &&
-	    !(n == 2 && !strcmp(name, "intFloor")) &&
-	    !(n == 2 && !strcmp(name, "intCeil")) &&
-	    !(n == 2 && !strcmp(name, "floord")) &&
-	    !(n == 2 && !strcmp(name, "ceild")))
+	if (!is_affine_builtin(n, name))
 		return non_affine(pet_context_get_space(pc));
 
 	if (!strcmp(name, "min") || !strcmp(name, "max")) {
