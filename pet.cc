@@ -605,11 +605,18 @@ struct PetASTConsumer : public ASTConsumer {
 	 * In particular, add the context and value_bounds constraints
 	 * speficied through pragmas, add reference identifiers and
 	 * reset user pointers on parameters and tuple ids.
+	 *
+	 * If "scop" does not contain any statements and autodetect
+	 * is turned on, then skip it.
 	 */
 	void call_fn(pet_scop *scop) {
 		if (!scop)
 			return;
 		if (diags.hasErrorOccurred()) {
+			pet_scop_free(scop);
+			return;
+		}
+		if (options->autodetect && scop->n_stmt == 0) {
 			pet_scop_free(scop);
 			return;
 		}
