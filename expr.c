@@ -2986,9 +2986,70 @@ static __isl_give isl_pw_aff *extract_affine_from_op(__isl_keep pet_expr *expr,
 	return res;
 }
 
+/* Internal data structure for affine builtin function declarations.
+ *
+ * "n_args" is the number of arguments the function takes.
+ * "name" is the function name.
+ */
+struct affine_builtin_decl {
+	int n_args;
+	const char *name;
+};
+
+static struct affine_builtin_decl affine_builtins[] = {
+	{ 2, "min" },
+	{ 2, "imin" },
+	{ 2, "umin" },
+	{ 2, "max" },
+	{ 2, "imax" },
+	{ 2, "umax" },
+	{ 2, "intMod" },
+	{ 2, "intFloor" },
+	{ 2, "intCeil" },
+	{ 2, "floord" },
+	{ 2, "ceild" }
+};
+
+/* List of min and max builtin functions.
+ */
+static const char *min_max_builtins[] = {
+	"min", "imin", "umin",
+	"max", "imax", "umax"
+};
+
+/* Is a function call to "name" with "n_args" arguments a call to a
+ * builtin function for which we can construct an affine expression?
+ */
+static int is_affine_builtin(int n_args, const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(affine_builtins); ++i) {
+		struct affine_builtin_decl *decl = &affine_builtins[i];
+
+		if (decl->n_args == n_args && !strcmp(decl->name, name))
+			return 1;
+	}
+
+	return 0;
+}
+
+/* Is function "name" a known min or max builtin function?
+ */
+static int is_min_or_max_builtin(const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(min_max_builtins); ++i)
+		if (!strcmp(min_max_builtins[i], name))
+			return 1;
+
+	return 0;
+}
+
 /* Extract an affine expression from some special function calls.
  * Return NaN if we are unable to extract an affine expression.
- * In particular, we handle "min", "max", "ceild", "floord",
+ * In particular, we handle "{,i,u}min", "{,i,u}max", "ceild", "floord",
  * "intMod", "intFloor" and "intCeil".
  * In case of the latter five, the second argument needs to be
  * a (positive) integer constant.
@@ -3004,20 +3065,14 @@ static __isl_give isl_pw_aff *extract_affine_from_call(
 
 	n = pet_expr_get_n_arg(expr);
 	name = pet_expr_call_get_name(expr);
-	if (!(n == 2 && !strcmp(name, "min")) &&
-	    !(n == 2 && !strcmp(name, "max")) &&
-	    !(n == 2 && !strcmp(name, "intMod")) &&
-	    !(n == 2 && !strcmp(name, "intFloor")) &&
-	    !(n == 2 && !strcmp(name, "intCeil")) &&
-	    !(n == 2 && !strcmp(name, "floord")) &&
-	    !(n == 2 && !strcmp(name, "ceild")))
+	if (!is_affine_builtin(n, name))
 		return non_affine(pet_context_get_space(pc));
 
-	if (!strcmp(name, "min") || !strcmp(name, "max")) {
+	if (is_min_or_max_builtin(name)) {
 		aff1 = pet_expr_extract_affine(expr->args[0], pc);
 		aff2 = pet_expr_extract_affine(expr->args[1], pc);
 
-		if (!strcmp(name, "min"))
+		if (strstr(name, "min"))
 			aff1 = isl_pw_aff_min(aff1, aff2);
 		else
 			aff1 = isl_pw_aff_max(aff1, aff2);

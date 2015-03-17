@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2012-2013 Ecole Normale Superieure. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,9 +37,11 @@
 #include <isl/options.h>
 #include <isl/set.h>
 #include <isl/map.h>
+#include <isl/schedule_node.h>
 
 struct options {
 	struct isl_options	*isl;
+	unsigned		 tree;
 	unsigned		 atomic;
 	unsigned		 separate;
 	unsigned		 read_options;
@@ -47,6 +49,8 @@ struct options {
 
 ISL_ARGS_START(struct options, options_args)
 ISL_ARG_CHILD(struct options, isl, "isl", &isl_options_args, "isl options")
+ISL_ARG_BOOL(struct options, tree, 0, "tree", 0,
+	"input schedule is specified as schedule tree")
 ISL_ARG_BOOL(struct options, atomic, 0, "atomic", 0,
 	"globally set the atomic option")
 ISL_ARG_BOOL(struct options, separate, 0, "separate", 0,
@@ -187,11 +191,7 @@ static int check_name(__isl_take isl_map *map, void *user)
 	return 0;
 }
 
-/* Read a schedule, a context and (optionally) build options,
- * generate an AST and print the result in a form that is readable
- * by pet.
- *
- * In particular, print out the following code
+/* Given an AST "tree", print out the following code
  *
  *	void foo(<parameters>/)
  *	{
@@ -200,52 +200,40 @@ static int check_name(__isl_take isl_map *map, void *user)
  *		AST
  *	#pragma endscop
  *	}
+ *
+ * where the declarations are derived from the spaces in "domain".
  */
-int main(int argc, char **argv)
+static void print_tree(__isl_take isl_union_set *domain,
+	__isl_take isl_ast_node *tree)
 {
 	int i, n;
 	isl_ctx *ctx;
-	isl_set *context;
-	isl_union_set *domain;
-	isl_union_map *schedule;
-	isl_ast_build *build;
-	isl_ast_node *tree;
-	struct options *options;
-	isl_ast_print_options *print_options;
+	isl_space *space;
 	isl_printer *p;
+	isl_ast_print_options *print_options;
 
-	options = options_new_with_defaults();
-	assert(options);
-	argc = options_parse(options, argc, argv, ISL_ARG_ALL);
+	if (!domain || !tree)
+		goto error;
 
-	ctx = isl_ctx_alloc_with_options(&options_args, options);
-
-	schedule = isl_union_map_read_from_file(ctx, stdin);
-	if (isl_union_map_foreach_map(schedule, &check_name, NULL) < 0) {
-		isl_union_map_free(schedule);
-		isl_ctx_free(ctx);
-		return 1;
-	}
-	context = isl_set_read_from_file(ctx, stdin);
-	context = isl_set_align_params(context,
-					isl_union_map_get_space(schedule));
-
-	domain = isl_union_map_domain(isl_union_map_copy(schedule));
+	ctx = isl_union_set_get_ctx(domain);
 
 	p = isl_printer_to_file(ctx, stdout);
 	p = isl_printer_set_output_format(p, ISL_FORMAT_C);
 	p = isl_printer_start_line(p);
 	p = isl_printer_print_str(p, "void foo(");
 
-	n = isl_set_dim(context, isl_dim_param);
+	space = isl_union_set_get_space(domain);
+	n = isl_space_dim(space, isl_dim_param);
 	for (i = 0; i < n; ++i) {
 		const char *name;
+
 		if (i)
 			p = isl_printer_print_str(p, ", ");
-		name = isl_set_get_dim_name(context, isl_dim_param, i);
+		name = isl_space_get_dim_name(space, isl_dim_param, i);
 		p = isl_printer_print_str(p, "int ");
 		p = isl_printer_print_str(p, name);
 	}
+	isl_space_free(space);
 
 	p = isl_printer_print_str(p, ")");
 	p = isl_printer_end_line(p);
@@ -259,11 +247,6 @@ int main(int argc, char **argv)
 	p = isl_printer_print_str(p, "#pragma scop");
 	p = isl_printer_end_line(p);
 
-	build = isl_ast_build_from_context(context);
-	build = set_options(build, options, schedule);
-	tree = isl_ast_build_ast_from_schedule(build, schedule);
-	isl_ast_build_free(build);
-
 	p = isl_printer_indent(p, 2);
 	print_options = isl_ast_print_options_alloc(ctx);
 	p = isl_ast_node_print(tree, p, print_options);
@@ -276,8 +259,126 @@ int main(int argc, char **argv)
 	p = isl_printer_end_line(p);
 	isl_printer_free(p);
 
-	isl_ast_node_free(tree);
+error:
 	isl_union_set_free(domain);
-	isl_ctx_free(ctx);
+	isl_ast_node_free(tree);
+}
+
+/* If "node" is a band node, then replace the AST build options
+ * by "options".
+ */
+static __isl_give isl_schedule_node *node_set_options(
+	__isl_take isl_schedule_node *node, void *user)
+{
+	enum isl_ast_loop_type *type = user;
+	int i, n;
+
+	if (isl_schedule_node_get_type(node) != isl_schedule_node_band)
+		return node;
+
+	n = isl_schedule_node_band_n_member(node);
+	for (i = 0; i < n; ++i)
+		node = isl_schedule_node_band_member_set_ast_loop_type(node,
+								i, *type);
+	return node;
+}
+
+/* Replace the AST build options on all band nodes if requested
+ * by the user.
+ */
+static __isl_give isl_schedule *schedule_set_options(
+	__isl_take isl_schedule *schedule, struct options *options)
+{
+	enum isl_ast_loop_type type;
+
+	if (!options->separate && !options->atomic)
+		return schedule;
+
+	type = options->separate ? isl_ast_loop_separate : isl_ast_loop_atomic;
+	schedule = isl_schedule_map_schedule_node(schedule,
+						&node_set_options, &type);
+
+	return schedule;
+}
+
+/* Read a schedule tree, generate an AST and print the result
+ * in a form that is readable by pet.
+ */
+static int print_schedule_tree(isl_ctx *ctx, struct options *options)
+{
+	isl_union_set *domain;
+	isl_schedule *schedule;
+	isl_ast_build *build;
+	isl_ast_node *tree;
+
+	schedule = isl_schedule_read_from_file(ctx, stdin);
+	domain = isl_schedule_get_domain(schedule);
+
+	build = isl_ast_build_alloc(ctx);
+	schedule = schedule_set_options(schedule, options);
+	tree = isl_ast_build_node_from_schedule(build, schedule);
+	isl_ast_build_free(build);
+
+	print_tree(domain, tree);
+
 	return 0;
+}
+
+/* Read a schedule, a context and (optionally) build options,
+ * generate an AST and print the result in a form that is readable
+ * by pet.
+ */
+static int print_schedule_map(isl_ctx *ctx, struct options *options)
+{
+	isl_set *context;
+	isl_union_set *domain;
+	isl_union_map *schedule;
+	isl_ast_build *build;
+	isl_ast_node *tree;
+
+	schedule = isl_union_map_read_from_file(ctx, stdin);
+	if (isl_union_map_foreach_map(schedule, &check_name, NULL) < 0) {
+		isl_union_map_free(schedule);
+		return 1;
+	}
+	context = isl_set_read_from_file(ctx, stdin);
+
+	domain = isl_union_map_domain(isl_union_map_copy(schedule));
+	domain = isl_union_set_align_params(domain, isl_set_get_space(context));
+
+	build = isl_ast_build_from_context(context);
+	build = set_options(build, options, schedule);
+	tree = isl_ast_build_node_from_schedule_map(build, schedule);
+	isl_ast_build_free(build);
+
+	print_tree(domain, tree);
+
+	return 0;
+}
+
+/* Read either
+ * - a schedule tree or
+ * - a schedule, a context and (optionally) build options,
+ * generate an AST and print the result in a form that is readable
+ * by pet.
+ */
+int main(int argc, char **argv)
+{
+	isl_ctx *ctx;
+	struct options *options;
+	int r;
+
+	options = options_new_with_defaults();
+	assert(options);
+	argc = options_parse(options, argc, argv, ISL_ARG_ALL);
+
+	ctx = isl_ctx_alloc_with_options(&options_args, options);
+
+	if (options->tree)
+		r = print_schedule_tree(ctx, options);
+	else
+		r = print_schedule_map(ctx, options);
+
+	isl_ctx_free(ctx);
+	return r;
 }

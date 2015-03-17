@@ -1,0 +1,59 @@
+start: 88
+end: 212
+indent: "\t"
+context: '[n, m] -> {  : n >= 0 and n <= 4294967295 and m <= 2147483647 and m >= -2147483648
+  }'
+schedule: '{ domain: "[n, m] -> { S_1[j] : (n >= 4294967296 and j >= 0) or (n <= 9
+  and j <= 9 and j >= 0) or (n <= 4294967295 and n >= 10 and j >= 0 and j <= -1 +
+  n); S_0[i] : (m >= 10 and i >= 0 and i <= -1 + m) or (m <= 9 and i <= 9 and i >=
+  0) }", child: { sequence: [ { filter: "[n, m] -> { S_0[i] }", child: { schedule:
+  "[m] -> L_0[{ S_0[i] -> [(i)] }]" } }, { filter: "[n, m] -> { S_1[j] }", child:
+  { schedule: "[n] -> L_1[{ S_1[j] -> [(j)] }]" } } ] } }'
+arrays:
+- context: '{  :  }'
+  extent: '[n, m] -> { a[i0] : i0 <= 19 and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[n, m] -> { b[i0] : i0 <= 19 and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 12
+  domain: '[n, m] -> { S_0[i] : (m >= 10 and i >= 0 and i <= -1 + m) or (m <= 9 and
+    i <= 9 and i >= 0) }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '[n, m] -> { S_0[i] -> a[(i)] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: access
+        index: '[n, m] -> { S_0[i] -> [(i)] }'
+        reference: __pet_ref_1
+        read: 1
+        write: 0
+- line: 15
+  domain: '[n, m] -> { S_1[j] : (n >= 10 and j >= 0 and j <= -1 + n) or (n <= 9 and
+    j <= 9 and j >= 0) }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '[n, m] -> { S_1[j] -> b[(j)] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+      - type: access
+        index: '[n, m] -> { S_1[j] -> [(j)] }'
+        reference: __pet_ref_3
+        read: 1
+        write: 0
