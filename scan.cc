@@ -848,7 +848,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	int is_addr = 0, is_partial = 0;
 	Stmt::StmtClass sc;
 
-	if (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
+	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
 		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
 		expr = ice->getSubExpr();
 	}
