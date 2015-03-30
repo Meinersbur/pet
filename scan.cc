@@ -846,7 +846,6 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 {
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
-	Stmt::StmtClass sc;
 
 	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
 		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
@@ -862,11 +861,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	res = extract_expr(expr);
 	if (!res)
 		return NULL;
-	sc = expr->getStmtClass();
-	if ((sc == Stmt::ArraySubscriptExprClass ||
-	     sc == Stmt::DeclRefExprClass ||
-	     sc == Stmt::MemberExprClass) &&
-	    array_depth(expr->getType().getTypePtr()) > 0)
+	if (array_depth(expr->getType().getTypePtr()) > 0)
 		is_partial = 1;
 	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
