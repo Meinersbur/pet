@@ -640,6 +640,26 @@ static __isl_give pet_expr *mark_write(__isl_take pet_expr *access)
 	return access;
 }
 
+/* Mark the given (read) access pet_expr as also possibly being written.
+ * That is, initialize the may write access relation from the may read relation
+ * and initialize the must write access relation to the empty relation.
+ */
+static __isl_give pet_expr *mark_may_write(__isl_take pet_expr *expr)
+{
+	isl_union_map *access;
+	isl_union_map *empty;
+
+	access = pet_expr_access_get_dependent_access(expr,
+						pet_expr_access_may_read);
+	empty = isl_union_map_empty(isl_union_map_get_space(access));
+	expr = pet_expr_access_set_access(expr, pet_expr_access_may_write,
+					    access);
+	expr = pet_expr_access_set_access(expr, pet_expr_access_must_write,
+					    empty);
+
+	return expr;
+}
+
 /* Construct a pet_expr representing a unary operator expression.
  */
 __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
@@ -837,8 +857,8 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
  * then the function being called may write into the array.
  *
  * We assume here that if the function is declared to take a pointer
- * to a const type, then the function will perform a read
- * and that otherwise, it will perform a write.
+ * to a const type, then the function may only perform a read
+ * and that otherwise, it may either perform a read or a write (or both).
  * We only perform this check if "detect_writes" is set.
  */
 __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
@@ -872,7 +892,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		}
 		parm = fd->getParamDecl(pos);
 		if (!const_base(parm->getType()))
-			res = mark_write(res);
+			res = mark_may_write(res);
 	}
 
 	if (is_addr)

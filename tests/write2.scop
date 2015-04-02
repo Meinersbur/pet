@@ -24,8 +24,11 @@ statements:
         read: 1
         write: 0
       - type: access
+        may_read: '[n] -> { S_0[] -> A[o0, o1] }'
+        may_write: '[n] -> { S_0[] -> A[o0, o1] }'
+        must_write: '[n] -> {  }'
         index: '[n] -> { S_0[] -> A[] }'
         depth: 2
         reference: __pet_ref_1
-        read: 0
+        read: 1
         write: 1

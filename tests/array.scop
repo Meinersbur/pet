@@ -28,8 +28,11 @@ statements:
         read: 1
         write: 0
       - type: access
+        may_read: '{ S_0[] -> B[o0] }'
+        may_write: '{ S_0[] -> B[o0] }'
+        must_write: '{  }'
         index: '{ S_0[] -> B[] }'
         depth: 1
         reference: __pet_ref_1
-        read: 0
+        read: 1
         write: 1

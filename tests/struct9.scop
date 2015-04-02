@@ -53,10 +53,13 @@ statements:
       name: f2
       arguments:
       - type: access
+        may_read: '{ S_1[i, j, k, l] -> s_a[s[i, j] -> a[k, o3]] }'
+        may_write: '{ S_1[i, j, k, l] -> s_a[s[i, j] -> a[k, o3]] }'
+        must_write: '{  }'
         index: '{ S_1[i, j, k, l] -> s_a[s[(i), (j)] -> a[(k)]] }'
         depth: 4
         reference: __pet_ref_1
-        read: 0
+        read: 1
         write: 1
 - line: 20
   domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
@@ -68,8 +71,11 @@ statements:
       name: f3
       arguments:
       - type: access
+        may_read: '{ S_2[i, j, k, l] -> s_a[s[i, j] -> a[o2, o3]] }'
+        may_write: '{ S_2[i, j, k, l] -> s_a[s[i, j] -> a[o2, o3]] }'
+        must_write: '{  }'
         index: '{ S_2[i, j, k, l] -> s_a[s[(i), (j)] -> a[]] }'
         depth: 4
         reference: __pet_ref_2
-        read: 0
+        read: 1
         write: 1
