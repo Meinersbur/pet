@@ -589,11 +589,16 @@ struct PetASTConsumer : public ASTConsumer {
 	}
 
 	/* Add all pragma handlers to this->PP.
+	 * The pencil pragmas are only handled if the pencil option is set.
 	 */
 	void add_pragma_handlers(Sema *sema) {
 		PP.AddPragmaHandler(new PragmaParameterHandler(*sema, context,
 								context_value));
-		PP.AddPragmaHandler(new PragmaPencilHandler(independent));
+		if (options->pencil) {
+			PragmaHandler *PH;
+			PH = new PragmaPencilHandler(independent);
+			PP.AddPragmaHandler(PH);
+		}
 		handle_value_bounds(sema);
 	}
 
@@ -702,16 +707,25 @@ static const char *ResourceDir =
 	CLANG_PREFIX "/lib/clang/" CLANG_VERSION_STRING;
 
 static const char *implicit_functions[] = {
-	"min", "imin", "umin", "max", "imax", "umax",
-	"intMod", "intCeil", "intFloor", "ceild", "floord",
-	"__pencil_kill"
+	"min", "max", "intMod", "intCeil", "intFloor", "ceild", "floord"
+};
+static const char *pencil_implicit_functions[] = {
+	"imin", "umin", "imax", "umax", "__pencil_kill"
 };
 
-static bool is_implicit(const IdentifierInfo *ident)
+/* Should "ident" be treated as an implicit function?
+ * If "pencil" is set, then also allow pencil specific builtins.
+ */
+static bool is_implicit(const IdentifierInfo *ident, int pencil)
 {
 	const char *name = ident->getNameStart();
 	for (int i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
 		if (!strcmp(name, implicit_functions[i]))
+			return true;
+	if (!pencil)
+		return false;
+	for (int i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
+		if (!strcmp(name, pencil_implicit_functions[i]))
 			return true;
 	return false;
 }
@@ -719,20 +733,25 @@ static bool is_implicit(const IdentifierInfo *ident)
 /* Ignore implicit function declaration warnings on
  * "min", "max", "ceild" and "floord" as we detect and handle these
  * in PetScan.
+ * If "pencil" is set, then also ignore them on pencil specific
+ * builtins.
  */
 struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 	const DiagnosticOptions *DiagOpts;
+	int pencil;
 #ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
-	MyDiagnosticPrinter(DiagnosticOptions *DO) :
-		TextDiagnosticPrinter(llvm::errs(), DO) {}
+	MyDiagnosticPrinter(DiagnosticOptions *DO, int pencil) :
+		TextDiagnosticPrinter(llvm::errs(), DO), pencil(pencil) {}
 	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-		return new MyDiagnosticPrinter(&Diags.getDiagnosticOptions());
+		return new MyDiagnosticPrinter(&Diags.getDiagnosticOptions(),
+						pencil);
 	}
 #else
-	MyDiagnosticPrinter(const DiagnosticOptions &DO) :
-		DiagOpts(&DO), TextDiagnosticPrinter(llvm::errs(), DO) {}
+	MyDiagnosticPrinter(const DiagnosticOptions &DO, int pencil) :
+		DiagOpts(&DO), TextDiagnosticPrinter(llvm::errs(), DO),
+		pencil(pencil) {}
 	virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-		return new MyDiagnosticPrinter(*DiagOpts);
+		return new MyDiagnosticPrinter(*DiagOpts, pencil);
 	}
 #endif
 	virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
@@ -740,7 +759,7 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 		if (info.getID() == diag::ext_implicit_function_decl &&
 		    info.getNumArgs() == 1 &&
 		    info.getArgKind(0) == DiagnosticsEngine::ak_identifierinfo &&
-		    is_implicit(info.getArgIdentifier(0)))
+		    is_implicit(info.getArgIdentifier(0), pencil))
 			/* ignore warning */;
 		else
 			TextDiagnosticPrinter::HandleDiagnostic(level, info);
@@ -826,16 +845,18 @@ static CompilerInvocation *construct_invocation(const char *filename,
 
 #ifdef HAVE_BASIC_DIAGNOSTICOPTIONS_H
 
-static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang)
+static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang,
+	int pencil)
 {
-	return new MyDiagnosticPrinter(new DiagnosticOptions());
+	return new MyDiagnosticPrinter(new DiagnosticOptions(), pencil);
 }
 
 #else
 
-static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang)
+static MyDiagnosticPrinter *construct_printer(CompilerInstance *Clang,
+	int pencil)
 {
-	return new MyDiagnosticPrinter(Clang->getDiagnosticOpts());
+	return new MyDiagnosticPrinter(Clang->getDiagnosticOpts(), pencil);
 }
 
 #endif
@@ -938,12 +959,17 @@ static void create_main_file_id(SourceManager &SM, const FileEntry *file)
 #endif
 
 /* Add pet specific predefines to the preprocessor.
+ * Currently, these are all pencil specific, so they are only
+ * added if "pencil" is set.
  *
  * We mimic the way <command line> is handled inside clang.
  */
-void add_predefines(Preprocessor &PP)
+void add_predefines(Preprocessor &PP, int pencil)
 {
 	string s;
+
+	if (!pencil)
+		return;
 
 	s = PP.getPredefines();
 	s += "# 1 \"<pet>\" 1\n"
@@ -975,7 +1001,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	CompilerInvocation *invocation = construct_invocation(filename, Diags);
 	if (invocation)
 		Clang->setInvocation(invocation);
-	Diags.setClient(construct_printer(Clang));
+	Diags.setClient(construct_printer(Clang, options->pencil));
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());
 	TargetInfo *target = create_target_info(Clang, Diags);
@@ -991,7 +1017,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 		PO.addMacroDef(options->defines[i]);
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
-	add_predefines(PP);
+	add_predefines(PP, options->pencil);
 
 	ScopLocList scops;
 

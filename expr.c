@@ -2988,26 +2988,28 @@ static __isl_give isl_pw_aff *extract_affine_from_op(__isl_keep pet_expr *expr,
 
 /* Internal data structure for affine builtin function declarations.
  *
+ * "pencil" is set if the builtin is pencil specific.
  * "n_args" is the number of arguments the function takes.
  * "name" is the function name.
  */
 struct affine_builtin_decl {
+	int pencil;
 	int n_args;
 	const char *name;
 };
 
 static struct affine_builtin_decl affine_builtins[] = {
-	{ 2, "min" },
-	{ 2, "imin" },
-	{ 2, "umin" },
-	{ 2, "max" },
-	{ 2, "imax" },
-	{ 2, "umax" },
-	{ 2, "intMod" },
-	{ 2, "intFloor" },
-	{ 2, "intCeil" },
-	{ 2, "floord" },
-	{ 2, "ceild" }
+	{ 0, 2, "min" },
+	{ 1, 2, "imin" },
+	{ 1, 2, "umin" },
+	{ 0, 2, "max" },
+	{ 1, 2, "imax" },
+	{ 1, 2, "umax" },
+	{ 0, 2, "intMod" },
+	{ 0, 2, "intFloor" },
+	{ 0, 2, "intCeil" },
+	{ 0, 2, "floord" },
+	{ 0, 2, "ceild" }
 };
 
 /* List of min and max builtin functions.
@@ -3019,14 +3021,17 @@ static const char *min_max_builtins[] = {
 
 /* Is a function call to "name" with "n_args" arguments a call to a
  * builtin function for which we can construct an affine expression?
+ * pencil specific builtins are only recognized if "pencil" is set.
  */
-static int is_affine_builtin(int n_args, const char *name)
+static int is_affine_builtin(int pencil, int n_args, const char *name)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(affine_builtins); ++i) {
 		struct affine_builtin_decl *decl = &affine_builtins[i];
 
+		if (decl->pencil && !pencil)
+			continue;
 		if (decl->n_args == n_args && !strcmp(decl->name, name))
 			return 1;
 	}
@@ -3049,23 +3054,32 @@ static int is_min_or_max_builtin(const char *name)
 
 /* Extract an affine expression from some special function calls.
  * Return NaN if we are unable to extract an affine expression.
- * In particular, we handle "{,i,u}min", "{,i,u}max", "ceild", "floord",
+ * In particular, we handle "min", "max", "ceild", "floord",
  * "intMod", "intFloor" and "intCeil".
  * In case of the latter five, the second argument needs to be
  * a (positive) integer constant.
+ * If the pencil option is set, then we also handle "{i,u}min" and
+ * "{i,u}max".
  *
  * "pc" is the context in which the affine expression is created.
  */
 static __isl_give isl_pw_aff *extract_affine_from_call(
 	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
 {
+	isl_ctx *ctx;
 	isl_pw_aff *aff1, *aff2;
 	int n;
 	const char *name;
+	struct pet_options *options;
+
+	if (!expr)
+		return NULL;
+	ctx = pet_expr_get_ctx(expr);
+	options = isl_ctx_peek_pet_options(ctx);
 
 	n = pet_expr_get_n_arg(expr);
 	name = pet_expr_call_get_name(expr);
-	if (!is_affine_builtin(n, name))
+	if (!is_affine_builtin(options->pencil, n, name))
 		return non_affine(pet_context_get_space(pc));
 
 	if (is_min_or_max_builtin(name)) {

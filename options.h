@@ -17,6 +17,8 @@ struct pet_options {
 	 * will be created.
 	 */
 	int	encapsulate_dynamic_control;
+	/* Support pencil builtins and pragmas */
+	int	pencil;
 	int	n_path;
 	const char **paths;
 	int	n_define;

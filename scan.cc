@@ -929,7 +929,8 @@ FunctionDecl *PetScan::find_decl_from_name(CallExpr *call, string name)
 /* Return the FunctionDecl for the summary function associated to the
  * function called by "call".
  *
- * In particular, search for an annotate attribute formatted as
+ * In particular, if the pencil option is set, then
+ * search for an annotate attribute formatted as
  * "pencil_access(name)", where "name" is the name of the summary function.
  *
  * If no summary function was specified, then return the FunctionDecl
@@ -942,6 +943,9 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
 	FunctionDecl *decl = call->getDirectCallee();
 	if (!decl)
 		return NULL;
+
+	if (!options->pencil)
+		return decl;
 
 	specific_attr_iterator<AnnotateAttr> begin, end, i;
 	begin = decl->specific_attr_begin<AnnotateAttr>();
@@ -970,6 +974,9 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
  * In the case of a "call" to __pencil_kill, the arguments
  * are neither read nor written (only killed), so there
  * is no need to check for writes to these arguments.
+ *
+ * __pencil_assume and __pencil_kill are only recognized
+ * when the pencil option is set.
  */
 __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
@@ -988,9 +995,9 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	name = fd->getDeclName().getAsString();
 	n_arg = expr->getNumArgs();
 
-	if (n_arg == 1 && name == "__pencil_assume")
+	if (options->pencil && n_arg == 1 && name == "__pencil_assume")
 		return extract_assume(expr->getArg(0));
-	is_kill = name == "__pencil_kill";
+	is_kill = options->pencil && name == "__pencil_kill";
 
 	res = pet_expr_new_call(ctx, name.c_str(), n_arg);
 	if (!res)
