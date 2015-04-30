@@ -34,6 +34,8 @@
 
 #include <string.h>
 
+#include <isl/union_set.h>
+
 #include "aff.h"
 #include "array.h"
 #include "expr.h"
