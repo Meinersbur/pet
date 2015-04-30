@@ -49,6 +49,7 @@
 #include <isl/space.h>
 #include <isl/aff.h>
 #include <isl/set.h>
+#include <isl/union_set.h>
 
 #include "aff.h"
 #include "array.h"
