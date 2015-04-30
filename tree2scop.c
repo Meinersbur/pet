@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include <isl/id_to_pw_aff.h>
+#include <isl/union_set.h>
 
 #include "aff.h"
 #include "expr.h"
