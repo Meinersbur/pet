@@ -34,6 +34,8 @@
 
 #include <yaml.h>
 
+#include <isl/union_set.h>
+
 #include "expr.h"
 #include "loc.h"
 #include "scop.h"
