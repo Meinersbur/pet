@@ -1689,10 +1689,12 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
  * in the sequence of statements.
  *
  * If autodetect is set, then we allow the extraction of only a subrange
- * of the sequence of statements.  However, if there is at least one statement
- * for which we could not construct a scop and the final range contains
- * either no statements or at least one kill, then we discard the entire
- * range.
+ * of the sequence of statements.  However, if there is at least one
+ * kill and there is some subsequent statement for which we could not
+ * construct a tree, then turn off the "block" property of the tree
+ * such that no extra kill will be introduced at the end of the (partial)
+ * block.  If, on the other hand, the final range contains
+ * no statements, then we discard the entire range.
  */
 __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	bool skip_declarations)
@@ -1739,8 +1741,14 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 			break;
 	}
 
-	if (tree && partial_range) {
-		if (pet_tree_block_n_child(tree) == 0 || has_kills) {
+	if (!tree)
+		return NULL;
+
+	if (partial) {
+		if (has_kills)
+			tree = pet_tree_block_set_block(tree, 0);
+	} else if (partial_range) {
+		if (pet_tree_block_n_child(tree) == 0) {
 			pet_tree_free(tree);
 			return NULL;
 		}
