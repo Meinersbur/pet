@@ -1421,14 +1421,12 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 /* Try and construct a pet_tree corresponding to a compound statement.
  *
  * "skip_declarations" is set if we should skip initial declarations
- * in the children of the compound statements.  This then implies
- * that this sequence of children should not be treated as a block
- * since the initial statements may be skipped.
+ * in the children of the compound statements.
  */
 __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 	bool skip_declarations)
 {
-	return extract(stmt->children(), !skip_declarations, skip_declarations);
+	return extract(stmt->children(), true, skip_declarations);
 }
 
 /* Return the file offset of the expansion location of "Loc".
