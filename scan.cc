@@ -1678,6 +1678,63 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	return update_loc(tree, stmt);
 }
 
+/* Given a sequence of statements "stmt_range" of which the first "n_decl"
+ * are declarations and of which the remaining statements are represented
+ * by "tree", try and extend "tree" to include the last sequence of
+ * the initial declarations that can be completely extracted.
+ *
+ * We start collecting the initial declarations and start over
+ * whenever we come across a declaration that we cannot extract.
+ * If we have been able to extract any declarations, then we
+ * copy over the contents of "tree" at the end of the declarations.
+ * Otherwise, we simply return the original "tree".
+ */
+__isl_give pet_tree *PetScan::insert_initial_declarations(
+	__isl_take pet_tree *tree, int n_decl, StmtRange stmt_range)
+{
+	StmtIterator i;
+	pet_tree *res;
+	int n_stmt;
+	int is_block;
+	int j;
+
+	n_stmt = pet_tree_block_n_child(tree);
+	is_block = pet_tree_block_get_block(tree);
+	res = pet_tree_new_block(ctx, is_block, n_decl + n_stmt);
+
+	for (i = stmt_range.first; n_decl; ++i, --n_decl) {
+		Stmt *child = *i;
+		pet_tree *tree_i;
+
+		tree_i = extract(child);
+		if (tree_i && !partial) {
+			res = pet_tree_block_add_child(res, tree_i);
+			continue;
+		}
+		pet_tree_free(tree_i);
+		partial = false;
+		if (pet_tree_block_n_child(res) == 0)
+			continue;
+		pet_tree_free(res);
+		res = pet_tree_new_block(ctx, is_block, n_decl + n_stmt);
+	}
+
+	if (pet_tree_block_n_child(res) == 0) {
+		pet_tree_free(res);
+		return tree;
+	}
+
+	for (j = 0; j < n_stmt; ++j) {
+		pet_tree *tree_i;
+
+		tree_i = pet_tree_block_get_child(tree, j);
+		res = pet_tree_block_add_child(res, tree_i);
+	}
+	pet_tree_free(tree);
+
+	return res;
+}
+
 /* Try and construct a pet_tree corresponding to (part of)
  * a sequence of statements.
  *
@@ -1693,12 +1750,16 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
  * such that no extra kill will be introduced at the end of the (partial)
  * block.  If, on the other hand, the final range contains
  * no statements, then we discard the entire range.
+ *
+ * If the entire range was extracted, apart from some initial declarations,
+ * then we try and extend the range with the latest of those initial
+ * declarations.
  */
 __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	bool skip_declarations)
 {
 	StmtIterator i;
-	int j;
+	int j, skip;
 	bool has_kills = false;
 	bool partial_range = false;
 	pet_tree *tree;
@@ -1708,13 +1769,18 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 
 	tree = pet_tree_new_block(ctx, block, j);
 
-	for (i = stmt_range.first; i != stmt_range.second; ++i) {
+	skip = 0;
+	i = stmt_range.first;
+	if (skip_declarations)
+		for (; i != stmt_range.second; ++i) {
+			if ((*i)->getStmtClass() != Stmt::DeclStmtClass)
+				break;
+			++skip;
+		}
+
+	for (; i != stmt_range.second; ++i) {
 		Stmt *child = *i;
 		pet_tree *tree_i;
-
-		if (pet_tree_block_n_child(tree) == 0 && skip_declarations &&
-		    child->getStmtClass() == Stmt::DeclStmtClass)
-			continue;
 
 		tree_i = extract(child);
 		if (pet_tree_block_n_child(tree) != 0 && partial) {
@@ -1751,7 +1817,8 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 			return NULL;
 		}
 		partial = true;
-	}
+	} else if (skip > 0)
+		tree = insert_initial_declarations(tree, skip, stmt_range);
 
 	return tree;
 }
