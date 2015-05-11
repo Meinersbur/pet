@@ -1702,8 +1702,6 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	bool has_kills = false;
 	bool partial_range = false;
 	pet_tree *tree;
-	set<struct pet_stmt *> kills;
-	set<struct pet_stmt *>::iterator it;
 
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j)
 		;
