@@ -49,6 +49,7 @@
 #include <isl/space.h>
 #include <isl/aff.h>
 #include <isl/set.h>
+#include <isl/union_set.h>
 
 #include "aff.h"
 #include "array.h"
@@ -640,6 +641,26 @@ static __isl_give pet_expr *mark_write(__isl_take pet_expr *access)
 	return access;
 }
 
+/* Mark the given (read) access pet_expr as also possibly being written.
+ * That is, initialize the may write access relation from the may read relation
+ * and initialize the must write access relation to the empty relation.
+ */
+static __isl_give pet_expr *mark_may_write(__isl_take pet_expr *expr)
+{
+	isl_union_map *access;
+	isl_union_map *empty;
+
+	access = pet_expr_access_get_dependent_access(expr,
+						pet_expr_access_may_read);
+	empty = isl_union_map_empty(isl_union_map_get_space(access));
+	expr = pet_expr_access_set_access(expr, pet_expr_access_may_write,
+					    access);
+	expr = pet_expr_access_set_access(expr, pet_expr_access_must_write,
+					    empty);
+
+	return expr;
+}
+
 /* Construct a pet_expr representing a unary operator expression.
  */
 __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
@@ -837,8 +858,8 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
  * then the function being called may write into the array.
  *
  * We assume here that if the function is declared to take a pointer
- * to a const type, then the function will perform a read
- * and that otherwise, it will perform a write.
+ * to a const type, then the function may only perform a read
+ * and that otherwise, it may either perform a read or a write (or both).
  * We only perform this check if "detect_writes" is set.
  */
 __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
@@ -846,7 +867,6 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 {
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
-	Stmt::StmtClass sc;
 
 	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
 		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
@@ -862,11 +882,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	res = extract_expr(expr);
 	if (!res)
 		return NULL;
-	sc = expr->getStmtClass();
-	if ((sc == Stmt::ArraySubscriptExprClass ||
-	     sc == Stmt::DeclRefExprClass ||
-	     sc == Stmt::MemberExprClass) &&
-	    array_depth(expr->getType().getTypePtr()) > 0)
+	if (array_depth(expr->getType().getTypePtr()) > 0)
 		is_partial = 1;
 	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
@@ -877,7 +893,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		}
 		parm = fd->getParamDecl(pos);
 		if (!const_base(parm->getType()))
-			res = mark_write(res);
+			res = mark_may_write(res);
 	}
 
 	if (is_addr)
@@ -914,7 +930,8 @@ FunctionDecl *PetScan::find_decl_from_name(CallExpr *call, string name)
 /* Return the FunctionDecl for the summary function associated to the
  * function called by "call".
  *
- * In particular, search for an annotate attribute formatted as
+ * In particular, if the pencil option is set, then
+ * search for an annotate attribute formatted as
  * "pencil_access(name)", where "name" is the name of the summary function.
  *
  * If no summary function was specified, then return the FunctionDecl
@@ -927,6 +944,9 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
 	FunctionDecl *decl = call->getDirectCallee();
 	if (!decl)
 		return NULL;
+
+	if (!options->pencil)
+		return decl;
 
 	specific_attr_iterator<AnnotateAttr> begin, end, i;
 	begin = decl->specific_attr_begin<AnnotateAttr>();
@@ -955,6 +975,9 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
  * In the case of a "call" to __pencil_kill, the arguments
  * are neither read nor written (only killed), so there
  * is no need to check for writes to these arguments.
+ *
+ * __pencil_assume and __pencil_kill are only recognized
+ * when the pencil option is set.
  */
 __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
@@ -973,9 +996,9 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	name = fd->getDeclName().getAsString();
 	n_arg = expr->getNumArgs();
 
-	if (n_arg == 1 && name == "__pencil_assume")
+	if (options->pencil && n_arg == 1 && name == "__pencil_assume")
 		return extract_assume(expr->getArg(0));
-	is_kill = name == "__pencil_kill";
+	is_kill = options->pencil && name == "__pencil_kill";
 
 	res = pet_expr_new_call(ctx, name.c_str(), n_arg);
 	if (!res)

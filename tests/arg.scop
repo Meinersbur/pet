@@ -35,9 +35,12 @@ statements:
         operation: '&'
         arguments:
         - type: access
+          may_read: '{ S_0[i] -> a[] }'
+          may_write: '{ S_0[i] -> a[] }'
+          must_write: '{  }'
           index: '{ S_0[i] -> a[] }'
           reference: __pet_ref_1
-          read: 0
+          read: 1
           write: 1
 - line: 12
   domain: '{ S_1[i] : i >= 0 and i <= 9 }'
@@ -59,7 +62,10 @@ statements:
         operation: '&'
         arguments:
         - type: access
+          may_read: '{ S_1[i] -> b[1 + i] }'
+          may_write: '{ S_1[i] -> b[1 + i] }'
+          must_write: '{  }'
           index: '{ S_1[i] -> b[(1 + i)] }'
           reference: __pet_ref_3
-          read: 0
+          read: 1
           write: 1
