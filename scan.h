@@ -134,6 +134,9 @@ private:
 	struct pet_array *set_upper_bounds(struct pet_array *array,
 		const clang::Type *type, __isl_keep pet_context *pc);
 
+	__isl_give pet_tree *insert_initial_declarations(
+		__isl_take pet_tree *tree, int n_decl,
+		clang::StmtRange stmt_range);
 	__isl_give pet_tree *extract(clang::Stmt *stmt,
 		bool skip_declarations = false);
 	__isl_give pet_tree *extract(clang::StmtRange stmt_range, bool block,
