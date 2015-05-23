@@ -173,7 +173,9 @@ AC_EGREP_HEADER([TypeInfo getTypeInfo], [clang/AST/ASTContext.h],
 		[Define if getTypeInfo returns TypeInfo object])])
 AC_EGREP_HEADER([TypedefNameDecl], [clang/AST/Type.h], [],
 	[AC_DEFINE([TypedefNameDecl], [TypedefDecl],
-	[Define to TypedefDecl for older versions of clang])])
+		[Define to TypedefDecl for older versions of clang])
+	 AC_DEFINE([getTypedefNameForAnonDecl], [getTypedefForAnonDecl],
+		[Define to getTypedefForAnonDecl for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

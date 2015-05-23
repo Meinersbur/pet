@@ -2429,7 +2429,11 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 			types->insert(cast<TypedefType>(base)->getDecl());
 		} else if (base->isRecordType()) {
 			RecordDecl *decl = pet_clang_record_decl(base);
-			if (has_printable_definition(decl))
+			TypedefNameDecl *typedecl;
+			typedecl = decl->getTypedefNameForAnonDecl();
+			if (typedecl)
+				types->insert(typedecl);
+			else if (has_printable_definition(decl))
 				types->insert(decl);
 			else
 				name = "<subfield>";
