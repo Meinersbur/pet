@@ -2367,7 +2367,7 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	return array;
 }
 
-/* Does "decl" have definition that we can keep track of in a pet_type?
+/* Does "decl" have a definition that we can keep track of in a pet_type?
  */
 static bool has_printable_definition(RecordDecl *decl)
 {
