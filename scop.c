@@ -1563,7 +1563,7 @@ struct pet_outer_projection_data {
 /* Create a function that maps "set" onto its outer data->n dimensions and
  * add it to data->res.
  */
-static int add_outer_projection(__isl_take isl_set *set, void *user)
+static isl_stat add_outer_projection(__isl_take isl_set *set, void *user)
 {
 	struct pet_outer_projection_data *data = user;
 	int dim;
@@ -1578,7 +1578,7 @@ static int add_outer_projection(__isl_take isl_set *set, void *user)
 
 	isl_set_free(set);
 
-	return 0;
+	return isl_stat_ok;
 }
 
 /* Create and return a function that maps the sets in "domain"

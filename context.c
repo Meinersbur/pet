@@ -827,7 +827,7 @@ struct pet_patch_map_data {
  * of "map" needs to be zero and that this zero needs to be removed
  * from the concatenation.  This computation is performed in drop_initial_zero.
  */
-static int patch_map(__isl_take isl_map *map, void *user)
+static isl_stat patch_map(__isl_take isl_map *map, void *user)
 {
 	struct pet_patch_map_data *data = user;
 	isl_space *space;
@@ -850,7 +850,7 @@ static int patch_map(__isl_take isl_map *map, void *user)
 	map = isl_map_apply_range(map, id);
 	data->res = isl_union_map_add_map(data->res, map);
 
-	return 0;
+	return isl_stat_ok;
 }
 
 /* Combine the index expression of "expr" with the subaccess relation "access".
@@ -1240,7 +1240,7 @@ struct pet_preimage_domain_data {
  * in turn matches the domain of the pet_context), by adding the missing
  * dimensions.
  */
-static int preimage_domain_pair(__isl_take isl_id *key,
+static isl_stat preimage_domain_pair(__isl_take isl_id *key,
 	__isl_take isl_pw_aff *val, void *user)
 {
 	struct pet_preimage_domain_data *data = user;
@@ -1262,7 +1262,7 @@ static int preimage_domain_pair(__isl_take isl_id *key,
 	val = isl_pw_aff_pullback_multi_aff(val, ma);
 	data->assignments = isl_id_to_pw_aff_set(data->assignments, key, val);
 
-	return 0;
+	return isl_stat_ok;
 }
 
 /* Compute the preimage of "assignments" under the function represented by "ma".
