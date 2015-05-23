@@ -1,7 +1,7 @@
 void foo()
 {
 	int a;
-	char c = 'a';
+	signed char c = 'a';
 
 #pragma scop
 	a = (int) c;
