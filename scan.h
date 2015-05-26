@@ -146,6 +146,7 @@ private:
 	__isl_give pet_tree *extract(clang::CompoundStmt *stmt,
 		bool skip_declarations = false);
 	__isl_give pet_tree *extract(clang::LabelStmt *stmt);
+	__isl_give pet_tree *extract(clang::Decl *decl);
 	__isl_give pet_tree *extract(clang::DeclStmt *expr);
 
 	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,

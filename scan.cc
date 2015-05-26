@@ -719,21 +719,14 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
 }
 
-/* Construct a pet_tree for a (single) variable declaration.
+/* Construct a pet_tree for a variable declaration.
  */
-__isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
+__isl_give pet_tree *PetScan::extract(Decl *decl)
 {
-	Decl *decl;
 	VarDecl *vd;
 	pet_expr *lhs, *rhs;
 	pet_tree *tree;
 
-	if (!stmt->isSingleDecl()) {
-		unsupported(stmt);
-		return NULL;
-	}
-
-	decl = stmt->getSingleDecl();
 	vd = cast<VarDecl>(decl);
 
 	lhs = extract_access_expr(vd);
@@ -746,6 +739,37 @@ __isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
 	}
 
 	return tree;
+}
+
+/* Construct a pet_tree for a variable declaration statement.
+ * If the declaration statement declares multiple variables,
+ * then return a group of pet_trees, one for each declared variable.
+ */
+__isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
+{
+	pet_tree *tree;
+	unsigned n;
+
+	if (!stmt->isSingleDecl()) {
+		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
+		n = group.size();
+		tree = pet_tree_new_block(ctx, 0, n);
+
+		for (int i = 0; i < n; ++i) {
+			pet_tree *tree_i;
+			pet_loc *loc;
+
+			tree_i = extract(group[i]);
+			loc = construct_pet_loc(group[i]->getSourceRange(),
+						false);
+			tree_i = pet_tree_set_loc(tree_i, loc);
+			tree = pet_tree_block_add_child(tree, tree_i);
+		}
+
+		return tree;
+	}
+
+	return extract(stmt->getSingleDecl());
 }
 
 /* Construct a pet_expr representing a conditional operation.

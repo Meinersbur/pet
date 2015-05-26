@@ -1,0 +1,99 @@
+start: 16
+end: 115
+indent: "\t"
+context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
+schedule: '{ domain: "[n] -> { S_4[i] : i >= 0 and i <= -1 + n; S_2[i] : i >= 0 and
+  i <= -1 + n; S_3[i] : i >= 0 and i <= -1 + n; S_1[i] : i >= 0 and i <= -1 + n; S_0[i]
+  : i >= 0 and i <= -1 + n }", child: { schedule: "[n] -> L_0[{ S_0[i] -> [(i)]; S_3[i]
+  -> [(i)]; S_4[i] -> [(i)]; S_2[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence:
+  [ { filter: "[n] -> { S_0[i] }" }, { filter: "[n] -> { S_1[i] }" }, { filter: "[n]
+  -> { S_4[i] }" }, { filter: "[n] -> { S_2[i]; S_3[i] }", child: { set: [ { filter:
+  "[n] -> { S_2[i] }" }, { filter: "[n] -> { S_3[i] }" } ] } } ] } } }'
+arrays:
+- context: '[n] -> {  : n >= 0 }'
+  extent: '[n] -> { a[i0] : i0 >= 0 and i0 <= -1 + n }'
+  element_type: float
+  element_size: 4
+  declared: 1
+  exposed: 1
+- context: '[n] -> {  : n >= 0 }'
+  extent: '[n] -> { b[i0] : i0 >= 0 and i0 <= -1 + n }'
+  element_type: float
+  element_size: 4
+  declared: 1
+  exposed: 1
+statements:
+- line: 5
+  domain: '[n] -> { S_0[i] : i >= 0 and i <= -1 + n }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_0[i] -> a[o0] : o0 <= -1 + n and o0 >= 0 }'
+        index: '[n] -> { S_0[i] -> a[] }'
+        depth: 1
+        reference: __pet_ref_0
+        kill: 1
+- line: 5
+  domain: '[n] -> { S_1[i] : i >= 0 and i <= -1 + n }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_1[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
+        index: '[n] -> { S_1[i] -> b[] }'
+        depth: 1
+        reference: __pet_ref_1
+        kill: 1
+- line: 7
+  domain: '[n] -> { S_4[i] : i >= 0 and i <= -1 + n }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '[n] -> { S_4[i] -> a[(i)] }'
+        reference: __pet_ref_2
+        read: 0
+        write: 1
+      - type: access
+        index: '[n] -> { S_4[i] -> b[(i)] }'
+        reference: __pet_ref_3
+        read: 1
+        write: 0
+- line: 5
+  domain: '[n] -> { S_2[i] : i >= 0 and i <= -1 + n }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_2[i] -> a[o0] : o0 <= -1 + n and o0 >= 0 }'
+        index: '[n] -> { S_2[i] -> a[] }'
+        depth: 1
+        reference: __pet_ref_4
+        kill: 1
+- line: 5
+  domain: '[n] -> { S_3[i] : i >= 0 and i <= -1 + n }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_3[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
+        index: '[n] -> { S_3[i] -> b[] }'
+        depth: 1
+        reference: __pet_ref_5
+        kill: 1
