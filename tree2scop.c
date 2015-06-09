@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include <isl/id_to_pw_aff.h>
+#include <isl/union_set.h>
 
 #include "aff.h"
 #include "expr.h"
@@ -2148,29 +2149,19 @@ static struct pet_scop *scop_from_break(__isl_keep pet_tree *tree,
 	return scop;
 }
 
-/* Extract a clone of the kill statement in "scop".
+/* Extract a clone of the kill statement "stmt".
  * The domain of the clone is given by "domain".
- * "scop" is expected to have been created from a DeclStmt
- * and should have the kill as its first statement.
  */
 static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
-	struct pet_scop *scop, struct pet_state *state)
+	struct pet_stmt *stmt, struct pet_state *state)
 {
 	pet_expr *kill;
-	struct pet_stmt *stmt;
 	isl_space *space;
 	isl_multi_pw_aff *mpa;
 	pet_tree *tree;
 
-	if (!domain || !scop)
+	if (!domain || !stmt)
 		return NULL;
-	if (scop->n_stmt < 1)
-		isl_die(isl_set_get_ctx(domain), isl_error_internal,
-			"expecting at least one statement", return NULL);
-	stmt = scop->stmts[0];
-	if (!pet_stmt_is_kill(stmt))
-		isl_die(isl_set_get_ctx(domain), isl_error_internal,
-			"expecting kill statement", return NULL);
 
 	kill = pet_tree_expr_get_expr(stmt->body);
 	space = pet_stmt_get_space(stmt);
@@ -2183,6 +2174,76 @@ static struct pet_scop *extract_kill(__isl_keep isl_set *domain,
 	stmt = pet_stmt_from_pet_tree(isl_set_copy(domain),
 			state->n_stmt++, tree);
 	return pet_scop_from_pet_stmt(isl_set_get_space(domain), stmt);
+}
+
+/* Extract a clone of the kill statements in "scop".
+ * The domain of each clone is given by "domain".
+ * "scop" is expected to have been created from a DeclStmt
+ * and should have (one of) the kill(s) as its first statement.
+ * If "scop" was created from a declaration group, then there
+ * may be multiple kill statements inside.
+ */
+static struct pet_scop *extract_kills(__isl_keep isl_set *domain,
+	struct pet_scop *scop, struct pet_state *state)
+{
+	isl_ctx *ctx;
+	struct pet_stmt *stmt;
+	struct pet_scop *kill;
+	int i;
+
+	if (!domain || !scop)
+		return NULL;
+	ctx = isl_set_get_ctx(domain);
+	if (scop->n_stmt < 1)
+		isl_die(ctx, isl_error_internal,
+			"expecting at least one statement", return NULL);
+	stmt = scop->stmts[0];
+	if (!pet_stmt_is_kill(stmt))
+		isl_die(ctx, isl_error_internal,
+			"expecting kill statement", return NULL);
+
+	kill = extract_kill(domain, stmt, state);
+
+	for (i = 1; i < scop->n_stmt; ++i) {
+		struct pet_scop *kill_i;
+
+		stmt = scop->stmts[i];
+		if (!pet_stmt_is_kill(stmt))
+			continue;
+
+		kill_i = extract_kill(domain, stmt, state);
+		kill = pet_scop_add_par(ctx, kill, kill_i);
+	}
+
+	return kill;
+}
+
+/* Has "tree" been created from a DeclStmt?
+ * That is, is it either a declaration or a group of declarations?
+ */
+static int tree_is_decl(__isl_keep pet_tree *tree)
+{
+	int is_decl;
+	int i;
+
+	if (!tree)
+		return -1;
+	is_decl = pet_tree_is_decl(tree);
+	if (is_decl < 0 || is_decl)
+		return is_decl;
+
+	if (tree->type != pet_tree_block)
+		return 0;
+	if (pet_tree_block_get_block(tree))
+		return 0;
+
+	for (i = 0; i < tree->u.b.n; ++i) {
+		is_decl = tree_is_decl(tree->u.b.child[i]);
+		if (is_decl < 0 || !is_decl)
+			return is_decl;
+	}
+
+	return 1;
 }
 
 /* Does "tree" represent an assignment to a variable?
@@ -2321,10 +2382,10 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		struct pet_skip_info skip;
 		pet_skip_info_seq_init(&skip, ctx, scop, scop_i);
 		pet_skip_info_seq_extract(&skip, pc, state);
-		if (scop_i && pet_tree_is_decl(tree->u.b.child[i])) {
+		if (scop_i && tree_is_decl(tree->u.b.child[i])) {
 			if (tree->u.b.block) {
 				struct pet_scop *kill;
-				kill = extract_kill(domain, scop_i, state);
+				kill = extract_kills(domain, scop_i, state);
 				kills = pet_scop_add_par(ctx, kills, kill);
 			} else
 				scop_i = mark_exposed(scop_i);

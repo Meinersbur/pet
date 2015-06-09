@@ -643,6 +643,39 @@ error:
 	return NULL;
 }
 
+/* Does the block tree "tree" have its own scope?
+ */
+int pet_tree_block_get_block(__isl_keep pet_tree *tree)
+{
+	if (!tree)
+		return -1;
+	if (pet_tree_get_type(tree) != pet_tree_block)
+		isl_die(pet_tree_get_ctx(tree), isl_error_invalid,
+			"not a block tree", return -1);
+
+	return tree->u.b.block;
+}
+
+/* Set the block property (whether or not the block tree has its own scope)
+ * of "tree" to "is_block".
+ */
+__isl_give pet_tree *pet_tree_block_set_block(__isl_take pet_tree *tree,
+	int is_block)
+{
+	if (!tree)
+		return NULL;
+	if (tree->type != pet_tree_block)
+		isl_die(pet_tree_get_ctx(tree), isl_error_invalid,
+			"not a block tree", return pet_tree_free(tree));
+	if (tree->u.b.block == is_block)
+		return tree;
+	tree = pet_tree_cow(tree);
+	if (!tree)
+		return NULL;
+	tree->u.b.block = is_block;
+	return tree;
+}
+
 /* Given a block tree "tree", return the child at position "pos".
  */
 __isl_give pet_tree *pet_tree_block_get_child(__isl_keep pet_tree *tree,

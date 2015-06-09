@@ -49,6 +49,7 @@
 #include <isl/space.h>
 #include <isl/aff.h>
 #include <isl/set.h>
+#include <isl/union_set.h>
 
 #include "aff.h"
 #include "array.h"
@@ -640,6 +641,26 @@ static __isl_give pet_expr *mark_write(__isl_take pet_expr *access)
 	return access;
 }
 
+/* Mark the given (read) access pet_expr as also possibly being written.
+ * That is, initialize the may write access relation from the may read relation
+ * and initialize the must write access relation to the empty relation.
+ */
+static __isl_give pet_expr *mark_may_write(__isl_take pet_expr *expr)
+{
+	isl_union_map *access;
+	isl_union_map *empty;
+
+	access = pet_expr_access_get_dependent_access(expr,
+						pet_expr_access_may_read);
+	empty = isl_union_map_empty(isl_union_map_get_space(access));
+	expr = pet_expr_access_set_access(expr, pet_expr_access_may_write,
+					    access);
+	expr = pet_expr_access_set_access(expr, pet_expr_access_must_write,
+					    empty);
+
+	return expr;
+}
+
 /* Construct a pet_expr representing a unary operator expression.
  */
 __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
@@ -698,21 +719,14 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
 }
 
-/* Construct a pet_tree for a (single) variable declaration.
+/* Construct a pet_tree for a variable declaration.
  */
-__isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
+__isl_give pet_tree *PetScan::extract(Decl *decl)
 {
-	Decl *decl;
 	VarDecl *vd;
 	pet_expr *lhs, *rhs;
 	pet_tree *tree;
 
-	if (!stmt->isSingleDecl()) {
-		unsupported(stmt);
-		return NULL;
-	}
-
-	decl = stmt->getSingleDecl();
 	vd = cast<VarDecl>(decl);
 
 	lhs = extract_access_expr(vd);
@@ -725,6 +739,37 @@ __isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
 	}
 
 	return tree;
+}
+
+/* Construct a pet_tree for a variable declaration statement.
+ * If the declaration statement declares multiple variables,
+ * then return a group of pet_trees, one for each declared variable.
+ */
+__isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
+{
+	pet_tree *tree;
+	unsigned n;
+
+	if (!stmt->isSingleDecl()) {
+		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
+		n = group.size();
+		tree = pet_tree_new_block(ctx, 0, n);
+
+		for (int i = 0; i < n; ++i) {
+			pet_tree *tree_i;
+			pet_loc *loc;
+
+			tree_i = extract(group[i]);
+			loc = construct_pet_loc(group[i]->getSourceRange(),
+						false);
+			tree_i = pet_tree_set_loc(tree_i, loc);
+			tree = pet_tree_block_add_child(tree, tree_i);
+		}
+
+		return tree;
+	}
+
+	return extract(stmt->getSingleDecl());
 }
 
 /* Construct a pet_expr representing a conditional operation.
@@ -837,8 +882,8 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
  * then the function being called may write into the array.
  *
  * We assume here that if the function is declared to take a pointer
- * to a const type, then the function will perform a read
- * and that otherwise, it will perform a write.
+ * to a const type, then the function may only perform a read
+ * and that otherwise, it may either perform a read or a write (or both).
  * We only perform this check if "detect_writes" is set.
  */
 __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
@@ -846,7 +891,6 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 {
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
-	Stmt::StmtClass sc;
 
 	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
 		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
@@ -862,11 +906,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	res = extract_expr(expr);
 	if (!res)
 		return NULL;
-	sc = expr->getStmtClass();
-	if ((sc == Stmt::ArraySubscriptExprClass ||
-	     sc == Stmt::DeclRefExprClass ||
-	     sc == Stmt::MemberExprClass) &&
-	    array_depth(expr->getType().getTypePtr()) > 0)
+	if (array_depth(expr->getType().getTypePtr()) > 0)
 		is_partial = 1;
 	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
@@ -877,7 +917,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 		}
 		parm = fd->getParamDecl(pos);
 		if (!const_base(parm->getType()))
-			res = mark_write(res);
+			res = mark_may_write(res);
 	}
 
 	if (is_addr)
@@ -914,7 +954,8 @@ FunctionDecl *PetScan::find_decl_from_name(CallExpr *call, string name)
 /* Return the FunctionDecl for the summary function associated to the
  * function called by "call".
  *
- * In particular, search for an annotate attribute formatted as
+ * In particular, if the pencil option is set, then
+ * search for an annotate attribute formatted as
  * "pencil_access(name)", where "name" is the name of the summary function.
  *
  * If no summary function was specified, then return the FunctionDecl
@@ -927,6 +968,9 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
 	FunctionDecl *decl = call->getDirectCallee();
 	if (!decl)
 		return NULL;
+
+	if (!options->pencil)
+		return decl;
 
 	specific_attr_iterator<AnnotateAttr> begin, end, i;
 	begin = decl->specific_attr_begin<AnnotateAttr>();
@@ -955,6 +999,9 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
  * In the case of a "call" to __pencil_kill, the arguments
  * are neither read nor written (only killed), so there
  * is no need to check for writes to these arguments.
+ *
+ * __pencil_assume and __pencil_kill are only recognized
+ * when the pencil option is set.
  */
 __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 {
@@ -973,9 +1020,9 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	name = fd->getDeclName().getAsString();
 	n_arg = expr->getNumArgs();
 
-	if (n_arg == 1 && name == "__pencil_assume")
+	if (options->pencil && n_arg == 1 && name == "__pencil_assume")
 		return extract_assume(expr->getArg(0));
-	is_kill = name == "__pencil_kill";
+	is_kill = options->pencil && name == "__pencil_kill";
 
 	res = pet_expr_new_call(ctx, name.c_str(), n_arg);
 	if (!res)
@@ -1398,14 +1445,12 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 /* Try and construct a pet_tree corresponding to a compound statement.
  *
  * "skip_declarations" is set if we should skip initial declarations
- * in the children of the compound statements.  This then implies
- * that this sequence of children should not be treated as a block
- * since the initial statements may be skipped.
+ * in the children of the compound statements.
  */
 __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 	bool skip_declarations)
 {
-	return extract(stmt->children(), !skip_declarations, skip_declarations);
+	return extract(stmt->children(), true, skip_declarations);
 }
 
 /* Return the file offset of the expansion location of "Loc".
@@ -1657,6 +1702,63 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	return update_loc(tree, stmt);
 }
 
+/* Given a sequence of statements "stmt_range" of which the first "n_decl"
+ * are declarations and of which the remaining statements are represented
+ * by "tree", try and extend "tree" to include the last sequence of
+ * the initial declarations that can be completely extracted.
+ *
+ * We start collecting the initial declarations and start over
+ * whenever we come across a declaration that we cannot extract.
+ * If we have been able to extract any declarations, then we
+ * copy over the contents of "tree" at the end of the declarations.
+ * Otherwise, we simply return the original "tree".
+ */
+__isl_give pet_tree *PetScan::insert_initial_declarations(
+	__isl_take pet_tree *tree, int n_decl, StmtRange stmt_range)
+{
+	StmtIterator i;
+	pet_tree *res;
+	int n_stmt;
+	int is_block;
+	int j;
+
+	n_stmt = pet_tree_block_n_child(tree);
+	is_block = pet_tree_block_get_block(tree);
+	res = pet_tree_new_block(ctx, is_block, n_decl + n_stmt);
+
+	for (i = stmt_range.first; n_decl; ++i, --n_decl) {
+		Stmt *child = *i;
+		pet_tree *tree_i;
+
+		tree_i = extract(child);
+		if (tree_i && !partial) {
+			res = pet_tree_block_add_child(res, tree_i);
+			continue;
+		}
+		pet_tree_free(tree_i);
+		partial = false;
+		if (pet_tree_block_n_child(res) == 0)
+			continue;
+		pet_tree_free(res);
+		res = pet_tree_new_block(ctx, is_block, n_decl + n_stmt);
+	}
+
+	if (pet_tree_block_n_child(res) == 0) {
+		pet_tree_free(res);
+		return tree;
+	}
+
+	for (j = 0; j < n_stmt; ++j) {
+		pet_tree *tree_i;
+
+		tree_i = pet_tree_block_get_child(tree, j);
+		res = pet_tree_block_add_child(res, tree_i);
+	}
+	pet_tree_free(tree);
+
+	return res;
+}
+
 /* Try and construct a pet_tree corresponding to (part of)
  * a sequence of statements.
  *
@@ -1666,34 +1768,43 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
  * in the sequence of statements.
  *
  * If autodetect is set, then we allow the extraction of only a subrange
- * of the sequence of statements.  However, if there is at least one statement
- * for which we could not construct a scop and the final range contains
- * either no statements or at least one kill, then we discard the entire
- * range.
+ * of the sequence of statements.  However, if there is at least one
+ * kill and there is some subsequent statement for which we could not
+ * construct a tree, then turn off the "block" property of the tree
+ * such that no extra kill will be introduced at the end of the (partial)
+ * block.  If, on the other hand, the final range contains
+ * no statements, then we discard the entire range.
+ *
+ * If the entire range was extracted, apart from some initial declarations,
+ * then we try and extend the range with the latest of those initial
+ * declarations.
  */
 __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	bool skip_declarations)
 {
 	StmtIterator i;
-	int j;
+	int j, skip;
 	bool has_kills = false;
 	bool partial_range = false;
 	pet_tree *tree;
-	set<struct pet_stmt *> kills;
-	set<struct pet_stmt *>::iterator it;
 
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j)
 		;
 
 	tree = pet_tree_new_block(ctx, block, j);
 
-	for (i = stmt_range.first; i != stmt_range.second; ++i) {
+	skip = 0;
+	i = stmt_range.first;
+	if (skip_declarations)
+		for (; i != stmt_range.second; ++i) {
+			if ((*i)->getStmtClass() != Stmt::DeclStmtClass)
+				break;
+			++skip;
+		}
+
+	for (; i != stmt_range.second; ++i) {
 		Stmt *child = *i;
 		pet_tree *tree_i;
-
-		if (pet_tree_block_n_child(tree) == 0 && skip_declarations &&
-		    child->getStmtClass() == Stmt::DeclStmtClass)
-			continue;
 
 		tree_i = extract(child);
 		if (pet_tree_block_n_child(tree) != 0 && partial) {
@@ -1718,13 +1829,20 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 			break;
 	}
 
-	if (tree && partial_range) {
-		if (pet_tree_block_n_child(tree) == 0 || has_kills) {
+	if (!tree)
+		return NULL;
+
+	if (partial) {
+		if (has_kills)
+			tree = pet_tree_block_set_block(tree, 0);
+	} else if (partial_range) {
+		if (pet_tree_block_n_child(tree) == 0) {
 			pet_tree_free(tree);
 			return NULL;
 		}
 		partial = true;
-	}
+	} else if (skip > 0)
+		tree = insert_initial_declarations(tree, skip, stmt_range);
 
 	return tree;
 }
@@ -2273,7 +2391,7 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	return array;
 }
 
-/* Does "decl" have definition that we can keep track of in a pet_type?
+/* Does "decl" have a definition that we can keep track of in a pet_type?
  */
 static bool has_printable_definition(RecordDecl *decl)
 {
@@ -2335,7 +2453,11 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 			types->insert(cast<TypedefType>(base)->getDecl());
 		} else if (base->isRecordType()) {
 			RecordDecl *decl = pet_clang_record_decl(base);
-			if (has_printable_definition(decl))
+			TypedefNameDecl *typedecl;
+			typedecl = decl->getTypedefNameForAnonDecl();
+			if (typedecl)
+				types->insert(typedecl);
+			else if (has_printable_definition(decl))
 				types->insert(decl);
 			else
 				name = "<subfield>";

@@ -1,3 +1,5 @@
+#include <isl/union_set.h>
+
 #include "aff.h"
 #include "summary.h"
 

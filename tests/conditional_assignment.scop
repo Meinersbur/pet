@@ -107,10 +107,13 @@ statements:
           read: 1
           write: 0
       - type: access
+        may_read: '[N, M] -> { S_2[i] -> A[i, o1] }'
+        may_write: '[N, M] -> { S_2[i] -> A[i, o1] }'
+        must_write: '[N, M] -> {  }'
         index: '[N, M] -> { S_2[i] -> A[(i)] }'
         depth: 2
         reference: __pet_ref_6
-        read: 0
+        read: 1
         write: 1
 - line: 26
   domain: '[N, M] -> { S_3[] }'

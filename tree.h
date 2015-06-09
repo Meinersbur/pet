@@ -106,9 +106,11 @@ __isl_give pet_tree *pet_tree_set_label(__isl_take pet_tree *tree,
 	__isl_take isl_id *label);
 
 __isl_give pet_tree *pet_tree_new_block(isl_ctx *ctx, int block, int n);
-int pet_tree_block_n_child(__isl_keep pet_tree *tree);
 __isl_give pet_tree *pet_tree_block_add_child(__isl_take pet_tree *block,
 	__isl_take pet_tree *child);
+int pet_tree_block_get_block(__isl_keep pet_tree *block);
+__isl_give pet_tree *pet_tree_block_set_block(__isl_take pet_tree *block,
+	int is_block);
 
 __isl_give pet_tree *pet_tree_new_break(isl_ctx *ctx);
 __isl_give pet_tree *pet_tree_new_continue(isl_ctx *ctx);
