@@ -38,6 +38,7 @@
 #include <isl/aff.h>
 #include <isl/options.h>
 #include <isl/set.h>
+#include <isl/union_set.h>
 #include <isl/union_map.h>
 #include <isl/id_to_pw_aff.h>
 #include <isl/schedule_node.h>

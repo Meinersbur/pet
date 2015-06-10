@@ -89,25 +89,34 @@ statements:
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N, K] -> { S_2[k, j] -> R[j, j] }'
+          may_write: '[N, K] -> { S_2[k, j] -> R[j, j] }'
+          must_write: '[N, K] -> {  }'
           index: '[N, K] -> { S_2[k, j] -> R[(j), (j)] }'
           reference: __pet_ref_4
-          read: 0
+          read: 1
           write: 1
       - type: op
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N, K] -> { S_2[k, j] -> X[k, j] }'
+          may_write: '[N, K] -> { S_2[k, j] -> X[k, j] }'
+          must_write: '[N, K] -> {  }'
           index: '[N, K] -> { S_2[k, j] -> X[(k), (j)] }'
           reference: __pet_ref_5
-          read: 0
+          read: 1
           write: 1
       - type: op
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N, K] -> { S_2[k, j] -> t[] }'
+          may_write: '[N, K] -> { S_2[k, j] -> t[] }'
+          must_write: '[N, K] -> {  }'
           index: '[N, K] -> { S_2[k, j] -> t[] }'
           reference: __pet_ref_6
-          read: 0
+          read: 1
           write: 1
 - line: 29
   domain: '[N, K] -> { S_3[k, j, i] : k <= -1 + K and i <= -1 + N and j >= 0 and i
@@ -137,25 +146,34 @@ statements:
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
+          may_write: '[N, K] -> { S_3[k, j, i] -> R[j, i] }'
+          must_write: '[N, K] -> {  }'
           index: '[N, K] -> { S_3[k, j, i] -> R[(j), (i)] }'
           reference: __pet_ref_10
-          read: 0
+          read: 1
           write: 1
       - type: op
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
+          may_write: '[N, K] -> { S_3[k, j, i] -> X[k, i] }'
+          must_write: '[N, K] -> {  }'
           index: '[N, K] -> { S_3[k, j, i] -> X[(k), (i)] }'
           reference: __pet_ref_11
-          read: 0
+          read: 1
           write: 1
       - type: op
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N, K] -> { S_3[k, j, i] -> t[] }'
+          may_write: '[N, K] -> { S_3[k, j, i] -> t[] }'
+          must_write: '[N, K] -> {  }'
           index: '[N, K] -> { S_3[k, j, i] -> t[] }'
           reference: __pet_ref_12
-          read: 0
+          read: 1
           write: 1
 - line: 34
   domain: '[N, K] -> { S_4[j, i] : i >= j and i <= -1 + N and j >= 0 }'

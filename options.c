@@ -49,6 +49,8 @@ ISL_ARG_BOOL(struct pet_options, detect_conditional_assignment,
 ISL_ARG_BOOL(struct pet_options, encapsulate_dynamic_control,
 	0, "encapsulate-dynamic-control", 0,
 	"encapsulate all dynamic control in macro statements")
+ISL_ARG_BOOL(struct pet_options, pencil, 0, "pencil", 1,
+	"support pencil builtins and pragmas")
 ISL_ARG_CHOICE(struct pet_options, signed_overflow, 0,
 	"signed-overflow", pet_signed_overflow, PET_OVERFLOW_AVOID,
 	"how to handle signed overflows")

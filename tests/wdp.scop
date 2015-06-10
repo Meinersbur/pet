@@ -66,17 +66,23 @@ statements:
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N] -> { S_1[i] -> y[i] }'
+          may_write: '[N] -> { S_1[i] -> y[i] }'
+          must_write: '[N] -> {  }'
           index: '[N] -> { S_1[i] -> y[(i)] }'
           reference: __pet_ref_1
-          read: 0
+          read: 1
           write: 1
       - type: op
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N] -> { S_1[i] -> t[i] }'
+          may_write: '[N] -> { S_1[i] -> t[i] }'
+          must_write: '[N] -> {  }'
           index: '[N] -> { S_1[i] -> t[(i)] }'
           reference: __pet_ref_2
-          read: 0
+          read: 1
           write: 1
 - line: 25
   domain: '[N] -> { S_2[i] : i <= 1 + N and i >= 0 }'
@@ -227,15 +233,21 @@ statements:
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N] -> { S_7[i] -> y[1 + i] }'
+          may_write: '[N] -> { S_7[i] -> y[1 + i] }'
+          must_write: '[N] -> {  }'
           index: '[N] -> { S_7[i] -> y[(1 + i)] }'
           reference: __pet_ref_18
-          read: 0
+          read: 1
           write: 1
       - type: op
         operation: '&'
         arguments:
         - type: access
+          may_read: '[N] -> { S_7[i] -> z[2 + i] }'
+          may_write: '[N] -> { S_7[i] -> z[2 + i] }'
+          must_write: '[N] -> {  }'
           index: '[N] -> { S_7[i] -> z[(2 + i)] }'
           reference: __pet_ref_19
-          read: 0
+          read: 1
           write: 1

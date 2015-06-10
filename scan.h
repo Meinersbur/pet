@@ -134,6 +134,9 @@ private:
 	struct pet_array *set_upper_bounds(struct pet_array *array,
 		const clang::Type *type, __isl_keep pet_context *pc);
 
+	__isl_give pet_tree *insert_initial_declarations(
+		__isl_take pet_tree *tree, int n_decl,
+		clang::StmtRange stmt_range);
 	__isl_give pet_tree *extract(clang::Stmt *stmt,
 		bool skip_declarations = false);
 	__isl_give pet_tree *extract(clang::StmtRange stmt_range, bool block,
@@ -143,6 +146,7 @@ private:
 	__isl_give pet_tree *extract(clang::CompoundStmt *stmt,
 		bool skip_declarations = false);
 	__isl_give pet_tree *extract(clang::LabelStmt *stmt);
+	__isl_give pet_tree *extract(clang::Decl *decl);
 	__isl_give pet_tree *extract(clang::DeclStmt *expr);
 
 	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,

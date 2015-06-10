@@ -37,6 +37,7 @@
 #include <isl/options.h>
 #include <isl/set.h>
 #include <isl/map.h>
+#include <isl/union_set.h>
 #include <isl/schedule_node.h>
 
 struct options {
@@ -137,7 +138,7 @@ static __isl_give isl_ast_build *set_options(__isl_take isl_ast_build *build,
  * where S is the name of the domain and the number of arguments
  * is equal to the dimension of "set".
  */
-static int print_declaration(__isl_take isl_set *set, void *user)
+static isl_stat print_declaration(__isl_take isl_set *set, void *user)
 {
 	isl_printer **p = user;
 	int i, n;
@@ -158,7 +159,7 @@ static int print_declaration(__isl_take isl_set *set, void *user)
 
 	isl_set_free(set);
 
-	return 0;
+	return isl_stat_ok;
 }
 
 /* Print a function declaration for each domain in "uset".
@@ -174,7 +175,7 @@ static __isl_give isl_printer *print_declarations(__isl_take isl_printer *p,
 
 /* Check that the domain of "map" is named.
  */
-static int check_name(__isl_take isl_map *map, void *user)
+static isl_stat check_name(__isl_take isl_map *map, void *user)
 {
 	int named;
 	isl_ctx *ctx;
@@ -184,11 +185,11 @@ static int check_name(__isl_take isl_map *map, void *user)
 	isl_map_free(map);
 
 	if (named < 0)
-		return -1;
+		return isl_stat_error;
 	if (!named)
 		isl_die(ctx, isl_error_invalid,
-			"all domains should be named", return -1);
-	return 0;
+			"all domains should be named", return isl_stat_error);
+	return isl_stat_ok;
 }
 
 /* Given an AST "tree", print out the following code
@@ -295,7 +296,7 @@ static __isl_give isl_schedule *schedule_set_options(
 		return schedule;
 
 	type = options->separate ? isl_ast_loop_separate : isl_ast_loop_atomic;
-	schedule = isl_schedule_map_schedule_node(schedule,
+	schedule = isl_schedule_map_schedule_node_bottom_up(schedule,
 						&node_set_options, &type);
 
 	return schedule;

@@ -53,7 +53,7 @@ struct pet_union_map_move_dims_data {
 /* Call isl_map_move_dims on "map" using the arguments in "data" and
  * add the result to data->res.
  */
-static int map_move_dims(__isl_take isl_map *map, void *user)
+static isl_stat map_move_dims(__isl_take isl_map *map, void *user)
 {
 	struct pet_union_map_move_dims_data *data = user;
 
@@ -61,7 +61,7 @@ static int map_move_dims(__isl_take isl_map *map, void *user)
 				data->src_type, data->src_pos, data->n);
 	data->res = isl_union_map_add_map(data->res, map);
 
-	return 0;
+	return isl_stat_ok;
 }
 
 /* Call isl_map_move_dims with the given arguments on each of the maps
@@ -110,7 +110,7 @@ __isl_give isl_multi_aff *pet_prefix_projection(__isl_take isl_space *space,
  * The caller is assumed to have checked that this function will
  * be called exactly once.
  */
-static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
+static isl_stat extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
 	void *user)
 {
 	isl_val **inc = (isl_val **)user;
@@ -123,7 +123,7 @@ static int extract_cst(__isl_take isl_set *set, __isl_take isl_aff *aff,
 	isl_set_free(set);
 	isl_aff_free(aff);
 
-	return 0;
+	return isl_stat_ok;
 }
 
 /* If "pa" represents a constant value over a single domain,
