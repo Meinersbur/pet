@@ -549,7 +549,7 @@ static __isl_give isl_multi_pw_aff *add_arg(__isl_take isl_multi_pw_aff *mpa,
 		space = isl_space_add_dims(space, isl_dim_set, 1);
 		ma = isl_multi_aff_domain_map(space);
 	} else {
-		isl_multi_aff *ma2;;
+		isl_multi_aff *ma2;
 		isl_space *dom, *ran;
 
 		space = isl_space_domain(isl_multi_pw_aff_get_space(mpa));
