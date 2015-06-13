@@ -102,7 +102,7 @@ __isl_give pet_context *pet_context_alloc(__isl_take isl_set *domain)
 	if (!domain)
 		return NULL;
 
-	assignments = isl_id_to_pw_aff_alloc(isl_set_get_ctx(domain), 0);;
+	assignments = isl_id_to_pw_aff_alloc(isl_set_get_ctx(domain), 0);
 	return context_alloc(domain, assignments, 0);
 }
 
