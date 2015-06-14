@@ -3132,6 +3132,10 @@ struct pet_scop *pet_scop_add_array(struct pet_scop *scop,
 	scop->arrays = arrays;
 	scop->arrays[scop->n_array] = array;
 	scop->n_array++;
+	scop->context = isl_set_intersect_params(scop->context,
+						isl_set_copy(array->context));
+	if (!scop->context)
+		return pet_scop_free(scop);
 
 	return scop;
 error:

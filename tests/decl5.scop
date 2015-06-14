@@ -1,7 +1,7 @@
 start: 16
 end: 110
 indent: "\t"
-context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
+context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
 schedule: '{ domain: "[n] -> { S_0[]; S_2[i] : i >= 0 and i <= -1 + n; S_1[i] : i
   >= 0 and i <= -1 + n }", child: { sequence: [ { filter: "[n] -> { S_0[] }" }, {
   filter: "[n] -> { S_2[i]; S_1[i] }", child: { schedule: "[n] -> L_0[{ S_2[i] ->
