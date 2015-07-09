@@ -21,7 +21,7 @@ find_package(Clang REQUIRED)
 if (EXISTS "${PET_SOURCE_DIR}/GIT_HEAD_ID")
   # The source comes from a 'make dist' archive
   file(READ "${PET_SOURCE_DIR}/GIT_HEAD_ID" GIT_HEAD_ID)
-  string(STRIP "${PET_HEAD_ID}" GIT_HEAD_ID)
+  string(STRIP "${GIT_HEAD_ID}" GIT_HEAD_ID)
 elseif (EXISTS "${PET_SOURCE_DIR}/gitversion.h")
   # The source directory is preconfigured
   file(READ "${PET_SOURCE_DIR}/gitversion.h" GITVERSION_H)
