@@ -3,8 +3,8 @@ if BUNDLED_ISL
     ISL_LA = $(top_builddir)/isl/libisl.la
 endif
 
-SUBDIRS = $(MAYBE_ISL) .
-DIST_SUBDIRS = $(MAYBE_ISL)
+SUBDIRS = $(MAYBE_ISL)
+DIST_SUBDIRS = $(SUBDIRS)
 
 FORCE:
 isl/libisl.la: FORCE
@@ -23,6 +23,17 @@ EXTRA_TESTS = pet_test.sh codegen_test.sh
 TEST_EXTENSIONS = .sh
 
 include_HEADERS = include/pet.h
+
+CLEANFILES = \
+	gitversion.h \
+	test.scop
+
+DISTCLEANFILES = \
+	pet-uninstalled.sh \
+	pet-uninstalled.pc \
+	pet.pc \
+	pet.pc.in \
+	test.c
 
 EXTRA_DIST = \
 	tests

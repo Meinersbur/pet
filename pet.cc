@@ -820,7 +820,11 @@ static CompilerInvocation *construct_invocation(const char *filename,
 	if (Jobs.size() < 1)
 		return NULL;
 
+#if CLANG_VERSION_MAJOR>=3 && CLANG_VERSION_MINOR>=7
+	Command *cmd = &*Jobs.begin();
+#else
 	Command *cmd = cast<Command>(ClangAPI::command(*Jobs.begin()));
+#endif
 	if (strcmp(cmd->getCreator().getName(), "clang"))
 		return NULL;
 
