@@ -163,8 +163,8 @@ statements:
         operation: '?:'
         arguments:
         - type: access
-          index: '[M, N] -> { [S_5[i] -> [i1]] -> [((1) : i1 >= -i and i1 <= -1 +
-            N - i; (0) : i = -1 + N and i1 = 1; (0) : i = 0 and i1 = -1)] }'
+          index: '[M, N] -> { [S_5[i] -> [i1]] -> [((1) : i1 <= -1 + N - i and i1
+            >= -i; (0) : i1 = N - i; (0) : i1 = -1 - i)] }'
           reference: __pet_ref_11
           read: 1
           write: 0
