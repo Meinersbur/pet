@@ -1,4 +1,4 @@
-AC_INIT([pet], [0.07], [isl-development@googlegroups.com])
+AC_INIT([pet], [0.07], [pet@meinersbur.de])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
