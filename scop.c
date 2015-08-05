@@ -3056,6 +3056,11 @@ struct pet_scop *pet_scop_gist(struct pet_scop *scop,
 	if (!scop->context)
 		return pet_scop_free(scop);
 
+	scop->schedule = isl_schedule_gist_domain_params(scop->schedule,
+					isl_set_copy(scop->context));
+	if (!scop->schedule)
+		return pet_scop_free(scop);
+
 	for (i = 0; i < scop->n_array; ++i) {
 		scop->arrays[i] = array_gist(scop->arrays[i], scop->context);
 		if (!scop->arrays[i])

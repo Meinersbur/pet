@@ -2,9 +2,9 @@ start: 38
 end: 115
 indent: "\t"
 context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
-schedule: '{ domain: "{ S_3[t] : t >= 0; S_0[]; S_2[t] : t >= 0; S_4[t] : t >= 0;
-  S_1[] }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" },
-  { filter: "{ S_3[t]; S_2[t]; S_4[t] }", child: { schedule: "L_0[{ S_4[t] -> [(t)];
+schedule: '{ domain: "[N] -> { S_3[t] : t >= 0; S_1[]; S_4[t] : t >= 0; S_0[]; S_2[t]
+  : t >= 0 }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }"
+  }, { filter: "{ S_3[t]; S_2[t]; S_4[t] }", child: { schedule: "L_0[{ S_4[t] -> [(t)];
   S_2[t] -> [(t)]; S_3[t] -> [(t)] }]", child: { sequence: [ { filter: "{ S_2[t] }"
   }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t] }" } ] } } } ] } }'
 arrays:

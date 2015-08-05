@@ -3,9 +3,8 @@ end: 110
 indent: "\t"
 context: '[n, m] -> {  : m <= 2147483645 and m >= -2147483648 and n <= 2147483646
   and n >= -2147483648 }'
-schedule: '{ domain: "[n, m] -> { S_0[i] : n >= -2147483649 and m <= 2147483646 and
-  i >= n and i <= m }", child: { schedule: "[n, m] -> L_0[{ S_0[i] -> [(i)] }]" }
-  }'
+schedule: '{ domain: "[n, m] -> { S_0[i] : i >= n and i <= m }", child: { schedule:
+  "[n, m] -> L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '{  :  }'
   extent: '[n, m] -> { a[] }'

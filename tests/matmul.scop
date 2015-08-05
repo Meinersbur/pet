@@ -3,9 +3,9 @@ end: 277
 indent: "\t"
 context: '[N, K, M] -> {  : K >= 0 and N >= 0 and N <= 2147483647 and K <= 2147483647
   and M <= 2147483647 and M >= -2147483648 }'
-schedule: '{ domain: "[M, N, K] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >= 0
-  and j <= -1 + N; S_1[i, j, k] : i >= 0 and i <= -1 + M and j >= 0 and j <= -1 +
-  N and k >= 0 and k <= -1 + K }", child: { schedule: "[M, N, K] -> L_0[{ S_0[i, j]
+schedule: '{ domain: "[N, K, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >=
+  0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_0[i, j] : i >= 0 and i <= -1 + M
+  and j >= 0 and j <= -1 + N }", child: { schedule: "[M, N, K] -> L_0[{ S_0[i, j]
   -> [(i)]; S_1[i, j, k] -> [(i)] }]", child: { schedule: "[M, N, K] -> L_1[{ S_0[i,
   j] -> [(j)]; S_1[i, j, k] -> [(j)] }]", child: { sequence: [ { filter: "[M, N, K]
   -> { S_0[i, j] }" }, { filter: "[M, N, K] -> { S_1[i, j, k] }", child: { schedule:

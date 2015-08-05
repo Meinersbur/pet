@@ -3,8 +3,8 @@ end: 201
 indent: '        '
 context: '[N] -> {  : N >= 0 and N <= 4294967295 }'
 schedule: '{ domain: "[N] -> { S_0[i] : exists (e0 = floor((10 + N)/4294967296): i
-  <= 19 and i >= 0 and 4294967296e0 >= -4294967285 + N and 4294967296e0 <= 9 + N -
-  i) }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }'
+  <= 19 and i >= 0 and 4294967296e0 <= 9 + N - i and 4294967296e0 <= 10 + N and 4294967296e0
+  >= -4294967285 + N) }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { a[] }'

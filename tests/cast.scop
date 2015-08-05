@@ -2,7 +2,7 @@ start: 44
 end: 87
 indent: "\t"
 context: '[c] -> {  : c <= 127 and c >= -128 }'
-schedule: '{ domain: "{ S_0[] }" }'
+schedule: '{ domain: "[c] -> { S_0[] }" }'
 arrays:
 - context: '{  :  }'
   extent: '[c] -> { a[] }'
