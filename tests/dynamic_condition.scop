@@ -3,7 +3,7 @@ end: 174
 indent: '    '
 context: '{  :  }'
 schedule: '{ domain: "{ S_0[i] : i >= 0 and i <= 99; S_1[i] : i >= 0 and i <= 99 }",
-  child: { schedule: "L_0[{ S_1[i] -> [(i)]; S_0[i] -> [(i)] }]", child: { sequence:
+  child: { schedule: "L_0[{ S_0[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence:
   [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" } ] } } }'
 arrays:
 - context: '{  :  }'
@@ -31,7 +31,7 @@ statements:
       - type: call
         name: f
 - line: 12
-  domain: '{ [S_1[i] -> [j]] : i >= 0 and i <= 99 and j <= 1 and j >= 0 }'
+  domain: '{ [S_1[i] -> [i1]] : i >= 0 and i <= 99 and i1 <= 1 and i1 >= 0 }'
   body:
     type: expression
     expr:

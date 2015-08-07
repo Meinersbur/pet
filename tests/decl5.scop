@@ -15,7 +15,7 @@ arrays:
   declared: 1
   exposed: 1
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { b[i0, i1] : i1 >= 0 and i1 <= -1 + n and i0 >= 0 and i0 <= -1
+  extent: '[n] -> { b[i0, i1] : i0 >= 0 and i0 <= -1 + n and i1 >= 0 and i1 <= -1
     + n }'
   element_type: float
   element_size: 4
@@ -44,8 +44,8 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_1[i] -> b[o0, o1] : o0 <= -1 + n and o1 >= 0 and o1 <=
-          -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_1[i] -> b[o0, o1] : o0 >= 0 and o0 <= -1 + n and o1 >=
+          0 and o1 <= -1 + n }'
         index: '[n] -> { S_1[i] -> b[] }'
         depth: 2
         reference: __pet_ref_1
@@ -59,8 +59,8 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_2[i] -> b[o0, o1] : o0 <= -1 + n and o1 >= 0 and o1 <=
-          -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_2[i] -> b[o0, o1] : o0 >= 0 and o0 <= -1 + n and o1 >=
+          0 and o1 <= -1 + n }'
         index: '[n] -> { S_2[i] -> b[] }'
         depth: 2
         reference: __pet_ref_2

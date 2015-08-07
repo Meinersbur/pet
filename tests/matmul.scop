@@ -12,15 +12,15 @@ schedule: '{ domain: "[M, N, K] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >=
   "[M, N, K] -> L_2[{ S_1[i, j, k] -> [(k)] }]" } } ] } } } }'
 arrays:
 - context: '[K] -> {  : K >= 0 }'
-  extent: '[N, K, M] -> { A[i0, i1] : i1 >= 0 and i1 <= -1 + K and i0 >= 0 }'
+  extent: '[N, K, M] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + K }'
   element_type: float
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, K, M] -> { B[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 }'
+  extent: '[N, K, M] -> { B[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, K, M] -> { C[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 }'
+  extent: '[N, K, M] -> { C[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
   element_size: 4
   live_out: 1

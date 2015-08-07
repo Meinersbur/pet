@@ -11,7 +11,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '[N] -> { S_0[i] : i >= 0 and i <= -1 + N and i <= -11 + 2N }'
+  domain: '[N] -> { S_0[i] : i <= -11 + 2N and i >= 0 and i <= -1 + N }'
   body:
     type: expression
     expr:

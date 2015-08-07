@@ -7,7 +7,7 @@ schedule: '{ domain: "[N, M] -> { S_4[]; S_2[i, j] : i >= 0 and i <= -1 + N and 
   >= 0 and j <= -1 + M; S_3[i] : i >= 0 and i <= -1 + N; S_0[]; S_1[i] : i >= 0 and
   i <= -1 + N; S_5[i] : i >= 0 and i <= -1 + N }", child: { sequence: [ { filter:
   "[N, M] -> { S_0[] }" }, { filter: "[N, M] -> { S_2[i, j]; S_3[i]; S_1[i] }", child:
-  { schedule: "[N, M] -> L_0[{ S_1[i] -> [(i)]; S_3[i] -> [(i)]; S_2[i, j] -> [(i)]
+  { schedule: "[N, M] -> L_0[{ S_2[i, j] -> [(i)]; S_3[i] -> [(i)]; S_1[i] -> [(i)]
   }]", child: { sequence: [ { filter: "[N, M] -> { S_1[i] }" }, { filter: "[N, M]
   -> { S_2[i, j] }", child: { schedule: "[N, M] -> L_1[{ S_2[i, j] -> [(j)] }]" }
   }, { filter: "[N, M] -> { S_3[i] }" } ] } } }, { filter: "[N, M] -> { S_4[] }" },
@@ -15,8 +15,8 @@ schedule: '{ domain: "[N, M] -> { S_4[]; S_2[i, j] : i >= 0 and i <= -1 + N and 
   }]" } } ] } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[M, N] -> { A[i0, i1] : i1 <= 9 and i1 >= 0 and i0 >= 0 and i0 <= -1 +
-    N }'
+  extent: '[M, N] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 <= 9 and i1 >=
+    0 }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
@@ -178,8 +178,8 @@ statements:
           name: f
           arguments:
           - type: access
-            may_read: '[M, N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 >= -i and
-              i1 <= -1 + N - i }'
+            may_read: '[M, N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 <= -1 +
+              N - i and i1 >= -i }'
             index: '[M, N] -> { [S_5[i] -> [i1]] -> A[((i + i1) : i1 >= -i)] }'
             depth: 2
             reference: __pet_ref_13

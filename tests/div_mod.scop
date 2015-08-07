@@ -3,7 +3,7 @@ end: 232
 indent: "\t"
 context: '{  :  }'
 schedule: '{ domain: "{ S_3[-1]; S_2[1]; S_0[-2]; S_1[2] }", child: { schedule: "L_0[{
-  S_2[i] -> [(i)]; S_1[i] -> [(i)]; S_3[i] -> [(i)]; S_0[i] -> [(i)] }]", child: {
+  S_2[i] -> [(i)]; S_3[i] -> [(i)]; S_0[i] -> [(i)]; S_1[i] -> [(i)] }]", child: {
   sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" }, { filter: "{ S_2[i]
   }" }, { filter: "{ S_3[i] }" } ] } } }'
 arrays:

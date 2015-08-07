@@ -39,9 +39,9 @@ statements:
         operation: '&'
         arguments:
         - type: access
-          may_read: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
-          may_write: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
-          must_write: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
+          may_read: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
+          may_write: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
+          must_write: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
           index: '[n] -> { S_1[i] -> A[(i)] }'
           reference: __pet_ref_1
           read: 1

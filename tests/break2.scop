@@ -4,8 +4,8 @@ indent: "\t"
 context: '{  :  }'
 schedule: '{ domain: "{ S_0[i, j] : (i <= 9 and i >= 0 and j <= 99 and j >= 0) or
   (i <= 99 and i >= 10 and j >= 0 and j <= i); S_1[i, j] : i <= 99 and i >= 10 and
-  j <= 99 and j >= 0 and j <= -1 + i }", child: { schedule: "L_0[{ S_1[i, j] -> [(i)];
-  S_0[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_1[i, j] -> [(j)]; S_0[i, j]
+  j <= 99 and j >= 0 and j <= -1 + i }", child: { schedule: "L_0[{ S_0[i, j] -> [(i)];
+  S_1[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)]; S_1[i, j]
   -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j] }" }, { filter: "{ S_1[i,
   j] }" } ] } } } }'
 arrays:

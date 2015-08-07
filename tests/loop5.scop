@@ -13,7 +13,7 @@ arrays:
   element_size: 4
 statements:
 - line: 7
-  domain: '[n, m] -> { S_0[i] : i <= m and i >= n }'
+  domain: '[n, m] -> { S_0[i] : i >= n and i <= m }'
   body:
     type: expression
     expr:

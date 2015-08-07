@@ -5,7 +5,7 @@ context: '{  :  }'
 schedule: '{ domain: "{ S_0[]; S_3[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9;
   S_2[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9; S_1[i] : i >= 0 and i <= 9
   }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[i, j]; S_2[i,
-  j]; S_1[i] }", child: { schedule: "L_0[{ S_1[i] -> [(i)]; S_3[i, j] -> [(i)]; S_2[i,
+  j]; S_1[i] }", child: { schedule: "L_0[{ S_3[i, j] -> [(i)]; S_1[i] -> [(i)]; S_2[i,
   j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_1[i] }" }, { filter: "{ S_3[i,
   j]; S_2[i, j] }", child: { schedule: "L_1[{ S_3[i, j] -> [(j)]; S_2[i, j] -> [(j)]
   }]", child: { sequence: [ { filter: "{ S_2[i, j] }" }, { filter: "{ S_3[i, j] }"

@@ -19,7 +19,7 @@ arrays:
   element_size: 4
 statements:
 - line: 12
-  domain: '[n, m] -> { S_0[i] : i >= 0 and i <= -1 + m and i <= 9 }'
+  domain: '[n, m] -> { S_0[i] : i <= 9 and i >= 0 and i <= -1 + m }'
   body:
     type: expression
     expr:
@@ -37,7 +37,7 @@ statements:
         read: 1
         write: 0
 - line: 15
-  domain: '[n, m] -> { S_1[j] : j >= 0 and j <= -1 + n and j <= 9 }'
+  domain: '[n, m] -> { S_1[j] : j <= 9 and j >= 0 and j <= -1 + n }'
   body:
     type: expression
     expr:

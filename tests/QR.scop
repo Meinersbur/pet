@@ -12,8 +12,8 @@ schedule: '{ domain: "[N, K] -> { S_2[k, j] : k >= 0 and k <= -1 + K and j >= 0 
   "[N] -> L_1[{ S_0[j, i] -> [(i)] }]" } } }, { filter: "[N, K] -> { S_1[k, j] }",
   child: { schedule: "[K, N] -> L_2[{ S_1[k, j] -> [(k)] }]", child: { schedule: "[K,
   N] -> L_3[{ S_1[k, j] -> [(j)] }]" } } }, { filter: "[N, K] -> { S_2[k, j]; S_3[k,
-  j, i] }", child: { schedule: "[K, N] -> L_4[{ S_3[k, j, i] -> [(k)]; S_2[k, j] ->
-  [(k)] }]", child: { schedule: "[K, N] -> L_5[{ S_3[k, j, i] -> [(j)]; S_2[k, j]
+  j, i] }", child: { schedule: "[K, N] -> L_4[{ S_2[k, j] -> [(k)]; S_3[k, j, i] ->
+  [(k)] }]", child: { schedule: "[K, N] -> L_5[{ S_2[k, j] -> [(j)]; S_3[k, j, i]
   -> [(j)] }]", child: { sequence: [ { filter: "[K, N] -> { S_2[k, j] }" }, { filter:
   "[K, N] -> { S_3[k, j, i] }", child: { schedule: "[K, N] -> L_6[{ S_3[k, j, i] ->
   [(i)] }]" } } ] } } } }, { filter: "[N, K] -> { S_4[j, i] }", child: { schedule:
@@ -21,7 +21,7 @@ schedule: '{ domain: "[N, K] -> { S_2[k, j] : k >= 0 and k <= -1 + K and j >= 0 
   -> [(i)] }]" } } } ] } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N, K] -> { R[i0, i1] : i1 >= 0 and i1 <= -1 + N and i0 >= 0 and i0 <=
+  extent: '[N, K] -> { R[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
     -1 + N }'
   element_type: int
   element_size: 4
@@ -36,7 +36,7 @@ arrays:
   element_size: 4
 statements:
 - line: 19
-  domain: '[N, K] -> { S_0[j, i] : i >= j and i <= -1 + N and j >= 0 }'
+  domain: '[N, K] -> { S_0[j, i] : j >= 0 and i >= j and i <= -1 + N }'
   body:
     type: expression
     expr:
@@ -119,8 +119,8 @@ statements:
           read: 1
           write: 1
 - line: 29
-  domain: '[N, K] -> { S_3[k, j, i] : k <= -1 + K and i <= -1 + N and j >= 0 and i
-    >= 1 + j and k >= 0 }'
+  domain: '[N, K] -> { S_3[k, j, i] : k >= 0 and k <= -1 + K and i <= -1 + N and j
+    >= 0 and i >= 1 + j }'
   body:
     type: expression
     expr:
@@ -176,7 +176,7 @@ statements:
           read: 1
           write: 1
 - line: 34
-  domain: '[N, K] -> { S_4[j, i] : i >= j and i <= -1 + N and j >= 0 }'
+  domain: '[N, K] -> { S_4[j, i] : j >= 0 and i >= j and i <= -1 + N }'
   body:
     type: expression
     expr:

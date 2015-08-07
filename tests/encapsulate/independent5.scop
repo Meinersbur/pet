@@ -4,7 +4,7 @@ indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 schedule: '{ domain: "[n] -> { S_7[i] : i >= 0 and i <= -1 + n; S_6[i] : i >= 0 and
   i <= -1 + n; S_8[i] : i >= 0 and i <= -1 + n }", child: { schedule: "[n] -> L_0[{
-  S_7[i] -> [(i)]; S_8[i] -> [(i)]; S_6[i] -> [(i)] }]", child: { sequence: [ { filter:
+  S_7[i] -> [(i)]; S_6[i] -> [(i)]; S_8[i] -> [(i)] }]", child: { sequence: [ { filter:
   "[n] -> { S_7[i] }" }, { filter: "[n] -> { S_6[i] }" }, { filter: "[n] -> { S_8[i]
   }" } ] } } }'
 arrays:
