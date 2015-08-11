@@ -497,7 +497,7 @@ struct PragmaLiveOutHandler : public PragmaHandler {
 };
 
 /* For each array in "scop", set its value_bounds property
- * based on the infofrmation in "value_bounds" and
+ * based on the information in "value_bounds" and
  * mark it as live_out if it appears in "live_out".
  */
 static void update_arrays(struct pet_scop *scop,
