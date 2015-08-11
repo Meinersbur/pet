@@ -58,6 +58,7 @@
 #include "context.h"
 #include "expr.h"
 #include "id.h"
+#include "inliner.h"
 #include "nest.h"
 #include "options.h"
 #include "scan.h"
@@ -298,6 +299,17 @@ void PetScan::report_missing_summary_function_body(Stmt *stmt)
 	DiagnosticsEngine &diag = PP.getDiagnostics();
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
 					   "missing summary function body");
+	report(stmt, id);
+}
+
+/* Report an unsupported argument in a call to an inlined function,
+ * unless autodetect is set.
+ */
+void PetScan::report_unsupported_inline_function_argument(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+				   "unsupported inline function call argument");
 	report(stmt, id);
 }
 
@@ -1766,12 +1778,148 @@ __isl_give pet_tree *PetScan::update_loc(__isl_take pet_tree *tree, Stmt *stmt)
 	return tree;
 }
 
+/* Is "expr" of a type that can be converted to an access expression?
+ */
+static bool is_access_expr_type(Expr *expr)
+{
+	switch (expr->getStmtClass()) {
+	case Stmt::ArraySubscriptExprClass:
+	case Stmt::DeclRefExprClass:
+	case Stmt::MemberExprClass:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/* Tell the pet_inliner "inliner" about the formal arguments
+ * in "fd" and the corresponding actual arguments in "call".
+ * Return 0 if this was successful and -1 otherwise.
+ *
+ * Any pointer argument is treated as an array.
+ * The other arguments are treated as scalars.
+ *
+ * In case of scalars, there is no restriction on the actual argument.
+ * This actual argument is assigned to a variable with a name
+ * that is derived from the name of the corresponding formal argument,
+ * but made not to conflict with any variable names that are
+ * already in use.
+ *
+ * In case of arrays, the actual argument needs to be an expression
+ * of a type that can be converted to an access expression or the address
+ * of such an expression, ignoring implicit and redundant casts.
+ */
+int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
+	FunctionDecl *fd)
+{
+	unsigned n;
+
+	n = fd->getNumParams();
+	for (int i = 0; i < n; ++i) {
+		ParmVarDecl *parm = fd->getParamDecl(i);
+		QualType type = parm->getType();
+		Expr *arg, *sub;
+		pet_expr *expr;
+		int is_addr = 0;
+
+		arg = call->getArg(i);
+		if (array_depth(type.getTypePtr()) == 0) {
+			string name = parm->getName().str();
+			if (name_in_use(name, NULL))
+				name = generate_new_name(name);
+			inliner.add_scalar_arg(parm, name, extract_expr(arg));
+			continue;
+		}
+		arg = pet_clang_strip_casts(arg);
+		sub = extract_addr_of_arg(arg);
+		if (sub) {
+			is_addr = 1;
+			arg = pet_clang_strip_casts(sub);
+		}
+		if (!is_access_expr_type(arg)) {
+			report_unsupported_inline_function_argument(arg);
+			return -1;
+		}
+		expr = extract_access_expr(arg);
+		if (!expr)
+			return -1;
+		inliner.add_array_arg(parm, expr, is_addr);
+	}
+
+	return 0;
+}
+
+/* Try and construct a pet_tree from the body of "fd" using the actual
+ * arguments in "call" in place of the formal arguments.
+ * "fd" is assumed to point to the declaration with a function body.
+ * In particular, construct a block that consists of assignments
+ * of (parts of) the actual arguments to temporary variables
+ * followed by the inlined function body with the formal arguments
+ * replaced by (expressions containing) these temporary variables.
+ *
+ * The actual inlining is taken care of by the pet_inliner function.
+ * This function merely calls set_inliner_arguments to tell
+ * the pet_inliner about the actual arguments, extracts a pet_tree
+ * from the body of the called function and then passes this pet_tree
+ * to the pet_inliner.
+ *
+ * During the extraction of the function body, all variables names
+ * that are declared in the calling function as well all variable
+ * names that are known to be in use are considered to be in use
+ * in the called function to ensure that there is no naming conflict.
+ * Similarly, the additional names that are in use in the called function
+ * are considered to be in use in the calling function as well.
+ *
+ * The location of the pet_tree is reset to the call site to ensure
+ * that the extent of the scop does not include the body of the called
+ * function.
+ */
+__isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
+	FunctionDecl *fd)
+{
+	int save_autodetect;
+	pet_tree *tree;
+	pet_loc *tree_loc;
+	pet_inliner inliner(ctx, n_arg, ast_context);
+
+	if (set_inliner_arguments(inliner, call, fd) < 0)
+		return NULL;
+
+	save_autodetect = options->autodetect;
+	options->autodetect = 0;
+	PetScan body_scan(PP, ast_context, fd, loc, options,
+				isl_union_map_copy(value_bounds), independent);
+	collect_declared_names();
+	body_scan.add_new_used_names(declared_names);
+	body_scan.add_new_used_names(used_names);
+	tree = body_scan.extract(fd->getBody(), false);
+	add_new_used_names(body_scan.used_names);
+	options->autodetect = save_autodetect;
+
+	tree_loc = construct_pet_loc(call->getSourceRange(), true);
+	tree = pet_tree_set_loc(tree, tree_loc);
+
+	return inliner.inline_tree(tree);
+}
+
 /* Try and construct a pet_tree corresponding
  * to the expression statement "stmt".
+ *
+ * If the outer expression is a function call and if the corresponding
+ * function body is marked "inline", then return a pet_tree
+ * corresponding to the inlined function.
  */
 __isl_give pet_tree *PetScan::extract_expr_stmt(Stmt *stmt)
 {
 	pet_expr *expr;
+
+	if (stmt->getStmtClass() == Stmt::CallExprClass) {
+		CallExpr *call = cast<CallExpr>(stmt);
+		FunctionDecl *fd = call->getDirectCallee();
+		fd = pet_clang_find_function_decl_with_body(fd);
+		if (fd && fd->isInlineSpecified())
+			return extract_inlined_call(call, fd);
+	}
 
 	expr = extract_expr(cast<Expr>(stmt));
 	return extract(expr, stmt->getSourceRange(), true);

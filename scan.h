@@ -10,6 +10,7 @@
 #include <isl/val.h>
 
 #include "context.h"
+#include "inliner.h"
 #include "loc.h"
 #include "scop.h"
 #include "summary.h"
@@ -117,6 +118,9 @@ struct PetScan {
 	/* A set of names known to be in use. */
 	std::set<std::string> used_names;
 
+	/* Sequence number of the next temporary inlined argument variable. */
+	int n_arg;
+
 	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
 		clang::DeclContext *decl_context, ScopLoc &loc,
 		pet_options *options, __isl_take isl_union_map *value_bounds,
@@ -126,7 +130,7 @@ struct PetScan {
 		options(options), value_bounds(value_bounds),
 		partial(false), last_line(0), current_line(0),
 		independent(independent), n_rename(0),
-		declared_names_collected(false) { }
+		declared_names_collected(false), n_arg(0) { }
 
 	~PetScan();
 
@@ -201,6 +205,10 @@ private:
 				clang::ValueDecl *iv);
 	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
 	__isl_give pet_tree *extract_expr_stmt(clang::Stmt *stmt);
+	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
+		clang::FunctionDecl *fd);
+	int set_inliner_arguments(pet_inliner &inliner, clang::CallExpr *call,
+		clang::FunctionDecl *fd);
 
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
 	__isl_give pet_function_summary *get_summary(clang::FunctionDecl *fd);
@@ -249,4 +257,5 @@ private:
 	void report_missing_increment(clang::Stmt *stmt);
 	void report_missing_summary_function(clang::Stmt *stmt);
 	void report_missing_summary_function_body(clang::Stmt *stmt);
+	void report_unsupported_inline_function_argument(clang::Stmt *stmt);
 };
