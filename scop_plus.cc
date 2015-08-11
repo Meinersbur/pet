@@ -43,7 +43,7 @@
 using namespace std;
 using namespace clang;
 
-/* And the sequence of nested arrays of structures "ancestors"
+/* Add the sequence of nested arrays of structures "ancestors"
  * to "arrays".  The final element in the sequence may be a leaf
  * and may therefore refer to a primitive type rather than a record type.
  *
