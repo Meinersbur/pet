@@ -2467,7 +2467,7 @@ struct pet_array *PetScan::extract_array(ValueDecl *decl,
 
 	array->element_type = strdup(name.c_str());
 	array->element_is_record = base->isRecordType();
-	array->element_size = size_in_bytes(decl->getASTContext(), base);
+	array->element_size = size_in_bytes(ast_context, base);
 
 	return array;
 }
