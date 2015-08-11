@@ -529,16 +529,12 @@ __isl_give pet_expr *PetScan::extract_index_expr(DeclRefExpr *expr)
 __isl_give pet_expr *PetScan::extract_index_expr(ValueDecl *decl)
 {
 	isl_id *id;
-	isl_space *space;
 
 	if (isa<EnumConstantDecl>(decl))
 		return extract_expr(cast<EnumConstantDecl>(decl));
 
 	id = pet_id_from_decl(ctx, decl);
-	space = isl_space_alloc(ctx, 0, 0, 0);
-	space = isl_space_set_tuple_id(space, isl_dim_out, id);
-
-	return pet_expr_from_index(isl_multi_pw_aff_zero(space));
+	return pet_id_create_index_expr(id);
 }
 
 /* Construct a pet_expr representing the index expression "expr"

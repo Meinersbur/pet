@@ -58,3 +58,19 @@ ValueDecl *pet_id_get_decl(__isl_keep isl_id *id)
 {
 	return (ValueDecl *) isl_id_get_user(id);
 }
+
+/* Construct a pet_expr representing an index expression for an access
+ * to the variable represented by "id".
+ */
+__isl_give pet_expr *pet_id_create_index_expr(__isl_take isl_id *id)
+{
+	isl_space *space;
+
+	if (!id)
+		return NULL;
+
+	space = isl_space_alloc(isl_id_get_ctx(id), 0, 0, 0);
+	space = isl_space_set_tuple_id(space, isl_dim_out, id);
+
+	return pet_expr_from_index(isl_multi_pw_aff_zero(space));
+}
