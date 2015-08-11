@@ -116,7 +116,7 @@ struct PetScan {
 	static __isl_give isl_val *extract_int(isl_ctx *ctx,
 		clang::IntegerLiteral *expr);
 	__isl_give pet_expr *get_array_size(const clang::Type *type);
-	struct pet_array *extract_array(clang::ValueDecl *decl,
+	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
@@ -126,6 +126,8 @@ private:
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop,
 		__isl_keep pet_context *pc);
+	struct pet_array *extract_array(clang::ValueDecl *decl,
+		PetTypes *types, __isl_keep pet_context *pc);
 	struct pet_array *extract_array(isl_ctx *ctx,
 		std::vector<clang::ValueDecl *> decls,
 		PetTypes *types, __isl_keep pet_context *pc);

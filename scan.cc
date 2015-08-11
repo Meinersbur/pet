@@ -1920,13 +1920,14 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	PetScan *ps = (PetScan *) user;
 	isl_ctx *ctx;
 	isl_id *id;
-	ValueDecl *iv;
+	pet_array *array;
 
 	ctx = pet_expr_get_ctx(access);
 	id = pet_expr_access_get_id(access);
-	iv = pet_id_get_decl(id);
+	array = ps->extract_array(id, NULL, pc);
 	isl_id_free(id);
-	return ps->extract_array(iv, NULL, pc);
+
+	return array;
 }
 
 /* Extract a function summary from the body of "fd".
@@ -2401,7 +2402,8 @@ static bool has_printable_definition(RecordDecl *decl)
 	return decl->getLexicalDeclContext() == decl->getDeclContext();
 }
 
-/* Construct and return a pet_array corresponding to the variable "decl".
+/* Construct and return a pet_array corresponding to the variable
+ * represented by "id".
  * In particular, initialize array->extent to
  *
  *	{ name[i_1,...,i_d] : i_1,...,i_d >= 0 }
@@ -2418,25 +2420,23 @@ static bool has_printable_definition(RecordDecl *decl)
  * If the base type is that of a record with no top-level definition,
  * then we replace it by "<subfield>".
  */
-struct pet_array *PetScan::extract_array(ValueDecl *decl,
+struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
-	QualType qt = get_array_type(decl);
+	QualType qt = get_array_type(pet_id_get_decl(id));
 	const Type *type = qt.getTypePtr();
 	int depth = array_depth(type);
 	QualType base = pet_clang_base_type(qt);
 	string name;
-	isl_id *id;
 	isl_space *space;
 
 	array = isl_calloc_type(ctx, struct pet_array);
 	if (!array)
 		return NULL;
 
-	id = pet_id_from_decl(ctx, decl);
 	space = isl_space_set_alloc(ctx, 0, depth);
-	space = isl_space_set_tuple_id(space, isl_dim_set, id);
+	space = isl_space_set_tuple_id(space, isl_dim_set, isl_id_copy(id));
 
 	array->extent = isl_set_nat_universe(space);
 
@@ -2468,6 +2468,21 @@ struct pet_array *PetScan::extract_array(ValueDecl *decl,
 	array->element_type = strdup(name.c_str());
 	array->element_is_record = base->isRecordType();
 	array->element_size = size_in_bytes(ast_context, base);
+
+	return array;
+}
+
+/* Construct and return a pet_array corresponding to the variable "decl".
+ */
+struct pet_array *PetScan::extract_array(ValueDecl *decl,
+	PetTypes *types, __isl_keep pet_context *pc)
+{
+	isl_id *id;
+	pet_array *array;
+
+	id = pet_id_from_decl(ctx, decl);
+	array = extract_array(id, types, pc);
+	isl_id_free(id);
 
 	return array;
 }
