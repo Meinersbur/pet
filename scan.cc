@@ -1766,6 +1766,17 @@ __isl_give pet_tree *PetScan::update_loc(__isl_take pet_tree *tree, Stmt *stmt)
 	return tree;
 }
 
+/* Try and construct a pet_tree corresponding
+ * to the expression statement "stmt".
+ */
+__isl_give pet_tree *PetScan::extract_expr_stmt(Stmt *stmt)
+{
+	pet_expr *expr;
+
+	expr = extract_expr(cast<Expr>(stmt));
+	return extract(expr, stmt->getSourceRange(), true);
+}
+
 /* Try and construct a pet_tree corresponding to "stmt".
  *
  * If "stmt" is a compound statement, then "skip_declarations"
@@ -1789,8 +1800,7 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	set_current_stmt(stmt);
 
 	if (isa<Expr>(stmt))
-		return extract(extract_expr(cast<Expr>(stmt)),
-				stmt->getSourceRange(), true);
+		return extract_expr_stmt(cast<Expr>(stmt));
 
 	switch (stmt->getStmtClass()) {
 	case Stmt::WhileStmtClass:

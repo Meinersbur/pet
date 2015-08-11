@@ -200,6 +200,7 @@ private:
 	__isl_give pet_expr *extract_increment(clang::ForStmt *stmt,
 				clang::ValueDecl *iv);
 	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
+	__isl_give pet_tree *extract_expr_stmt(clang::Stmt *stmt);
 
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
 	__isl_give pet_function_summary *get_summary(clang::FunctionDecl *fd);
