@@ -62,3 +62,15 @@ RecordDecl *pet_clang_record_decl(QualType T)
 	record = cast<RecordType>(type);
 	return record->getDecl();
 }
+
+/* Strip off all outer implicit casts from "expr".
+ */
+Expr *pet_clang_strip_casts(Expr *expr)
+{
+	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
+		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
+		expr = ice->getSubExpr();
+	}
+
+	return expr;
+}

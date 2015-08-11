@@ -902,10 +902,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
 
-	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
-		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
-		expr = ice->getSubExpr();
-	}
+	expr = pet_clang_strip_casts(expr);
 	if (expr->getStmtClass() == Stmt::UnaryOperatorClass) {
 		UnaryOperator *op = cast<UnaryOperator>(expr);
 		if (op->getOpcode() == UO_AddrOf) {
