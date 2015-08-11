@@ -51,6 +51,8 @@ libpet_la_SOURCES = \
 	filter.c \
 	id.h \
 	id.cc \
+	inliner.h \
+	inliner.cc \
 	loc.h \
 	loc.c \
 	nest.h \
