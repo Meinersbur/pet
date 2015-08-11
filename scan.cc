@@ -2434,20 +2434,20 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 	QualType base = pet_clang_base_type(qt);
 	string name;
 	isl_id *id;
-	isl_space *dim;
+	isl_space *space;
 
 	array = isl_calloc_type(ctx, struct pet_array);
 	if (!array)
 		return NULL;
 
 	id = create_decl_id(ctx, decl);
-	dim = isl_space_set_alloc(ctx, 0, depth);
-	dim = isl_space_set_tuple_id(dim, isl_dim_set, id);
+	space = isl_space_set_alloc(ctx, 0, depth);
+	space = isl_space_set_tuple_id(space, isl_dim_set, id);
 
-	array->extent = isl_set_nat_universe(dim);
+	array->extent = isl_set_nat_universe(space);
 
-	dim = isl_space_params_alloc(ctx, 0);
-	array->context = isl_set_universe(dim);
+	space = isl_space_params_alloc(ctx, 0);
+	array->context = isl_set_universe(space);
 
 	array = set_upper_bounds(array, type, pc);
 	if (!array)
