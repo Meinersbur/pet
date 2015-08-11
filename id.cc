@@ -31,6 +31,8 @@
  * Leiden University.
  */
 
+#include <string.h>
+
 #include "id.h"
 
 using namespace clang;
@@ -51,11 +53,49 @@ __isl_give isl_id *pet_id_from_name_and_decl(isl_ctx *ctx, const char *name,
 	return isl_id_alloc(ctx, name, decl);
 }
 
+/* Create an isl_id with name "__pet_arg_<n>" and associated type "qt".
+ */
+__isl_give isl_id *pet_id_arg_from_type(isl_ctx *ctx, int n, QualType qt)
+{
+	char name[50];
+	const Type *type = qt.getTypePtr();
+
+	snprintf(name, sizeof(name), "__pet_arg_%d", n);
+	return isl_id_alloc(ctx, name, const_cast<Type *>(type));
+}
+
+/* Compare the prefix of "s" to "prefix" up to the length of "prefix".
+ */
+static int prefixcmp(const char *s, const char *prefix)
+{
+	return strncmp(s, prefix, strlen(prefix));
+}
+
+/* Is "id" an identifier created by pet_id_arg_from_type?
+ */
+static int pet_id_is_arg(__isl_keep isl_id *id)
+{
+	const char *name;
+
+	if (!id)
+		return -1;
+	name = isl_id_get_name(id);
+	if (!name)
+		return 0;
+	return !prefixcmp(name, "__pet_arg");
+}
+
 /* Extract the ValueDecl that was associated to "id"
  * in pet_id_from_decl.
+ *
+ * If "id" was create by pet_id_arg_from_type, then there is no
+ * ValueDecl associated to it, so return NULL instead.
  */
 ValueDecl *pet_id_get_decl(__isl_keep isl_id *id)
 {
+	if (pet_id_is_arg(id))
+		return NULL;
+
 	return (ValueDecl *) isl_id_get_user(id);
 }
 
@@ -93,12 +133,21 @@ static bool is_vla_with_static_size(QualType T)
  * declaration that is a variable length array with a static size, then
  * return the original type (i.e., the variable length array).
  * Otherwise, return the type of decl.
+ *
+ * If "id" was created by pet_id_arg_from_type, then it has
+ * a type associated to it, so return that type instead.
  */
 QualType pet_id_get_array_type(__isl_keep isl_id *id)
 {
 	ValueDecl *decl;
 	ParmVarDecl *parm;
 	QualType T;
+
+	if (pet_id_is_arg(id)) {
+		const Type *type;
+		type = (const Type *) isl_id_get_user(id);
+		return QualType(type, 0);
+	}
 
 	decl = pet_id_get_decl(id);
 
