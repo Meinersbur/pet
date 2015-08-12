@@ -57,6 +57,8 @@ libpet_la_SOURCES = \
 	nest.c \
 	options.h \
 	options.c \
+	patch.h \
+	patch.c \
 	print.c \
 	print.h \
 	tree.h \
