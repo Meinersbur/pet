@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ * Copyright 2015      Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -155,6 +156,22 @@ static __isl_give isl_map *drop_initial_zero(__isl_take isl_map *map,
 	return map;
 }
 
+/* Drop the initial dimension of "mpa", assuming that it is equal to zero.
+ */
+static __isl_give isl_multi_pw_aff *mpa_drop_initial_zero(
+	__isl_take isl_multi_pw_aff *mpa)
+{
+	isl_pw_aff *pa;
+	isl_set *cond;
+
+	pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
+	cond = isl_pw_aff_zero_set(pa);
+	mpa = isl_multi_pw_aff_drop_dims(mpa, isl_dim_out, 0, 1);
+	mpa = isl_multi_pw_aff_intersect_domain(mpa, cond);
+
+	return mpa;
+}
+
 /* Construct an isl_multi_aff of the form
  *
  *	[i_0, ..., i_pos, i_{pos+1}, i_{pos+2}, ...] ->
@@ -199,6 +216,32 @@ static __isl_give isl_map *patch_map_add(__isl_take isl_map *id,
 	space = isl_space_range(isl_map_get_space(map));
 	ma = patch_add(space, pos);
 	id = isl_map_preimage_domain_multi_aff(id, ma);
+
+	return id;
+}
+
+/* Given an identity mapping "id" that adds structure to
+ * the range of "mpa" with dimensions "pos" and "pos + 1" replaced
+ * by their sum, adjust "id" to apply to the range of "mpa" directly.
+ * That is, plug in
+ *
+ *	[i_0, ..., i_pos, i_{pos+1}, i_{pos+2}, ...] ->
+ *		[i_0, ..., i_pos + i_{pos+1}, i_{pos+2}, ...]
+ *
+ * in "id", where the domain of this mapping corresponds to the range
+ * of "mpa" and the range of this mapping corresponds to the original
+ * domain of "id".
+ */
+static __isl_give isl_multi_pw_aff *patch_mpa_add(
+	__isl_take isl_multi_pw_aff *id, __isl_keep isl_multi_pw_aff *mpa,
+	int pos)
+{
+	isl_space *space;
+	isl_multi_aff *ma;
+
+	space = isl_space_range(isl_multi_pw_aff_get_space(mpa));
+	ma = patch_add(space, pos);
+	id = isl_multi_pw_aff_pullback_multi_aff(id, ma);
 
 	return id;
 }
@@ -286,6 +329,54 @@ static isl_stat patch_map(__isl_take isl_map *map, void *user)
 	data->res = isl_union_map_add_map(data->res, map);
 
 	return isl_stat_ok;
+}
+
+/* Combine the index expression "prefix" with the index expression "mpa".
+ * If add is set, then it is not the index expression "prefix" itself
+ * that is passed to the function, but its address.
+ *
+ * If add is not set, then we essentially need to concatenate
+ * "prefix" with "mpa", except that we need to make sure that
+ * the target space is set correctly.  This target space is computed
+ * by the function patch_space.  We then simply compute the flat
+ * range product and subsequently reset the target space.
+ *
+ * If add is set then the outer dimension of "mpa" is an offset
+ * with respect to the inner dimension of "prefix" and we therefore
+ * need to add these two dimensions rather than simply concatenating them.
+ * This computation is performed in patch_mpa_add.
+ * If however, the innermost accessed array of "prefix" is
+ * zero-dimensional, then there is no innermost dimension of "prefix"
+ * to add to the outermost dimension of "mpa",  Instead, we are passing
+ * a pointer to a scalar member, meaning that the outermost dimension
+ * of "mpa" needs to be zero and that this zero needs to be removed
+ * from the concatenation.  This computation is performed in
+ * mpa_drop_initial_zero.
+ */
+__isl_give isl_multi_pw_aff *pet_patch_multi_pw_aff(
+	__isl_take isl_multi_pw_aff *prefix, __isl_take isl_multi_pw_aff *mpa,
+	int add)
+{
+	isl_space *space;
+	int pos, dim;
+	isl_multi_pw_aff *id;
+
+	space = isl_space_range(isl_multi_pw_aff_get_space(prefix));
+	dim = innermost_dim(space);
+	pos = isl_space_dim(space, isl_dim_set) - dim;
+	space = patch_space(space,
+			isl_space_range(isl_multi_pw_aff_get_space(mpa)), add);
+	if (add && dim == 0)
+		mpa = mpa_drop_initial_zero(mpa);
+	mpa = isl_multi_pw_aff_flat_range_product(prefix, mpa);
+	space = isl_space_map_from_set(space);
+	space = isl_space_add_dims(space, isl_dim_in, 0);
+	id = isl_multi_pw_aff_identity(space);
+	if (add && dim != 0)
+		id = patch_mpa_add(id, mpa, pos + dim - 1);
+	mpa = isl_multi_pw_aff_pullback_multi_pw_aff(id, mpa);
+
+	return mpa;
 }
 
 /* Combine the index expression "prefix" with the subaccess relation "umap".
