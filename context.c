@@ -772,7 +772,7 @@ static __isl_give isl_map *patch_map_add(__isl_take isl_map *id,
 }
 
 /* Return the dimension of the innermost array in the data space "space".
- * If "space" is not a wrapping space, the it does not involve any
+ * If "space" is not a wrapping space, then it does not involve any
  * member accesses and the innermost array is simply the accessed
  * array itself.
  * Otherwise, the innermost array is encoded in the range of the
