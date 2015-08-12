@@ -228,6 +228,9 @@ __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
 	__isl_take isl_space *space);
 
+__isl_give pet_expr *pet_expr_access_patch(__isl_take pet_expr *expr,
+	__isl_take isl_multi_pw_aff *prefix, int add);
+
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 
 #if defined(__cplusplus)

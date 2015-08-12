@@ -44,6 +44,7 @@
 #include "nest.h"
 #include "options.h"
 #include "value_bounds.h"
+#include "patch.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
 
@@ -3435,6 +3436,43 @@ __isl_give pet_expr *pet_expr_access_member(__isl_take pet_expr *expr,
 error:
 	pet_expr_free(expr);
 	isl_id_free(id);
+	return NULL;
+}
+
+/* Prefix the access expression "expr" with "prefix".
+ * If "add" is set, then it is not the index expression "prefix" itself
+ * that was passed to the function, but its address.
+ */
+__isl_give pet_expr *pet_expr_access_patch(__isl_take pet_expr *expr,
+	__isl_take isl_multi_pw_aff *prefix, int add)
+{
+	enum pet_expr_access_type type;
+
+	expr = pet_expr_cow(expr);
+	if (!expr || !prefix)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", goto error);
+
+	expr->acc.depth += isl_multi_pw_aff_dim(prefix, isl_dim_out) - add;
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] = pet_patch_union_map(
+			isl_multi_pw_aff_copy(prefix), expr->acc.access[type],
+			add, 0);
+		if (!expr->acc.access[type])
+			break;
+	}
+	expr->acc.index = pet_patch_multi_pw_aff(prefix, expr->acc.index, add);
+	if (!expr->acc.index || type < pet_expr_access_end)
+		return pet_expr_free(expr);
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	isl_multi_pw_aff_free(prefix);
 	return NULL;
 }
 
