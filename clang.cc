@@ -63,13 +63,16 @@ RecordDecl *pet_clang_record_decl(QualType T)
 	return record->getDecl();
 }
 
-/* Strip off all outer implicit casts from "expr".
+/* Strip off all outer casts from "expr" that are either implicit or a no-op.
  */
 Expr *pet_clang_strip_casts(Expr *expr)
 {
-	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
-		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
-		expr = ice->getSubExpr();
+	while (isa<CastExpr>(expr)) {
+		CastExpr *ce = cast<CastExpr>(expr);
+		CastKind kind = ce->getCastKind();
+		if (!isa<ImplicitCastExpr>(expr) && kind != CK_NoOp)
+			break;
+		expr = ce->getSubExpr();
 	}
 
 	return expr;
