@@ -635,7 +635,7 @@ static __isl_give isl_union_map *patch(__isl_take isl_union_map *access,
 	isl_multi_pw_aff *prefix;
 
 	prefix = pet_expr_access_get_index(expr);
-	return pet_patch_union_map(prefix, access, add);
+	return pet_patch_union_map(prefix, access, add, 1);
 }
 
 /* Set the access relations of "expr", which appears in the argument

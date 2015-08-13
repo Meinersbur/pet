@@ -132,17 +132,18 @@ error:
 
 /* Drop the initial dimension of "map", assuming that it is equal to zero.
  * If it turns out not to be equal to zero, then drop the initial dimension
- * of "map" after setting the value to zero and print a warning.
+ * of "map" after setting the value to zero and print a warning (if "warn"
+ * is set).
  */
 static __isl_give isl_map *drop_initial_zero(__isl_take isl_map *map,
-	__isl_keep isl_map *prefix)
+	__isl_keep isl_map *prefix, int warn)
 {
 	isl_map *zeroed;
 
 	zeroed = isl_map_copy(map);
 	zeroed = isl_map_fix_si(zeroed, isl_dim_out, 0, 0);
 	map = isl_map_subtract(map, isl_map_copy(zeroed));
-	if (!isl_map_is_empty(map)) {
+	if (warn && !isl_map_is_empty(map)) {
 		fprintf(stderr, "possible out-of-bounds accesses\n");
 		isl_map_dump(map);
 		fprintf(stderr, "when passing\n");
@@ -211,11 +212,14 @@ static int innermost_dim(__isl_keep isl_space *space)
  *
  * "prefix" is the index expression passed to the function
  * "add" is set if it is the address of "prefix" that is passed to the function.
+ * "warn" is set if a warning should be printed when an initial index
+ * expression is not (obviously) zero when it should be.
  * "res" collects the results.
  */
 struct pet_patch_map_data {
 	isl_map *prefix;
 	int add;
+	int warn;
 
 	isl_union_map *res;
 };
@@ -254,7 +258,7 @@ static isl_stat patch_map(__isl_take isl_map *map, void *user)
 	space = patch_space(space, isl_space_range(isl_map_get_space(map)),
 				data->add);
 	if (data->add && dim == 0)
-		map = drop_initial_zero(map, data->prefix);
+		map = drop_initial_zero(map, data->prefix, data->warn);
 	map = isl_map_flat_range_product(isl_map_copy(data->prefix), map);
 	space = isl_space_map_from_set(space);
 	space = isl_space_add_dims(space, isl_dim_in, 0);
@@ -270,12 +274,14 @@ static isl_stat patch_map(__isl_take isl_map *map, void *user)
 /* Combine the index expression "prefix" with the subaccess relation "umap".
  * If "add" is set, then it is not the index expression "prefix" itself
  * that was passed to the function, but its address.
+ * If "warn" is set, then a warning is printed when an initial index
+ * expression is not (obviously) zero when it should be.
  *
  * We call patch_map on each map in "umap" and return the combined results.
  */
 __isl_give isl_union_map *pet_patch_union_map(
 	__isl_take isl_multi_pw_aff *prefix, __isl_take isl_union_map *umap,
-	int add)
+	int add, int warn)
 {
 	struct pet_patch_map_data data;
 	isl_map *map;
@@ -285,6 +291,7 @@ __isl_give isl_union_map *pet_patch_union_map(
 	umap = isl_union_map_align_params(umap, isl_map_get_space(map));
 	data.prefix = map;
 	data.add = add;
+	data.warn = warn;
 	data.res = isl_union_map_empty(isl_union_map_get_space(umap));
 	if (isl_union_map_foreach_map(umap, &patch_map, &data) < 0)
 		data.res = isl_union_map_free(data.res);

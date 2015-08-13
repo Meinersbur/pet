@@ -6,6 +6,6 @@
 
 __isl_give isl_union_map *pet_patch_union_map(
 	__isl_take isl_multi_pw_aff *prefix, __isl_take isl_union_map *umap,
-	int add);
+	int add, int warn);
 
 #endif
