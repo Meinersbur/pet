@@ -155,6 +155,29 @@ static __isl_give isl_map *drop_initial_zero(__isl_take isl_map *map,
 	return map;
 }
 
+/* Construct an isl_multi_aff of the form
+ *
+ *	[i_0, ..., i_pos, i_{pos+1}, i_{pos+2}, ...] ->
+ *		[i_0, ..., i_pos + i_{pos+1}, i_{pos+2}, ...]
+ *
+ * "space" prescribes the domain of this function.
+ */
+static __isl_give isl_multi_aff *patch_add(__isl_take isl_space *space,
+	int pos)
+{
+	isl_multi_aff *ma;
+	isl_aff *aff1, *aff2;
+
+	ma = isl_multi_aff_identity(isl_space_map_from_set(space));
+	aff1 = isl_multi_aff_get_aff(ma, pos);
+	aff2 = isl_multi_aff_get_aff(ma, pos + 1);
+	aff1 = isl_aff_add(aff1, aff2);
+	ma = isl_multi_aff_set_aff(ma, pos, aff1);
+	ma = isl_multi_aff_drop_dims(ma, isl_dim_out, pos + 1, 1);
+
+	return ma;
+}
+
 /* Given an identity mapping "id" that adds structure to
  * the range of "map" with dimensions "pos" and "pos + 1" replaced
  * by their sum, adjust "id" to apply to the range of "map" directly.
@@ -172,15 +195,9 @@ static __isl_give isl_map *patch_map_add(__isl_take isl_map *id,
 {
 	isl_space *space;
 	isl_multi_aff *ma;
-	isl_aff *aff1, *aff2;
 
 	space = isl_space_range(isl_map_get_space(map));
-	ma = isl_multi_aff_identity(isl_space_map_from_set(space));
-	aff1 = isl_multi_aff_get_aff(ma, pos);
-	aff2 = isl_multi_aff_get_aff(ma, pos + 1);
-	aff1 = isl_aff_add(aff1, aff2);
-	ma = isl_multi_aff_set_aff(ma, pos, aff1);
-	ma = isl_multi_aff_drop_dims(ma, isl_dim_out, pos + 1, 1);
+	ma = patch_add(space, pos);
 	id = isl_map_preimage_domain_multi_aff(id, ma);
 
 	return id;
