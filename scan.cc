@@ -245,6 +245,16 @@ void PetScan::unsupported(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report an unsupported unary operator, unless autodetect is set.
+ */
+void PetScan::report_unsupported_unary_operator(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+			       "this type of unary operator is not supported");
+	report(stmt, id);
+}
+
 /* Report an unsupported statement type, unless autodetect is set.
  */
 void PetScan::report_unsupported_statement_type(Stmt *stmt)
@@ -671,7 +681,7 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 
 	op = UnaryOperatorKind2pet_op_type(expr->getOpcode());
 	if (op == pet_op_last) {
-		unsupported(expr);
+		report_unsupported_unary_operator(expr);
 		return NULL;
 	}
 
