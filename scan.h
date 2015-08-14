@@ -102,6 +102,11 @@ struct PetScan {
 	/* Information about the independent pragmas in the source code. */
 	std::vector<Independent> &independent;
 
+	/* All variables that have already been declared
+	 * in the current compound statement.
+	 */
+	std::vector<clang::VarDecl *> declarations;
+
 	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
 		clang::DeclContext *decl_context, ScopLoc &loc,
 		pet_options *options, __isl_take isl_union_map *value_bounds,

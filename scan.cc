@@ -723,7 +723,9 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
 }
 
-/* Construct a pet_tree for a variable declaration.
+/* Construct a pet_tree for a variable declaration and
+ * add the declaration to the list of declarations
+ * inside the current compound statement.
  */
 __isl_give pet_tree *PetScan::extract(Decl *decl)
 {
@@ -732,6 +734,7 @@ __isl_give pet_tree *PetScan::extract(Decl *decl)
 	pet_tree *tree;
 
 	vd = cast<VarDecl>(decl);
+	declarations.push_back(vd);
 
 	lhs = extract_access_expr(vd);
 	lhs = mark_write(lhs);
@@ -1447,11 +1450,21 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
  *
  * "skip_declarations" is set if we should skip initial declarations
  * in the children of the compound statements.
+ *
+ * Collect a new set of declarations for the current compound statement.
  */
 __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 	bool skip_declarations)
 {
-	return extract(stmt->children(), true, skip_declarations);
+	pet_tree *tree;
+	std::vector<VarDecl *> saved_declarations;
+
+	saved_declarations = declarations;
+	declarations.clear();
+	tree = extract(stmt->children(), true, skip_declarations);
+	declarations = saved_declarations;
+
+	return tree;
 }
 
 /* Return the file offset of the expansion location of "Loc".
