@@ -66,6 +66,9 @@ struct PetTypes {
 struct PetScan {
 	clang::Preprocessor &PP;
 	clang::ASTContext &ast_context;
+	/* The DeclContext of the function containing the scop.
+	 */
+	clang::DeclContext *decl_context;
 	/* If autodetect is false, then loc contains the location
 	 * of the scop to be extracted.
 	 */
@@ -99,12 +102,12 @@ struct PetScan {
 	/* Information about the independent pragmas in the source code. */
 	std::vector<Independent> &independent;
 
-	PetScan(clang::Preprocessor &PP,
-		clang::ASTContext &ast_context, ScopLoc &loc,
+	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
+		clang::DeclContext *decl_context, ScopLoc &loc,
 		pet_options *options, __isl_take isl_union_map *value_bounds,
 		std::vector<Independent> &independent) :
 		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
-		ast_context(ast_context), loc(loc),
+		ast_context(ast_context), decl_context(decl_context), loc(loc),
 		options(options), value_bounds(value_bounds),
 		partial(false), last_line(0), current_line(0),
 		independent(independent) { }

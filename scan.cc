@@ -1987,7 +1987,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 
 	save_autodetect = options->autodetect;
 	options->autodetect = 0;
-	PetScan body_scan(PP, ast_context, loc, options,
+	PetScan body_scan(PP, ast_context, fd, loc, options,
 				isl_union_map_copy(value_bounds), independent);
 
 	tree = body_scan.extract(fd->getBody(), false);
