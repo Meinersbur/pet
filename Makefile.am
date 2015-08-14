@@ -74,6 +74,8 @@ libpet_la_SOURCES = \
 	skip.h \
 	skip.c \
 	state.h \
+	substituter.h \
+	substituter.cc \
 	summary.h \
 	summary.c \
 	value_bounds.h \
