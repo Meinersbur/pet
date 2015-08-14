@@ -38,6 +38,7 @@
 #include <set>
 #include <map>
 #include <iostream>
+#include <sstream>
 #include <llvm/Support/raw_ostream.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/ASTDiagnostic.h>
@@ -62,6 +63,7 @@
 #include "scan.h"
 #include "scop.h"
 #include "scop_plus.h"
+#include "substituter.h"
 #include "tree.h"
 #include "tree2scop.h"
 
@@ -1442,22 +1444,99 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	return tree;
 }
 
+/* Is the name "name" used in any declaration other than "decl"?
+ *
+ * If the name was found to be in use before, the consider it to be in use.
+ * Otherwise, check the DeclContext of the function containing the scop
+ * as well as all ancestors of this DeclContext for declarations
+ * other than "decl" that declare something called "name".
+ */
+bool PetScan::name_in_use(const string &name, Decl *decl)
+{
+	DeclContext *DC;
+	DeclContext::decl_iterator it;
+
+	if (used_names.find(name) != used_names.end())
+		return true;
+
+	for (DC = decl_context; DC; DC = DC->getParent()) {
+		for (it = DC->decls_begin(); it != DC->decls_end(); ++it) {
+			Decl *D = *it;
+			NamedDecl *named;
+
+			if (D == decl)
+				continue;
+			if (!isa<NamedDecl>(D))
+				continue;
+			named = cast<NamedDecl>(D);
+			if (named->getName().str() == name)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+/* Generate a new name based on "name" that is not in use.
+ * Do so by adding a suffix _i, with i an integer.
+ */
+string PetScan::generate_new_name(const string &name)
+{
+	string new_name;
+
+	do {
+		std::ostringstream oss;
+		oss << name << "_" << n_rename++;
+		new_name = oss.str();
+	} while (name_in_use(new_name, NULL));
+
+	return new_name;
+}
+
 /* Try and construct a pet_tree corresponding to a compound statement.
  *
  * "skip_declarations" is set if we should skip initial declarations
  * in the children of the compound statements.
  *
  * Collect a new set of declarations for the current compound statement.
+ * If any of the names in these declarations is also used by another
+ * declaration reachable from the current function, then rename it
+ * to a name that is not already in use.
+ * In particular, keep track of the old and new names in a pet_substituter
+ * and apply the substitutions to the pet_tree corresponding to the
+ * compound statement.
  */
 __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 	bool skip_declarations)
 {
 	pet_tree *tree;
 	std::vector<VarDecl *> saved_declarations;
+	std::vector<VarDecl *>::iterator it;
+	pet_substituter substituter;
 
 	saved_declarations = declarations;
 	declarations.clear();
 	tree = extract(stmt->children(), true, skip_declarations);
+	for (it = declarations.begin(); it != declarations.end(); ++it) {
+		isl_id *id;
+		pet_expr *expr;
+		VarDecl *decl = *it;
+		string name = decl->getName().str();
+		bool in_use = name_in_use(name, decl);
+
+		used_names.insert(name);
+		if (!in_use)
+			continue;
+
+		name = generate_new_name(name);
+		id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
+		expr = pet_id_create_index_expr(id);
+		expr = extract_access_expr(decl->getType(), expr);
+		id = pet_id_from_decl(ctx, decl);
+		substituter.add_sub(id, expr);
+		used_names.insert(name);
+	}
+	tree = substituter.substitute(tree);
 	declarations = saved_declarations;
 
 	return tree;

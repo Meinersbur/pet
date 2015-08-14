@@ -106,6 +106,10 @@ struct PetScan {
 	 * in the current compound statement.
 	 */
 	std::vector<clang::VarDecl *> declarations;
+	/* Sequence number of the next rename. */
+	int n_rename;
+	/* A set of names known to be in use. */
+	std::set<std::string> used_names;
 
 	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
 		clang::DeclContext *decl_context, ScopLoc &loc,
@@ -115,7 +119,7 @@ struct PetScan {
 		ast_context(ast_context), decl_context(decl_context), loc(loc),
 		options(options), value_bounds(value_bounds),
 		partial(false), last_line(0), current_line(0),
-		independent(independent) { }
+		independent(independent), n_rename(0) { }
 
 	~PetScan();
 
@@ -129,6 +133,9 @@ struct PetScan {
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
+
+	bool name_in_use(const std::string &name, clang::Decl *decl);
+	std::string generate_new_name(const std::string &name);
 
 	struct pet_scop *scan(clang::Stmt *stmt);
 
