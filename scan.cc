@@ -1426,6 +1426,31 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	return tree;
 }
 
+/* Store the names of the variables declared in decl_context
+ * in the set declared_names.  Make sure to only do this once by
+ * setting declared_names_collected.
+ */
+void PetScan::collect_declared_names()
+{
+	DeclContext *DC = decl_context;
+	DeclContext::decl_iterator it;
+
+	if (declared_names_collected)
+		return;
+
+	for (it = DC->decls_begin(); it != DC->decls_end(); ++it) {
+		Decl *D = *it;
+		NamedDecl *named;
+
+		if (!isa<NamedDecl>(D))
+			continue;
+		named = cast<NamedDecl>(D);
+		declared_names.insert(named->getName().str());
+	}
+
+	declared_names_collected = true;
+}
+
 /* Is the name "name" used in any declaration other than "decl"?
  *
  * If the name was found to be in use before, the consider it to be in use.

@@ -108,6 +108,12 @@ struct PetScan {
 	std::vector<clang::VarDecl *> declarations;
 	/* Sequence number of the next rename. */
 	int n_rename;
+	/* Have the declared names been collected? */
+	bool declared_names_collected;
+	/* The names of the variables declared in decl_context,
+	 * if declared_names_collected is set.
+	 */
+	std::set<std::string> declared_names;
 	/* A set of names known to be in use. */
 	std::set<std::string> used_names;
 
@@ -119,7 +125,8 @@ struct PetScan {
 		ast_context(ast_context), decl_context(decl_context), loc(loc),
 		options(options), value_bounds(value_bounds),
 		partial(false), last_line(0), current_line(0),
-		independent(independent), n_rename(0) { }
+		independent(independent), n_rename(0),
+		declared_names_collected(false) { }
 
 	~PetScan();
 
@@ -134,6 +141,7 @@ private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
 
+	void collect_declared_names();
 	bool name_in_use(const std::string &name, clang::Decl *decl);
 	std::string generate_new_name(const std::string &name);
 
