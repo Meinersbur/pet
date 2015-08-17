@@ -142,6 +142,7 @@ private:
 	bool is_current_stmt_marked_independent();
 
 	void collect_declared_names();
+	void add_new_used_names(const std::set<std::string> &used_names);
 	bool name_in_use(const std::string &name, clang::Decl *decl);
 	std::string generate_new_name(const std::string &name);
 

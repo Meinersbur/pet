@@ -1451,6 +1451,22 @@ void PetScan::collect_declared_names()
 	declared_names_collected = true;
 }
 
+/* Add the names in "names" that are not also in this->declared_names
+ * to this->used_names.
+ * It is up to the caller to make sure that declared_names has been
+ * populated, if needed.
+ */
+void PetScan::add_new_used_names(const std::set<std::string> &names)
+{
+	std::set<std::string>::const_iterator it;
+
+	for (it = names.begin(); it != names.end(); ++it) {
+		if (declared_names.find(*it) != declared_names.end())
+			continue;
+		used_names.insert(*it);
+	}
+}
+
 /* Is the name "name" used in any declaration other than "decl"?
  *
  * If the name was found to be in use before, the consider it to be in use.
