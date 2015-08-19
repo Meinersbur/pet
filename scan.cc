@@ -489,7 +489,7 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	if (!id)
 		return -1;
-	decl = (ValueDecl *) isl_id_get_user(id);
+	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 
 	return array_depth(decl->getType().getTypePtr());
@@ -1903,7 +1903,7 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 	const Type *type;
 
 	id = pet_expr_access_get_id(access);
-	decl = (ValueDecl *) isl_id_get_user(id);
+	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 	type = get_array_type(decl).getTypePtr();
 	return ps->get_array_size(type);
@@ -1924,7 +1924,7 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 
 	ctx = pet_expr_get_ctx(access);
 	id = pet_expr_access_get_id(access);
-	iv = (ValueDecl *) isl_id_get_user(id);
+	iv = pet_id_get_decl(id);
 	isl_id_free(id);
 	return ps->extract_array(ctx, iv, NULL, pc);
 }
@@ -2752,7 +2752,7 @@ static struct pet_scop *add_parameter_bounds(struct pet_scop *scop)
 				isl_error_internal,
 				"unresolved nested parameter", goto error);
 		}
-		decl = (ValueDecl *) isl_id_get_user(id);
+		decl = pet_id_get_decl(id);
 		isl_id_free(id);
 
 		scop->context = set_parameter_bounds(scop->context, i, decl);

@@ -41,3 +41,11 @@ __isl_give isl_id *pet_id_from_decl(isl_ctx *ctx, ValueDecl *decl)
 {
 	return isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
 }
+
+/* Extract the ValueDecl that was associated to "id"
+ * in pet_id_from_decl.
+ */
+ValueDecl *pet_id_get_decl(__isl_keep isl_id *id)
+{
+	return (ValueDecl *) isl_id_get_user(id);
+}

@@ -37,6 +37,7 @@
 
 #include "clang.h"
 #include "expr.h"
+#include "id.h"
 #include "scop_plus.h"
 #include "tree.h"
 
@@ -115,7 +116,7 @@ static void access_collect_arrays(__isl_keep pet_expr *expr,
 	if (!id)
 		return;
 
-	decl = (ValueDecl *)isl_id_get_user(id);
+	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 
 	if (!decl)
@@ -195,7 +196,7 @@ void pet_scop_collect_arrays(struct pet_scop *scop,
 		vector<ValueDecl *> ancestors;
 
 		isl_id *id = isl_set_get_tuple_id(scop->arrays[i]->extent);
-		decl = (ValueDecl *)isl_id_get_user(id);
+		decl = pet_id_get_decl(id);
 		isl_id_free(id);
 
 		if (!decl)

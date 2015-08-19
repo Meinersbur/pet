@@ -90,6 +90,7 @@
 
 #include <pet.h>
 
+#include "id.h"
 #include "options.h"
 #include "scan.h"
 #include "print.h"
@@ -519,7 +520,7 @@ static void update_arrays(struct pet_scop *scop,
 		pet_array *array = scop->arrays[i];
 
 		id = isl_set_get_tuple_id(array->extent);
-		decl = (ValueDecl *)isl_id_get_user(id);
+		decl = pet_id_get_decl(id);
 
 		space = isl_space_alloc(ctx, 0, 0, 1);
 		space = isl_space_set_tuple_id(space, isl_dim_in, id);
