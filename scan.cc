@@ -56,6 +56,7 @@
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
+#include "id.h"
 #include "nest.h"
 #include "options.h"
 #include "scan.h"
@@ -198,13 +199,6 @@ static bool const_base(QualType qt)
 	}
 
 	return qt.isConstQualified();
-}
-
-/* Create an isl_id that refers to the named declarator "decl".
- */
-static __isl_give isl_id *create_decl_id(isl_ctx *ctx, NamedDecl *decl)
-{
-	return isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
 }
 
 PetScan::~PetScan()
@@ -540,7 +534,7 @@ __isl_give pet_expr *PetScan::extract_index_expr(ValueDecl *decl)
 	if (isa<EnumConstantDecl>(decl))
 		return extract_expr(cast<EnumConstantDecl>(decl));
 
-	id = create_decl_id(ctx, decl);
+	id = pet_id_from_decl(ctx, decl);
 	space = isl_space_alloc(ctx, 0, 0, 0);
 	space = isl_space_set_tuple_id(space, isl_dim_out, id);
 
@@ -636,7 +630,7 @@ __isl_give pet_expr *PetScan::extract_index_expr(MemberExpr *expr)
 	if (field->isAnonymousStructOrUnion())
 		return base_index;
 
-	id = create_decl_id(ctx, field);
+	id = pet_id_from_decl(ctx, field);
 
 	return pet_expr_access_member(base_index, id);
 }
@@ -1983,7 +1977,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 
 		if (!type->isIntegerType())
 			continue;
-		id = create_decl_id(ctx, parm);
+		id = pet_id_from_decl(ctx, parm);
 		space = isl_space_insert_dims(space, isl_dim_param, 0, 1);
 		space = isl_space_set_dim_id(space, isl_dim_param, 0,
 						isl_id_copy(id));
@@ -2440,7 +2434,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 	if (!array)
 		return NULL;
 
-	id = create_decl_id(ctx, decl);
+	id = pet_id_from_decl(ctx, decl);
 	space = isl_space_set_alloc(ctx, 0, depth);
 	space = isl_space_set_tuple_id(space, isl_dim_set, id);
 
