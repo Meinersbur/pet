@@ -1926,7 +1926,7 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	id = pet_expr_access_get_id(access);
 	iv = pet_id_get_decl(id);
 	isl_id_free(id);
-	return ps->extract_array(ctx, iv, NULL, pc);
+	return ps->extract_array(iv, NULL, pc);
 }
 
 /* Extract a function summary from the body of "fd".
@@ -2016,7 +2016,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 		if (array_depth(type.getTypePtr()) == 0)
 			continue;
 
-		array = body_scan.extract_array(ctx, parm, NULL, pc);
+		array = body_scan.extract_array(parm, NULL, pc);
 		space = array ? isl_set_get_space(array->extent) : NULL;
 		pet_array_free(array);
 		data_set = isl_union_set_from_set(isl_set_universe(space));
@@ -2418,7 +2418,7 @@ static bool has_printable_definition(RecordDecl *decl)
  * If the base type is that of a record with no top-level definition,
  * then we replace it by "<subfield>".
  */
-struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
+struct pet_array *PetScan::extract_array(ValueDecl *decl,
 	PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
@@ -2493,7 +2493,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 
 	it = decls.begin();
 
-	array = extract_array(ctx, *it, types, pc);
+	array = extract_array(*it, types, pc);
 
 	for (++it; it != decls.end(); ++it) {
 		struct pet_array *parent;
@@ -2501,7 +2501,7 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx,
 		char *product_name;
 
 		parent = array;
-		array = extract_array(ctx, *it, types, pc);
+		array = extract_array(*it, types, pc);
 		if (!array)
 			return pet_array_free(parent);
 
