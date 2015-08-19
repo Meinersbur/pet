@@ -1918,40 +1918,6 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	return tree;
 }
 
-/* Is "T" the type of a variable length array with static size?
- */
-static bool is_vla_with_static_size(QualType T)
-{
-	const VariableArrayType *vlatype;
-
-	if (!T->isVariableArrayType())
-		return false;
-	vlatype = cast<VariableArrayType>(T);
-	return vlatype->getSizeModifier() == VariableArrayType::Static;
-}
-
-/* Return the type of "decl" as an array.
- *
- * In particular, if "decl" is a parameter declaration that
- * is a variable length array with a static size, then
- * return the original type (i.e., the variable length array).
- * Otherwise, return the type of decl.
- */
-static QualType get_array_type(ValueDecl *decl)
-{
-	ParmVarDecl *parm;
-	QualType T;
-
-	parm = dyn_cast<ParmVarDecl>(decl);
-	if (!parm)
-		return decl->getType();
-
-	T = parm->getOriginalType();
-	if (!is_vla_with_static_size(T))
-		return decl->getType();
-	return T;
-}
-
 extern "C" {
 	static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 		void *user);
@@ -1969,13 +1935,11 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 {
 	PetScan *ps = (PetScan *) user;
 	isl_id *id;
-	ValueDecl *decl;
 	const Type *type;
 
 	id = pet_expr_access_get_id(access);
-	decl = pet_id_get_decl(id);
+	type = pet_id_get_array_type(id).getTypePtr();
 	isl_id_free(id);
-	type = get_array_type(decl).getTypePtr();
 	return ps->get_array_size(type);
 }
 
@@ -2494,7 +2458,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
-	QualType qt = get_array_type(pet_id_get_decl(id));
+	QualType qt = pet_id_get_array_type(id);
 	const Type *type = qt.getTypePtr();
 	int depth = array_depth(type);
 	QualType base = pet_clang_base_type(qt);

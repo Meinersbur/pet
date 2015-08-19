@@ -74,3 +74,40 @@ __isl_give pet_expr *pet_id_create_index_expr(__isl_take isl_id *id)
 
 	return pet_expr_from_index(isl_multi_pw_aff_zero(space));
 }
+
+/* Is "T" the type of a variable length array with static size?
+ */
+static bool is_vla_with_static_size(QualType T)
+{
+	const VariableArrayType *vlatype;
+
+	if (!T->isVariableArrayType())
+		return false;
+	vlatype = cast<VariableArrayType>(T);
+	return vlatype->getSizeModifier() == VariableArrayType::Static;
+}
+
+/* Return the type of the variable represented by "id" as an array.
+ *
+ * In particular, if the declaration associated to "id" is a parameter
+ * declaration that is a variable length array with a static size, then
+ * return the original type (i.e., the variable length array).
+ * Otherwise, return the type of decl.
+ */
+QualType pet_id_get_array_type(__isl_keep isl_id *id)
+{
+	ValueDecl *decl;
+	ParmVarDecl *parm;
+	QualType T;
+
+	decl = pet_id_get_decl(id);
+
+	parm = dyn_cast<ParmVarDecl>(decl);
+	if (!parm)
+		return decl->getType();
+
+	T = parm->getOriginalType();
+	if (!is_vla_with_static_size(T))
+		return decl->getType();
+	return T;
+}
