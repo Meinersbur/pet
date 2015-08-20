@@ -990,9 +990,7 @@ static __isl_give pet_expr *arg_plug_in_summary(__isl_take pet_expr *arg,
 	type = pet_expr_get_type(arg);
 	if (type == pet_expr_access)
 		return access_plug_in_summary(arg, call, summary, pos, 0);
-	if (type != pet_expr_op)
-		return arg;
-	if (pet_expr_op_get_type(arg) != pet_op_address_of)
+	if (!pet_expr_is_address_of(arg))
 		return arg;
 
 	arg2 = pet_expr_get_arg(arg, 0);

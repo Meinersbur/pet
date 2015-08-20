@@ -755,6 +755,17 @@ int pet_expr_is_boolean(__isl_keep pet_expr *expr)
 	}
 }
 
+/* Is "expr" an address-of operation?
+ */
+int pet_expr_is_address_of(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_op)
+		return 0;
+	return expr->op == pet_op_address_of;
+}
+
 /* Is "expr" an assume statement?
  */
 int pet_expr_is_assume(__isl_keep pet_expr *expr)
