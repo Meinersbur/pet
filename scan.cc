@@ -2129,26 +2129,17 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
  * Even if a function body is available, "fd" itself may point
  * to a declaration without function body.  We therefore first
  * replace it by the declaration that comes with a body (if any).
- *
- * It is not clear why hasBody takes a reference to a const FunctionDecl *.
- * It seems that it is possible to directly use the iterators to obtain
- * a non-const pointer.
- * Since we are not going to use the pointer to modify anything anyway,
- * it seems safe to drop the constness.  The alternative would be to
- * modify a lot of other functions to include const qualifiers.
  */
 __isl_give pet_expr *PetScan::set_summary(__isl_take pet_expr *expr,
 	FunctionDecl *fd)
 {
 	pet_function_summary *summary;
-	const FunctionDecl *def;
 
 	if (!expr)
 		return NULL;
-	if (!fd->hasBody(def))
+	fd = pet_clang_find_function_decl_with_body(fd);
+	if (!fd)
 		return expr;
-
-	fd = const_cast<FunctionDecl *>(def);
 
 	summary = get_summary(fd);
 

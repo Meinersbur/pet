@@ -95,3 +95,24 @@ int pet_clang_get_type_size(QualType qt, ASTContext &ast_context)
 
 	return size;
 }
+
+/* Return the FunctionDecl that refers to the same function
+ * that "fd" refers to, but that has a body.
+ * Return NULL if no such FunctionDecl is available.
+ *
+ * It is not clear why hasBody takes a reference to a const FunctionDecl *.
+ * It seems that it is possible to directly use the iterators to obtain
+ * a non-const pointer.
+ * Since we are not going to use the pointer to modify anything anyway,
+ * it seems safe to drop the constness.  The alternative would be to
+ * modify a lot of other functions to include const qualifiers.
+ */
+FunctionDecl *pet_clang_find_function_decl_with_body(FunctionDecl *fd)
+{
+	const FunctionDecl *def;
+
+	if (!fd->hasBody(def))
+		return NULL;
+
+	return const_cast<FunctionDecl *>(def);
+}
