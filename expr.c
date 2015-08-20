@@ -687,6 +687,18 @@ __isl_give pet_expr *pet_expr_get_arg(__isl_keep pet_expr *expr, int pos)
 	return pet_expr_copy(expr->args[pos]);
 }
 
+/* Replace "expr" by its argument at position "pos".
+ */
+__isl_give pet_expr *pet_expr_arg(__isl_take pet_expr *expr, int pos)
+{
+	pet_expr *arg;
+
+	arg = pet_expr_get_arg(expr, pos);
+	pet_expr_free(expr);
+
+	return arg;
+}
+
 /* Replace the argument of "expr" at position "pos" by "arg".
  */
 __isl_give pet_expr *pet_expr_set_arg(__isl_take pet_expr *expr, int pos,
