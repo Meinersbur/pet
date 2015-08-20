@@ -861,6 +861,21 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 	return pet_expr_new_unary(0, pet_op_assume, extract_expr(expr));
 }
 
+/* If "expr" is an address-of operator, then return its argument.
+ * Otherwise, return NULL.
+ */
+static Expr *extract_addr_of_arg(Expr *expr)
+{
+	UnaryOperator *op;
+
+	if (expr->getStmtClass() != Stmt::UnaryOperatorClass)
+		return NULL;
+	op = cast<UnaryOperator>(expr);
+	if (op->getOpcode() != UO_AddrOf)
+		return NULL;
+	return op->getSubExpr();
+}
+
 /* Construct a pet_expr corresponding to the function call argument "expr".
  * The argument appears in position "pos" of a call to function "fd".
  *
@@ -876,16 +891,15 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	Expr *expr, bool detect_writes)
 {
+	Expr *arg;
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
 
 	expr = pet_clang_strip_casts(expr);
-	if (expr->getStmtClass() == Stmt::UnaryOperatorClass) {
-		UnaryOperator *op = cast<UnaryOperator>(expr);
-		if (op->getOpcode() == UO_AddrOf) {
-			is_addr = 1;
-			expr = op->getSubExpr();
-		}
+	arg = extract_addr_of_arg(expr);
+	if (arg) {
+		is_addr = 1;
+		expr = arg;
 	}
 	res = extract_expr(expr);
 	if (!res)
