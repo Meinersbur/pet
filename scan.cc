@@ -373,31 +373,13 @@ __isl_give pet_expr *PetScan::extract_expr(const llvm::APInt &val)
 	return pet_expr_new_int(extract_unsigned(ctx, val));
 }
 
-/* Return the number of bits needed to represent the type "qt",
- * if it is an integer type.  Otherwise return 0.
- * If qt is signed then return the opposite of the number of bits.
- */
-static int get_type_size(QualType qt, ASTContext &ast_context)
-{
-	int size;
-
-	if (!qt->isIntegerType())
-		return 0;
-
-	size = ast_context.getIntWidth(qt);
-	if (!qt->isUnsignedIntegerType())
-		size = -size;
-
-	return size;
-}
-
 /* Return the number of bits needed to represent the type of "decl",
  * if it is an integer type.  Otherwise return 0.
  * If qt is signed then return the opposite of the number of bits.
  */
 static int get_type_size(ValueDecl *decl)
 {
-	return get_type_size(decl->getType(), decl->getASTContext());
+	return pet_clang_get_type_size(decl->getType(), decl->getASTContext());
 }
 
 /* Bound parameter "pos" of "set" to the possible values of "decl".
@@ -685,7 +667,7 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 		arg = pet_expr_access_set_read(arg, 1);
 	}
 
-	type_size = get_type_size(expr->getType(), ast_context);
+	type_size = pet_clang_get_type_size(expr->getType(), ast_context);
 	return pet_expr_new_unary(type_size, op, arg);
 }
 
@@ -717,7 +699,7 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 			lhs = pet_expr_access_set_read(lhs, 1);
 	}
 
-	type_size = get_type_size(expr->getType(), ast_context);
+	type_size = pet_clang_get_type_size(expr->getType(), ast_context);
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
 }
 
@@ -832,7 +814,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
 	int type_size;
 
 	depth = extract_depth(index);
-	type_size = get_type_size(qt, ast_context);
+	type_size = pet_clang_get_type_size(qt, ast_context);
 
 	index = pet_expr_set_type_size(index, type_size);
 	index = pet_expr_access_set_depth(index, depth);
@@ -1270,7 +1252,7 @@ __isl_give pet_expr *PetScan::extract_binary_increment(BinaryOperator *op,
 	expr = extract_expr(op->getRHS());
 	expr_iv = extract_expr(lhs);
 
-	type_size = get_type_size(iv->getType(), ast_context);
+	type_size = pet_clang_get_type_size(iv->getType(), ast_context);
 	return pet_expr_new_binary(type_size, pet_op_sub, expr, expr_iv);
 }
 
@@ -1309,7 +1291,7 @@ __isl_give pet_expr *PetScan::extract_compound_increment(
 	expr = extract_expr(op->getRHS());
 	if (neg) {
 		int type_size;
-		type_size = get_type_size(op->getType(), ast_context);
+		type_size = pet_clang_get_type_size(op->getType(), ast_context);
 		expr = pet_expr_new_unary(type_size, pet_op_minus, expr);
 	}
 

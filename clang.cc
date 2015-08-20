@@ -77,3 +77,21 @@ Expr *pet_clang_strip_casts(Expr *expr)
 
 	return expr;
 }
+
+/* Return the number of bits needed to represent the type "qt",
+ * if it is an integer type.  Otherwise return 0.
+ * If qt is signed then return the opposite of the number of bits.
+ */
+int pet_clang_get_type_size(QualType qt, ASTContext &ast_context)
+{
+	int size;
+
+	if (!qt->isIntegerType())
+		return 0;
+
+	size = ast_context.getIntWidth(qt);
+	if (!qt->isUnsignedIntegerType())
+		size = -size;
+
+	return size;
+}
