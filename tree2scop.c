@@ -2485,8 +2485,7 @@ static int extract_declared_arrays(__isl_keep pet_tree *node, void *user)
  * cannot occur at the outer level.
  */
 static struct pet_scop *scop_from_tree_macro(__isl_take pet_tree *tree,
-	__isl_take isl_id *label, __isl_keep pet_context *pc,
-	struct pet_state *state)
+	__isl_keep pet_context *pc, struct pet_state *state)
 {
 	struct pet_tree_extract_declared_arrays_data data = { pc, state };
 
@@ -2571,8 +2570,7 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 		return scop;
 
 	pet_scop_free(scop);
-	return scop_from_tree_macro(pet_tree_copy(tree),
-					isl_id_copy(tree->label), pc, state);
+	return scop_from_tree_macro(pet_tree_copy(tree), pc, state);
 }
 
 /* If "tree" has a label that is of the form S_<nr>, then make
