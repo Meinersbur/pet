@@ -4,7 +4,7 @@ indent: "\t"
 context: '[n] -> {  : exists (e0 = floor((n)/4): 4e0 = n and n >= 0 and n <= 2147483647)
   }'
 schedule: '{ domain: "[n] -> { S_0[]; S_1[i] : exists (e0 = floor((i)/4): 4e0 = i
-  and i >= 0 and i <= -1 + n) }", child: { sequence: [ { filter: "[n] -> { S_0[] }"
+  and i >= 0 and i <= -4 + n) }", child: { sequence: [ { filter: "[n] -> { S_0[] }"
   }, { filter: "[n] -> { S_1[i] }", child: { schedule: "[n] -> L_0[{ S_1[i] -> [(i)]
   }]" } } ] } }'
 arrays:
@@ -39,9 +39,9 @@ statements:
         operation: '&'
         arguments:
         - type: access
-          may_read: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
-          may_write: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
-          must_write: '[n] -> { S_1[i] -> A[o0] : o0 >= i and o0 <= 3 + i }'
+          may_read: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
+          may_write: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
+          must_write: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
           index: '[n] -> { S_1[i] -> A[(i)] }'
           reference: __pet_ref_1
           read: 1

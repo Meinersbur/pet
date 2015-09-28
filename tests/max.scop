@@ -2,8 +2,8 @@ start: 38
 end: 117
 indent: "\t"
 context: '[N] -> {  : N <= 2147483647 and N >= 0 }'
-schedule: '{ domain: "[N] -> { S_0[i] : N <= 2147483657 and i >= -10 + N and i >=
-  0 and i <= -1 + N }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }'
+schedule: '{ domain: "[N] -> { S_0[i] : i <= -1 + N and i >= -10 + N and i >= 0 }",
+  child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N] -> { a[i0] : i0 >= 0 and i0 <= -1 + N }'
@@ -11,7 +11,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '[N] -> { S_0[i] : i >= -10 + N and i >= 0 and i <= -1 + N }'
+  domain: '[N] -> { S_0[i] : i <= -1 + N and i >= -10 + N and i >= 0 }'
   body:
     type: expression
     expr:

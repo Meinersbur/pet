@@ -2,7 +2,7 @@ start: 13
 end: 53
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[]; S_5[]; S_7[]; S_6[]; S_8[]; S_4[]; S_1[]; S_2[]
+schedule: '{ domain: "{ S_3[]; S_0[]; S_5[]; S_7[]; S_8[]; S_6[]; S_4[]; S_1[]; S_2[]
   }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" }, { filter:
   "{ S_4[] }" }, { filter: "{ S_5[] }" }, { filter: "{ S_6[] }" }, { filter: "{ S_8[]
   }" }, { filter: "{ S_3[]; S_7[]; S_2[] }", child: { set: [ { filter: "{ S_2[] }"

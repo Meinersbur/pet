@@ -57,8 +57,8 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '[N] -> { [S_2[T, i] -> [1]] : i >= 0 and i <= -1 + 2N and N <= 1073741823
-    and T >= 0 }'
+  domain: '[N] -> { [S_2[T, i] -> [1]] : N <= 1073741823 and T >= 0 and i >= 0 and
+    i <= -1 + 2N }'
   body:
     type: expression
     expr:

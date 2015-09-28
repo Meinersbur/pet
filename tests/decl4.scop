@@ -43,7 +43,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_1[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_1[i] -> b[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_1[i] -> b[] }'
         depth: 1
         reference: __pet_ref_1
@@ -57,7 +57,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_2[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_2[i] -> b[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_2[i] -> b[] }'
         depth: 1
         reference: __pet_ref_2

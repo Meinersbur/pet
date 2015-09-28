@@ -5,16 +5,16 @@ context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 schedule: '{ domain: "[n] -> { S2[x1, x2] : exists (e0 = floor((x2)/3): 3e0 = x2 and
   x1 >= 0 and x1 <= -1 + n and x2 <= 9); S1[x1] : x1 >= 0 and x1 <= -1 + n; S_1[x1,
   x2] : exists (e0 = floor((x2)/3): 3e0 = x2 and x1 >= 0 and x1 <= -1 + n and x2 <=
-  9); R[x1] : x1 >= 0 and x1 <= -1 + n }", child: { schedule: "[n] -> L_0[{ S1[x1]
-  -> [(x1)]; R[x1] -> [(x1)]; S_1[x1, x2] -> [(x1)]; S2[x1, x2] -> [(x1)] }]", child:
+  9); R[x1] : x1 >= 0 and x1 <= -1 + n }", child: { schedule: "[n] -> L_0[{ S2[x1,
+  x2] -> [(x1)]; S1[x1] -> [(x1)]; S_1[x1, x2] -> [(x1)]; R[x1] -> [(x1)] }]", child:
   { sequence: [ { filter: "[n] -> { S1[x1] }" }, { filter: "[n] -> { S2[x1, x2]; S_1[x1,
-  x2] }", child: { schedule: "[n] -> L_1[{ S_1[x1, x2] -> [(-x2)]; S2[x1, x2] -> [(-x2)]
+  x2] }", child: { schedule: "[n] -> L_1[{ S2[x1, x2] -> [(-x2)]; S_1[x1, x2] -> [(-x2)]
   }]", child: { sequence: [ { filter: "[n] -> { S_1[x1, x2] }" }, { filter: "[n] ->
   { S2[x1, x2] }" } ] } } }, { filter: "[n] -> { R[x1] }" } ] } } }'
 arrays:
 - context: '{  :  }'
   extent: '[n] -> { __pet_test_0[x1, x2] : exists (e0 = floor((x2)/3): 3e0 = x2 and
-    x1 <= -1 + n and x2 <= 9 and x1 >= 0) }'
+    x1 >= 0 and x1 <= -1 + n and x2 <= 9) }'
   value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
   element_type: int
   element_size: 4
@@ -41,7 +41,7 @@ statements:
         name: f
 - line: 13
   domain: '[n] -> { [S_1[x1, x2] -> [1]] : exists (e0 = floor((x2)/3): 3e0 = x2 and
-    x1 <= -1 + n and x2 <= 9 and x1 >= 0) }'
+    x1 >= 0 and x1 <= -1 + n and x2 <= 9) }'
   body:
     type: expression
     expr:
@@ -74,7 +74,7 @@ statements:
     write: 0
 - line: 14
   domain: '[n] -> { [S2[x1, x2] -> [1]] : exists (e0 = floor((x2)/3): 3e0 = x2 and
-    x1 <= -1 + n and x2 <= 9 and x1 >= 0) }'
+    x1 >= 0 and x1 <= -1 + n and x2 <= 9) }'
   body:
     type: expression
     expr:

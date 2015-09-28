@@ -6,9 +6,9 @@ schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 59; S_5[i] : i >= 0 and i <= 59
   S_6[i] : i >= 0 and i <= 59; S_9[i] : i >= 0 and i <= 99; S_8[i] : i >= 0 and i
   <= 99; S_2[i] : i >= 0 and i <= 59; S_7[i] : i >= 60 and i <= 99; S_4[i] : i >=
   0 and i <= 59; S_10[i] : i >= 0 and i <= 99; S_0[i] : i >= 0 and i <= 59; S_1[i]
-  : i >= 0 and i <= 59 }", child: { schedule: "L_0[{ S_1[i] -> [(i)]; S_3[i] -> [(i)];
-  S_10[i] -> [(i)]; S_9[i] -> [(i)]; S_2[i] -> [(i)]; S_7[i] -> [(i)]; S_0[i] -> [(i)];
-  S_8[i] -> [(i)]; S_4[i] -> [(i)]; S_6[i] -> [(i)]; S_5[i] -> [(i)] }]", child: {
+  : i >= 0 and i <= 59 }", child: { schedule: "L_0[{ S_8[i] -> [(i)]; S_9[i] -> [(i)];
+  S_6[i] -> [(i)]; S_10[i] -> [(i)]; S_0[i] -> [(i)]; S_3[i] -> [(i)]; S_4[i] -> [(i)];
+  S_5[i] -> [(i)]; S_2[i] -> [(i)]; S_1[i] -> [(i)]; S_7[i] -> [(i)] }]", child: {
   sequence: [ { filter: "{ S_3[i]; S_5[i]; S_6[i]; S_2[i]; S_7[i]; S_4[i]; S_0[i];
   S_1[i] }", child: { set: [ { filter: "{ S_3[i]; S_5[i]; S_6[i]; S_2[i]; S_4[i];
   S_0[i]; S_1[i] }", child: { sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_3[i];

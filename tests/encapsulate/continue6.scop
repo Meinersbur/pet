@@ -6,11 +6,11 @@ schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 99; S_5[i] : i >= 0 and i <= 99
   S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_6[i, j] : exists (e0 =
   floor((j)/2): 2e0 = j and i <= 99 and i >= 0 and j <= 99 and j >= 0); S_4[i] : i
   >= 0 and i <= 99; S_7[i, j] : exists (e0 = floor((-1 + j)/2): 2e0 = -1 + j and i
-  <= 99 and i >= 0 and j <= 99 and j >= 0) }", child: { schedule: "L_0[{ S_3[i] ->
-  [(i)]; S_7[i, j] -> [(i)]; S_6[i, j] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)];
-  S_10[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_4[i] }" }, { filter:
+  <= 99 and i >= 0 and j <= 99 and j >= 0) }", child: { schedule: "L_0[{ S_7[i, j]
+  -> [(i)]; S_10[i, j] -> [(i)]; S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)];
+  S_6[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_4[i] }" }, { filter:
   "{ S_3[i] }" }, { filter: "{ S_5[i] }" }, { filter: "{ S_6[i, j]; S_7[i, j] }",
-  child: { schedule: "L_2[{ S_6[i, j] -> [(j)]; S_7[i, j] -> [(j)] }]", child: { sequence:
+  child: { schedule: "L_2[{ S_7[i, j] -> [(j)]; S_6[i, j] -> [(j)] }]", child: { sequence:
   [ { filter: "{ S_6[i, j] }" }, { filter: "{ S_7[i, j] }" } ] } } }, { filter: "{
   S_10[i, j] }", child: { schedule: "L_3[{ S_10[i, j] -> [(j)] }]" } } ] } } }'
 arrays:

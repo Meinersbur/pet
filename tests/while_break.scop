@@ -7,16 +7,16 @@ schedule: '{ domain: "[N] -> { S_11[t] : t >= 0; S_3[t] : t >= 0; S_8[t] : t >= 
   N >= 1; S_7[t] : N = 0 and t >= 0; S_1[t] : N = 0 and t >= 0; S_5[t] : N = 0 and
   t >= 0; S_5[0] : N <= -1 or N >= 1; S_9[t] : t >= 0; S_2[t] : t >= 0; S_0[t] : N
   = 0 and t >= 0; S_0[0] : N <= -1 or N >= 1 }", child: { sequence: [ { filter: "[N]
-  -> { S_1[t]; S_0[t] }", child: { schedule: "[N] -> L_0[{ S_0[t] -> [(t)]; S_1[t]
+  -> { S_1[t]; S_0[t] }", child: { schedule: "[N] -> L_0[{ S_1[t] -> [(t)]; S_0[t]
   -> [(t)] }]", child: { sequence: [ { filter: "[N] -> { S_0[t] }" }, { filter: "[N]
   -> { S_1[t] }" } ] } } }, { filter: "[N] -> { S_3[t]; S_4[t]; S_2[t] }", child:
-  { schedule: "L_1[{ S_2[t] -> [(t)]; S_3[t] -> [(t)]; S_4[t] -> [(t)] }]", child:
+  { schedule: "L_1[{ S_4[t] -> [(t)]; S_2[t] -> [(t)]; S_3[t] -> [(t)] }]", child:
   { sequence: [ { filter: "{ S_2[t] }" }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t]
   }" } ] } } }, { filter: "[N] -> { S_6[t]; S_7[t]; S_5[t] }", child: { schedule:
-  "[N] -> L_2[{ S_5[t] -> [(t)]; S_7[t] -> [(t)]; S_6[t] -> [(t)] }]", child: { sequence:
+  "[N] -> L_2[{ S_6[t] -> [(t)]; S_7[t] -> [(t)]; S_5[t] -> [(t)] }]", child: { sequence:
   [ { filter: "[N] -> { S_5[t] }" }, { filter: "[N] -> { S_6[t] }" }, { filter: "[N]
   -> { S_7[t] }" } ] } } }, { filter: "[N] -> { S_11[t]; S_8[t]; S_10[t]; S_9[t] }",
-  child: { schedule: "L_3[{ S_10[t] -> [(t)]; S_8[t] -> [(t)]; S_9[t] -> [(t)]; S_11[t]
+  child: { schedule: "L_3[{ S_9[t] -> [(t)]; S_10[t] -> [(t)]; S_8[t] -> [(t)]; S_11[t]
   -> [(t)] }]", child: { sequence: [ { filter: "{ S_8[t] }" }, { filter: "{ S_9[t]
   }" }, { filter: "{ S_10[t] }" }, { filter: "{ S_11[t] }" } ] } } } ] } }'
 arrays:

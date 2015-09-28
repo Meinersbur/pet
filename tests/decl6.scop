@@ -4,8 +4,8 @@ indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
 schedule: '{ domain: "[n] -> { S_4[i] : i >= 0 and i <= -1 + n; S_2[i] : i >= 0 and
   i <= -1 + n; S_3[i] : i >= 0 and i <= -1 + n; S_1[i] : i >= 0 and i <= -1 + n; S_0[i]
-  : i >= 0 and i <= -1 + n }", child: { schedule: "[n] -> L_0[{ S_0[i] -> [(i)]; S_3[i]
-  -> [(i)]; S_4[i] -> [(i)]; S_2[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence:
+  : i >= 0 and i <= -1 + n }", child: { schedule: "[n] -> L_0[{ S_4[i] -> [(i)]; S_2[i]
+  -> [(i)]; S_3[i] -> [(i)]; S_1[i] -> [(i)]; S_0[i] -> [(i)] }]", child: { sequence:
   [ { filter: "[n] -> { S_0[i] }" }, { filter: "[n] -> { S_1[i] }" }, { filter: "[n]
   -> { S_4[i] }" }, { filter: "[n] -> { S_2[i]; S_3[i] }", child: { set: [ { filter:
   "[n] -> { S_2[i] }" }, { filter: "[n] -> { S_3[i] }" } ] } } ] } } }'
@@ -32,7 +32,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_0[i] -> a[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_0[i] -> a[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_0[i] -> a[] }'
         depth: 1
         reference: __pet_ref_0
@@ -46,7 +46,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_1[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_1[i] -> b[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_1[i] -> b[] }'
         depth: 1
         reference: __pet_ref_1
@@ -78,7 +78,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_2[i] -> a[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_2[i] -> a[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_2[i] -> a[] }'
         depth: 1
         reference: __pet_ref_4
@@ -92,7 +92,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[n] -> { S_3[i] -> b[o0] : o0 <= -1 + n and o0 >= 0 }'
+        killed: '[n] -> { S_3[i] -> b[o0] : o0 >= 0 and o0 <= -1 + n }'
         index: '[n] -> { S_3[i] -> b[] }'
         depth: 1
         reference: __pet_ref_5

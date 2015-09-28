@@ -8,8 +8,8 @@ schedule: '{ domain: "{ S_0[i, j] : (i <= 89 and i >= 75 and j >= 0 and j <= i) 
   j <= 150 - i and j >= 0); S_1[i, j] : (i <= 89 and i >= 75 and j <= 60 and j >=
   0) or (i <= 60 and i >= 10 and j >= 0 and j <= -1 + i) or (i <= 74 and i >= 61 and
   j <= 60 and j >= 0) or (i <= 99 and i >= 90 and j <= 149 - i and j >= 0) }", child:
-  { schedule: "L_0[{ S_1[i, j] -> [(i)]; S_0[i, j] -> [(i)] }]", child: { schedule:
-  "L_1[{ S_1[i, j] -> [(j)]; S_0[i, j] -> [(j)] }]", child: { sequence: [ { filter:
+  { schedule: "L_0[{ S_0[i, j] -> [(i)]; S_1[i, j] -> [(i)] }]", child: { schedule:
+  "L_1[{ S_0[i, j] -> [(j)]; S_1[i, j] -> [(j)] }]", child: { sequence: [ { filter:
   "{ S_0[i, j] }" }, { filter: "{ S_1[i, j] }" } ] } } } }'
 arrays:
 - context: '{  :  }'

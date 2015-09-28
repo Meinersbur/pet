@@ -6,7 +6,7 @@ schedule: '{ domain: "[n] -> { S_0[i] : i >= 0 and i <= -1 + n }", child: { sche
   "[n] -> L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0, i1] : i1 >= 0 and i1 <= -1 + n and i0 >= 0 and i0 <= -1
+  extent: '[n] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + n and i1 >= 0 and i1 <= -1
     + n }'
   element_type: int
   element_size: 4
@@ -26,7 +26,7 @@ statements:
         write: 0
       - type: access
         may_write: '[n] -> { S_0[i] -> A[i, o1] : exists (e0 = floor((-1 + o1)/2):
-          2e0 = -1 + o1 and o1 >= 1 and o1 <= -1 + n) }'
+          2e0 = -1 + o1 and o1 <= -1 + n and o1 >= 1) }'
         must_write: '[n] -> {  }'
         index: '[n] -> { S_0[i] -> A[(i)] }'
         depth: 2

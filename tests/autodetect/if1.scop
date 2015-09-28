@@ -2,7 +2,7 @@ start: 13
 end: 46
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[]; S_4[]; S_1[]; S_2[] }", child: { sequence: [
+schedule: '{ domain: "{ S_3[]; S_0[]; S_2[]; S_1[]; S_4[] }", child: { sequence: [
   { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" }, { filter: "{ S_4[] }" }, { filter:
   "{ S_3[]; S_2[] }", child: { set: [ { filter: "{ S_2[] }" }, { filter: "{ S_3[]
   }" } ] } } ] } }'
@@ -47,7 +47,7 @@ statements:
         reference: __pet_ref_1
         kill: 1
 - line: 6
-  domain: '{ [S_4[] -> [a]] : a >= 1 }'
+  domain: '{ [S_4[] -> [i0]] : i0 >= 1 }'
   body:
     type: expression
     expr:

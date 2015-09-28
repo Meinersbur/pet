@@ -3,8 +3,8 @@ end: 207
 indent: '    '
 context: '[N] -> {  : N >= 8 and N <= 16 }'
 schedule: '{ domain: "[N] -> { S_1[t, j] : t >= 0 and j >= 0 and j <= -1 + N; S_0[t,
-  j] : t >= 0 and j >= 0 and j <= -1 + N }", child: { schedule: "[N] -> L_0[{ S_0[t,
-  j] -> [(t)]; S_1[t, j] -> [(t)] }]", child: { sequence: [ { filter: "[N] -> { S_0[t,
+  j] : t >= 0 and j >= 0 and j <= -1 + N }", child: { schedule: "[N] -> L_0[{ S_1[t,
+  j] -> [(t)]; S_0[t, j] -> [(t)] }]", child: { sequence: [ { filter: "[N] -> { S_0[t,
   j] }", child: { schedule: "[N] -> L_1[{ S_0[t, j] -> [(j)] }]" } }, { filter: "[N]
   -> { S_1[t, j] }", child: { schedule: "[N] -> L_2[{ S_1[t, j] -> [(j)] }]" } } ]
   } } }'
@@ -19,7 +19,7 @@ arrays:
   element_size: 4
 statements:
 - line: 12
-  domain: '[N] -> { S_0[t, j] : j >= 0 and j <= -1 + N and t >= 0 }'
+  domain: '[N] -> { S_0[t, j] : t >= 0 and j >= 0 and j <= -1 + N }'
   body:
     type: expression
     expr:
@@ -34,7 +34,7 @@ statements:
       - type: int
         value: 0
 - line: 14
-  domain: '[N] -> { S_1[t, j] : j >= 0 and j <= -1 + N and t >= 0 }'
+  domain: '[N] -> { S_1[t, j] : t >= 0 and j >= 0 and j <= -1 + N }'
   body:
     type: expression
     expr:

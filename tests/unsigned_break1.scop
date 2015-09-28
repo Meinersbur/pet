@@ -4,7 +4,7 @@ indent: "\t"
 context: '{  :  }'
 schedule: '{ domain: "{ S_0[k] : k <= 257 and k >= 252; S_1[k] : exists (e0 = floor((-1
   + k)/256): k <= 257 and k >= 252 and 256e0 >= -256 + k and 256e0 <= -2 + k) }",
-  child: { schedule: "L_0[{ S_1[k] -> [(k)]; S_0[k] -> [(k)] }]", child: { sequence:
+  child: { schedule: "L_0[{ S_0[k] -> [(k)]; S_1[k] -> [(k)] }]", child: { sequence:
   [ { filter: "{ S_0[k] }" }, { filter: "{ S_1[k] }" } ] } } }'
 arrays:
 - context: '{  :  }'
