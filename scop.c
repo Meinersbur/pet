@@ -2810,6 +2810,16 @@ __isl_give isl_union_set *pet_scop_get_instance_set(struct pet_scop *scop)
 	return domain;
 }
 
+/* Return the schedule of "scop".
+ */
+__isl_give isl_schedule *pet_scop_get_schedule(__isl_keep pet_scop *scop)
+{
+	if (!scop)
+		return NULL;
+
+	return isl_schedule_copy(scop->schedule);
+}
+
 /* Add a reference identifier to all access expressions in "stmt".
  * "n_ref" points to an integer that contains the sequence number
  * of the next reference.
