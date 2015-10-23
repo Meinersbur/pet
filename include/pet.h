@@ -561,26 +561,27 @@ int pet_scop_can_build_ast_exprs(struct pet_scop *scop);
 void pet_scop_dump(struct pet_scop *scop);
 struct pet_scop *pet_scop_free(struct pet_scop *scop);
 
-__isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop);
-/* Collect all potential read access relations. */
-__isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop);
-/* Collect all tagged potential read access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
+/* Return the set of all statement instances. */
+__isl_give isl_union_set *pet_scop_get_instance_set(struct pet_scop *scop);
+/* Return the potential read access relation. */
+__isl_give isl_union_map *pet_scop_get_may_reads(struct pet_scop *scop);
+/* Return the tagged potential read access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_may_reads(
 	struct pet_scop *scop);
-/* Collect all potential write access relations. */
-__isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop);
-/* Collect all definite write access relations. */
-__isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop);
-/* Collect all tagged potential write access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
+/* Return the potential write access relation. */
+__isl_give isl_union_map *pet_scop_get_may_writes(struct pet_scop *scop);
+/* Return the definite write access relation. */
+__isl_give isl_union_map *pet_scop_get_must_writes(struct pet_scop *scop);
+/* Return the tagged potential write access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_may_writes(
 	struct pet_scop *scop);
-/* Collect all tagged definite write access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
+/* Return the tagged definite write access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_must_writes(
 	struct pet_scop *scop);
-/* Collect all definite kill access relations. */
-__isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop);
-/* Collect all tagged definite kill access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
+/* Return the definite kill access relation. */
+__isl_give isl_union_map *pet_scop_get_must_kills(struct pet_scop *scop);
+/* Return the tagged definite kill access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_must_kills(
 	struct pet_scop *scop);
 
 /* Compute a mapping from all outermost arrays (of structs) in scop

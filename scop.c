@@ -1462,7 +1462,7 @@ struct pet_scop *pet_scop_intersect_domain_prefix(struct pet_scop *scop,
 	}
 
 	scop->schedule = isl_schedule_intersect_domain(scop->schedule,
-					    pet_scop_collect_domains(scop));
+					    pet_scop_get_instance_set(scop));
 	if (!scop->schedule)
 		goto error;
 
@@ -2727,69 +2727,69 @@ static __isl_give isl_union_map *scop_collect_accesses(struct pet_scop *scop,
 	return accesses;
 }
 
-/* Collect all potential read access relations.
+/* Return the potential read access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop)
+__isl_give isl_union_map *pet_scop_get_may_reads(struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_may_read, 0);
 }
 
-/* Collect all potential write access relations.
+/* Return the potential write access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop)
+__isl_give isl_union_map *pet_scop_get_may_writes(struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_may_write, 0);
 }
 
-/* Collect all definite write access relations.
+/* Return the definite write access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop)
+__isl_give isl_union_map *pet_scop_get_must_writes(struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_must_write, 0);
 }
 
-/* Collect all definite kill access relations.
+/* Return the definite kill access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop)
+__isl_give isl_union_map *pet_scop_get_must_kills(struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_killed, 0);
 }
 
-/* Collect all tagged potential read access relations.
+/* Return the tagged potential read access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
+__isl_give isl_union_map *pet_scop_get_tagged_may_reads(
 	struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_may_read, 1);
 }
 
-/* Collect all tagged potential write access relations.
+/* Return the tagged potential write access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
+__isl_give isl_union_map *pet_scop_get_tagged_may_writes(
 	struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_may_write, 1);
 }
 
-/* Collect all tagged definite write access relations.
+/* Return the tagged definite write access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
+__isl_give isl_union_map *pet_scop_get_tagged_must_writes(
 	struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_must_write, 1);
 }
 
-/* Collect all tagged definite kill access relations.
+/* Return the tagged definite kill access relation.
  */
-__isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
+__isl_give isl_union_map *pet_scop_get_tagged_must_kills(
 	struct pet_scop *scop)
 {
 	return scop_collect_accesses(scop, pet_expr_access_killed, 1);
 }
 
-/* Collect and return the union of iteration domains in "scop".
+/* Collect and return the set of all statement instances in "scop".
  */
-__isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop)
+__isl_give isl_union_set *pet_scop_get_instance_set(struct pet_scop *scop)
 {
 	int i;
 	isl_set *domain_i;

@@ -2248,9 +2248,9 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, &body_scan, pc);
 	scop = scan_arrays(scop, pc);
-	may_read = isl_union_map_range(pet_scop_collect_may_reads(scop));
-	may_write = isl_union_map_range(pet_scop_collect_may_writes(scop));
-	must_write = isl_union_map_range(pet_scop_collect_must_writes(scop));
+	may_read = isl_union_map_range(pet_scop_get_may_reads(scop));
+	may_write = isl_union_map_range(pet_scop_get_may_writes(scop));
+	must_write = isl_union_map_range(pet_scop_get_must_writes(scop));
 	to_inner = pet_scop_compute_outer_to_inner(scop);
 	pet_scop_free(scop);
 
