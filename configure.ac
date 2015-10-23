@@ -10,6 +10,7 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_GREP
 AC_PROG_LIBTOOL
+AC_PROG_SED
 
 AC_SUBST(CLANG_CXXFLAGS)
 AC_SUBST(CLANG_LDFLAGS)
@@ -26,7 +27,8 @@ fi
 if test "$llvm_config_found" != yes; then
 	AC_MSG_ERROR([llvm-config not found])
 fi
-CLANG_CXXFLAGS=`$llvm_config --cxxflags`
+CLANG_CXXFLAGS=`$llvm_config --cxxflags | \
+	$SED -e 's/-Wcovered-switch-default//'`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
 targets=`$llvm_config --targets-built`
 components="$targets asmparser bitreader support mc"
