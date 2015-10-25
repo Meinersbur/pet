@@ -2810,6 +2810,16 @@ __isl_give isl_union_set *pet_scop_get_instance_set(struct pet_scop *scop)
 	return domain;
 }
 
+/* Return the context of "scop".
+ */
+__isl_give isl_set *pet_scop_get_context(__isl_keep pet_scop *scop)
+{
+	if (!scop)
+		return NULL;
+
+	return isl_set_copy(scop->context);
+}
+
 /* Return the schedule of "scop".
  */
 __isl_give isl_schedule *pet_scop_get_schedule(__isl_keep pet_scop *scop)

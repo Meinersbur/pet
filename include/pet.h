@@ -562,6 +562,8 @@ int pet_scop_can_build_ast_exprs(__isl_keep pet_scop *scop);
 void pet_scop_dump(__isl_keep pet_scop *scop);
 __isl_null pet_scop *pet_scop_free(__isl_take pet_scop *scop);
 
+/* Return the context of "scop". */
+__isl_give isl_set *pet_scop_get_context(__isl_keep pet_scop *scop);
 /* Return the schedule of "scop". */
 __isl_give isl_schedule *pet_scop_get_schedule(__isl_keep pet_scop *scop);
 /* Return the set of all statement instances. */
