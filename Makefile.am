@@ -25,6 +25,7 @@ TEST_EXTENSIONS = .sh
 include_HEADERS = include/pet.h
 
 EXTRA_DIST = \
+	interface/isl.py.top \
 	tests
 
 PET_INCLUDES = -I$(srcdir) -I$(srcdir)/include
@@ -123,7 +124,14 @@ pet_check_code_SOURCES = \
 	dummy.cc \
 	pet_check_code.c
 
-dist-hook:
+isl.py: interface/isl.py.top
+	(cat $(srcdir)/interface/isl.py.top; \
+		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
+			$(DEFAULT_INCLUDES) @ISL_CFLAGS@ \
+			"@ISL_SRCDIR@/interface/all.h") \
+			> isl.py
+
+dist-hook: isl.py
 	echo @GIT_HEAD_VERSION@ > $(distdir)/GIT_HEAD_ID
 
 gitversion.h: @GIT_HEAD@

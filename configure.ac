@@ -200,11 +200,13 @@ AM_CONDITIONAL(BUNDLED_ISL, test $with_isl = bundled)
 AC_SUBST(ISL_CFLAGS)
 AC_SUBST(ISL_LIBS)
 AC_SUBST(ISL_SRCDIR)
+AC_SUBST(ISL_BUILDDIR)
 case "$with_isl" in
 bundled)
 	ISL_CFLAGS="-I\$(top_srcdir)/isl/include -I\$(top_builddir)/isl/include"
 	ISL_CFLAGS="$ISL_CFLAGS"
 	ISL_SRCDIR="$srcdir/isl"
+	ISL_BUILDDIR=isl
 	;;
 build)
 	ISL_SRCDIR="$isl_srcdir"
