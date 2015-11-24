@@ -19,6 +19,9 @@ extern "C" {
 struct pet_options;
 ISL_ARG_DECL(pet_options, struct pet_options, pet_options_args)
 
+/* Create an isl_ctx that references the pet options. */
+isl_ctx *isl_ctx_alloc_with_pet_options();
+
 /* If autodetect is set, any valid scop is extracted.
  * Otherwise, the scop needs to be delimited by pragmas.
  */
