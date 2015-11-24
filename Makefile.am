@@ -26,6 +26,7 @@ include_HEADERS = include/pet.h
 
 EXTRA_DIST = \
 	interface/isl.py.top \
+	interface/pet.py \
 	tests
 
 PET_INCLUDES = -I$(srcdir) -I$(srcdir)/include
