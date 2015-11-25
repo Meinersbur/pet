@@ -2726,7 +2726,7 @@ struct pet_array *PetScan::extract_array(ValueDecl *decl,
 }
 
 /* Construct and return a pet_array corresponding to the sequence
- * of declarations "decls".
+ * of declarations represented by "decls".
  * The upper bounds of the array are converted to affine expressions
  * within the context "pc".
  * If the sequence contains a single declaration, then it corresponds
@@ -2738,23 +2738,27 @@ struct pet_array *PetScan::extract_array(ValueDecl *decl,
  *
  * Additionally, keep track of all required types in "types".
  */
-struct pet_array *PetScan::extract_array(vector<ValueDecl *> decls,
+struct pet_array *PetScan::extract_array(__isl_keep isl_id_list *decls,
 	PetTypes *types, __isl_keep pet_context *pc)
 {
+	int i, n;
+	isl_id *id;
 	struct pet_array *array;
-	vector<ValueDecl *>::iterator it;
 
-	it = decls.begin();
+	id = isl_id_list_get_id(decls, 0);
+	array = extract_array(id, types, pc);
+	isl_id_free(id);
 
-	array = extract_array(*it, types, pc);
-
-	for (++it; it != decls.end(); ++it) {
+	n = isl_id_list_n_id(decls);
+	for (i = 1; i < n; ++i) {
 		struct pet_array *parent;
 		const char *base_name, *field_name;
 		char *product_name;
 
 		parent = array;
-		array = extract_array(*it, types, pc);
+		id = isl_id_list_get_id(decls, i);
+		array = extract_array(id, types, pc);
+		isl_id_free(id);
 		if (!array)
 			return pet_array_free(parent);
 

@@ -25,6 +25,10 @@ arrays:
   element_type: float
   element_size: 4
   declared: 1
+- context: '{  :  }'
+  extent: '[n] -> { b[i0] : i0 >= 0 }'
+  element_type: float
+  element_size: 4
 statements:
 - line: 4
   domain: '[n] -> { S_0[] }'
