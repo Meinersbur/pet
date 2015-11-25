@@ -156,8 +156,7 @@ private:
 		__isl_keep pet_context *pc);
 	struct pet_array *extract_array(clang::ValueDecl *decl,
 		PetTypes *types, __isl_keep pet_context *pc);
-	struct pet_array *extract_array(isl_ctx *ctx,
-		std::vector<clang::ValueDecl *> decls,
+	struct pet_array *extract_array(std::vector<clang::ValueDecl *> decls,
 		PetTypes *types, __isl_keep pet_context *pc);
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		const clang::Type *type, int pos);

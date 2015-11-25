@@ -2738,8 +2738,8 @@ struct pet_array *PetScan::extract_array(ValueDecl *decl,
  *
  * Additionally, keep track of all required types in "types".
  */
-struct pet_array *PetScan::extract_array(isl_ctx *ctx,
-	vector<ValueDecl *> decls, PetTypes *types, __isl_keep pet_context *pc)
+struct pet_array *PetScan::extract_array(vector<ValueDecl *> decls,
+	PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
 	vector<ValueDecl *>::iterator it;
@@ -2950,7 +2950,7 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
-		array = extract_array(ctx, *it, &types, pc);
+		array = extract_array(*it, &types, pc);
 		scop->arrays[n_array + i] = array;
 		if (!scop->arrays[n_array + i])
 			goto error;
