@@ -262,4 +262,9 @@ AC_CONFIG_FILES([codegen_test.sh], [chmod +x codegen_test.sh])
 if test $with_isl = bundled; then
 	AC_CONFIG_SUBDIRS(isl)
 fi
+AC_CONFIG_COMMANDS_POST([
+	dnl pass on arguments to subdir configures, but don't
+	dnl add them to config.status
+	ac_configure_args="$ac_configure_args --with-clang=system"
+])
 AC_OUTPUT
