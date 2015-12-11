@@ -181,6 +181,10 @@ AC_EGREP_HEADER([TypedefNameDecl], [clang/AST/Type.h], [],
 AC_EGREP_HEADER([StmtRange], [clang/AST/StmtIterator.h],
 	[AC_DEFINE([HAVE_STMTRANGE], [],
 	[Define if StmtRange class is available])])
+AC_EGREP_HEADER([initializeBuiltins],
+	[clang/Basic/Builtins.h], [],
+	[AC_DEFINE([initializeBuiltins], [InitializeBuiltins],
+		[Define to InitializeBuiltins for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

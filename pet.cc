@@ -1022,7 +1022,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 	add_predefines(PP, options->pencil);
-	PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
+	PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
 		PP.getLangOpts());
 
 	ScopLocList scops;
