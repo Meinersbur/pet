@@ -16,6 +16,24 @@
 #include "summary.h"
 #include "tree.h"
 
+namespace clang {
+
+#ifndef HAVE_STMTRANGE
+/* StmtRange was replaced by iterator_range in more recent versions of clang.
+ * Implement a StmtRange in terms of this iterator_range if StmtRange
+ * is not available.
+ */
+struct StmtRange : std::pair<StmtIterator,StmtIterator> {
+	StmtRange(const StmtIterator &begin, const StmtIterator &end) :
+		std::pair<StmtIterator,StmtIterator>(begin, end) {}
+	StmtRange(Stmt::child_range range) :
+		std::pair<StmtIterator,StmtIterator>(range.begin(),
+							range.end()) {}
+};
+#endif
+
+};
+
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.
  * "start_line" is the line number of the start position.

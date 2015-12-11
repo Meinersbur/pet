@@ -178,6 +178,9 @@ AC_EGREP_HEADER([TypedefNameDecl], [clang/AST/Type.h], [],
 		[Define to TypedefDecl for older versions of clang])
 	 AC_DEFINE([getTypedefNameForAnonDecl], [getTypedefForAnonDecl],
 		[Define to getTypedefForAnonDecl for older versions of clang])])
+AC_EGREP_HEADER([StmtRange], [clang/AST/StmtIterator.h],
+	[AC_DEFINE([HAVE_STMTRANGE], [],
+	[Define if StmtRange class is available])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
