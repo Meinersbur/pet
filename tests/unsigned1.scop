@@ -2,16 +2,31 @@ start: 60
 end: 256
 indent: '        '
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i, j, k] : (i <= 199 and j <= 199 and j >= 256 - i and
-  k >= 0) or (i <= 199 and i >= 0 and j <= 255 - i and j <= 199 and j >= 0 and k >=
-  0 and k <= -1 + i + j) }", child: { schedule: "L_0[{ S_0[i, j, k] -> [(i)] }]",
+schedule: '{ domain: "{ S_3[]; S_0[i, j, k] : (i <= 199 and j <= 199 and j >= 256
+  - i and k >= 0) or (i <= 199 and i >= 0 and j <= 255 - i and j <= 199 and j >= 0
+  and k >= 0 and k <= -1 + i + j); S_2[]; S_1[]; S_4[] }", child: { sequence: [ {
+  filter: "{ S_0[i, j, k] }", child: { schedule: "L_0[{ S_0[i, j, k] -> [(i)] }]",
   child: { schedule: "L_1[{ S_0[i, j, k] -> [(j)] }]", child: { schedule: "L_2[{ S_0[i,
-  j, k] -> [(k)] }]" } } } }'
+  j, k] -> [(k)] }]" } } } }, { filter: "{ S_3[]; S_2[]; S_1[]; S_4[] }", child: {
+  set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" },
+  { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
   element_type: int
   element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
+  element_type: unsigned char
+  element_size: 1
+- context: '{  :  }'
+  extent: '{ j[] }'
+  element_type: unsigned char
+  element_size: 1
+- context: '{  :  }'
+  extent: '{ k[] }'
+  element_type: unsigned char
+  element_size: 1
 statements:
 - line: 10
   domain: '{ S_0[i, j, k] : (i <= 199 and j <= 199 and j >= 256 - i and k >= 0) or
@@ -30,3 +45,55 @@ statements:
         write: 1
       - type: int
         value: 5
+- line: -1
+  domain: '{ S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_1[] -> i[] }'
+        index: '{ S_1[] -> i[] }'
+        reference: __pet_ref_1
+        kill: 1
+- line: -1
+  domain: '{ S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_2[] -> j[] }'
+        index: '{ S_2[] -> j[] }'
+        reference: __pet_ref_2
+        kill: 1
+- line: -1
+  domain: '{ S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_3[] -> k[] }'
+        index: '{ S_3[] -> k[] }'
+        reference: __pet_ref_3
+        kill: 1
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> a[] }'
+        index: '{ S_4[] -> a[] }'
+        reference: __pet_ref_4
+        kill: 1

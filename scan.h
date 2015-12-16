@@ -168,6 +168,9 @@ private:
 	bool name_in_use(const std::string &name, clang::Decl *decl);
 	std::string generate_new_name(const std::string &name);
 
+	__isl_give pet_tree *add_kills(__isl_take pet_tree *tree,
+		std::set<clang::ValueDecl *> locals);
+
 	struct pet_scop *scan(clang::Stmt *stmt);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop,

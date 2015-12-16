@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2015      Sven Verdoolaege. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2348,15 +2349,251 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 	return scop;
 }
 
+/* Given a DeclRefExpr or an ArraySubscriptExpr, return a pointer
+ * to the base DeclRefExpr.
+ * If the expression is something other than a nested ArraySubscriptExpr
+ * with a DeclRefExpr at the base, then return NULL.
+ */
+static DeclRefExpr *extract_array_base(Expr *expr)
+{
+	while (isa<ArraySubscriptExpr>(expr)) {
+		expr = (cast<ArraySubscriptExpr>(expr))->getBase();
+		expr = pet_clang_strip_casts(expr);
+	}
+	return dyn_cast<DeclRefExpr>(expr);
+}
+
+/* Structure for keeping track of local variables that can be killed
+ * after the scop.
+ * In particular, variables of interest are first added to "locals"
+ * Then the Stmt in which the variable declaration appears is scanned
+ * for any possible leak of a pointer or any use after a specified scop.
+ * In such cases, the variable is removed from "locals".
+ * The scop is assumed to appear at the same level of the declaration.
+ * In particular, it does not appear inside a nested control structure,
+ * meaning that it is sufficient to look at uses of the variables
+ * that textually appear after the specified scop.
+ *
+ * locals is the set of variables of interest.
+ * accessed keeps track of the variables that are accessed inside the scop.
+ * scop_start is the start of the scop
+ * scop_end is the end of the scop
+ * addr_end is the end of the latest visited address_of expression.
+ * expr_end is the end of the latest handled expression.
+ */
+struct killed_locals : RecursiveASTVisitor<killed_locals> {
+	SourceManager &SM;
+	set<ValueDecl *> locals;
+	set<ValueDecl *> accessed;
+	unsigned scop_start;
+	unsigned scop_end;
+	unsigned addr_end;
+	unsigned expr_end;
+
+	killed_locals(SourceManager &SM) : SM(SM) {}
+
+	void add_local(Decl *decl);
+	void add_locals(DeclStmt *stmt);
+	void set_addr_end(UnaryOperator *expr);
+	bool check_decl_in_expr(Expr *expr);
+	void remove_accessed_after(Stmt *stmt, unsigned start, unsigned end);
+	bool VisitUnaryOperator(UnaryOperator *expr) {
+		if (expr->getOpcode() == UO_AddrOf)
+			set_addr_end(expr);
+		return true;
+	}
+	bool VisitArraySubscriptExpr(ArraySubscriptExpr *expr) {
+		return check_decl_in_expr(expr);
+	}
+	bool VisitDeclRefExpr(DeclRefExpr *expr) {
+		return check_decl_in_expr(expr);
+	}
+	void dump() {
+		set<ValueDecl *>::iterator it;
+		cerr << "local" << endl;
+		for (it = locals.begin(); it != locals.end(); ++it)
+			(*it)->dump();
+		cerr << "accessed" << endl;
+		for (it = accessed.begin(); it != accessed.end(); ++it)
+			(*it)->dump();
+	}
+};
+
+/* Add "decl" to the set of local variables, provided it is a ValueDecl.
+ */
+void killed_locals::add_local(Decl *decl)
+{
+	ValueDecl *vd;
+
+	vd = dyn_cast<ValueDecl>(decl);
+	if (vd)
+		locals.insert(vd);
+}
+
+/* Add all variables declared by "stmt" to the set of local variables.
+ */
+void killed_locals::add_locals(DeclStmt *stmt)
+{
+	if (stmt->isSingleDecl()) {
+		add_local(stmt->getSingleDecl());
+	} else {
+		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
+		unsigned n = group.size();
+		for (int i = 0; i < n; ++i)
+			add_local(group[i]);
+	}
+}
+
+/* Set this->addr_end to the end of the address_of expression "expr".
+ */
+void killed_locals::set_addr_end(UnaryOperator *expr)
+{
+	addr_end = getExpansionOffset(SM, expr->getLocEnd());
+}
+
+/* Given an expression of type ArraySubscriptExpr or DeclRefExpr,
+ * check two things
+ * - is the variable used inside the scop?
+ * - is the variable used after the scop or can a pointer be taken?
+ * Return true if the traversal should continue.
+ *
+ * Reset the pointer to the end of the latest address-of expression
+ * such that only the first array or scalar is considered to have
+ * its address taken.  In particular, accesses inside the indices
+ * of the array should not be considered to have their address taken.
+ *
+ * If the variable is not one of the local variables or
+ * if the access appears inside an expression that was already handled,
+ * then simply return.
+ *
+ * Otherwise, the expression is handled and "expr_end" is updated
+ * to prevent subexpressions with the same base expression
+ * from being handled as well.
+ *
+ * If a higher-dimensional slice of an array is accessed or
+ * if the access appears inside an address-of expression,
+ * then a pointer may leak, so the variable should not be killed.
+ * Similarly, if the access appears after the end of the scop,
+ * then the variable should not be killed.
+ *
+ * Otherwise, if the access appears inside the scop, then
+ * keep track of the fact that the variable was accessed at least once
+ * inside the scop.
+ */
+bool killed_locals::check_decl_in_expr(Expr *expr)
+{
+	unsigned loc;
+	int depth;
+	DeclRefExpr *ref;
+	ValueDecl *decl;
+	unsigned old_addr_end;
+
+	ref = extract_array_base(expr);
+	if (!ref)
+		return true;
+
+	old_addr_end = addr_end;
+	addr_end = 0;
+
+	decl = ref->getDecl();
+	if (locals.find(decl) == locals.end())
+		return true;
+	loc = getExpansionOffset(SM, expr->getLocStart());
+	if (loc <= expr_end)
+		return true;
+
+	expr_end = getExpansionOffset(SM, ref->getLocEnd());
+	depth = array_depth(expr->getType().getTypePtr());
+	if (loc >= scop_end || loc <= old_addr_end || depth != 0)
+		locals.erase(decl);
+	if (loc >= scop_start && loc <= scop_end)
+		accessed.insert(decl);
+
+	return locals.size() != 0;
+}
+
+/* Remove the local variables that may be accessed inside "stmt" after
+ * the scop starting at "start" and ending at "end", or that
+ * are not accessed at all inside that scop.
+ *
+ * If there are no local variables that could potentially be killed,
+ * then simply return.
+ *
+ * Otherwise, scan "stmt" for any potential use of the variables
+ * after the scop.  This includes a possible pointer being taken
+ * to (part of) the variable.  If there is any such use, then
+ * the variable is removed from the set of local variables.
+ *
+ * At the same time, keep track of the variables that are
+ * used anywhere inside the scop.  At the end, replace the local
+ * variables with the intersection with these accessed variables.
+ */
+void killed_locals::remove_accessed_after(Stmt *stmt, unsigned start,
+	unsigned end)
+{
+	set<ValueDecl *> accessed_local;
+
+	if (locals.size() == 0)
+		return;
+	scop_start = start;
+	scop_end = end;
+	addr_end = 0;
+	expr_end = 0;
+	TraverseStmt(stmt);
+	set_intersection(locals.begin(), locals.end(),
+			 accessed.begin(), accessed.end(),
+			 inserter(accessed_local, accessed_local.begin()));
+	locals = accessed_local;
+}
+
+/* Add a call to __pencil_kill to the end of "tree" that kills
+ * all the variables in "locals" and return the result.
+ *
+ * No location is added to the kill because the most natural
+ * location would lie outside the scop.  Attaching such a location
+ * to this tree would extend the scope of the final result
+ * to include the location.
+ */
+__isl_give pet_tree *PetScan::add_kills(__isl_take pet_tree *tree,
+	set<ValueDecl *> locals)
+{
+	int i;
+	pet_expr *expr;
+	pet_tree *kill, *block;
+	set<ValueDecl *>::iterator it;
+
+	if (locals.size() == 0)
+		return tree;
+	expr = pet_expr_new_call(ctx, "__pencil_kill", locals.size());
+	i = 0;
+	for (it = locals.begin(); it != locals.end(); ++it) {
+		pet_expr *arg;
+		arg = extract_access_expr(*it);
+		expr = pet_expr_set_arg(expr, i++, arg);
+	}
+	kill = pet_tree_new_expr(expr);
+	block = pet_tree_new_block(ctx, 0, 2);
+	block = pet_tree_block_add_child(block, tree);
+	block = pet_tree_block_add_child(block, kill);
+
+	return block;
+}
+
 /* Check if the scop marked by the user is exactly this Stmt
  * or part of this Stmt.
  * If so, return a pet_scop corresponding to the marked region.
  * Otherwise, return NULL.
+ *
+ * If the scop is not further nested inside a child of "stmt",
+ * then check if there are any variable declarations before the scop
+ * inside "stmt".  If so, and if these variables are not used
+ * after the scop, then add kills to the variables.
  */
 struct pet_scop *PetScan::scan(Stmt *stmt)
 {
 	SourceManager &SM = PP.getSourceManager();
 	unsigned start_off, end_off;
+	pet_tree *tree;
 
 	start_off = getExpansionOffset(SM, stmt->getLocStart());
 	end_off = getExpansionOffset(SM, stmt->getLocEnd());
@@ -2369,6 +2606,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	if (start_off >= loc.start && end_off <= loc.end)
 		return extract_scop(extract(stmt));
 
+	killed_locals kl(SM);
 	StmtIterator start;
 	for (start = stmt->child_begin(); start != stmt->child_end(); ++start) {
 		Stmt *child = *start;
@@ -2380,6 +2618,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			return scan(child);
 		if (start_off >= loc.start)
 			break;
+		if (isa<DeclStmt>(child))
+			kl.add_locals(cast<DeclStmt>(child));
 	}
 
 	StmtIterator end;
@@ -2390,7 +2630,11 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			break;
 	}
 
-	return extract_scop(extract(StmtRange(start, end), false, false));
+	kl.remove_accessed_after(stmt, loc.start, loc.end);
+
+	tree = extract(StmtRange(start, end), false, false);
+	tree = add_kills(tree, kl.locals);
+	return extract_scop(tree);
 }
 
 /* Set the size of index "pos" of "array" to "size".

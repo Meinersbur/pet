@@ -2,10 +2,10 @@ start: 31
 end: 104
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[]; S_2[t] : t >= 0; S_1[t] : t >= 0 }", child: { sequence:
-  [ { filter: "{ S_0[] }" }, { filter: "{ S_2[t]; S_1[t] }", child: { schedule: "L_0[{
-  S_1[t] -> [(t)]; S_2[t] -> [(t)] }]", child: { sequence: [ { filter: "{ S_1[t] }"
-  }, { filter: "{ S_2[t] }" } ] } } } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[]; S_2[t] : t >= 0; S_1[t] : t >= 0 }", child:
+  { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_2[t]; S_1[t] }", child: {
+  schedule: "L_0[{ S_1[t] -> [(t)]; S_2[t] -> [(t)] }]", child: { sequence: [ { filter:
+  "{ S_1[t] }" }, { filter: "{ S_2[t] }" } ] } } }, { filter: "{ S_3[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ A[i0] : i0 >= 0 }'
@@ -67,3 +67,16 @@ statements:
         write: 1
       - type: int
         value: 7
+- line: -1
+  domain: '{ S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_3[] -> i[] }'
+        index: '{ S_3[] -> i[] }'
+        reference: __pet_ref_4
+        kill: 1

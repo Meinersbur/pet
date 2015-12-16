@@ -2,9 +2,11 @@ start: 31
 end: 95
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[]; S_2[]; S_1[] }", child: { sequence: [ { filter:
-  "{ S_0[] }" }, { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" }, { filter: "{ S_3[]
-  }" } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[]; S_5[]; S_6[]; S_4[]; S_1[]; S_2[] }", child:
+  { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" }, { filter: "{ S_2[]
+  }" }, { filter: "{ S_3[] }" }, { filter: "{ S_5[]; S_6[]; S_4[] }", child: { set:
+  [ { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" }, { filter: "{ S_6[] }" } ] }
+  } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
@@ -82,3 +84,43 @@ statements:
         write: 1
       - type: int
         value: 5
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> a[o0] : o0 >= 0 and o0 <= 9 }'
+        index: '{ S_4[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_5
+        kill: 1
+- line: -1
+  domain: '{ S_5[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_5[] -> b[] }'
+        index: '{ S_5[] -> b[] }'
+        reference: __pet_ref_6
+        kill: 1
+- line: -1
+  domain: '{ S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_6[] -> c[] }'
+        index: '{ S_6[] -> c[] }'
+        reference: __pet_ref_7
+        kill: 1

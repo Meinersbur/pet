@@ -2,8 +2,9 @@ start: 30
 end: 137
 indent: "\t"
 context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
-schedule: '{ domain: "[n] -> { S_0[i] : i <= 2147483547 and i >= 0 and i <= n }",
-  child: { schedule: "[n] -> L_0[{ S_0[i] -> [(i)] }]" } }'
+schedule: '{ domain: "[n] -> { S_1[]; S_0[i] : i <= 2147483547 and i >= 0 and i <=
+  n }", child: { sequence: [ { filter: "[n] -> { S_0[i] }", child: { schedule: "[n]
+  -> L_0[{ S_0[i] -> [(i)] }]" } }, { filter: "[n] -> { S_1[] }" } ] } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
   extent: '[n] -> { a[i0] : i0 >= 0 and i0 <= -1 + n }'
@@ -25,3 +26,17 @@ statements:
         write: 1
       - type: int
         value: 0
+- line: -1
+  domain: '[n] -> { S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_1[] -> a[o0] : o0 >= 0 and o0 <= -1 + n }'
+        index: '[n] -> { S_1[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_1
+        kill: 1

@@ -2,12 +2,14 @@ start: 50
 end: 172
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_2[k] : k <= 261 and k >= 252; S_0[k] : (exists (e0 = floor((k)/256):
-  k <= 261 and k >= 252 and 256e0 >= -255 + k and 256e0 <= -2 + k)) or (exists (e0
-  = floor((k)/256): 256e0 = k and k <= 261 and k >= 252)); S_1[k] : k <= 261 and k
-  >= 252 }", child: { schedule: "L_0[{ S_2[k] -> [(k)]; S_1[k] -> [(k)]; S_0[k] ->
+schedule: '{ domain: "{ S_3[]; S_2[k] : k <= 261 and k >= 252; S_0[k] : (exists (e0
+  = floor((k)/256): k <= 261 and k >= 252 and 256e0 >= -255 + k and 256e0 <= -2 +
+  k)) or (exists (e0 = floor((k)/256): 256e0 = k and k <= 261 and k >= 252)); S_4[];
+  S_1[k] : k <= 261 and k >= 252 }", child: { sequence: [ { filter: "{ S_2[k]; S_0[k];
+  S_1[k] }", child: { schedule: "L_0[{ S_2[k] -> [(k)]; S_1[k] -> [(k)]; S_0[k] ->
   [(k)] }]", child: { sequence: [ { filter: "{ S_0[k] }" }, { filter: "{ S_1[k] }"
-  }, { filter: "{ S_2[k] }" } ] } } }'
+  }, { filter: "{ S_2[k] }" } ] } } }, { filter: "{ S_3[]; S_4[] }", child: { set:
+  [ { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[k] : k <= 261 and k >= 252 }'
@@ -19,6 +21,10 @@ arrays:
   extent: '{ a[] }'
   element_type: int
   element_size: 4
+- context: '{  :  }'
+  extent: '{ k[] }'
+  element_type: unsigned char
+  element_size: 1
 statements:
 - line: 11
   domain: '{ [S_0[k] -> [0]] : (exists (e0 = floor((k)/256): k <= 261 and k >= 252
@@ -88,6 +94,32 @@ statements:
     reference: __pet_ref_4
     read: 1
     write: 0
+- line: -1
+  domain: '{ S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_3[] -> k[] }'
+        index: '{ S_3[] -> k[] }'
+        reference: __pet_ref_7
+        kill: 1
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> a[] }'
+        index: '{ S_4[] -> a[] }'
+        reference: __pet_ref_8
+        kill: 1
 implications:
 - satisfied: 0
   extension: '{ __pet_test_0[k] -> __pet_test_0[k''] : k'' <= k and k'' <= 261 and

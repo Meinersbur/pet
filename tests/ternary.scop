@@ -2,12 +2,19 @@ start: 47
 end: 141
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i] : i >= 0 and i <= 99; S_1[i] : i >= 0 and i <= 99 }",
-  child: { schedule: "L_0[{ S_0[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence:
-  [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" } ] } } }'
+schedule: '{ domain: "{ S_3[]; S_0[i] : i >= 0 and i <= 99; S_2[]; S_4[]; S_1[i] :
+  i >= 0 and i <= 99 }", child: { sequence: [ { filter: "{ S_0[i]; S_1[i] }", child:
+  { schedule: "L_0[{ S_0[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence: [ {
+  filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" } ] } } }, { filter: "{ S_3[]; S_2[];
+  S_4[] }", child: { set: [ { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" }, { filter:
+  "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -55,3 +62,43 @@ statements:
           value: 40
         - type: int
           value: 90
+- line: -1
+  domain: '{ S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_2[] -> i[] }'
+        index: '{ S_2[] -> i[] }'
+        reference: __pet_ref_3
+        kill: 1
+- line: -1
+  domain: '{ S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_3[] -> j[] }'
+        index: '{ S_3[] -> j[] }'
+        reference: __pet_ref_4
+        kill: 1
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        index: '{ S_4[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_5
+        kill: 1

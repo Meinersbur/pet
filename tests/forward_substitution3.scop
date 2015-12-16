@@ -2,9 +2,10 @@ start: 25
 end: 97
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[]; S_5[]; S_4[]; S_1[]; S_2[] }", child: { sequence:
-  [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" }, { filter:
-  "{ S_3[] }" }, { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[]; S_5[]; S_6[]; S_4[]; S_1[]; S_2[] }", child:
+  { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }" }, { filter: "{ S_2[]
+  }" }, { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" },
+  { filter: "{ S_6[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ b[] }'
@@ -112,3 +113,17 @@ statements:
         write: 1
       - type: int
         value: 5
+- line: -1
+  domain: '{ S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_6[] -> a[o0] : o0 >= 0 and o0 <= 9 }'
+        index: '{ S_6[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_7
+        kill: 1

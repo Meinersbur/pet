@@ -2,17 +2,20 @@ start: 92
 end: 239
 indent: "\t"
 context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
-schedule: '{ domain: "[n] -> { S_2[x1, t] : x1 >= 0 and x1 <= -1 + n and t >= 0; S2[x1,
-  t] : x1 >= 0 and x1 <= -1 + n and t >= 0; S1[x1] : x1 >= 0 and x1 <= -1 + n; S_1[x1]
-  : x1 >= 0 and x1 <= -1 + n; R[x1] : x1 >= 0 and x1 <= -1 + n; S_4[x1, t] : x1 >=
-  0 and x1 <= -1 + n and t >= 0 }", child: { schedule: "[n] -> L_0[{ S_2[x1, t] ->
-  [(x1)]; S2[x1, t] -> [(x1)]; S1[x1] -> [(x1)]; S_1[x1] -> [(x1)]; R[x1] -> [(x1)];
-  S_4[x1, t] -> [(x1)] }]", child: { sequence: [ { filter: "[n] -> { S1[x1] }" },
-  { filter: "[n] -> { S_1[x1] }" }, { filter: "[n] -> { S_2[x1, t]; S2[x1, t]; S_4[x1,
-  t] }", child: { schedule: "[n] -> L_1[{ S_2[x1, t] -> [(t)]; S2[x1, t] -> [(t)];
-  S_4[x1, t] -> [(t)] }]", child: { sequence: [ { filter: "[n] -> { S_2[x1, t] }"
-  }, { filter: "[n] -> { S2[x1, t] }" }, { filter: "[n] -> { S_4[x1, t] }" } ] } }
-  }, { filter: "[n] -> { R[x1] }" } ] } } }'
+schedule: '{ domain: "[n] -> { S_2[x1, t] : x1 >= 0 and x1 <= -1 + n and t >= 0; S_7[];
+  S2[x1, t] : x1 >= 0 and x1 <= -1 + n and t >= 0; S1[x1] : x1 >= 0 and x1 <= -1 +
+  n; S_6[]; S_1[x1] : x1 >= 0 and x1 <= -1 + n; R[x1] : x1 >= 0 and x1 <= -1 + n;
+  S_4[x1, t] : x1 >= 0 and x1 <= -1 + n and t >= 0 }", child: { sequence: [ { filter:
+  "[n] -> { S_2[x1, t]; S2[x1, t]; S1[x1]; S_1[x1]; R[x1]; S_4[x1, t] }", child: {
+  schedule: "[n] -> L_0[{ S_2[x1, t] -> [(x1)]; S2[x1, t] -> [(x1)]; S1[x1] -> [(x1)];
+  S_1[x1] -> [(x1)]; R[x1] -> [(x1)]; S_4[x1, t] -> [(x1)] }]", child: { sequence:
+  [ { filter: "[n] -> { S1[x1] }" }, { filter: "[n] -> { S_1[x1] }" }, { filter: "[n]
+  -> { S_2[x1, t]; S2[x1, t]; S_4[x1, t] }", child: { schedule: "[n] -> L_1[{ S_2[x1,
+  t] -> [(t)]; S2[x1, t] -> [(t)]; S_4[x1, t] -> [(t)] }]", child: { sequence: [ {
+  filter: "[n] -> { S_2[x1, t] }" }, { filter: "[n] -> { S2[x1, t] }" }, { filter:
+  "[n] -> { S_4[x1, t] }" } ] } } }, { filter: "[n] -> { R[x1] }" } ] } } }, { filter:
+  "[n] -> { S_7[]; S_6[] }", child: { set: [ { filter: "{ S_6[] }" }, { filter: "{
+  S_7[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[n] -> { __pet_test_0[x1, t] : x1 >= 0 and x1 <= -1 + n and t >= 0 }'
@@ -155,6 +158,32 @@ statements:
         reference: __pet_ref_12
         read: 1
         write: 0
+- line: -1
+  domain: '[n] -> { S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_6[] -> s[] }'
+        index: '[n] -> { S_6[] -> s[] }'
+        reference: __pet_ref_13
+        kill: 1
+- line: -1
+  domain: '[n] -> { S_7[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[n] -> { S_7[] -> x2[] }'
+        index: '[n] -> { S_7[] -> x2[] }'
+        reference: __pet_ref_14
+        kill: 1
 implications:
 - satisfied: 1
   extension: '[n] -> { __pet_test_0[x1, t] -> __pet_test_0[x1, t''] : t'' <= t and

@@ -2,12 +2,14 @@ start: 143
 end: 351
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[]; S_3[i, j] : i >= 0 and j >= 0; S_2[i, j] : i >= 0 and
-  j >= 0; S_1[] }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[]
-  }" }, { filter: "{ S_2[i, j] }", child: { schedule: "L_0[{ S_2[i, j] -> [(i)] }]",
-  child: { schedule: "L_1[{ S_2[i, j] -> [(j)] }]" } } }, { filter: "{ S_3[i, j] }",
-  child: { schedule: "L_2[{ S_3[i, j] -> [(i)] }]", child: { schedule: "L_3[{ S_3[i,
-  j] -> [(j)] }]" } } } ] } }'
+schedule: '{ domain: "{ S_0[]; S_5[]; S_3[i, j] : i >= 0 and j >= 0; S_6[]; S_2[i,
+  j] : i >= 0 and j >= 0; S_4[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[]
+  }" }, { filter: "{ S_1[] }" }, { filter: "{ S_2[i, j] }", child: { schedule: "L_0[{
+  S_2[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_2[i, j] -> [(j)] }]" } } },
+  { filter: "{ S_3[i, j] }", child: { schedule: "L_2[{ S_3[i, j] -> [(i)] }]", child:
+  { schedule: "L_3[{ S_3[i, j] -> [(j)] }]" } } }, { filter: "{ S_5[]; S_6[]; S_4[]
+  }", child: { set: [ { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" }, { filter:
+  "{ S_6[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ M[] }'
@@ -127,3 +129,44 @@ statements:
     reference: __pet_ref_8
     read: 1
     write: 0
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> N[] }'
+        index: '{ S_4[] -> N[] }'
+        reference: __pet_ref_12
+        kill: 1
+- line: -1
+  domain: '{ S_5[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_5[] -> M[] }'
+        index: '{ S_5[] -> M[] }'
+        reference: __pet_ref_13
+        kill: 1
+- line: -1
+  domain: '{ S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_6[] -> a[o0, o1] : o0 >= 0 and o1 >= 0 and o0 <= 99 and o1 <=
+          99 }'
+        index: '{ S_6[] -> a[] }'
+        depth: 2
+        reference: __pet_ref_14
+        kill: 1

@@ -2,7 +2,8 @@ start: 46
 end: 102
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[] }" }'
+schedule: '{ domain: "{ S_0[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[] }"
+  }, { filter: "{ S_1[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -34,3 +35,16 @@ statements:
     reference: __pet_ref_0
     read: 1
     write: 0
+- line: -1
+  domain: '{ S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_1[] -> a[] }'
+        index: '{ S_1[] -> a[] }'
+        reference: __pet_ref_2
+        kill: 1
