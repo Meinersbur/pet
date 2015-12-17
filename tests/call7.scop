@@ -1,5 +1,5 @@
 start: 100
-end: 147
+end: 155
 indent: "\t"
 context: '{  :  }'
 schedule: '{ domain: "{ S_0[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[] }"
