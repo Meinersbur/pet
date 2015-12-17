@@ -294,6 +294,7 @@ static struct pet_scop *scop_add_kill(struct pet_scop *scop,
 	if (!expr)
 		goto error;
 	if (expr->n_arg != 0) {
+		pet_loc_free(loc);
 		pet_expr_free(expr);
 		return scop;
 	}
@@ -317,6 +318,7 @@ static struct pet_scop *scop_add_kill(struct pet_scop *scop,
 	return scop;
 error:
 	pet_expr_free(expr);
+	pet_loc_free(loc);
 	return pet_scop_free(scop);
 }
 
