@@ -270,6 +270,10 @@ static int is_pencil_kill(__isl_keep pet_tree *tree)
 /* Add a kill to "scop" that kills what is accessed by
  * the access expression "expr".
  *
+ * Mark the access as a write prior to evaluation to avoid
+ * the access being replaced by a possible known value
+ * during the evaluation.
+ *
  * If the access expression has any arguments (after evaluation
  * in the context of "pc"), then we ignore it, since we cannot
  * tell which elements are definitely killed.
@@ -290,6 +294,7 @@ static struct pet_scop *scop_add_kill(struct pet_scop *scop,
 	struct pet_array *array;
 	struct pet_scop *scop_i;
 
+	expr = pet_expr_access_set_write(expr, 1);
 	expr = pet_context_evaluate_expr(pc, expr);
 	if (!expr)
 		goto error;
