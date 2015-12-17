@@ -55,8 +55,8 @@ statements:
       - type: call
         name: g
 - line: 17
-  domain: '{ [S_2[i, j] -> [i2, i3]] : i >= 0 and j >= 0 and i2 >= 1 + i and i3 >=
-    1 + j }'
+  domain: '{ [S_2[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
+    j }'
   body:
     type: expression
     expr:
@@ -93,8 +93,8 @@ statements:
     read: 1
     write: 0
 - line: 20
-  domain: '{ [S_3[i, j] -> [i2, i3]] : i >= 0 and j >= 0 and i2 >= 1 + i and i3 >=
-    1 + j }'
+  domain: '{ [S_3[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
+    j }'
   body:
     type: expression
     expr:
