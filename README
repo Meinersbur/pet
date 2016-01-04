@@ -7,7 +7,7 @@ Requirements:
 	(only needed if you want to compile the pet executable)
 - LLVM/clang libraries, 2.9 or higher (http://clang.llvm.org/get_started.html)
 	Unless you have some other reasons for wanting to use the svn version,
-	it's best to install the latest release (3.6).
+	it's best to install the latest release (3.7).
 	The svn version occasionally introduces incompatibilities.
 	Nevertheless, if you encounter any such incompatibilities, please
 	report them so that they can be fixed.
@@ -19,10 +19,11 @@ Requirements:
 	(through "make install").  You may want to specify an installation
 	directory using the --prefix configure option.
 
-	If you configure LLVM using cmake, you may end up with clang libraries
-	that have been compiled with -fno-rtti without this option appearing
-	in the output of "llvm-config --cxxflags".  You may then run into
-	errors about undefined reference to the 'typeinfo' of some classes.
+	If you configure older versions of LLVM using cmake, you may end up
+	with clang libraries that have been compiled with -fno-rtti without
+	this option appearing in the output of "llvm-config --cxxflags".
+	You may then run into errors about undefined reference to the
+	'typeinfo' of some classes.
 	You will then have to add this option manually to CXXFLAGS while
 	configuring pet.
 
