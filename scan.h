@@ -269,7 +269,9 @@ private:
 		std::string name);
 	clang::FunctionDecl *get_summary_function(clang::CallExpr *call);
 
+	void report(clang::SourceRange range, unsigned id);
 	void report(clang::Stmt *stmt, unsigned id);
+	void report(clang::Decl *decl, unsigned id);
 	void unsupported(clang::Stmt *stmt);
 	void report_unsupported_unary_operator(clang::Stmt *stmt);
 	void report_unsupported_statement_type(clang::Stmt *stmt);
@@ -278,4 +280,5 @@ private:
 	void report_missing_summary_function(clang::Stmt *stmt);
 	void report_missing_summary_function_body(clang::Stmt *stmt);
 	void report_unsupported_inline_function_argument(clang::Stmt *stmt);
+	void report_unsupported_declaration(clang::Decl *decl);
 };

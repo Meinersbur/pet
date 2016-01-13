@@ -218,16 +218,30 @@ PetScan::~PetScan()
 	isl_union_map_free(value_bounds);
 }
 
-/* Report a diagnostic, unless autodetect is set.
+/* Report a diagnostic on the range "range", unless autodetect is set.
  */
-void PetScan::report(Stmt *stmt, unsigned id)
+void PetScan::report(SourceRange range, unsigned id)
 {
 	if (options->autodetect)
 		return;
 
-	SourceLocation loc = stmt->getLocStart();
+	SourceLocation loc = range.getBegin();
 	DiagnosticsEngine &diag = PP.getDiagnostics();
-	DiagnosticBuilder B = diag.Report(loc, id) << stmt->getSourceRange();
+	DiagnosticBuilder B = diag.Report(loc, id) << range;
+}
+
+/* Report a diagnostic on "stmt", unless autodetect is set.
+ */
+void PetScan::report(Stmt *stmt, unsigned id)
+{
+	report(stmt->getSourceRange(), id);
+}
+
+/* Report a diagnostic on "decl", unless autodetect is set.
+ */
+void PetScan::report(Decl *decl, unsigned id)
+{
+	report(decl->getSourceRange(), id);
 }
 
 /* Called if we found something we (currently) cannot handle.
@@ -312,6 +326,16 @@ void PetScan::report_unsupported_inline_function_argument(Stmt *stmt)
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
 				   "unsupported inline function call argument");
 	report(stmt, id);
+}
+
+/* Report an unsupported type of declaration, unless autodetect is set.
+ */
+void PetScan::report_unsupported_declaration(Decl *decl)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+				   "unsupported declaration");
+	report(decl, id);
 }
 
 /* Extract an integer from "val", which is assumed to be non-negative.
@@ -725,6 +749,11 @@ __isl_give pet_tree *PetScan::extract(Decl *decl)
 	VarDecl *vd;
 	pet_expr *lhs, *rhs;
 	pet_tree *tree;
+
+	if (!isa<VarDecl>(decl)) {
+		report_unsupported_declaration(decl);
+		return NULL;
+	}
 
 	vd = cast<VarDecl>(decl);
 	declarations.push_back(vd);
