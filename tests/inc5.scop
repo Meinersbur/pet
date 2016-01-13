@@ -2,11 +2,13 @@ start: 38
 end: 115
 indent: "\t"
 context: '[N] -> {  : N >= 0 and N <= 2147483647 }'
-schedule: '{ domain: "[N] -> { S_3[t] : t >= 0; S_1[]; S_4[t] : t >= 0; S_0[]; S_2[t]
-  : t >= 0 }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_1[] }"
-  }, { filter: "{ S_3[t]; S_2[t]; S_4[t] }", child: { schedule: "L_0[{ S_4[t] -> [(t)];
-  S_2[t] -> [(t)]; S_3[t] -> [(t)] }]", child: { sequence: [ { filter: "{ S_2[t] }"
-  }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t] }" } ] } } } ] } }'
+schedule: '{ domain: "[N] -> { S_3[t] : t >= 0; S_5[]; S_6[]; S_1[]; S_4[t] : t >=
+  0; S_0[]; S_2[t] : t >= 0 }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter:
+  "{ S_1[] }" }, { filter: "{ S_3[t]; S_2[t]; S_4[t] }", child: { schedule: "L_0[{
+  S_4[t] -> [(t)]; S_2[t] -> [(t)]; S_3[t] -> [(t)] }]", child: { sequence: [ { filter:
+  "{ S_2[t] }" }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t] }" } ] } } }, { filter:
+  "{ S_5[]; S_6[] }", child: { set: [ { filter: "{ S_5[] }" }, { filter: "{ S_6[]
+  }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { __pet_test_0[t] : t >= 0 }'
@@ -139,6 +141,33 @@ statements:
     reference: __pet_ref_10
     read: 1
     write: 0
+- line: -1
+  domain: '[N] -> { S_5[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_5[] -> i[] }'
+        index: '[N] -> { S_5[] -> i[] }'
+        reference: __pet_ref_13
+        kill: 1
+- line: -1
+  domain: '[N] -> { S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_6[] -> a[o0] : o0 >= 0 and o0 <= -1 + N }'
+        index: '[N] -> { S_6[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_14
+        kill: 1
 implications:
 - satisfied: 1
   extension: '{ __pet_test_0[t] -> __pet_test_0[t''] : t'' <= t and t'' >= 0 }'

@@ -2,10 +2,10 @@ start: 101
 end: 225
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9; S_1[]
-  }", child: { sequence: [ { filter: "{ S_0[i, j] }", child: { schedule: "L_0[{ S_0[i,
-  j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)] }]" } } }, { filter:
-  "{ S_1[] }" } ] } }'
+schedule: '{ domain: "{ S_0[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 9; S_2[];
+  S_1[] }", child: { sequence: [ { filter: "{ S_0[i, j] }", child: { schedule: "L_0[{
+  S_0[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)] }]" } } },
+  { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" } ] } }'
 types:
 - name: s
   definition: "struct s {\n    struct {\n        struct {\n            int a[10];\n
@@ -72,3 +72,16 @@ statements:
         write: 1
       - type: int
         value: 1
+- line: -1
+  domain: '{ S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_2[] -> s[] }'
+        index: '{ S_2[] -> s[] }'
+        reference: __pet_ref_4
+        kill: 1

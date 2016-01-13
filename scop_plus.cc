@@ -37,13 +37,14 @@
 
 #include "clang.h"
 #include "expr.h"
+#include "id.h"
 #include "scop_plus.h"
 #include "tree.h"
 
 using namespace std;
 using namespace clang;
 
-/* And the sequence of nested arrays of structures "ancestors"
+/* Add the sequence of nested arrays of structures represented by "ancestors"
  * to "arrays".  The final element in the sequence may be a leaf
  * and may therefore refer to a primitive type rather than a record type.
  *
@@ -51,14 +52,15 @@ using namespace clang;
  * then recursively call collect_sub_arrays for all subfields of this
  * structure.
  */
-static void collect_sub_arrays(ValueDecl *decl, vector<ValueDecl *> ancestors,
-	array_desc_set &arrays)
+static void collect_sub_arrays(ValueDecl *decl,
+	__isl_keep isl_id_list *ancestors, array_desc_set &arrays)
 {
+	isl_ctx *ctx;
 	QualType type = decl->getType();
 	RecordDecl *record;
 	RecordDecl::field_iterator it;
 
-	arrays.insert(ancestors);
+	arrays.insert(isl_id_list_copy(ancestors));
 
 	type = pet_clang_base_type(type);
 
@@ -67,15 +69,19 @@ static void collect_sub_arrays(ValueDecl *decl, vector<ValueDecl *> ancestors,
 
 	record = pet_clang_record_decl(type);
 
+	ctx = isl_id_list_get_ctx(ancestors);
 	for (it = record->field_begin(); it != record->field_end(); ++it) {
 		FieldDecl *field = *it;
 		bool anonymous = field->isAnonymousStructOrUnion();
+		isl_id_list *extended;
 
-		if (!anonymous)
-			ancestors.push_back(field);
-		collect_sub_arrays(field, ancestors, arrays);
-		if (!anonymous)
-			ancestors.pop_back();
+		extended = isl_id_list_copy(ancestors);
+		if (!anonymous) {
+			isl_id *id = pet_id_from_decl(ctx, field);
+			extended = isl_id_list_add(extended, id);
+		}
+		collect_sub_arrays(field, extended, arrays);
+		isl_id_list_free(extended);
 	}
 }
 
@@ -100,7 +106,7 @@ static void access_collect_arrays(__isl_keep pet_expr *expr,
 	isl_id *id;
 	isl_space *space;
 	ValueDecl *decl;
-	vector<ValueDecl *> ancestors;
+	isl_id_list *ancestors;
 
 	if (pet_expr_is_affine(expr))
 		return;
@@ -115,14 +121,16 @@ static void access_collect_arrays(__isl_keep pet_expr *expr,
 	if (!id)
 		return;
 
-	decl = (ValueDecl *)isl_id_get_user(id);
-	isl_id_free(id);
+	decl = pet_id_get_decl(id);
 
-	if (!decl)
+	if (!decl) {
+		isl_id_free(id);
 		return;
+	}
 
-	ancestors.push_back(decl);
+	ancestors = isl_id_list_from_id(id);
 	collect_sub_arrays(decl, ancestors, arrays);
+	isl_id_list_free(ancestors);
 }
 
 static void expr_collect_arrays(__isl_keep pet_expr *expr,
@@ -192,17 +200,18 @@ void pet_scop_collect_arrays(struct pet_scop *scop,
 
 	for (int i = 0; i < scop->n_array; ++i) {
 		ValueDecl *decl;
-		vector<ValueDecl *> ancestors;
+		isl_id_list *ancestors;
 
 		isl_id *id = isl_set_get_tuple_id(scop->arrays[i]->extent);
-		decl = (ValueDecl *)isl_id_get_user(id);
-		isl_id_free(id);
+		decl = pet_id_get_decl(id);
 
-		if (!decl)
+		if (!decl) {
+			isl_id_free(id);
 			continue;
+		}
 
-		ancestors.push_back(decl);
-
+		ancestors = isl_id_list_from_id(id);
 		arrays.erase(ancestors);
+		isl_id_list_free(ancestors);
 	}
 }

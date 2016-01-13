@@ -62,3 +62,57 @@ RecordDecl *pet_clang_record_decl(QualType T)
 	record = cast<RecordType>(type);
 	return record->getDecl();
 }
+
+/* Strip off all outer casts from "expr" that are either implicit or a no-op.
+ */
+Expr *pet_clang_strip_casts(Expr *expr)
+{
+	while (isa<CastExpr>(expr)) {
+		CastExpr *ce = cast<CastExpr>(expr);
+		CastKind kind = ce->getCastKind();
+		if (!isa<ImplicitCastExpr>(expr) && kind != CK_NoOp)
+			break;
+		expr = ce->getSubExpr();
+	}
+
+	return expr;
+}
+
+/* Return the number of bits needed to represent the type "qt",
+ * if it is an integer type.  Otherwise return 0.
+ * If qt is signed then return the opposite of the number of bits.
+ */
+int pet_clang_get_type_size(QualType qt, ASTContext &ast_context)
+{
+	int size;
+
+	if (!qt->isIntegerType())
+		return 0;
+
+	size = ast_context.getIntWidth(qt);
+	if (!qt->isUnsignedIntegerType())
+		size = -size;
+
+	return size;
+}
+
+/* Return the FunctionDecl that refers to the same function
+ * that "fd" refers to, but that has a body.
+ * Return NULL if no such FunctionDecl is available.
+ *
+ * It is not clear why hasBody takes a reference to a const FunctionDecl *.
+ * It seems that it is possible to directly use the iterators to obtain
+ * a non-const pointer.
+ * Since we are not going to use the pointer to modify anything anyway,
+ * it seems safe to drop the constness.  The alternative would be to
+ * modify a lot of other functions to include const qualifiers.
+ */
+FunctionDecl *pet_clang_find_function_decl_with_body(FunctionDecl *fd)
+{
+	const FunctionDecl *def;
+
+	if (!fd->hasBody(def))
+		return NULL;
+
+	return const_cast<FunctionDecl *>(def);
+}

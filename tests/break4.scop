@@ -5,35 +5,40 @@ context: '{  :  }'
 schedule: '{ domain: "{ S_11[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_12[i,
   j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_14[i, j] : i >= 0 and i <= 99
   and j >= 0 and j <= 99; S_15[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99;
-  S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_13[i, j] : i >= 0 and
-  i <= 99 and j >= 0 and j <= 99; S_6[i, j] : i >= 0 and i <= 99 and j >= 0 and j
-  <= 99; S_3[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_16[i, j] : i >=
-  0 and i <= 99 and j >= 0 and j <= 99; S_8[i, j] : i >= 0 and i <= 99 and j >= 0
-  and j <= 99; S_9[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_17[i, j] :
-  i >= 0 and i <= 99 and j >= 0 and j <= 99; S_0[i, j] : i >= 0 and i <= 99 and j
-  >= 0 and j <= 99; S_2[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_7[i,
-  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_4[i, j] : i >= 0 and i <= 99 and
-  j >= 0 and j <= 99; S_5[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_1[i,
-  j] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }", child: { schedule: "L_0[{ S_11[i,
-  j] -> [(i)]; S_12[i, j] -> [(i)]; S_14[i, j] -> [(i)]; S_15[i, j] -> [(i)]; S_10[i,
-  j] -> [(i)]; S_13[i, j] -> [(i)]; S_6[i, j] -> [(i)]; S_3[i, j] -> [(i)]; S_16[i,
-  j] -> [(i)]; S_8[i, j] -> [(i)]; S_9[i, j] -> [(i)]; S_17[i, j] -> [(i)]; S_0[i,
-  j] -> [(i)]; S_2[i, j] -> [(i)]; S_7[i, j] -> [(i)]; S_4[i, j] -> [(i)]; S_5[i,
-  j] -> [(i)]; S_1[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_11[i, j] -> [(j)];
-  S_12[i, j] -> [(j)]; S_14[i, j] -> [(j)]; S_15[i, j] -> [(j)]; S_10[i, j] -> [(j)];
-  S_13[i, j] -> [(j)]; S_6[i, j] -> [(j)]; S_3[i, j] -> [(j)]; S_16[i, j] -> [(j)];
-  S_8[i, j] -> [(j)]; S_9[i, j] -> [(j)]; S_17[i, j] -> [(j)]; S_0[i, j] -> [(j)];
-  S_2[i, j] -> [(j)]; S_7[i, j] -> [(j)]; S_4[i, j] -> [(j)]; S_5[i, j] -> [(j)];
-  S_1[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j] }" }, { filter:
-  "{ S_1[i, j] }" }, { filter: "{ S_2[i, j] }" }, { filter: "{ S_3[i, j] }" }, { filter:
-  "{ S_4[i, j] }" }, { filter: "{ S_5[i, j] }" }, { filter: "{ S_6[i, j] }" }, { filter:
-  "{ S_7[i, j] }" }, { filter: "{ S_8[i, j] }" }, { filter: "{ S_9[i, j] }" }, { filter:
-  "{ S_11[i, j]; S_10[i, j] }", child: { set: [ { filter: "{ S_10[i, j] }" }, { filter:
-  "{ S_11[i, j] }" } ] } }, { filter: "{ S_12[i, j]; S_13[i, j] }", child: { set:
-  [ { filter: "{ S_12[i, j] }" }, { filter: "{ S_13[i, j] }" } ] } }, { filter: "{
-  S_14[i, j] }" }, { filter: "{ S_15[i, j]; S_16[i, j] }", child: { set: [ { filter:
-  "{ S_15[i, j] }" }, { filter: "{ S_16[i, j] }" } ] } }, { filter: "{ S_17[i, j]
-  }" } ] } } } }'
+  S_19[]; S_18[]; S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_13[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_6[i, j] : i >= 0 and i <= 99 and
+  j >= 0 and j <= 99; S_3[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_16[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_8[i, j] : i >= 0 and i <= 99 and
+  j >= 0 and j <= 99; S_9[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_17[i,
+  j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_20[]; S_0[i, j] : i >= 0 and i
+  <= 99 and j >= 0 and j <= 99; S_2[i, j] : i >= 0 and i <= 99 and j >= 0 and j <=
+  99; S_7[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_4[i, j] : i >= 0 and
+  i <= 99 and j >= 0 and j <= 99; S_5[i, j] : i >= 0 and i <= 99 and j >= 0 and j
+  <= 99; S_1[i, j] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }", child: { sequence:
+  [ { filter: "{ S_11[i, j]; S_12[i, j]; S_14[i, j]; S_15[i, j]; S_10[i, j]; S_13[i,
+  j]; S_6[i, j]; S_3[i, j]; S_16[i, j]; S_8[i, j]; S_9[i, j]; S_17[i, j]; S_0[i, j];
+  S_2[i, j]; S_7[i, j]; S_4[i, j]; S_5[i, j]; S_1[i, j] }", child: { schedule: "L_0[{
+  S_11[i, j] -> [(i)]; S_12[i, j] -> [(i)]; S_14[i, j] -> [(i)]; S_15[i, j] -> [(i)];
+  S_10[i, j] -> [(i)]; S_13[i, j] -> [(i)]; S_6[i, j] -> [(i)]; S_3[i, j] -> [(i)];
+  S_16[i, j] -> [(i)]; S_8[i, j] -> [(i)]; S_9[i, j] -> [(i)]; S_17[i, j] -> [(i)];
+  S_0[i, j] -> [(i)]; S_2[i, j] -> [(i)]; S_7[i, j] -> [(i)]; S_4[i, j] -> [(i)];
+  S_5[i, j] -> [(i)]; S_1[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_11[i, j]
+  -> [(j)]; S_12[i, j] -> [(j)]; S_14[i, j] -> [(j)]; S_15[i, j] -> [(j)]; S_10[i,
+  j] -> [(j)]; S_13[i, j] -> [(j)]; S_6[i, j] -> [(j)]; S_3[i, j] -> [(j)]; S_16[i,
+  j] -> [(j)]; S_8[i, j] -> [(j)]; S_9[i, j] -> [(j)]; S_17[i, j] -> [(j)]; S_0[i,
+  j] -> [(j)]; S_2[i, j] -> [(j)]; S_7[i, j] -> [(j)]; S_4[i, j] -> [(j)]; S_5[i,
+  j] -> [(j)]; S_1[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j]
+  }" }, { filter: "{ S_1[i, j] }" }, { filter: "{ S_2[i, j] }" }, { filter: "{ S_3[i,
+  j] }" }, { filter: "{ S_4[i, j] }" }, { filter: "{ S_5[i, j] }" }, { filter: "{
+  S_6[i, j] }" }, { filter: "{ S_7[i, j] }" }, { filter: "{ S_8[i, j] }" }, { filter:
+  "{ S_9[i, j] }" }, { filter: "{ S_11[i, j]; S_10[i, j] }", child: { set: [ { filter:
+  "{ S_10[i, j] }" }, { filter: "{ S_11[i, j] }" } ] } }, { filter: "{ S_12[i, j];
+  S_13[i, j] }", child: { set: [ { filter: "{ S_12[i, j] }" }, { filter: "{ S_13[i,
+  j] }" } ] } }, { filter: "{ S_14[i, j] }" }, { filter: "{ S_15[i, j]; S_16[i, j]
+  }", child: { set: [ { filter: "{ S_15[i, j] }" }, { filter: "{ S_16[i, j] }" } ]
+  } }, { filter: "{ S_17[i, j] }" } ] } } } }, { filter: "{ S_19[]; S_18[]; S_20[]
+  }", child: { set: [ { filter: "{ S_18[] }" }, { filter: "{ S_19[] }" }, { filter:
+  "{ S_20[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 81 and j <= 99 }'
@@ -115,6 +120,14 @@ arrays:
   uniquely_defined: 1
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ j[] }'
   element_type: int
   element_size: 4
 statements:
@@ -801,6 +814,46 @@ statements:
     reference: __pet_ref_87
     read: 1
     write: 0
+- line: -1
+  domain: '{ S_18[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_18[] -> i[] }'
+        index: '{ S_18[] -> i[] }'
+        reference: __pet_ref_91
+        kill: 1
+- line: -1
+  domain: '{ S_19[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_19[] -> j[] }'
+        index: '{ S_19[] -> j[] }'
+        reference: __pet_ref_92
+        kill: 1
+- line: -1
+  domain: '{ S_20[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_20[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        index: '{ S_20[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_93
+        kill: 1
 implications:
 - satisfied: 0
   extension: '{ __pet_test_12[i, j] -> __pet_test_12[i, j''] : j'' <= j and i <= 99

@@ -2,7 +2,8 @@ start: 26
 end: 91
 indent: "\t"
 context: '[N] -> {  : N >= -429496729 and N <= 2147483647 }'
-schedule: '{ domain: "[N] -> { S_0[] : N <= 99 and N >= 1 }" }'
+schedule: '{ domain: "[N] -> { S_1[]; S_0[] : N <= 99 and N >= 1 }", child: { sequence:
+  [ { filter: "[N] -> { S_0[] }" }, { filter: "[N] -> { S_1[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { a[] }'
@@ -24,3 +25,16 @@ statements:
         write: 1
       - type: int
         value: 1
+- line: -1
+  domain: '[N] -> { S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_1[] -> a[] }'
+        index: '[N] -> { S_1[] -> a[] }'
+        reference: __pet_ref_1
+        kill: 1

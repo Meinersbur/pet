@@ -4,12 +4,15 @@ indent: "\t"
 context: '[N, K, M] -> {  : K >= 0 and N >= 0 and N <= 2147483647 and K <= 2147483647
   and M <= 2147483647 and M >= -2147483648 }'
 schedule: '{ domain: "[N, K, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >=
-  0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_0[i, j] : i >= 0 and i <= -1 + M
-  and j >= 0 and j <= -1 + N }", child: { schedule: "[M, N, K] -> L_0[{ S_0[i, j]
-  -> [(i)]; S_1[i, j, k] -> [(i)] }]", child: { schedule: "[M, N, K] -> L_1[{ S_0[i,
-  j] -> [(j)]; S_1[i, j, k] -> [(j)] }]", child: { sequence: [ { filter: "[M, N, K]
-  -> { S_0[i, j] }" }, { filter: "[M, N, K] -> { S_1[i, j, k] }", child: { schedule:
-  "[M, N, K] -> L_2[{ S_1[i, j, k] -> [(k)] }]" } } ] } } } }'
+  0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_3[]; S_0[i, j] : i >= 0 and i <=
+  -1 + M and j >= 0 and j <= -1 + N; S_2[]; S_4[] }", child: { sequence: [ { filter:
+  "[M, N, K] -> { S_0[i, j]; S_1[i, j, k] }", child: { schedule: "[M, N, K] -> L_0[{
+  S_0[i, j] -> [(i)]; S_1[i, j, k] -> [(i)] }]", child: { schedule: "[M, N, K] ->
+  L_1[{ S_0[i, j] -> [(j)]; S_1[i, j, k] -> [(j)] }]", child: { sequence: [ { filter:
+  "[M, N, K] -> { S_0[i, j] }" }, { filter: "[M, N, K] -> { S_1[i, j, k] }", child:
+  { schedule: "[M, N, K] -> L_2[{ S_1[i, j, k] -> [(k)] }]" } } ] } } } }, { filter:
+  "[M, N, K] -> { S_3[]; S_2[]; S_4[] }", child: { set: [ { filter: "{ S_2[] }" },
+  { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '[K] -> {  : K >= 0 }'
   extent: '[N, K, M] -> { A[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + K }'
@@ -24,6 +27,18 @@ arrays:
   element_type: float
   element_size: 4
   live_out: 1
+- context: '{  :  }'
+  extent: '[N, K, M] -> { i[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, K, M] -> { j[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, K, M] -> { k[] }'
+  element_type: int
+  element_size: 4
 statements:
 - line: 9
   domain: '[N, K, M] -> { S_0[i, j] : i >= 0 and i <= -1 + M and j >= 0 and j <= -1
@@ -68,3 +83,42 @@ statements:
           reference: __pet_ref_3
           read: 1
           write: 0
+- line: -1
+  domain: '[N, K, M] -> { S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, K, M] -> { S_2[] -> i[] }'
+        index: '[N, K, M] -> { S_2[] -> i[] }'
+        reference: __pet_ref_4
+        kill: 1
+- line: -1
+  domain: '[N, K, M] -> { S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, K, M] -> { S_3[] -> j[] }'
+        index: '[N, K, M] -> { S_3[] -> j[] }'
+        reference: __pet_ref_5
+        kill: 1
+- line: -1
+  domain: '[N, K, M] -> { S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, K, M] -> { S_4[] -> k[] }'
+        index: '[N, K, M] -> { S_4[] -> k[] }'
+        reference: __pet_ref_6
+        kill: 1

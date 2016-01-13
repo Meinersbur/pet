@@ -2,11 +2,11 @@ start: 31
 end: 109
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[t] : t >= 0; S_0[]; S_2[t] : t >= 0; S_1[t] : t >= 0 }",
-  child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[t]; S_2[t]; S_1[t]
-  }", child: { schedule: "L_0[{ S_2[t] -> [(t)]; S_3[t] -> [(t)]; S_1[t] -> [(t)]
-  }]", child: { sequence: [ { filter: "{ S_1[t] }" }, { filter: "{ S_2[t] }" }, {
-  filter: "{ S_3[t] }" } ] } } } ] } }'
+schedule: '{ domain: "{ S_3[t] : t >= 0; S_0[]; S_2[t] : t >= 0; S_4[]; S_1[t] : t
+  >= 0 }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[t]; S_2[t];
+  S_1[t] }", child: { schedule: "L_0[{ S_2[t] -> [(t)]; S_3[t] -> [(t)]; S_1[t] ->
+  [(t)] }]", child: { sequence: [ { filter: "{ S_1[t] }" }, { filter: "{ S_2[t] }"
+  }, { filter: "{ S_3[t] }" } ] } } }, { filter: "{ S_4[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[t] : t >= 0 }'
@@ -116,6 +116,19 @@ statements:
     reference: __pet_ref_8
     read: 1
     write: 0
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> i[] }'
+        index: '{ S_4[] -> i[] }'
+        reference: __pet_ref_10
+        kill: 1
 implications:
 - satisfied: 1
   extension: '{ __pet_test_0[t] -> __pet_test_0[t''] : t'' <= t and t'' >= 0 }'

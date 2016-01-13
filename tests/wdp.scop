@@ -2,18 +2,20 @@ start: 248
 end: 619
 indent: "\t"
 context: '[N] -> {  : N >= 8 and N <= 16 }'
-schedule: '{ domain: "[N] -> { S_3[i] : i >= 0 and i <= -1 + N; S_4[i] : i >= 0 and
-  i <= -1 + N; S_6[i] : i >= 0 and i <= -1 + N; S_7[i] : i >= 0 and i <= -1 + N; S_1[i]
-  : i <= N and i >= 0; S_5[i] : i >= 0 and i <= -1 + N; S_0[i] : i >= 0 and i <= -1
-  + N; S_2[i] : i <= 1 + N and i >= 0 }", child: { sequence: [ { filter: "[N] -> {
-  S_0[i] }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }, { filter: "[N]
-  -> { S_1[i] }", child: { schedule: "[N] -> L_1[{ S_1[i] -> [(i)] }]" } }, { filter:
-  "[N] -> { S_2[i] }", child: { schedule: "[N] -> L_2[{ S_2[i] -> [(i)] }]" } }, {
-  filter: "[N] -> { S_3[i]; S_4[i]; S_6[i]; S_7[i]; S_5[i] }", child: { schedule:
-  "[N] -> L_3[{ S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_6[i] -> [(i)]; S_7[i] -> [(i)];
-  S_5[i] -> [(i)] }]", child: { sequence: [ { filter: "[N] -> { S_3[i] }" }, { filter:
-  "[N] -> { S_4[i] }" }, { filter: "[N] -> { S_5[i] }" }, { filter: "[N] -> { S_6[i]
-  }" }, { filter: "[N] -> { S_7[i] }" } ] } } } ] } }'
+schedule: '{ domain: "[N] -> { S_3[i] : i >= 0 and i <= -1 + N; S_9[]; S_4[i] : i
+  >= 0 and i <= -1 + N; S_6[i] : i >= 0 and i <= -1 + N; S_7[i] : i >= 0 and i <=
+  -1 + N; S_8[]; S_1[i] : i <= N and i >= 0; S_5[i] : i >= 0 and i <= -1 + N; S_0[i]
+  : i >= 0 and i <= -1 + N; S_2[i] : i <= 1 + N and i >= 0 }", child: { sequence:
+  [ { filter: "[N] -> { S_0[i] }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)]
+  }]" } }, { filter: "[N] -> { S_1[i] }", child: { schedule: "[N] -> L_1[{ S_1[i]
+  -> [(i)] }]" } }, { filter: "[N] -> { S_2[i] }", child: { schedule: "[N] -> L_2[{
+  S_2[i] -> [(i)] }]" } }, { filter: "[N] -> { S_3[i]; S_4[i]; S_6[i]; S_7[i]; S_5[i]
+  }", child: { schedule: "[N] -> L_3[{ S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_6[i] ->
+  [(i)]; S_7[i] -> [(i)]; S_5[i] -> [(i)] }]", child: { sequence: [ { filter: "[N]
+  -> { S_3[i] }" }, { filter: "[N] -> { S_4[i] }" }, { filter: "[N] -> { S_5[i] }"
+  }, { filter: "[N] -> { S_6[i] }" }, { filter: "[N] -> { S_7[i] }" } ] } } }, { filter:
+  "[N] -> { S_9[]; S_8[] }", child: { set: [ { filter: "{ S_8[] }" }, { filter: "{
+  S_9[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { __pet_test_0[i] : i >= 0 and i <= -1 + N }'
@@ -21,6 +23,10 @@ arrays:
   element_type: int
   element_size: 4
   uniquely_defined: 1
+- context: '{  :  }'
+  extent: '[N] -> { i[] }'
+  element_type: int
+  element_size: 4
 - context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
   extent: '[N] -> { t[i0] : i0 <= N and i0 >= 0 }'
   element_type: int
@@ -250,3 +256,30 @@ statements:
           reference: __pet_ref_19
           read: 1
           write: 1
+- line: -1
+  domain: '[N] -> { S_8[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_8[] -> i[] }'
+        index: '[N] -> { S_8[] -> i[] }'
+        reference: __pet_ref_20
+        kill: 1
+- line: -1
+  domain: '[N] -> { S_9[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_9[] -> x[o0] : o0 >= 0 and o0 <= -1 + N }'
+        index: '[N] -> { S_9[] -> x[] }'
+        depth: 1
+        reference: __pet_ref_21
+        kill: 1

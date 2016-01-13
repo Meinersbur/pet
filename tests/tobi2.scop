@@ -2,13 +2,24 @@ start: 102
 end: 201
 indent: '        '
 context: '[N] -> {  : N >= 0 and N <= 4294967295 }'
-schedule: '{ domain: "[N] -> { S_0[i] : exists (e0 = floor((10 + N)/4294967296): i
-  <= 19 and i >= 0 and 4294967296e0 <= 9 + N - i and 4294967296e0 <= 10 + N and 4294967296e0
-  >= -4294967285 + N) }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }'
+schedule: '{ domain: "[N] -> { S_1[]; S_3[]; S_0[i] : exists (e0 = floor((10 + N)/4294967296):
+  i <= 19 and i >= 0 and 4294967296e0 <= 9 + N - i and 4294967296e0 <= 10 + N and
+  4294967296e0 >= -4294967285 + N); S_2[] }", child: { sequence: [ { filter: "[N]
+  -> { S_0[i] }", child: { schedule: "[N] -> L_0[{ S_0[i] -> [(i)] }]" } }, { filter:
+  "[N] -> { S_1[]; S_3[]; S_2[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter:
+  "{ S_2[] }" }, { filter: "{ S_3[] }" } ] } } ] } }'
 arrays:
+- context: '{  :  }'
+  extent: '[N] -> { N[] }'
+  element_type: unsigned int
+  element_size: 4
 - context: '{  :  }'
   extent: '[N] -> { a[] }'
   element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N] -> { i[] }'
+  element_type: unsigned int
   element_size: 4
 statements:
 - line: 10
@@ -28,3 +39,42 @@ statements:
         write: 1
       - type: int
         value: 5
+- line: -1
+  domain: '[N] -> { S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_1[] -> N[] }'
+        index: '[N] -> { S_1[] -> N[] }'
+        reference: __pet_ref_1
+        kill: 1
+- line: -1
+  domain: '[N] -> { S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_2[] -> i[] }'
+        index: '[N] -> { S_2[] -> i[] }'
+        reference: __pet_ref_2
+        kill: 1
+- line: -1
+  domain: '[N] -> { S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_3[] -> a[] }'
+        index: '[N] -> { S_3[] -> a[] }'
+        reference: __pet_ref_3
+        kill: 1

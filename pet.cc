@@ -90,6 +90,7 @@
 
 #include <pet.h>
 
+#include "id.h"
 #include "options.h"
 #include "scan.h"
 #include "print.h"
@@ -497,7 +498,7 @@ struct PragmaLiveOutHandler : public PragmaHandler {
 };
 
 /* For each array in "scop", set its value_bounds property
- * based on the infofrmation in "value_bounds" and
+ * based on the information in "value_bounds" and
  * mark it as live_out if it appears in "live_out".
  */
 static void update_arrays(struct pet_scop *scop,
@@ -519,7 +520,7 @@ static void update_arrays(struct pet_scop *scop,
 		pet_array *array = scop->arrays[i];
 
 		id = isl_set_get_tuple_id(array->extent);
-		decl = (ValueDecl *)isl_id_get_user(id);
+		decl = pet_id_get_decl(id);
 
 		space = isl_space_alloc(ctx, 0, 0, 1);
 		space = isl_space_set_tuple_id(space, isl_dim_in, id);
@@ -663,7 +664,7 @@ struct PetASTConsumer : public ASTConsumer {
 				continue;
 			if (end < loc.start)
 				continue;
-			PetScan ps(PP, ast_context, loc, options,
+			PetScan ps(PP, ast_context, fd, loc, options,
 				    isl_union_map_copy(vb), independent);
 			scop = ps.scan(fd);
 			call_fn(scop);
@@ -689,7 +690,7 @@ struct PetASTConsumer : public ASTConsumer {
 			if (options->autodetect) {
 				ScopLoc loc;
 				pet_scop *scop;
-				PetScan ps(PP, ast_context, loc, options,
+				PetScan ps(PP, ast_context, fd, loc, options,
 					    isl_union_map_copy(vb),
 					    independent);
 				scop = ps.scan(fd);
@@ -1025,7 +1026,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 	add_predefines(PP, options->pencil);
-	PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
+	PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
 		PP.getLangOpts());
 
 	ScopLocList scops;

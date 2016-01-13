@@ -6,19 +6,23 @@ context: '[N, K, M] -> {  : K >= 0 and N >= 0 and N <= 2147483647 and K <= 21474
 schedule: '{ domain: "[N, K, M] -> { S_1[i, j, k] : i >= 0 and i <= -1 + M and j >=
   0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_4[i, j, k] : i >= 0 and i <= -1
   + M and j >= 0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_0[i, j] : i >= 0 and
-  i <= -1 + M and j >= 0 and j <= -1 + N; S_2[i, j, k] : i >= 0 and i <= -1 + M and
-  j >= 0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_3[i, j, k] : i >= 0 and i <=
-  -1 + M and j >= 0 and j <= -1 + N and k >= 0 and k <= -1 + K }", child: { schedule:
-  "[M, N, K] -> L_0[{ S_4[i, j, k] -> [(i)]; S_0[i, j] -> [(i)]; S_1[i, j, k] -> [(i)];
-  S_2[i, j, k] -> [(i)]; S_3[i, j, k] -> [(i)] }]", child: { schedule: "[M, N, K]
-  -> L_1[{ S_4[i, j, k] -> [(j)]; S_0[i, j] -> [(j)]; S_1[i, j, k] -> [(j)]; S_2[i,
-  j, k] -> [(j)]; S_3[i, j, k] -> [(j)] }]", child: { sequence: [ { filter: "[M, N,
-  K] -> { S_0[i, j] }" }, { filter: "[M, N, K] -> { S_4[i, j, k]; S_1[i, j, k]; S_2[i,
-  j, k]; S_3[i, j, k] }", child: { schedule: "[M, N, K] -> L_2[{ S_4[i, j, k] -> [(k)];
-  S_1[i, j, k] -> [(k)]; S_2[i, j, k] -> [(k)]; S_3[i, j, k] -> [(k)] }]", child:
-  { sequence: [ { filter: "[M, N, K] -> { S_1[i, j, k] }" }, { filter: "[M, N, K]
-  -> { S_2[i, j, k] }" }, { filter: "[M, N, K] -> { S_4[i, j, k] }" }, { filter: "[M,
-  N, K] -> { S_3[i, j, k] }" } ] } } } ] } } } }'
+  i <= -1 + M and j >= 0 and j <= -1 + N; S_6[]; S_2[i, j, k] : i >= 0 and i <= -1
+  + M and j >= 0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_5[]; S_3[i, j, k] :
+  i >= 0 and i <= -1 + M and j >= 0 and j <= -1 + N and k >= 0 and k <= -1 + K; S_7[]
+  }", child: { sequence: [ { filter: "[M, N, K] -> { S_4[i, j, k]; S_0[i, j]; S_1[i,
+  j, k]; S_2[i, j, k]; S_3[i, j, k] }", child: { schedule: "[M, N, K] -> L_0[{ S_4[i,
+  j, k] -> [(i)]; S_0[i, j] -> [(i)]; S_1[i, j, k] -> [(i)]; S_2[i, j, k] -> [(i)];
+  S_3[i, j, k] -> [(i)] }]", child: { schedule: "[M, N, K] -> L_1[{ S_4[i, j, k] ->
+  [(j)]; S_0[i, j] -> [(j)]; S_1[i, j, k] -> [(j)]; S_2[i, j, k] -> [(j)]; S_3[i,
+  j, k] -> [(j)] }]", child: { sequence: [ { filter: "[M, N, K] -> { S_0[i, j] }"
+  }, { filter: "[M, N, K] -> { S_4[i, j, k]; S_1[i, j, k]; S_2[i, j, k]; S_3[i, j,
+  k] }", child: { schedule: "[M, N, K] -> L_2[{ S_4[i, j, k] -> [(k)]; S_1[i, j, k]
+  -> [(k)]; S_2[i, j, k] -> [(k)]; S_3[i, j, k] -> [(k)] }]", child: { sequence: [
+  { filter: "[M, N, K] -> { S_1[i, j, k] }" }, { filter: "[M, N, K] -> { S_2[i, j,
+  k] }" }, { filter: "[M, N, K] -> { S_4[i, j, k] }" }, { filter: "[M, N, K] -> {
+  S_3[i, j, k] }" } ] } } } ] } } } }, { filter: "[M, N, K] -> { S_6[]; S_5[]; S_7[]
+  }", child: { set: [ { filter: "{ S_5[] }" }, { filter: "{ S_6[] }" }, { filter:
+  "{ S_7[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N, K, M] -> { t[] }'
@@ -36,6 +40,18 @@ arrays:
 - context: '[N] -> {  : N >= 0 }'
   extent: '[N, K, M] -> { C[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
   element_type: float
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, K, M] -> { i[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, K, M] -> { j[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, K, M] -> { k[] }'
+  element_type: int
   element_size: 4
 statements:
 - line: 8
@@ -127,4 +143,43 @@ statements:
         killed: '[N, K, M] -> { S_3[i, j, k] -> t[] }'
         index: '[N, K, M] -> { S_3[i, j, k] -> t[] }'
         reference: __pet_ref_7
+        kill: 1
+- line: -1
+  domain: '[N, K, M] -> { S_5[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, K, M] -> { S_5[] -> i[] }'
+        index: '[N, K, M] -> { S_5[] -> i[] }'
+        reference: __pet_ref_8
+        kill: 1
+- line: -1
+  domain: '[N, K, M] -> { S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, K, M] -> { S_6[] -> j[] }'
+        index: '[N, K, M] -> { S_6[] -> j[] }'
+        reference: __pet_ref_9
+        kill: 1
+- line: -1
+  domain: '[N, K, M] -> { S_7[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, K, M] -> { S_7[] -> k[] }'
+        index: '[N, K, M] -> { S_7[] -> k[] }'
+        reference: __pet_ref_10
         kill: 1

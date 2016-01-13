@@ -2,15 +2,25 @@ start: 33
 end: 208
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i, j] : (i <= 9 and i >= 0 and j <= 99 and j >= 0) or
-  (i <= 99 and i >= 10 and j >= 0 and j <= i); S_1[i, j] : i <= 99 and i >= 10 and
-  j <= 99 and j >= 0 and j <= -1 + i }", child: { schedule: "L_0[{ S_0[i, j] -> [(i)];
+schedule: '{ domain: "{ S_3[]; S_0[i, j] : (i <= 9 and i >= 0 and j <= 99 and j >=
+  0) or (i <= 99 and i >= 10 and j >= 0 and j <= i); S_1[i, j] : i <= 99 and i >=
+  10 and j <= 99 and j >= 0 and j <= -1 + i; S_2[]; S_4[] }", child: { sequence: [
+  { filter: "{ S_0[i, j]; S_1[i, j] }", child: { schedule: "L_0[{ S_0[i, j] -> [(i)];
   S_1[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)]; S_1[i, j]
   -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j] }" }, { filter: "{ S_1[i,
-  j] }" } ] } } } }'
+  j] }" } ] } } } }, { filter: "{ S_3[]; S_2[]; S_4[] }", child: { set: [ { filter:
+  "{ S_2[] }" }, { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ j[] }'
   element_type: int
   element_size: 4
 statements:
@@ -57,3 +67,43 @@ statements:
           reference: __pet_ref_3
           read: 1
           write: 0
+- line: -1
+  domain: '{ S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_2[] -> i[] }'
+        index: '{ S_2[] -> i[] }'
+        reference: __pet_ref_4
+        kill: 1
+- line: -1
+  domain: '{ S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_3[] -> j[] }'
+        index: '{ S_3[] -> j[] }'
+        reference: __pet_ref_5
+        kill: 1
+- line: -1
+  domain: '{ S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_4[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        index: '{ S_4[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_6
+        kill: 1
