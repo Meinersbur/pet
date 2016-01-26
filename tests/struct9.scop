@@ -2,18 +2,19 @@ start: 127
 end: 359
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19
-  and k >= 0 and k <= 29 and l >= 0 and l <= 39; S_2[i, j, k, l] : i >= 0 and i <=
-  9 and j >= 0 and j <= 19 and k >= 0 and k <= 29 and l >= 0 and l <= 39; S_0[i, j,
-  k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0 and k <= 29 and l >=
-  0 and l <= 39 }", child: { schedule: "L_0[{ S_1[i, j, k, l] -> [(i)]; S_2[i, j,
-  k, l] -> [(i)]; S_0[i, j, k, l] -> [(i)] }]", child: { schedule: "L_1[{ S_1[i, j,
-  k, l] -> [(j)]; S_2[i, j, k, l] -> [(j)]; S_0[i, j, k, l] -> [(j)] }]", child: {
-  schedule: "L_2[{ S_1[i, j, k, l] -> [(k)]; S_2[i, j, k, l] -> [(k)]; S_0[i, j, k,
-  l] -> [(k)] }]", child: { schedule: "L_3[{ S_1[i, j, k, l] -> [(l)]; S_2[i, j, k,
-  l] -> [(l)]; S_0[i, j, k, l] -> [(l)] }]", child: { sequence: [ { filter: "{ S_0[i,
-  j, k, l] }" }, { filter: "{ S_1[i, j, k, l] }" }, { filter: "{ S_2[i, j, k, l] }"
-  } ] } } } } } }'
+schedule: '{ domain: "{ S_3[]; S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and
+  j <= 19 and k >= 0 and k <= 29 and l >= 0 and l <= 39; S_2[i, j, k, l] : i >= 0
+  and i <= 9 and j >= 0 and j <= 19 and k >= 0 and k <= 29 and l >= 0 and l <= 39;
+  S_0[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0 and k <= 29
+  and l >= 0 and l <= 39 }", child: { sequence: [ { filter: "{ S_1[i, j, k, l]; S_2[i,
+  j, k, l]; S_0[i, j, k, l] }", child: { schedule: "L_0[{ S_1[i, j, k, l] -> [(i)];
+  S_2[i, j, k, l] -> [(i)]; S_0[i, j, k, l] -> [(i)] }]", child: { schedule: "L_1[{
+  S_1[i, j, k, l] -> [(j)]; S_2[i, j, k, l] -> [(j)]; S_0[i, j, k, l] -> [(j)] }]",
+  child: { schedule: "L_2[{ S_1[i, j, k, l] -> [(k)]; S_2[i, j, k, l] -> [(k)]; S_0[i,
+  j, k, l] -> [(k)] }]", child: { schedule: "L_3[{ S_1[i, j, k, l] -> [(l)]; S_2[i,
+  j, k, l] -> [(l)]; S_0[i, j, k, l] -> [(l)] }]", child: { sequence: [ { filter:
+  "{ S_0[i, j, k, l] }" }, { filter: "{ S_1[i, j, k, l] }" }, { filter: "{ S_2[i,
+  j, k, l] }" } ] } } } } } }, { filter: "{ S_3[] }" } ] } }'
 types:
 - name: s
   definition: "struct s {\n    int a[30][40];\n}"
@@ -79,3 +80,18 @@ statements:
         reference: __pet_ref_2
         read: 1
         write: 1
+- line: -1
+  domain: '{ S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_3[] -> s[o0, o1] : o0 >= 0 and o1 >= 0 and o0 <= 9 and o1 <=
+          19 }'
+        index: '{ S_3[] -> s[] }'
+        depth: 2
+        reference: __pet_ref_3
+        kill: 1

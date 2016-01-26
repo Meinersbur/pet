@@ -2,15 +2,16 @@ start: 40
 end: 184
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[t] : t >= 0; S_5[t] : t >= 0; S_0[]; S_6[t] : t >= 0;
-  S_8[t] : t >= 0; S_2[t] : t >= 0; S_7[t] : t >= 0; S_4[t] : t >= 0; S_1[t] : t >=
-  0 }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[t]; S_5[t];
-  S_6[t]; S_8[t]; S_2[t]; S_7[t]; S_4[t]; S_1[t] }", child: { schedule: "L_0[{ S_8[t]
-  -> [(t)]; S_6[t] -> [(t)]; S_1[t] -> [(t)]; S_3[t] -> [(t)]; S_4[t] -> [(t)]; S_5[t]
-  -> [(t)]; S_2[t] -> [(t)]; S_7[t] -> [(t)] }]", child: { sequence: [ { filter: "{
-  S_1[t] }" }, { filter: "{ S_2[t] }" }, { filter: "{ S_3[t] }" }, { filter: "{ S_4[t]
-  }" }, { filter: "{ S_5[t] }" }, { filter: "{ S_6[t] }" }, { filter: "{ S_7[t] }"
-  }, { filter: "{ S_8[t] }" } ] } } } ] } }'
+schedule: '{ domain: "{ S_3[t] : t >= 0; S_10[]; S_5[t] : t >= 0; S_0[]; S_6[t] :
+  t >= 0; S_8[t] : t >= 0; S_2[t] : t >= 0; S_7[t] : t >= 0; S_4[t] : t >= 0; S_9[];
+  S_1[t] : t >= 0 }", child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[t];
+  S_5[t]; S_6[t]; S_8[t]; S_2[t]; S_7[t]; S_4[t]; S_1[t] }", child: { schedule: "L_0[{
+  S_8[t] -> [(t)]; S_6[t] -> [(t)]; S_1[t] -> [(t)]; S_3[t] -> [(t)]; S_4[t] -> [(t)];
+  S_5[t] -> [(t)]; S_2[t] -> [(t)]; S_7[t] -> [(t)] }]", child: { sequence: [ { filter:
+  "{ S_1[t] }" }, { filter: "{ S_2[t] }" }, { filter: "{ S_3[t] }" }, { filter: "{
+  S_4[t] }" }, { filter: "{ S_5[t] }" }, { filter: "{ S_6[t] }" }, { filter: "{ S_7[t]
+  }" }, { filter: "{ S_8[t] }" } ] } } }, { filter: "{ S_10[]; S_9[] }", child: {
+  set: [ { filter: "{ S_9[] }" }, { filter: "{ S_10[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[t] : t >= 0 }'
@@ -322,6 +323,33 @@ statements:
     reference: __pet_ref_32
     read: 1
     write: 0
+- line: -1
+  domain: '{ S_9[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_9[] -> i[] }'
+        index: '{ S_9[] -> i[] }'
+        reference: __pet_ref_34
+        kill: 1
+- line: -1
+  domain: '{ S_10[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_10[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        index: '{ S_10[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_35
+        kill: 1
 implications:
 - satisfied: 0
   extension: '{ __pet_test_1[t] -> __pet_test_1[t''] : t'' <= t and t'' >= 0 }'

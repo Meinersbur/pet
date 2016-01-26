@@ -36,6 +36,8 @@ DISTCLEANFILES = \
 	test.c
 
 EXTRA_DIST = \
+	interface/isl.py.top \
+	interface/pet.py \
 	tests
 
 PET_INCLUDES = -I$(srcdir) -I$(srcdir)/include
@@ -60,12 +62,18 @@ libpet_la_SOURCES = \
 	expr_arg.c \
 	filter.h \
 	filter.c \
+	id.h \
+	id.cc \
+	inliner.h \
+	inliner.cc \
 	loc.h \
 	loc.c \
 	nest.h \
 	nest.c \
 	options.h \
 	options.c \
+	patch.h \
+	patch.c \
 	print.c \
 	print.h \
 	tree.h \
@@ -81,6 +89,8 @@ libpet_la_SOURCES = \
 	skip.h \
 	skip.c \
 	state.h \
+	substituter.h \
+	substituter.cc \
 	summary.h \
 	summary.c \
 	value_bounds.h \
@@ -126,7 +136,15 @@ pet_check_code_SOURCES = \
 	dummy.cc \
 	pet_check_code.c
 
-dist-hook:
+isl.py: interface/isl.py.top
+	(cat $(srcdir)/interface/isl.py.top; \
+		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
+			$(DEFAULT_INCLUDES) @ISL_CFLAGS@ \
+			"@ISL_SRCDIR@/interface/all.h") \
+			> isl.py
+
+dist-hook: isl.py
+	cp isl.py $(distdir)/
 	echo @GIT_HEAD_VERSION@ > $(distdir)/GIT_HEAD_ID
 
 gitversion.h: @GIT_HEAD@

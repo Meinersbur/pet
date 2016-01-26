@@ -129,6 +129,8 @@ __isl_give pet_expr *pet_expr_new_call(isl_ctx *ctx, const char *name,
 __isl_give pet_expr *pet_expr_new_double(isl_ctx *ctx, double d, const char *s);
 __isl_give pet_expr *pet_expr_new_int(__isl_take isl_val *v);
 
+__isl_give pet_expr *pet_expr_arg(__isl_take pet_expr *expr, int pos);
+
 __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr);
 
 __isl_give isl_pw_aff *pet_expr_extract_affine_condition(
@@ -139,6 +141,7 @@ __isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,
 __isl_give pet_expr *pet_expr_resolve_assume(__isl_take pet_expr *expr,
 	__isl_keep pet_context *pc);
 
+int pet_expr_is_address_of(__isl_keep pet_expr *expr);
 int pet_expr_is_assume(__isl_keep pet_expr *expr);
 int pet_expr_is_boolean(__isl_keep pet_expr *expr);
 int pet_expr_is_comparison(__isl_keep pet_expr *expr);
@@ -224,6 +227,9 @@ __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 
 __isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
 	__isl_take isl_space *space);
+
+__isl_give pet_expr *pet_expr_access_patch(__isl_take pet_expr *expr,
+	__isl_take isl_multi_pw_aff *prefix, int add);
 
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 

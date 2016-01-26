@@ -19,6 +19,9 @@ extern "C" {
 struct pet_options;
 ISL_ARG_DECL(pet_options, struct pet_options, pet_options_args)
 
+/* Create an isl_ctx that references the pet options. */
+isl_ctx *isl_ctx_alloc_with_pet_options();
+
 /* If autodetect is set, any valid scop is extracted.
  * Otherwise, the scop needs to be delimited by pragmas.
  */
@@ -517,6 +520,7 @@ struct pet_scop {
 	int n_independence;
 	struct pet_independence **independences;
 };
+typedef struct pet_scop pet_scop;
 
 /* Return a textual representation of the operator. */
 const char *pet_op_str(enum pet_op_type op);
@@ -526,7 +530,7 @@ int pet_op_is_inc_dec(enum pet_op_type op);
  * If function is not NULL, then the pet_scop is extracted from
  * a function with that name.
  */
-struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
+__isl_give pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
 	const char *filename, const char *function);
 
 /* Transform the C source file "input" by rewriting each scop
@@ -535,63 +539,69 @@ struct pet_scop *pet_scop_extract_from_C_source(isl_ctx *ctx,
  */
 int pet_transform_C_source(isl_ctx *ctx, const char *input, FILE *output,
 	__isl_give isl_printer *(*transform)(__isl_take isl_printer *p,
-		struct pet_scop *scop, void *user), void *user);
+		__isl_take pet_scop *scop, void *user), void *user);
 /* Given a scop and a printer passed to a pet_transform_C_source callback,
  * print the original corresponding code to the printer.
  */
-__isl_give isl_printer *pet_scop_print_original(struct pet_scop *scop,
+__isl_give isl_printer *pet_scop_print_original(__isl_keep pet_scop *scop,
 	__isl_take isl_printer *p);
 
 /* Update all isl_sets and isl_maps such that they all have the same
  * parameters in the same order.
  */
-struct pet_scop *pet_scop_align_params(struct pet_scop *scop);
+__isl_give pet_scop *pet_scop_align_params(__isl_take pet_scop *scop);
 
 /* Does "scop" contain any data dependent accesses? */
-int pet_scop_has_data_dependent_accesses(struct pet_scop *scop);
+int pet_scop_has_data_dependent_accesses(__isl_keep pet_scop *scop);
 /* Does "scop" contain any data dependent conditions? */
-int pet_scop_has_data_dependent_conditions(struct pet_scop *scop);
+int pet_scop_has_data_dependent_conditions(__isl_keep pet_scop *scop);
 /* pet_stmt_build_ast_exprs is currently limited to only handle
  * some forms of data dependent accesses.
  * If pet_scop_can_build_ast_exprs returns 1, then pet_stmt_build_ast_exprs
  * can safely be called on all statements in the scop.
  */
-int pet_scop_can_build_ast_exprs(struct pet_scop *scop);
+int pet_scop_can_build_ast_exprs(__isl_keep pet_scop *scop);
 
-void pet_scop_dump(struct pet_scop *scop);
-struct pet_scop *pet_scop_free(struct pet_scop *scop);
+void pet_scop_dump(__isl_keep pet_scop *scop);
+__isl_null pet_scop *pet_scop_free(__isl_take pet_scop *scop);
 
-__isl_give isl_union_set *pet_scop_collect_domains(struct pet_scop *scop);
-/* Collect all potential read access relations. */
-__isl_give isl_union_map *pet_scop_collect_may_reads(struct pet_scop *scop);
-/* Collect all tagged potential read access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_may_reads(
-	struct pet_scop *scop);
-/* Collect all potential write access relations. */
-__isl_give isl_union_map *pet_scop_collect_may_writes(struct pet_scop *scop);
-/* Collect all definite write access relations. */
-__isl_give isl_union_map *pet_scop_collect_must_writes(struct pet_scop *scop);
-/* Collect all tagged potential write access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_may_writes(
-	struct pet_scop *scop);
-/* Collect all tagged definite write access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_must_writes(
-	struct pet_scop *scop);
-/* Collect all definite kill access relations. */
-__isl_give isl_union_map *pet_scop_collect_must_kills(struct pet_scop *scop);
-/* Collect all tagged definite kill access relations. */
-__isl_give isl_union_map *pet_scop_collect_tagged_must_kills(
-	struct pet_scop *scop);
+/* Return the context of "scop". */
+__isl_give isl_set *pet_scop_get_context(__isl_keep pet_scop *scop);
+/* Return the schedule of "scop". */
+__isl_give isl_schedule *pet_scop_get_schedule(__isl_keep pet_scop *scop);
+/* Return the set of all statement instances. */
+__isl_give isl_union_set *pet_scop_get_instance_set(__isl_keep pet_scop *scop);
+/* Return the potential read access relation. */
+__isl_give isl_union_map *pet_scop_get_may_reads(__isl_keep pet_scop *scop);
+/* Return the tagged potential read access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_may_reads(
+	__isl_keep pet_scop *scop);
+/* Return the potential write access relation. */
+__isl_give isl_union_map *pet_scop_get_may_writes(__isl_keep pet_scop *scop);
+/* Return the definite write access relation. */
+__isl_give isl_union_map *pet_scop_get_must_writes(__isl_keep pet_scop *scop);
+/* Return the tagged potential write access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_may_writes(
+	__isl_keep pet_scop *scop);
+/* Return the tagged definite write access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_must_writes(
+	__isl_keep pet_scop *scop);
+/* Return the definite kill access relation. */
+__isl_give isl_union_map *pet_scop_get_must_kills(__isl_keep pet_scop *scop);
+/* Return the tagged definite kill access relation. */
+__isl_give isl_union_map *pet_scop_get_tagged_must_kills(
+	__isl_keep pet_scop *scop);
 
 /* Compute a mapping from all outermost arrays (of structs) in scop
  * to their innermost members.
  */
 __isl_give isl_union_map *pet_scop_compute_outer_to_inner(
-	struct pet_scop *scop);
+	__isl_keep pet_scop *scop);
 /* Compute a mapping from all outermost arrays (of structs) in scop
  * to their members, including the outermost arrays themselves.
  */
-__isl_give isl_union_map *pet_scop_compute_outer_to_any(struct pet_scop *scop);
+__isl_give isl_union_map *pet_scop_compute_outer_to_any(
+	__isl_keep pet_scop *scop);
 
 #if defined(__cplusplus)
 }

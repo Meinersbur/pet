@@ -3,13 +3,23 @@ end: 222
 indent: "\t"
 context: '[N, in] -> {  : N <= 2147483646 and N >= -1 and in <= 2147483647 and in
   >= -2147483648 }'
-schedule: '{ domain: "[N, in] -> { S_2[] : N >= 0; S_1[i] : i >= 1 and i <= N; S_0[]
-  : N >= 0 }", child: { sequence: [ { filter: "[N] -> { S_0[] }" }, { filter: "[N]
-  -> { S_1[i] }", child: { schedule: "[N] -> L_0[{ S_1[i] -> [(i)] }]" } }, { filter:
-  "[N] -> { S_2[] }" } ] } }'
+schedule: '{ domain: "[N, in] -> { S_3[]; S_4[]; S_2[] : N >= 0; S_1[i] : i >= 1 and
+  i <= N; S_0[] : N >= 0; S_6[]; S_5[] }", child: { sequence: [ { filter: "[N] ->
+  { S_0[] }" }, { filter: "[N] -> { S_1[i] }", child: { schedule: "[N] -> L_0[{ S_1[i]
+  -> [(i)] }]" } }, { filter: "[N] -> { S_2[] }" }, { filter: "[N] -> { S_5[]; S_4[];
+  S_6[]; S_3[] }", child: { set: [ { filter: "{ S_3[] }" }, { filter: "{ S_4[] }"
+  }, { filter: "{ S_5[] }" }, { filter: "{ S_6[] }" } ] } } ] } }'
 arrays:
 - context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
   extent: '[N, in] -> { A[i0] : i0 <= N and i0 >= 0 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, in] -> { i[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N, in] -> { in[] }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -80,3 +90,56 @@ statements:
           reference: __pet_ref_5
           read: 1
           write: 0
+- line: -1
+  domain: '[N, in] -> { S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, in] -> { S_3[] -> i[] }'
+        index: '[N, in] -> { S_3[] -> i[] }'
+        reference: __pet_ref_6
+        kill: 1
+- line: -1
+  domain: '[N, in] -> { S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, in] -> { S_4[] -> in[] }'
+        index: '[N, in] -> { S_4[] -> in[] }'
+        reference: __pet_ref_7
+        kill: 1
+- line: -1
+  domain: '[N, in] -> { S_5[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, in] -> { S_5[] -> A[o0] : o0 <= N and o0 >= 0 }'
+        index: '[N, in] -> { S_5[] -> A[] }'
+        depth: 1
+        reference: __pet_ref_8
+        kill: 1
+- line: -1
+  domain: '[N, in] -> { S_6[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N, in] -> { S_6[] -> out[] }'
+        index: '[N, in] -> { S_6[] -> out[] }'
+        reference: __pet_ref_9
+        kill: 1

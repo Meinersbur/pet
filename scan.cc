@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
+ * Copyright 2015      Sven Verdoolaege. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,6 +39,7 @@
 #include <set>
 #include <map>
 #include <iostream>
+#include <sstream>
 #include <llvm/Support/raw_ostream.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/ASTDiagnostic.h>
@@ -56,11 +58,14 @@
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
+#include "id.h"
+#include "inliner.h"
 #include "nest.h"
 #include "options.h"
 #include "scan.h"
 #include "scop.h"
 #include "scop_plus.h"
+#include "substituter.h"
 #include "tree.h"
 #include "tree2scop.h"
 
@@ -200,13 +205,6 @@ static bool const_base(QualType qt)
 	return qt.isConstQualified();
 }
 
-/* Create an isl_id that refers to the named declarator "decl".
- */
-static __isl_give isl_id *create_decl_id(isl_ctx *ctx, NamedDecl *decl)
-{
-	return isl_id_alloc(ctx, decl->getName().str().c_str(), decl);
-}
-
 PetScan::~PetScan()
 {
 	std::map<const Type *, pet_expr *>::iterator it;
@@ -220,16 +218,30 @@ PetScan::~PetScan()
 	isl_union_map_free(value_bounds);
 }
 
-/* Report a diagnostic, unless autodetect is set.
+/* Report a diagnostic on the range "range", unless autodetect is set.
  */
-void PetScan::report(Stmt *stmt, unsigned id)
+void PetScan::report(SourceRange range, unsigned id)
 {
 	if (options->autodetect)
 		return;
 
-	SourceLocation loc = stmt->getLocStart();
+	SourceLocation loc = range.getBegin();
 	DiagnosticsEngine &diag = PP.getDiagnostics();
-	DiagnosticBuilder B = diag.Report(loc, id) << stmt->getSourceRange();
+	DiagnosticBuilder B = diag.Report(loc, id) << range;
+}
+
+/* Report a diagnostic on "stmt", unless autodetect is set.
+ */
+void PetScan::report(Stmt *stmt, unsigned id)
+{
+	report(stmt->getSourceRange(), id);
+}
+
+/* Report a diagnostic on "decl", unless autodetect is set.
+ */
+void PetScan::report(Decl *decl, unsigned id)
+{
+	report(decl->getSourceRange(), id);
 }
 
 /* Called if we found something we (currently) cannot handle.
@@ -242,6 +254,16 @@ void PetScan::unsupported(Stmt *stmt)
 	DiagnosticsEngine &diag = PP.getDiagnostics();
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
 					   "unsupported");
+	report(stmt, id);
+}
+
+/* Report an unsupported unary operator, unless autodetect is set.
+ */
+void PetScan::report_unsupported_unary_operator(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+			       "this type of unary operator is not supported");
 	report(stmt, id);
 }
 
@@ -293,6 +315,27 @@ void PetScan::report_missing_summary_function_body(Stmt *stmt)
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
 					   "missing summary function body");
 	report(stmt, id);
+}
+
+/* Report an unsupported argument in a call to an inlined function,
+ * unless autodetect is set.
+ */
+void PetScan::report_unsupported_inline_function_argument(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+				   "unsupported inline function call argument");
+	report(stmt, id);
+}
+
+/* Report an unsupported type of declaration, unless autodetect is set.
+ */
+void PetScan::report_unsupported_declaration(Decl *decl)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+				   "unsupported declaration");
+	report(decl, id);
 }
 
 /* Extract an integer from "val", which is assumed to be non-negative.
@@ -367,31 +410,13 @@ __isl_give pet_expr *PetScan::extract_expr(const llvm::APInt &val)
 	return pet_expr_new_int(extract_unsigned(ctx, val));
 }
 
-/* Return the number of bits needed to represent the type "qt",
- * if it is an integer type.  Otherwise return 0.
- * If qt is signed then return the opposite of the number of bits.
- */
-static int get_type_size(QualType qt, ASTContext &ast_context)
-{
-	int size;
-
-	if (!qt->isIntegerType())
-		return 0;
-
-	size = ast_context.getIntWidth(qt);
-	if (!qt->isUnsignedIntegerType())
-		size = -size;
-
-	return size;
-}
-
 /* Return the number of bits needed to represent the type of "decl",
  * if it is an integer type.  Otherwise return 0.
  * If qt is signed then return the opposite of the number of bits.
  */
 static int get_type_size(ValueDecl *decl)
 {
-	return get_type_size(decl->getType(), decl->getASTContext());
+	return pet_clang_get_type_size(decl->getType(), decl->getASTContext());
 }
 
 /* Bound parameter "pos" of "set" to the possible values of "decl".
@@ -485,7 +510,7 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	if (!id)
 		return -1;
-	decl = (ValueDecl *) isl_id_get_user(id);
+	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 
 	return array_depth(decl->getType().getTypePtr());
@@ -525,16 +550,12 @@ __isl_give pet_expr *PetScan::extract_index_expr(DeclRefExpr *expr)
 __isl_give pet_expr *PetScan::extract_index_expr(ValueDecl *decl)
 {
 	isl_id *id;
-	isl_space *space;
 
 	if (isa<EnumConstantDecl>(decl))
 		return extract_expr(cast<EnumConstantDecl>(decl));
 
-	id = create_decl_id(ctx, decl);
-	space = isl_space_alloc(ctx, 0, 0, 0);
-	space = isl_space_set_tuple_id(space, isl_dim_out, id);
-
-	return pet_expr_from_index(isl_multi_pw_aff_zero(space));
+	id = pet_id_from_decl(ctx, decl);
+	return pet_id_create_index_expr(id);
 }
 
 /* Construct a pet_expr representing the index expression "expr"
@@ -626,7 +647,7 @@ __isl_give pet_expr *PetScan::extract_index_expr(MemberExpr *expr)
 	if (field->isAnonymousStructOrUnion())
 		return base_index;
 
-	id = create_decl_id(ctx, field);
+	id = pet_id_from_decl(ctx, field);
 
 	return pet_expr_access_member(base_index, id);
 }
@@ -671,7 +692,7 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 
 	op = UnaryOperatorKind2pet_op_type(expr->getOpcode());
 	if (op == pet_op_last) {
-		unsupported(expr);
+		report_unsupported_unary_operator(expr);
 		return NULL;
 	}
 
@@ -683,7 +704,7 @@ __isl_give pet_expr *PetScan::extract_expr(UnaryOperator *expr)
 		arg = pet_expr_access_set_read(arg, 1);
 	}
 
-	type_size = get_type_size(expr->getType(), ast_context);
+	type_size = pet_clang_get_type_size(expr->getType(), ast_context);
 	return pet_expr_new_unary(type_size, op, arg);
 }
 
@@ -715,11 +736,13 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 			lhs = pet_expr_access_set_read(lhs, 1);
 	}
 
-	type_size = get_type_size(expr->getType(), ast_context);
+	type_size = pet_clang_get_type_size(expr->getType(), ast_context);
 	return pet_expr_new_binary(type_size, op, lhs, rhs);
 }
 
-/* Construct a pet_tree for a variable declaration.
+/* Construct a pet_tree for a variable declaration and
+ * add the declaration to the list of declarations
+ * inside the current compound statement.
  */
 __isl_give pet_tree *PetScan::extract(Decl *decl)
 {
@@ -727,7 +750,13 @@ __isl_give pet_tree *PetScan::extract(Decl *decl)
 	pet_expr *lhs, *rhs;
 	pet_tree *tree;
 
+	if (!isa<VarDecl>(decl)) {
+		report_unsupported_declaration(decl);
+		return NULL;
+	}
+
 	vd = cast<VarDecl>(decl);
+	declarations.push_back(vd);
 
 	lhs = extract_access_expr(vd);
 	lhs = mark_write(lhs);
@@ -827,7 +856,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
 	int type_size;
 
 	depth = extract_depth(index);
-	type_size = get_type_size(qt, ast_context);
+	type_size = pet_clang_get_type_size(qt, ast_context);
 
 	index = pet_expr_set_type_size(index, type_size);
 	index = pet_expr_access_set_depth(index, depth);
@@ -874,6 +903,21 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 	return pet_expr_new_unary(0, pet_op_assume, extract_expr(expr));
 }
 
+/* If "expr" is an address-of operator, then return its argument.
+ * Otherwise, return NULL.
+ */
+static Expr *extract_addr_of_arg(Expr *expr)
+{
+	UnaryOperator *op;
+
+	if (expr->getStmtClass() != Stmt::UnaryOperatorClass)
+		return NULL;
+	op = cast<UnaryOperator>(expr);
+	if (op->getOpcode() != UO_AddrOf)
+		return NULL;
+	return op->getSubExpr();
+}
+
 /* Construct a pet_expr corresponding to the function call argument "expr".
  * The argument appears in position "pos" of a call to function "fd".
  *
@@ -889,19 +933,15 @@ __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	Expr *expr, bool detect_writes)
 {
+	Expr *arg;
 	pet_expr *res;
 	int is_addr = 0, is_partial = 0;
 
-	while (expr->getStmtClass() == Stmt::ImplicitCastExprClass) {
-		ImplicitCastExpr *ice = cast<ImplicitCastExpr>(expr);
-		expr = ice->getSubExpr();
-	}
-	if (expr->getStmtClass() == Stmt::UnaryOperatorClass) {
-		UnaryOperator *op = cast<UnaryOperator>(expr);
-		if (op->getOpcode() == UO_AddrOf) {
-			is_addr = 1;
-			expr = op->getSubExpr();
-		}
+	expr = pet_clang_strip_casts(expr);
+	arg = extract_addr_of_arg(expr);
+	if (arg) {
+		is_addr = 1;
+		expr = arg;
 	}
 	res = extract_expr(expr);
 	if (!res)
@@ -1268,7 +1308,7 @@ __isl_give pet_expr *PetScan::extract_binary_increment(BinaryOperator *op,
 	expr = extract_expr(op->getRHS());
 	expr_iv = extract_expr(lhs);
 
-	type_size = get_type_size(iv->getType(), ast_context);
+	type_size = pet_clang_get_type_size(iv->getType(), ast_context);
 	return pet_expr_new_binary(type_size, pet_op_sub, expr, expr_iv);
 }
 
@@ -1307,7 +1347,7 @@ __isl_give pet_expr *PetScan::extract_compound_increment(
 	expr = extract_expr(op->getRHS());
 	if (neg) {
 		int type_size;
-		type_size = get_type_size(op->getType(), ast_context);
+		type_size = pet_clang_get_type_size(op->getType(), ast_context);
 		expr = pet_expr_new_unary(type_size, pet_op_minus, expr);
 	}
 
@@ -1442,15 +1482,143 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	return tree;
 }
 
+/* Store the names of the variables declared in decl_context
+ * in the set declared_names.  Make sure to only do this once by
+ * setting declared_names_collected.
+ */
+void PetScan::collect_declared_names()
+{
+	DeclContext *DC = decl_context;
+	DeclContext::decl_iterator it;
+
+	if (declared_names_collected)
+		return;
+
+	for (it = DC->decls_begin(); it != DC->decls_end(); ++it) {
+		Decl *D = *it;
+		NamedDecl *named;
+
+		if (!isa<NamedDecl>(D))
+			continue;
+		named = cast<NamedDecl>(D);
+		declared_names.insert(named->getName().str());
+	}
+
+	declared_names_collected = true;
+}
+
+/* Add the names in "names" that are not also in this->declared_names
+ * to this->used_names.
+ * It is up to the caller to make sure that declared_names has been
+ * populated, if needed.
+ */
+void PetScan::add_new_used_names(const std::set<std::string> &names)
+{
+	std::set<std::string>::const_iterator it;
+
+	for (it = names.begin(); it != names.end(); ++it) {
+		if (declared_names.find(*it) != declared_names.end())
+			continue;
+		used_names.insert(*it);
+	}
+}
+
+/* Is the name "name" used in any declaration other than "decl"?
+ *
+ * If the name was found to be in use before, the consider it to be in use.
+ * Otherwise, check the DeclContext of the function containing the scop
+ * as well as all ancestors of this DeclContext for declarations
+ * other than "decl" that declare something called "name".
+ */
+bool PetScan::name_in_use(const string &name, Decl *decl)
+{
+	DeclContext *DC;
+	DeclContext::decl_iterator it;
+
+	if (used_names.find(name) != used_names.end())
+		return true;
+
+	for (DC = decl_context; DC; DC = DC->getParent()) {
+		for (it = DC->decls_begin(); it != DC->decls_end(); ++it) {
+			Decl *D = *it;
+			NamedDecl *named;
+
+			if (D == decl)
+				continue;
+			if (!isa<NamedDecl>(D))
+				continue;
+			named = cast<NamedDecl>(D);
+			if (named->getName().str() == name)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+/* Generate a new name based on "name" that is not in use.
+ * Do so by adding a suffix _i, with i an integer.
+ */
+string PetScan::generate_new_name(const string &name)
+{
+	string new_name;
+
+	do {
+		std::ostringstream oss;
+		oss << name << "_" << n_rename++;
+		new_name = oss.str();
+	} while (name_in_use(new_name, NULL));
+
+	return new_name;
+}
+
 /* Try and construct a pet_tree corresponding to a compound statement.
  *
  * "skip_declarations" is set if we should skip initial declarations
  * in the children of the compound statements.
+ *
+ * Collect a new set of declarations for the current compound statement.
+ * If any of the names in these declarations is also used by another
+ * declaration reachable from the current function, then rename it
+ * to a name that is not already in use.
+ * In particular, keep track of the old and new names in a pet_substituter
+ * and apply the substitutions to the pet_tree corresponding to the
+ * compound statement.
  */
 __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 	bool skip_declarations)
 {
-	return extract(stmt->children(), true, skip_declarations);
+	pet_tree *tree;
+	std::vector<VarDecl *> saved_declarations;
+	std::vector<VarDecl *>::iterator it;
+	pet_substituter substituter;
+
+	saved_declarations = declarations;
+	declarations.clear();
+	tree = extract(stmt->children(), true, skip_declarations);
+	for (it = declarations.begin(); it != declarations.end(); ++it) {
+		isl_id *id;
+		pet_expr *expr;
+		VarDecl *decl = *it;
+		string name = decl->getName().str();
+		bool in_use = name_in_use(name, decl);
+
+		used_names.insert(name);
+		if (!in_use)
+			continue;
+
+		name = generate_new_name(name);
+		id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
+		expr = pet_id_create_index_expr(id);
+		expr = extract_access_expr(decl->getType(), expr);
+		id = pet_id_from_decl(ctx, decl);
+		substituter.add_sub(id, expr);
+		used_names.insert(name);
+	}
+	tree = substituter.substitute(tree);
+	declarations = saved_declarations;
+
+	return tree;
 }
 
 /* Return the file offset of the expansion location of "Loc".
@@ -1640,6 +1808,153 @@ __isl_give pet_tree *PetScan::update_loc(__isl_take pet_tree *tree, Stmt *stmt)
 	return tree;
 }
 
+/* Is "expr" of a type that can be converted to an access expression?
+ */
+static bool is_access_expr_type(Expr *expr)
+{
+	switch (expr->getStmtClass()) {
+	case Stmt::ArraySubscriptExprClass:
+	case Stmt::DeclRefExprClass:
+	case Stmt::MemberExprClass:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/* Tell the pet_inliner "inliner" about the formal arguments
+ * in "fd" and the corresponding actual arguments in "call".
+ * Return 0 if this was successful and -1 otherwise.
+ *
+ * Any pointer argument is treated as an array.
+ * The other arguments are treated as scalars.
+ *
+ * In case of scalars, there is no restriction on the actual argument.
+ * This actual argument is assigned to a variable with a name
+ * that is derived from the name of the corresponding formal argument,
+ * but made not to conflict with any variable names that are
+ * already in use.
+ *
+ * In case of arrays, the actual argument needs to be an expression
+ * of a type that can be converted to an access expression or the address
+ * of such an expression, ignoring implicit and redundant casts.
+ */
+int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
+	FunctionDecl *fd)
+{
+	unsigned n;
+
+	n = fd->getNumParams();
+	for (int i = 0; i < n; ++i) {
+		ParmVarDecl *parm = fd->getParamDecl(i);
+		QualType type = parm->getType();
+		Expr *arg, *sub;
+		pet_expr *expr;
+		int is_addr = 0;
+
+		arg = call->getArg(i);
+		if (array_depth(type.getTypePtr()) == 0) {
+			string name = parm->getName().str();
+			if (name_in_use(name, NULL))
+				name = generate_new_name(name);
+			inliner.add_scalar_arg(parm, name, extract_expr(arg));
+			continue;
+		}
+		arg = pet_clang_strip_casts(arg);
+		sub = extract_addr_of_arg(arg);
+		if (sub) {
+			is_addr = 1;
+			arg = pet_clang_strip_casts(sub);
+		}
+		if (!is_access_expr_type(arg)) {
+			report_unsupported_inline_function_argument(arg);
+			return -1;
+		}
+		expr = extract_access_expr(arg);
+		if (!expr)
+			return -1;
+		inliner.add_array_arg(parm, expr, is_addr);
+	}
+
+	return 0;
+}
+
+/* Try and construct a pet_tree from the body of "fd" using the actual
+ * arguments in "call" in place of the formal arguments.
+ * "fd" is assumed to point to the declaration with a function body.
+ * In particular, construct a block that consists of assignments
+ * of (parts of) the actual arguments to temporary variables
+ * followed by the inlined function body with the formal arguments
+ * replaced by (expressions containing) these temporary variables.
+ *
+ * The actual inlining is taken care of by the pet_inliner function.
+ * This function merely calls set_inliner_arguments to tell
+ * the pet_inliner about the actual arguments, extracts a pet_tree
+ * from the body of the called function and then passes this pet_tree
+ * to the pet_inliner.
+ *
+ * During the extraction of the function body, all variables names
+ * that are declared in the calling function as well all variable
+ * names that are known to be in use are considered to be in use
+ * in the called function to ensure that there is no naming conflict.
+ * Similarly, the additional names that are in use in the called function
+ * are considered to be in use in the calling function as well.
+ *
+ * The location of the pet_tree is reset to the call site to ensure
+ * that the extent of the scop does not include the body of the called
+ * function.
+ */
+__isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
+	FunctionDecl *fd)
+{
+	int save_autodetect;
+	pet_tree *tree;
+	pet_loc *tree_loc;
+	pet_inliner inliner(ctx, n_arg, ast_context);
+
+	if (set_inliner_arguments(inliner, call, fd) < 0)
+		return NULL;
+
+	save_autodetect = options->autodetect;
+	options->autodetect = 0;
+	PetScan body_scan(PP, ast_context, fd, loc, options,
+				isl_union_map_copy(value_bounds), independent);
+	collect_declared_names();
+	body_scan.add_new_used_names(declared_names);
+	body_scan.add_new_used_names(used_names);
+	tree = body_scan.extract(fd->getBody(), false);
+	add_new_used_names(body_scan.used_names);
+	options->autodetect = save_autodetect;
+
+	tree_loc = construct_pet_loc(call->getSourceRange(), true);
+	tree = pet_tree_set_loc(tree, tree_loc);
+
+	return inliner.inline_tree(tree);
+}
+
+/* Try and construct a pet_tree corresponding
+ * to the expression statement "stmt".
+ *
+ * If the outer expression is a function call and if the corresponding
+ * function body is marked "inline", then return a pet_tree
+ * corresponding to the inlined function.
+ */
+__isl_give pet_tree *PetScan::extract_expr_stmt(Stmt *stmt)
+{
+	pet_expr *expr;
+
+	if (stmt->getStmtClass() == Stmt::CallExprClass) {
+		CallExpr *call = cast<CallExpr>(stmt);
+		FunctionDecl *fd = call->getDirectCallee();
+		fd = pet_clang_find_function_decl_with_body(fd);
+		if (fd && fd->isInlineSpecified())
+			return extract_inlined_call(call, fd);
+	}
+
+	expr = extract_expr(cast<Expr>(stmt));
+	return extract(expr, stmt->getSourceRange(), true);
+}
+
 /* Try and construct a pet_tree corresponding to "stmt".
  *
  * If "stmt" is a compound statement, then "skip_declarations"
@@ -1663,8 +1978,7 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	set_current_stmt(stmt);
 
 	if (isa<Expr>(stmt))
-		return extract(extract_expr(cast<Expr>(stmt)),
-				stmt->getSourceRange(), true);
+		return extract_expr_stmt(cast<Expr>(stmt));
 
 	switch (stmt->getStmtClass()) {
 	case Stmt::WhileStmtClass:
@@ -1847,40 +2161,6 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	return tree;
 }
 
-/* Is "T" the type of a variable length array with static size?
- */
-static bool is_vla_with_static_size(QualType T)
-{
-	const VariableArrayType *vlatype;
-
-	if (!T->isVariableArrayType())
-		return false;
-	vlatype = cast<VariableArrayType>(T);
-	return vlatype->getSizeModifier() == VariableArrayType::Static;
-}
-
-/* Return the type of "decl" as an array.
- *
- * In particular, if "decl" is a parameter declaration that
- * is a variable length array with a static size, then
- * return the original type (i.e., the variable length array).
- * Otherwise, return the type of decl.
- */
-static QualType get_array_type(ValueDecl *decl)
-{
-	ParmVarDecl *parm;
-	QualType T;
-
-	parm = dyn_cast<ParmVarDecl>(decl);
-	if (!parm)
-		return decl->getType();
-
-	T = parm->getOriginalType();
-	if (!is_vla_with_static_size(T))
-		return decl->getType();
-	return T;
-}
-
 extern "C" {
 	static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 		void *user);
@@ -1898,13 +2178,11 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 {
 	PetScan *ps = (PetScan *) user;
 	isl_id *id;
-	ValueDecl *decl;
 	const Type *type;
 
 	id = pet_expr_access_get_id(access);
-	decl = (ValueDecl *) isl_id_get_user(id);
+	type = pet_id_get_array_type(id).getTypePtr();
 	isl_id_free(id);
-	type = get_array_type(decl).getTypePtr();
 	return ps->get_array_size(type);
 }
 
@@ -1919,13 +2197,14 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	PetScan *ps = (PetScan *) user;
 	isl_ctx *ctx;
 	isl_id *id;
-	ValueDecl *iv;
+	pet_array *array;
 
 	ctx = pet_expr_get_ctx(access);
 	id = pet_expr_access_get_id(access);
-	iv = (ValueDecl *) isl_id_get_user(id);
+	array = ps->extract_array(id, NULL, pc);
 	isl_id_free(id);
-	return ps->extract_array(ctx, iv, NULL, pc);
+
+	return array;
 }
 
 /* Extract a function summary from the body of "fd".
@@ -1976,7 +2255,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 
 		if (!type->isIntegerType())
 			continue;
-		id = create_decl_id(ctx, parm);
+		id = pet_id_from_decl(ctx, parm);
 		space = isl_space_insert_dims(space, isl_dim_param, 0, 1);
 		space = isl_space_set_dim_id(space, isl_dim_param, 0,
 						isl_id_copy(id));
@@ -1985,7 +2264,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 
 	save_autodetect = options->autodetect;
 	options->autodetect = 0;
-	PetScan body_scan(PP, ast_context, loc, options,
+	PetScan body_scan(PP, ast_context, fd, loc, options,
 				isl_union_map_copy(value_bounds), independent);
 
 	tree = body_scan.extract(fd->getBody(), false);
@@ -1998,9 +2277,9 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	scop = pet_scop_from_pet_tree(tree, int_size,
 					&::extract_array, &body_scan, pc);
 	scop = scan_arrays(scop, pc);
-	may_read = isl_union_map_range(pet_scop_collect_may_reads(scop));
-	may_write = isl_union_map_range(pet_scop_collect_may_writes(scop));
-	must_write = isl_union_map_range(pet_scop_collect_must_writes(scop));
+	may_read = isl_union_map_range(pet_scop_get_may_reads(scop));
+	may_write = isl_union_map_range(pet_scop_get_may_writes(scop));
+	must_write = isl_union_map_range(pet_scop_get_must_writes(scop));
 	to_inner = pet_scop_compute_outer_to_inner(scop);
 	pet_scop_free(scop);
 
@@ -2015,7 +2294,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 		if (array_depth(type.getTypePtr()) == 0)
 			continue;
 
-		array = body_scan.extract_array(ctx, parm, NULL, pc);
+		array = body_scan.extract_array(parm, NULL, pc);
 		space = array ? isl_set_get_space(array->extent) : NULL;
 		pet_array_free(array);
 		data_set = isl_union_set_from_set(isl_set_universe(space));
@@ -2052,26 +2331,17 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
  * Even if a function body is available, "fd" itself may point
  * to a declaration without function body.  We therefore first
  * replace it by the declaration that comes with a body (if any).
- *
- * It is not clear why hasBody takes a reference to a const FunctionDecl *.
- * It seems that it is possible to directly use the iterators to obtain
- * a non-const pointer.
- * Since we are not going to use the pointer to modify anything anyway,
- * it seems safe to drop the constness.  The alternative would be to
- * modify a lot of other functions to include const qualifiers.
  */
 __isl_give pet_expr *PetScan::set_summary(__isl_take pet_expr *expr,
 	FunctionDecl *fd)
 {
 	pet_function_summary *summary;
-	const FunctionDecl *def;
 
 	if (!expr)
 		return NULL;
-	if (!fd->hasBody(def))
+	fd = pet_clang_find_function_decl_with_body(fd);
+	if (!fd)
 		return expr;
-
-	fd = const_cast<FunctionDecl *>(def);
 
 	summary = get_summary(fd);
 
@@ -2108,15 +2378,251 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 	return scop;
 }
 
+/* Given a DeclRefExpr or an ArraySubscriptExpr, return a pointer
+ * to the base DeclRefExpr.
+ * If the expression is something other than a nested ArraySubscriptExpr
+ * with a DeclRefExpr at the base, then return NULL.
+ */
+static DeclRefExpr *extract_array_base(Expr *expr)
+{
+	while (isa<ArraySubscriptExpr>(expr)) {
+		expr = (cast<ArraySubscriptExpr>(expr))->getBase();
+		expr = pet_clang_strip_casts(expr);
+	}
+	return dyn_cast<DeclRefExpr>(expr);
+}
+
+/* Structure for keeping track of local variables that can be killed
+ * after the scop.
+ * In particular, variables of interest are first added to "locals"
+ * Then the Stmt in which the variable declaration appears is scanned
+ * for any possible leak of a pointer or any use after a specified scop.
+ * In such cases, the variable is removed from "locals".
+ * The scop is assumed to appear at the same level of the declaration.
+ * In particular, it does not appear inside a nested control structure,
+ * meaning that it is sufficient to look at uses of the variables
+ * that textually appear after the specified scop.
+ *
+ * locals is the set of variables of interest.
+ * accessed keeps track of the variables that are accessed inside the scop.
+ * scop_start is the start of the scop
+ * scop_end is the end of the scop
+ * addr_end is the end of the latest visited address_of expression.
+ * expr_end is the end of the latest handled expression.
+ */
+struct killed_locals : RecursiveASTVisitor<killed_locals> {
+	SourceManager &SM;
+	set<ValueDecl *> locals;
+	set<ValueDecl *> accessed;
+	unsigned scop_start;
+	unsigned scop_end;
+	unsigned addr_end;
+	unsigned expr_end;
+
+	killed_locals(SourceManager &SM) : SM(SM) {}
+
+	void add_local(Decl *decl);
+	void add_locals(DeclStmt *stmt);
+	void set_addr_end(UnaryOperator *expr);
+	bool check_decl_in_expr(Expr *expr);
+	void remove_accessed_after(Stmt *stmt, unsigned start, unsigned end);
+	bool VisitUnaryOperator(UnaryOperator *expr) {
+		if (expr->getOpcode() == UO_AddrOf)
+			set_addr_end(expr);
+		return true;
+	}
+	bool VisitArraySubscriptExpr(ArraySubscriptExpr *expr) {
+		return check_decl_in_expr(expr);
+	}
+	bool VisitDeclRefExpr(DeclRefExpr *expr) {
+		return check_decl_in_expr(expr);
+	}
+	void dump() {
+		set<ValueDecl *>::iterator it;
+		cerr << "local" << endl;
+		for (it = locals.begin(); it != locals.end(); ++it)
+			(*it)->dump();
+		cerr << "accessed" << endl;
+		for (it = accessed.begin(); it != accessed.end(); ++it)
+			(*it)->dump();
+	}
+};
+
+/* Add "decl" to the set of local variables, provided it is a ValueDecl.
+ */
+void killed_locals::add_local(Decl *decl)
+{
+	ValueDecl *vd;
+
+	vd = dyn_cast<ValueDecl>(decl);
+	if (vd)
+		locals.insert(vd);
+}
+
+/* Add all variables declared by "stmt" to the set of local variables.
+ */
+void killed_locals::add_locals(DeclStmt *stmt)
+{
+	if (stmt->isSingleDecl()) {
+		add_local(stmt->getSingleDecl());
+	} else {
+		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
+		unsigned n = group.size();
+		for (int i = 0; i < n; ++i)
+			add_local(group[i]);
+	}
+}
+
+/* Set this->addr_end to the end of the address_of expression "expr".
+ */
+void killed_locals::set_addr_end(UnaryOperator *expr)
+{
+	addr_end = getExpansionOffset(SM, expr->getLocEnd());
+}
+
+/* Given an expression of type ArraySubscriptExpr or DeclRefExpr,
+ * check two things
+ * - is the variable used inside the scop?
+ * - is the variable used after the scop or can a pointer be taken?
+ * Return true if the traversal should continue.
+ *
+ * Reset the pointer to the end of the latest address-of expression
+ * such that only the first array or scalar is considered to have
+ * its address taken.  In particular, accesses inside the indices
+ * of the array should not be considered to have their address taken.
+ *
+ * If the variable is not one of the local variables or
+ * if the access appears inside an expression that was already handled,
+ * then simply return.
+ *
+ * Otherwise, the expression is handled and "expr_end" is updated
+ * to prevent subexpressions with the same base expression
+ * from being handled as well.
+ *
+ * If a higher-dimensional slice of an array is accessed or
+ * if the access appears inside an address-of expression,
+ * then a pointer may leak, so the variable should not be killed.
+ * Similarly, if the access appears after the end of the scop,
+ * then the variable should not be killed.
+ *
+ * Otherwise, if the access appears inside the scop, then
+ * keep track of the fact that the variable was accessed at least once
+ * inside the scop.
+ */
+bool killed_locals::check_decl_in_expr(Expr *expr)
+{
+	unsigned loc;
+	int depth;
+	DeclRefExpr *ref;
+	ValueDecl *decl;
+	unsigned old_addr_end;
+
+	ref = extract_array_base(expr);
+	if (!ref)
+		return true;
+
+	old_addr_end = addr_end;
+	addr_end = 0;
+
+	decl = ref->getDecl();
+	if (locals.find(decl) == locals.end())
+		return true;
+	loc = getExpansionOffset(SM, expr->getLocStart());
+	if (loc <= expr_end)
+		return true;
+
+	expr_end = getExpansionOffset(SM, ref->getLocEnd());
+	depth = array_depth(expr->getType().getTypePtr());
+	if (loc >= scop_end || loc <= old_addr_end || depth != 0)
+		locals.erase(decl);
+	if (loc >= scop_start && loc <= scop_end)
+		accessed.insert(decl);
+
+	return locals.size() != 0;
+}
+
+/* Remove the local variables that may be accessed inside "stmt" after
+ * the scop starting at "start" and ending at "end", or that
+ * are not accessed at all inside that scop.
+ *
+ * If there are no local variables that could potentially be killed,
+ * then simply return.
+ *
+ * Otherwise, scan "stmt" for any potential use of the variables
+ * after the scop.  This includes a possible pointer being taken
+ * to (part of) the variable.  If there is any such use, then
+ * the variable is removed from the set of local variables.
+ *
+ * At the same time, keep track of the variables that are
+ * used anywhere inside the scop.  At the end, replace the local
+ * variables with the intersection with these accessed variables.
+ */
+void killed_locals::remove_accessed_after(Stmt *stmt, unsigned start,
+	unsigned end)
+{
+	set<ValueDecl *> accessed_local;
+
+	if (locals.size() == 0)
+		return;
+	scop_start = start;
+	scop_end = end;
+	addr_end = 0;
+	expr_end = 0;
+	TraverseStmt(stmt);
+	set_intersection(locals.begin(), locals.end(),
+			 accessed.begin(), accessed.end(),
+			 inserter(accessed_local, accessed_local.begin()));
+	locals = accessed_local;
+}
+
+/* Add a call to __pencil_kill to the end of "tree" that kills
+ * all the variables in "locals" and return the result.
+ *
+ * No location is added to the kill because the most natural
+ * location would lie outside the scop.  Attaching such a location
+ * to this tree would extend the scope of the final result
+ * to include the location.
+ */
+__isl_give pet_tree *PetScan::add_kills(__isl_take pet_tree *tree,
+	set<ValueDecl *> locals)
+{
+	int i;
+	pet_expr *expr;
+	pet_tree *kill, *block;
+	set<ValueDecl *>::iterator it;
+
+	if (locals.size() == 0)
+		return tree;
+	expr = pet_expr_new_call(ctx, "__pencil_kill", locals.size());
+	i = 0;
+	for (it = locals.begin(); it != locals.end(); ++it) {
+		pet_expr *arg;
+		arg = extract_access_expr(*it);
+		expr = pet_expr_set_arg(expr, i++, arg);
+	}
+	kill = pet_tree_new_expr(expr);
+	block = pet_tree_new_block(ctx, 0, 2);
+	block = pet_tree_block_add_child(block, tree);
+	block = pet_tree_block_add_child(block, kill);
+
+	return block;
+}
+
 /* Check if the scop marked by the user is exactly this Stmt
  * or part of this Stmt.
  * If so, return a pet_scop corresponding to the marked region.
  * Otherwise, return NULL.
+ *
+ * If the scop is not further nested inside a child of "stmt",
+ * then check if there are any variable declarations before the scop
+ * inside "stmt".  If so, and if these variables are not used
+ * after the scop, then add kills to the variables.
  */
 struct pet_scop *PetScan::scan(Stmt *stmt)
 {
 	SourceManager &SM = PP.getSourceManager();
 	unsigned start_off, end_off;
+	pet_tree *tree;
 
 	start_off = getExpansionOffset(SM, stmt->getLocStart());
 	end_off = getExpansionOffset(SM, stmt->getLocEnd());
@@ -2129,6 +2635,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	if (start_off >= loc.start && end_off <= loc.end)
 		return extract_scop(extract(stmt));
 
+	killed_locals kl(SM);
 	StmtIterator start;
 	for (start = stmt->child_begin(); start != stmt->child_end(); ++start) {
 		Stmt *child = *start;
@@ -2140,6 +2647,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			return scan(child);
 		if (start_off >= loc.start)
 			break;
+		if (isa<DeclStmt>(child))
+			kl.add_locals(cast<DeclStmt>(child));
 	}
 
 	StmtIterator end;
@@ -2150,7 +2659,11 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			break;
 	}
 
-	return extract_scop(extract(StmtRange(start, end), false, false));
+	kl.remove_accessed_after(stmt, loc.start, loc.end);
+
+	tree = extract(StmtRange(start, end), false, false);
+	tree = add_kills(tree, kl.locals);
+	return extract_scop(tree);
 }
 
 /* Set the size of index "pos" of "array" to "size".
@@ -2400,7 +2913,8 @@ static bool has_printable_definition(RecordDecl *decl)
 	return decl->getLexicalDeclContext() == decl->getDeclContext();
 }
 
-/* Construct and return a pet_array corresponding to the variable "decl".
+/* Construct and return a pet_array corresponding to the variable
+ * represented by "id".
  * In particular, initialize array->extent to
  *
  *	{ name[i_1,...,i_d] : i_1,...,i_d >= 0 }
@@ -2417,30 +2931,28 @@ static bool has_printable_definition(RecordDecl *decl)
  * If the base type is that of a record with no top-level definition,
  * then we replace it by "<subfield>".
  */
-struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
+struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	PetTypes *types, __isl_keep pet_context *pc)
 {
 	struct pet_array *array;
-	QualType qt = get_array_type(decl);
+	QualType qt = pet_id_get_array_type(id);
 	const Type *type = qt.getTypePtr();
 	int depth = array_depth(type);
 	QualType base = pet_clang_base_type(qt);
 	string name;
-	isl_id *id;
-	isl_space *dim;
+	isl_space *space;
 
 	array = isl_calloc_type(ctx, struct pet_array);
 	if (!array)
 		return NULL;
 
-	id = create_decl_id(ctx, decl);
-	dim = isl_space_set_alloc(ctx, 0, depth);
-	dim = isl_space_set_tuple_id(dim, isl_dim_set, id);
+	space = isl_space_set_alloc(ctx, 0, depth);
+	space = isl_space_set_tuple_id(space, isl_dim_set, isl_id_copy(id));
 
-	array->extent = isl_set_nat_universe(dim);
+	array->extent = isl_set_nat_universe(space);
 
-	dim = isl_space_params_alloc(ctx, 0);
-	array->context = isl_set_universe(dim);
+	space = isl_space_params_alloc(ctx, 0);
+	array->context = isl_set_universe(space);
 
 	array = set_upper_bounds(array, type, pc);
 	if (!array)
@@ -2466,13 +2978,28 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
 
 	array->element_type = strdup(name.c_str());
 	array->element_is_record = base->isRecordType();
-	array->element_size = size_in_bytes(decl->getASTContext(), base);
+	array->element_size = size_in_bytes(ast_context, base);
+
+	return array;
+}
+
+/* Construct and return a pet_array corresponding to the variable "decl".
+ */
+struct pet_array *PetScan::extract_array(ValueDecl *decl,
+	PetTypes *types, __isl_keep pet_context *pc)
+{
+	isl_id *id;
+	pet_array *array;
+
+	id = pet_id_from_decl(ctx, decl);
+	array = extract_array(id, types, pc);
+	isl_id_free(id);
 
 	return array;
 }
 
 /* Construct and return a pet_array corresponding to the sequence
- * of declarations "decls".
+ * of declarations represented by "decls".
  * The upper bounds of the array are converted to affine expressions
  * within the context "pc".
  * If the sequence contains a single declaration, then it corresponds
@@ -2484,23 +3011,27 @@ struct pet_array *PetScan::extract_array(isl_ctx *ctx, ValueDecl *decl,
  *
  * Additionally, keep track of all required types in "types".
  */
-struct pet_array *PetScan::extract_array(isl_ctx *ctx,
-	vector<ValueDecl *> decls, PetTypes *types, __isl_keep pet_context *pc)
+struct pet_array *PetScan::extract_array(__isl_keep isl_id_list *decls,
+	PetTypes *types, __isl_keep pet_context *pc)
 {
+	int i, n;
+	isl_id *id;
 	struct pet_array *array;
-	vector<ValueDecl *>::iterator it;
 
-	it = decls.begin();
+	id = isl_id_list_get_id(decls, 0);
+	array = extract_array(id, types, pc);
+	isl_id_free(id);
 
-	array = extract_array(ctx, *it, types, pc);
-
-	for (++it; it != decls.end(); ++it) {
+	n = isl_id_list_n_id(decls);
+	for (i = 1; i < n; ++i) {
 		struct pet_array *parent;
 		const char *base_name, *field_name;
 		char *product_name;
 
 		parent = array;
-		array = extract_array(ctx, *it, types, pc);
+		id = isl_id_list_get_id(decls, i);
+		array = extract_array(id, types, pc);
+		isl_id_free(id);
 		if (!array)
 			return pet_array_free(parent);
 
@@ -2696,7 +3227,7 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
-		array = extract_array(ctx, *it, &types, pc);
+		array = extract_array(*it, &types, pc);
 		scop->arrays[n_array + i] = array;
 		if (!scop->arrays[n_array + i])
 			goto error;
@@ -2751,7 +3282,7 @@ static struct pet_scop *add_parameter_bounds(struct pet_scop *scop)
 				isl_error_internal,
 				"unresolved nested parameter", goto error);
 		}
-		decl = (ValueDecl *) isl_id_get_user(id);
+		decl = pet_id_get_decl(id);
 		isl_id_free(id);
 
 		scop->context = set_parameter_bounds(scop->context, i, decl);

@@ -2,15 +2,17 @@ start: 45
 end: 157
 indent: "\t"
 context: '[N] -> {  : N <= 2147483647 and N >= -2147483648 }'
-schedule: '{ domain: "[N] -> { S_1[i, t] : N = 0 and i <= 9 and i >= 0 and t >= 0;
-  S_1[0, t] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0); S_0[i, t] : N = 0 and i
-  <= 9 and i >= 0 and t >= 0; S_0[0, t] : (N <= -1 and t >= 0) or (N >= 1 and t >=
-  0); S_2[i] : N = 0 and i <= 9 and i >= 0 }", child: { schedule: "[N] -> L_0[{ S_1[i,
-  t] -> [(i)]; S_0[i, t] -> [(i)]; S_2[i] -> [(i)] }]", child: { sequence: [ { filter:
-  "[N] -> { S_1[i, t]; S_0[i, t] }", child: { schedule: "[N] -> L_1[{ S_1[i, t] ->
-  [(t)]; S_0[i, t] -> [(t)] }]", child: { sequence: [ { filter: "[N] -> { S_0[i, t]
-  }" }, { filter: "[N] -> { S_1[i, t] }" } ] } } }, { filter: "[N] -> { S_2[i] }"
-  } ] } } }'
+schedule: '{ domain: "[N] -> { S_4[]; S_1[i, t] : N = 0 and i <= 9 and i >= 0 and
+  t >= 0; S_1[0, t] : (N <= -1 and t >= 0) or (N >= 1 and t >= 0); S_0[i, t] : N =
+  0 and i <= 9 and i >= 0 and t >= 0; S_0[0, t] : (N <= -1 and t >= 0) or (N >= 1
+  and t >= 0); S_3[]; S_2[i] : N = 0 and i <= 9 and i >= 0 }", child: { sequence:
+  [ { filter: "[N] -> { S_1[i, t]; S_0[i, t]; S_2[i] }", child: { schedule: "[N] ->
+  L_0[{ S_1[i, t] -> [(i)]; S_0[i, t] -> [(i)]; S_2[i] -> [(i)] }]", child: { sequence:
+  [ { filter: "[N] -> { S_1[i, t]; S_0[i, t] }", child: { schedule: "[N] -> L_1[{
+  S_1[i, t] -> [(t)]; S_0[i, t] -> [(t)] }]", child: { sequence: [ { filter: "[N]
+  -> { S_0[i, t] }" }, { filter: "[N] -> { S_1[i, t] }" } ] } } }, { filter: "[N]
+  -> { S_2[i] }" } ] } } }, { filter: "[N] -> { S_4[]; S_3[] }", child: { set: [ {
+  filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '[N] -> { __pet_test_0[i, t] : N = 0 and i <= 9 and i >= 0 and t >= 0; __pet_test_0[0,
@@ -21,6 +23,10 @@ arrays:
   uniquely_defined: 1
 - context: '{  :  }'
   extent: '[N] -> { a[] }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '[N] -> { i[] }'
   element_type: int
   element_size: 4
 statements:
@@ -83,6 +89,32 @@ statements:
         write: 1
       - type: int
         value: 6
+- line: -1
+  domain: '[N] -> { S_3[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_3[] -> i[] }'
+        index: '[N] -> { S_3[] -> i[] }'
+        reference: __pet_ref_5
+        kill: 1
+- line: -1
+  domain: '[N] -> { S_4[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '[N] -> { S_4[] -> a[] }'
+        index: '[N] -> { S_4[] -> a[] }'
+        reference: __pet_ref_6
+        kill: 1
 implications:
 - satisfied: 1
   extension: '[N] -> { __pet_test_0[i, t] -> __pet_test_0[i, t''] : N = 0 and t''

@@ -1,16 +1,17 @@
-AC_INIT([pet], [0.07], [pet@meinersbur.de])
+AC_INIT([pet], [0.08], [pet@meinersbur.de])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AC_SUBST(versioninfo)
-versioninfo=7:0:0
+versioninfo=8:0:0
 
 AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_GREP
 AC_PROG_LIBTOOL
+AC_PROG_SED
 
 AC_SUBST(CLANG_CXXFLAGS)
 AC_SUBST(CLANG_LDFLAGS)
@@ -27,7 +28,8 @@ fi
 if test "$llvm_config_found" != yes; then
 	AC_MSG_ERROR([llvm-config not found])
 fi
-CLANG_CXXFLAGS=`$llvm_config --cxxflags`
+CLANG_CXXFLAGS=`$llvm_config --cxxflags | \
+	$SED -e 's/-Wcovered-switch-default//'`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
 targets=`$llvm_config --targets-built`
 components="$targets asmparser bitreader support mc"
@@ -177,6 +179,13 @@ AC_EGREP_HEADER([TypedefNameDecl], [clang/AST/Type.h], [],
 		[Define to TypedefDecl for older versions of clang])
 	 AC_DEFINE([getTypedefNameForAnonDecl], [getTypedefForAnonDecl],
 		[Define to getTypedefForAnonDecl for older versions of clang])])
+AC_EGREP_HEADER([StmtRange], [clang/AST/StmtIterator.h],
+	[AC_DEFINE([HAVE_STMTRANGE], [],
+	[Define if StmtRange class is available])])
+AC_EGREP_HEADER([initializeBuiltins],
+	[clang/Basic/Builtins.h], [],
+	[AC_DEFINE([initializeBuiltins], [InitializeBuiltins],
+		[Define to InitializeBuiltins for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
@@ -192,11 +201,13 @@ AM_CONDITIONAL(BUNDLED_ISL, test $with_isl = bundled)
 AC_SUBST(ISL_CFLAGS)
 AC_SUBST(ISL_LIBS)
 AC_SUBST(ISL_SRCDIR)
+AC_SUBST(ISL_BUILDDIR)
 case "$with_isl" in
 bundled)
 	ISL_CFLAGS="-I\$(top_srcdir)/isl/include -I\$(top_builddir)/isl/include"
 	ISL_CFLAGS="$ISL_CFLAGS"
 	ISL_SRCDIR="$srcdir/isl"
+	ISL_BUILDDIR=isl
 	;;
 build)
 	ISL_SRCDIR="$isl_srcdir"
@@ -254,4 +265,9 @@ AC_CONFIG_FILES([codegen_test.sh], [chmod +x codegen_test.sh])
 if test $with_isl = bundled; then
 	AC_CONFIG_SUBDIRS(isl)
 fi
+AC_CONFIG_COMMANDS_POST([
+	dnl pass on arguments to subdir configures, but don't
+	dnl add them to config.status
+	ac_configure_args="$ac_configure_args --with-clang=system"
+])
 AC_OUTPUT

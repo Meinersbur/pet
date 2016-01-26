@@ -83,3 +83,13 @@ ISL_CTX_SET_CHOICE_DEF(pet_options, struct pet_options, pet_options_args,
 	signed_overflow)
 ISL_CTX_GET_CHOICE_DEF(pet_options, struct pet_options, pet_options_args,
 	signed_overflow)
+
+/* Create an isl_ctx that references the pet options.
+ */
+isl_ctx *isl_ctx_alloc_with_pet_options()
+{
+	struct pet_options *options;
+
+	options = pet_options_new_with_defaults();
+	return isl_ctx_alloc_with_options(&pet_options_args, options);
+}

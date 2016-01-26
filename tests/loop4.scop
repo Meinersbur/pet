@@ -2,11 +2,17 @@ start: 34
 end: 127
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i] : i >= 5 and i <= 6 }", child: { schedule: "L_0[{ S_0[i]
-  -> [(i)] }]" } }'
+schedule: '{ domain: "{ S_0[i] : i >= 5 and i <= 6; S_2[]; S_1[] }", child: { sequence:
+  [ { filter: "{ S_0[i] }", child: { schedule: "L_0[{ S_0[i] -> [(i)] }]" } }, { filter:
+  "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[]
+  }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  element_type: int
+  element_size: 4
+- context: '{  :  }'
+  extent: '{ i[] }'
   element_type: int
   element_size: 4
 statements:
@@ -28,3 +34,30 @@ statements:
         reference: __pet_ref_1
         read: 1
         write: 0
+- line: -1
+  domain: '{ S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_1[] -> i[] }'
+        index: '{ S_1[] -> i[] }'
+        reference: __pet_ref_2
+        kill: 1
+- line: -1
+  domain: '{ S_2[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_2[] -> a[o0] : o0 >= 0 and o0 <= 9 }'
+        index: '{ S_2[] -> a[] }'
+        depth: 1
+        reference: __pet_ref_3
+        kill: 1
