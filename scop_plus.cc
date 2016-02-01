@@ -172,7 +172,7 @@ static void stmt_collect_arrays(struct pet_stmt *stmt,
 	if (!stmt)
 		return;
 
-	for (int i = 0; i < stmt->n_arg; ++i)
+	for (unsigned i = 0; i < stmt->n_arg; ++i)
 		expr_collect_arrays(stmt->args[i], arrays);
 
 	pet_tree_foreach_access_expr(stmt->body, &access_collect_wrap, &arrays);
