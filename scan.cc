@@ -2464,7 +2464,7 @@ void killed_locals::add_locals(DeclStmt *stmt)
 	} else {
 		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
 		unsigned n = group.size();
-		for (int i = 0; i < n; ++i)
+		for (unsigned i = 0; i < n; ++i)
 			add_local(group[i]);
 	}
 }
