@@ -720,12 +720,12 @@ static const char *pencil_implicit_functions[] = {
 static bool is_implicit(const IdentifierInfo *ident, int pencil)
 {
 	const char *name = ident->getNameStart();
-	for (int i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
 		if (!strcmp(name, implicit_functions[i]))
 			return true;
 	if (!pencil)
 		return false;
-	for (int i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
 		if (!strcmp(name, pencil_implicit_functions[i]))
 			return true;
 	return false;
