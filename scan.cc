@@ -806,7 +806,6 @@ __isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
 __isl_give pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 {
 	pet_expr *cond, *lhs, *rhs;
-	isl_pw_aff *pa;
 
 	cond = extract_expr(expr->getCond());
 	lhs = extract_expr(expr->getTrueExpr());
