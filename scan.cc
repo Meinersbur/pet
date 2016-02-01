@@ -1067,7 +1067,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	if (!res)
 		return NULL;
 
-	for (int i = 0; i < n_arg; ++i) {
+	for (unsigned i = 0; i < n_arg; ++i) {
 		Expr *arg = expr->getArg(i);
 		res = pet_expr_set_arg(res, i,
 			    PetScan::extract_argument(fd, i, arg, !is_kill));
