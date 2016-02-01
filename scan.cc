@@ -784,7 +784,7 @@ __isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
 		n = group.size();
 		tree = pet_tree_new_block(ctx, 0, n);
 
-		for (int i = 0; i < n; ++i) {
+		for (unsigned i = 0; i < n; ++i) {
 			pet_tree *tree_i;
 			pet_loc *loc;
 
