@@ -1841,7 +1841,7 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 	unsigned n;
 
 	n = fd->getNumParams();
-	for (int i = 0; i < n; ++i) {
+	for (unsigned i = 0; i < n; ++i) {
 		ParmVarDecl *parm = fd->getParamDecl(i);
 		QualType type = parm->getType();
 		Expr *arg, *sub;
