@@ -2244,7 +2244,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 
 	n = fd->getNumParams();
 	summary = pet_function_summary_alloc(ctx, n);
-	for (int i = 0; i < n; ++i) {
+	for (unsigned i = 0; i < n; ++i) {
 		ParmVarDecl *parm = fd->getParamDecl(i);
 		QualType type = parm->getType();
 		isl_id *id;
@@ -2279,7 +2279,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	to_inner = pet_scop_compute_outer_to_inner(scop);
 	pet_scop_free(scop);
 
-	for (int i = 0; i < n; ++i) {
+	for (unsigned i = 0; i < n; ++i) {
 		ParmVarDecl *parm = fd->getParamDecl(i);
 		QualType type = parm->getType();
 		struct pet_array *array;
