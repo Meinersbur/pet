@@ -149,7 +149,7 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 	isl_union_map *value_bounds;
 
 	PragmaValueBoundsHandler(isl_ctx *ctx, Sema &sema) :
-	    PragmaHandler("value_bounds"), ctx(ctx), sema(sema) {
+	    PragmaHandler("value_bounds"), sema(sema), ctx(ctx) {
 		isl_space *space = isl_space_params_alloc(ctx, 0);
 		value_bounds = isl_union_map_empty(space);
 	}
