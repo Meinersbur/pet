@@ -569,8 +569,9 @@ struct PetASTConsumer : public ASTConsumer {
 		DiagnosticsEngine &diags, ScopLocList &scops,
 		const char *function, pet_options *options,
 		int (*fn)(struct pet_scop *scop, void *user), void *user) :
-		ctx(ctx), PP(PP), ast_context(ast_context), diags(diags),
+		PP(PP), ast_context(ast_context), diags(diags),
 		scops(scops), function(function), options(options),
+		ctx(ctx),
 		vb_handler(NULL), fn(fn), user(user), error(false)
 	{
 		isl_space *space;
