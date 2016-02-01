@@ -3339,7 +3339,7 @@ void PetScan::set_current_stmt(Stmt *stmt)
  */
 bool PetScan::is_current_stmt_marked_independent()
 {
-	for (int i = 0; i < independent.size(); ++i) {
+	for (unsigned i = 0; i < independent.size(); ++i) {
 		unsigned line = independent[i].line;
 
 		if (last_line < line && line < current_line)
