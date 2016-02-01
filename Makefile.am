@@ -133,7 +133,7 @@ isl.py: interface/isl.py.top
 			> isl.py
 
 dist-hook: isl.py
-	cp isl.py $(distdir)/
+	cp $< $(distdir)/
 	echo @GIT_HEAD_VERSION@ > $(distdir)/GIT_HEAD_ID
 
 gitversion.h: @GIT_HEAD@
