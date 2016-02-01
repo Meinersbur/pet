@@ -124,7 +124,7 @@ __isl_give pet_tree *pet_inliner::inline_tree(__isl_take pet_tree *tree)
 
 	block = pet_tree_new_block(ctx, 1, n);
 
-	for (int i = 0; i < assignments.size(); ++i) {
+	for (unsigned i = 0; i < assignments.size(); ++i) {
 		pet_tree *tree_i;
 
 		expr = pet_expr_copy(assignments[i].first);
