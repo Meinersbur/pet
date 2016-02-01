@@ -99,7 +99,7 @@ void pet_inliner::add_array_arg(ValueDecl *decl, __isl_take pet_expr *expr,
 {
 	isl_id *id;
 
-	for (int j = 0; j < expr->n_arg; ++j) {
+	for (unsigned j = 0; j < expr->n_arg; ++j) {
 		pet_expr *var;
 		QualType type = ast_context.IntTy;
 
