@@ -1426,7 +1426,6 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	Expr *lhs, *rhs;
 	ValueDecl *iv;
 	pet_tree *tree;
-	struct pet_scop *scop;
 	int independent;
 	int declared;
 	pet_expr *pe_init, *pe_inc, *pe_iv, *pe_cond;
