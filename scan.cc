@@ -1748,8 +1748,6 @@ __isl_give pet_tree *PetScan::extract(IfStmt *stmt)
 {
 	pet_expr *pe_cond;
 	pet_tree *tree, *tree_else;
-	struct pet_scop *scop;
-	int int_size;
 
 	pe_cond = extract_expr(stmt->getCond());
 	tree = extract(stmt->getThen());
