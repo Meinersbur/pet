@@ -27,6 +27,16 @@ include_HEADERS = include/pet.h
 BUILT_SOURCES = \
 	gitversion.h
 
+CLEANFILES = \
+	gitversion.h \
+	isl.py
+
+DISTCLEANFILES = \
+	pet-uninstalled.sh \
+	pet-uninstalled.pc \
+	pet.pc \
+	pet.pc.in
+
 EXTRA_DIST = \
 	interface/isl.py.top \
 	interface/pet.py \
