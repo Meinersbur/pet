@@ -255,7 +255,6 @@ PACKAGE_LIBS="-lpet -lisl"
 AX_CREATE_PKGCONFIG_INFO
 
 AX_DETECT_GIT_HEAD
-echo '#define GIT_HEAD_ID "'$GIT_HEAD_ID'"' > gitversion.h
 
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES(Makefile)

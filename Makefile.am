@@ -24,6 +24,9 @@ TEST_EXTENSIONS = .sh
 
 include_HEADERS = include/pet.h
 
+BUILT_SOURCES = \
+	gitversion.h
+
 EXTRA_DIST = \
 	interface/isl.py.top \
 	interface/pet.py \
