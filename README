@@ -39,8 +39,7 @@ automake and libtool.
 
 	git clone git://repo.or.cz/pet.git
 	cd pet
-	git submodule init
-	git submodule update
+	./get_submodules.sh
 	./autogen.sh
 
 Compilation:
