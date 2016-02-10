@@ -1,19 +1,19 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  *    1. Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
- * 
+ *
  *    2. Redistributions in binary form must reproduce the above
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY LEIDEN UNIVERSITY ''AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -25,12 +25,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as
  * representing official policies, either expressed or implied, of
  * Leiden University.
- */ 
+ */
 
 #include <string.h>
 #include <isl/constraint.h>
@@ -288,6 +288,7 @@ static struct pet_scop *scop_alloc(__isl_take isl_space *space, int n,
 		return pet_scop_free(scop);
 
 	scop->loc = &pet_loc_dummy;
+	scop->func = NULL;
 	scop->n_stmt = n;
 
 	return scop;
@@ -1071,6 +1072,7 @@ struct pet_scop *pet_scop_free(struct pet_scop *scop)
 	if (!scop)
 		return NULL;
 	pet_loc_free(scop->loc);
+	free(scop->func);
 	isl_set_free(scop->context);
 	isl_set_free(scop->context_value);
 	isl_schedule_free(scop->schedule);
@@ -1124,7 +1126,8 @@ void pet_scop_dump(struct pet_scop *scop)
 
 	if (!scop)
 		return;
-	
+
+	fprintf(stderr, "In function %s\n", scop->func);
 	isl_set_dump(scop->context);
 	isl_set_dump(scop->context_value);
 	isl_schedule_dump(scop->schedule);
@@ -1186,7 +1189,7 @@ int pet_stmt_is_equal(struct pet_stmt *stmt1, struct pet_stmt *stmt2)
 
 	if (!stmt1 || !stmt2)
 		return 0;
-	
+
 	if (pet_loc_get_line(stmt1->loc) != pet_loc_get_line(stmt2->loc))
 		return 0;
 	if (!isl_set_is_equal(stmt1->domain, stmt2->domain))
@@ -2121,7 +2124,7 @@ struct pet_scop *pet_scop_reset_skips(struct pet_scop *scop)
  *
  * We only support the case where the original skip condition is universal,
  * i.e., where skipping is unconditional, and where satisfied == 1.
- * In this case, the skip condition is changed to skip only when 
+ * In this case, the skip condition is changed to skip only when
  * "test" is equal to one.
  */
 static struct pet_scop *pet_scop_filter_skip(struct pet_scop *scop,
@@ -3479,4 +3482,11 @@ __isl_give isl_printer *pet_scop_print_original(struct pet_scop *scop,
 		return isl_printer_free(p);
 
 	return p;
+}
+
+const char *pet_scop_get_function_name(__isl_keep pet_scop *scop) {
+	if (!scop)
+		return NULL;
+
+	return scop->func;
 }
