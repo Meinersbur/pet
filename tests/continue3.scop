@@ -2,38 +2,37 @@ start: 47
 end: 215
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 99; S_5[i] : i >= 0 and i <= 99;
-  S_6[i] : i >= 0 and i <= 99; S_7[]; S_2[i] : i >= 0 and i <= 99; S_8[]; S_4[i] :
-  i >= 0 and i <= 99; S_9[]; S_0[i] : i >= 0 and i <= 99; S_1[i] : i >= 0 and i <=
-  99 }", child: { sequence: [ { filter: "{ S_3[i]; S_5[i]; S_6[i]; S_2[i]; S_4[i];
-  S_0[i]; S_1[i] }", child: { schedule: "L_0[{ S_6[i] -> [(i)]; S_0[i] -> [(i)]; S_1[i]
-  -> [(i)]; S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)]; S_2[i] -> [(i)] }]",
-  child: { sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" }, { filter:
-  "{ S_2[i] }" }, { filter: "{ S_3[i] }" }, { filter: "{ S_4[i] }" }, { filter: "{
-  S_5[i] }" }, { filter: "{ S_6[i] }" } ] } } }, { filter: "{ S_7[]; S_8[]; S_9[]
-  }", child: { set: [ { filter: "{ S_7[] }" }, { filter: "{ S_8[] }" }, { filter:
-  "{ S_9[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[i] : 0 <= i <= 99; S_5[i] : 0 <= i <= 99; S_6[i] : 0 <=
+  i <= 99; S_7[]; S_2[i] : 0 <= i <= 99; S_8[]; S_4[i] : 0 <= i <= 99; S_9[]; S_0[i]
+  : 0 <= i <= 99; S_1[i] : 0 <= i <= 99 }", child: { sequence: [ { filter: "{ S_3[i];
+  S_5[i]; S_6[i]; S_2[i]; S_4[i]; S_0[i]; S_1[i] }", child: { schedule: "L_0[{ S_6[i]
+  -> [(i)]; S_0[i] -> [(i)]; S_1[i] -> [(i)]; S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_5[i]
+  -> [(i)]; S_2[i] -> [(i)] }]", child: { sequence: [ { filter: "{ S_0[i] }" }, {
+  filter: "{ S_1[i] }" }, { filter: "{ S_2[i] }" }, { filter: "{ S_3[i] }" }, { filter:
+  "{ S_4[i] }" }, { filter: "{ S_5[i] }" }, { filter: "{ S_6[i] }" } ] } } }, { filter:
+  "{ S_7[]; S_8[]; S_9[] }", child: { set: [ { filter: "{ S_7[] }" }, { filter: "{
+  S_8[] }" }, { filter: "{ S_9[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i] : i >= 0 and i <= 99 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  extent: '{ __pet_test_0[i] : 0 <= i <= 99 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_1[i] : i >= 0 and i <= 99 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  extent: '{ __pet_test_1[i] : 0 <= i <= 99 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ __pet_test_2[i] : i >= 0 and i <= 99 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  extent: '{ __pet_test_2[i] : 0 <= i <= 99 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  extent: '{ a[i0] : 0 <= i0 <= 99 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -46,7 +45,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_0[i] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -61,7 +60,7 @@ statements:
       - type: call
         name: f
 - line: 10
-  domain: '{ S_1[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_1[i] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -84,7 +83,7 @@ statements:
         - type: int
           value: 0
 - line: 12
-  domain: '{ [S_2[i] -> [0]] : i >= 0 and i <= 99 }'
+  domain: '{ [S_2[i] -> [__pet_test_0 = 0]] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -108,7 +107,7 @@ statements:
     read: 1
     write: 0
 - line: 13
-  domain: '{ [S_3[i] -> [0]] : i >= 0 and i <= 99 }'
+  domain: '{ [S_3[i] -> [__pet_test_0 = 0]] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -129,7 +128,7 @@ statements:
     read: 1
     write: 0
 - line: 14
-  domain: '{ [S_4[i] -> [0]] : i >= 0 and i <= 99 }'
+  domain: '{ [S_4[i] -> [__pet_test_0 = 0]] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -158,7 +157,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ S_5[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_5[i] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -184,7 +183,7 @@ statements:
           read: 1
           write: 0
         - type: access
-          may_read: '{ [S_5[i] -> [0]] -> __pet_test_1[i] }'
+          may_read: '{ [S_5[i] -> [__pet_test_0 = 0]] -> __pet_test_1[i'' = i] }'
           index: '{ [S_5[i] -> [__pet_test_0]] -> __pet_test_1[(i)] }'
           reference: __pet_ref_15
           read: 1
@@ -196,7 +195,7 @@ statements:
             read: 1
             write: 0
 - line: 16
-  domain: '{ [S_6[i] -> [0]] : i >= 0 and i <= 99 }'
+  domain: '{ [S_6[i] -> [__pet_test_2 = 0]] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -259,7 +258,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_9[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        killed: '{ S_9[] -> a[o0] : 0 <= o0 <= 99 }'
         index: '{ S_9[] -> a[] }'
         depth: 1
         reference: __pet_ref_21

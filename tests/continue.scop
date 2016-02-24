@@ -2,17 +2,17 @@ start: 33
 end: 182
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <=
-  99; S_1[i, j] : (i <= 99 and j >= 0 and j <= -1 + i) or (i >= 0 and j >= 1 + i and
-  j <= 99); S_2[]; S_4[] }", child: { sequence: [ { filter: "{ S_0[i, j]; S_1[i, j]
-  }", child: { schedule: "L_0[{ S_0[i, j] -> [(i)]; S_1[i, j] -> [(i)] }]", child:
-  { schedule: "L_1[{ S_0[i, j] -> [(j)]; S_1[i, j] -> [(j)] }]", child: { sequence:
-  [ { filter: "{ S_0[i, j] }" }, { filter: "{ S_1[i, j] }" } ] } } } }, { filter:
-  "{ S_3[]; S_2[]; S_4[] }", child: { set: [ { filter: "{ S_2[] }" }, { filter: "{
-  S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[i, j] : 0 <= i <= 99 and 0 <= j <= 99; S_1[i, j]
+  : (i <= 99 and 0 <= j < i) or (i >= 0 and i < j <= 99); S_2[]; S_4[] }", child:
+  { sequence: [ { filter: "{ S_0[i, j]; S_1[i, j] }", child: { schedule: "L_0[{ S_0[i,
+  j] -> [(i)]; S_1[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)];
+  S_1[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_0[i, j] }" }, { filter:
+  "{ S_1[i, j] }" } ] } } } }, { filter: "{ S_3[]; S_2[]; S_4[] }", child: { set:
+  [ { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] }
+  } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  extent: '{ a[i0] : 0 <= i0 <= 99 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -25,7 +25,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ S_0[i, j] : 0 <= i <= 99 and 0 <= j <= 99 }'
   body:
     type: expression
     expr:
@@ -40,8 +40,7 @@ statements:
       - type: int
         value: 0
 - line: 11
-  domain: '{ S_1[i, j] : (i <= 99 and j >= 0 and j <= -1 + i) or (i >= 0 and j >=
-    1 + i and j <= 99) }'
+  domain: '{ S_1[i, j] : (i <= 99 and 0 <= j < i) or (i >= 0 and i < j <= 99) }'
   body:
     type: expression
     expr:
@@ -101,7 +100,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_4[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        killed: '{ S_4[] -> a[o0] : 0 <= o0 <= 99 }'
         index: '{ S_4[] -> a[] }'
         depth: 1
         reference: __pet_ref_6

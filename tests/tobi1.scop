@@ -2,10 +2,10 @@ start: 47
 end: 131
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i] : exists (e0 = floor((i)/65): 65e0 = i and i <= 1039
-  and i >= 0); S_2[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[i] }", child:
-  { schedule: "L_0[{ S_0[i] -> [(i)] }]" } }, { filter: "{ S_2[]; S_1[] }", child:
-  { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_0[i] : 65*floor((i)/65) = i and 0 <= i <= 1039; S_2[]; S_1[]
+  }", child: { sequence: [ { filter: "{ S_0[i] }", child: { schedule: "L_0[{ S_0[i]
+  -> [(i)] }]" } }, { filter: "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[]
+  }" }, { filter: "{ S_2[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -17,8 +17,7 @@ arrays:
   element_size: 1
 statements:
 - line: 8
-  domain: '{ S_0[i] : exists (e0 = floor((i)/65): 65e0 = i and i <= 1039 and i >=
-    0) }'
+  domain: '{ S_0[i] : 65*floor((i)/65) = i and 0 <= i <= 1039 }'
   body:
     type: expression
     expr:

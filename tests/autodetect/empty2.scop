@@ -2,11 +2,10 @@ start: 31
 end: 83
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[]; S_4[i] : i >= 0 and i <= 9; S_2[]; S_1[] }",
-  child: { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_2[] }" }, { filter:
-  "{ S_4[i] }", child: { schedule: "L_0[{ S_4[i] -> [(i)] }]" } }, { filter: "{ S_3[];
-  S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_3[] }" } ] } }
-  ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[]; S_4[i] : 0 <= i <= 9; S_2[]; S_1[] }", child:
+  { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_2[] }" }, { filter: "{ S_4[i]
+  }", child: { schedule: "L_0[{ S_4[i] -> [(i)] }]" } }, { filter: "{ S_3[]; S_1[]
+  }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_3[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ i[] }'
@@ -46,7 +45,7 @@ statements:
         reference: __pet_ref_1
         kill: 1
 - line: 11
-  domain: '{ S_4[i] : i >= 0 and i <= 9 }'
+  domain: '{ S_4[i] : 0 <= i <= 9 }'
   body:
     type: expression
     expr:

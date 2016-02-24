@@ -1,43 +1,39 @@
 start: 225
 end: 507
 indent: "\t"
-context: '[M, N] -> {  : N >= 0 and M >= 0 and M <= 2147483647 and N <= 2147483647
-  }'
-schedule: '{ domain: "[M, N] -> { S_3[i] : i >= 0 and i <= -1 + N; S_7[]; S_11[];
-  S_1[i] : i >= 0 and i <= -1 + N; S_5[i] : i >= 0 and i <= -1 + N; S_10[]; S_0[];
-  S_9[]; S_2[i, j] : i >= 0 and i <= -1 + N and j >= 0 and j <= -1 + M; S_6[]; S_4[];
-  S_8[] }", child: { sequence: [ { filter: "[N, M] -> { S_0[] }" }, { filter: "[N,
-  M] -> { S_2[i, j]; S_3[i]; S_1[i] }", child: { schedule: "[N, M] -> L_0[{ S_2[i,
-  j] -> [(i)]; S_3[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence: [ { filter:
-  "[N, M] -> { S_1[i] }" }, { filter: "[N, M] -> { S_2[i, j] }", child: { schedule:
-  "[N, M] -> L_1[{ S_2[i, j] -> [(j)] }]" } }, { filter: "[N, M] -> { S_3[i] }" }
-  ] } } }, { filter: "[N, M] -> { S_4[] }" }, { filter: "[N, M] -> { S_5[i] }", child:
-  { schedule: "[N] -> L_2[{ S_5[i] -> [(i)] }]" } }, { filter: "[N, M] -> { S_8[];
-  S_6[]; S_7[]; S_10[]; S_11[]; S_9[] }", child: { set: [ { filter: "{ S_6[] }" },
-  { filter: "{ S_7[] }" }, { filter: "{ S_8[] }" }, { filter: "{ S_9[] }" }, { filter:
-  "{ S_10[] }" }, { filter: "{ S_11[] }" } ] } } ] } }'
+context: '[M, N] -> {  : 0 <= M <= 2147483647 and 0 <= N <= 2147483647 }'
+schedule: '{ domain: "[M, N] -> { S_3[i] : 0 <= i < N; S_7[]; S_11[]; S_1[i] : 0 <=
+  i < N; S_5[i] : 0 <= i < N; S_10[]; S_0[]; S_9[]; S_2[i, j] : 0 <= i < N and 0 <=
+  j < M; S_6[]; S_4[]; S_8[] }", child: { sequence: [ { filter: "[N, M] -> { S_0[]
+  }" }, { filter: "[N, M] -> { S_2[i, j]; S_3[i]; S_1[i] }", child: { schedule: "[N,
+  M] -> L_0[{ S_2[i, j] -> [(i)]; S_3[i] -> [(i)]; S_1[i] -> [(i)] }]", child: { sequence:
+  [ { filter: "[N, M] -> { S_1[i] }" }, { filter: "[N, M] -> { S_2[i, j] }", child:
+  { schedule: "[N, M] -> L_1[{ S_2[i, j] -> [(j)] }]" } }, { filter: "[N, M] -> {
+  S_3[i] }" } ] } } }, { filter: "[N, M] -> { S_4[] }" }, { filter: "[N, M] -> { S_5[i]
+  }", child: { schedule: "[N] -> L_2[{ S_5[i] -> [(i)] }]" } }, { filter: "[N, M]
+  -> { S_8[]; S_6[]; S_7[]; S_10[]; S_11[]; S_9[] }", child: { set: [ { filter: "{
+  S_6[] }" }, { filter: "{ S_7[] }" }, { filter: "{ S_8[] }" }, { filter: "{ S_9[]
+  }" }, { filter: "{ S_10[] }" }, { filter: "{ S_11[] }" } ] } } ] } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[M, N] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 <= 9 and i1 >=
-    0 }'
+  extent: '[M, N] -> { A[i0, i1] : 0 <= i0 < N and 0 <= i1 <= 9 }'
   element_type: int
   element_size: 4
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[M, N] -> { C[i0] : i0 >= 0 and i0 <= -1 + N }'
+  extent: '[M, N] -> { C[i0] : 0 <= i0 < N }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
   extent: '[M, N] -> { i[] }'
   element_type: int
   element_size: 4
-- context: '[M, N] -> {  : N >= 0 and M >= 0 }'
-  extent: '[M, N] -> { in1[i0, i1] : i0 >= 0 and i0 <= -1 + N and i1 >= 0 and i1 <=
-    -1 + M }'
+- context: '[M, N] -> {  : M >= 0 and N >= 0 }'
+  extent: '[M, N] -> { in1[i0, i1] : 0 <= i0 < N and 0 <= i1 < M }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
   extent: '[M, N] -> { in2[] }'
-  value_bounds: '{ [i0] : i0 >= -1 and i0 <= 1 }'
+  value_bounds: '{ [i0] : -1 <= i0 <= 1 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -65,7 +61,7 @@ statements:
       - type: call
         name: g2
 - line: 23
-  domain: '[M, N] -> { S_1[i] : i >= 0 and i <= -1 + N }'
+  domain: '[M, N] -> { S_1[i] : 0 <= i < N }'
   body:
     type: expression
     expr:
@@ -88,8 +84,7 @@ statements:
         - type: int
           value: 1
 - line: 25
-  domain: '[M, N] -> { S_2[i, j] : i >= 0 and i <= -1 + N and j >= 0 and j <= -1 +
-    M }'
+  domain: '[M, N] -> { S_2[i, j] : 0 <= i < N and 0 <= j < M }'
   body:
     type: expression
     expr:
@@ -118,7 +113,7 @@ statements:
           read: 1
           write: 0
 - line: 26
-  domain: '[M, N] -> { S_3[i] : i >= 0 and i <= -1 + N }'
+  domain: '[M, N] -> { S_3[i] : 0 <= i < N }'
   body:
     type: expression
     expr:
@@ -158,7 +153,7 @@ statements:
       - type: int
         value: 0
 - line: 30
-  domain: '[M, N] -> { S_5[i] : i >= 0 and i <= -1 + N }'
+  domain: '[M, N] -> { S_5[i] : 0 <= i < N }'
   body:
     type: expression
     expr:
@@ -174,8 +169,8 @@ statements:
         operation: '?:'
         arguments:
         - type: access
-          index: '[M, N] -> { [S_5[i] -> [i1]] -> [((1) : i1 <= -1 + N - i and i1
-            >= -i; (0) : i1 = N - i; (0) : i1 = -1 - i)] }'
+          index: '[M, N] -> { [S_5[i] -> [i1]] -> [((0) : i1 = N - i; (1) : -i <=
+            i1 < N - i; (0) : i1 = -1 - i)] }'
           reference: __pet_ref_11
           read: 1
           write: 0
@@ -189,8 +184,8 @@ statements:
           name: f
           arguments:
           - type: access
-            may_read: '[M, N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : i1 <= -1 +
-              N - i and i1 >= -i }'
+            may_read: '[M, N] -> { [S_5[i] -> [i1]] -> A[i + i1, o1] : -i <= i1 <
+              N - i }'
             index: '[M, N] -> { [S_5[i] -> [i1]] -> A[((i + i1) : i1 >= -i)] }'
             depth: 2
             reference: __pet_ref_13
@@ -240,8 +235,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[M, N] -> { S_8[] -> in1[o0, o1] : o0 >= 0 and o0 <= -1 + N and o1
-          >= 0 and o1 <= -1 + M }'
+        killed: '[M, N] -> { S_8[] -> in1[o0, o1] : 0 <= o0 < N and 0 <= o1 < M }'
         index: '[M, N] -> { S_8[] -> in1[] }'
         depth: 2
         reference: __pet_ref_16
@@ -268,7 +262,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[M, N] -> { S_10[] -> C[o0] : o0 >= 0 and o0 <= -1 + N }'
+        killed: '[M, N] -> { S_10[] -> C[o0] : 0 <= o0 < N }'
         index: '[M, N] -> { S_10[] -> C[] }'
         depth: 1
         reference: __pet_ref_18

@@ -6,7 +6,7 @@ schedule: '{ domain: "{ S_0[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[]
   }, { filter: "{ S_1[] }" } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 2 }'
+  extent: '{ a[i0] : 0 <= i0 <= 2 }'
   element_type: int
   element_size: 4
 statements:
@@ -34,7 +34,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_1[] -> a[o0] : o0 >= 0 and o0 <= 2 }'
+        killed: '{ S_1[] -> a[o0] : 0 <= o0 <= 2 }'
         index: '{ S_1[] -> a[] }'
         depth: 1
         reference: __pet_ref_1

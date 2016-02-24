@@ -2,10 +2,10 @@ start: 40
 end: 112
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[k] : k <= 261 and k >= 252; S_2[]; S_1[] }", child: {
-  sequence: [ { filter: "{ S_0[k] }", child: { schedule: "L_0[{ S_0[k] -> [(k)] }]"
-  } }, { filter: "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter:
-  "{ S_2[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_0[k] : 252 <= k <= 261; S_2[]; S_1[] }", child: { sequence:
+  [ { filter: "{ S_0[k] }", child: { schedule: "L_0[{ S_0[k] -> [(k)] }]" } }, { filter:
+  "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[]
+  }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -17,7 +17,7 @@ arrays:
   element_size: 1
 statements:
 - line: 8
-  domain: '{ S_0[k] : k <= 261 and k >= 252 }'
+  domain: '{ S_0[k] : 252 <= k <= 261 }'
   body:
     type: expression
     expr:

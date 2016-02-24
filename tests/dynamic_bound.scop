@@ -13,16 +13,16 @@ schedule: '{ domain: "{ S_0[]; S_5[]; S_3[i, j] : i >= 0 and j >= 0; S_6[]; S_2[
 arrays:
 - context: '{  :  }'
   extent: '{ M[] }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 100 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 100 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
   extent: '{ N[] }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 100 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 100 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '{ a[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= 99 and i1 <= 99 }'
+  extent: '{ a[i0, i1] : 0 <= i0 <= 99 and 0 <= i1 <= 99 }'
   element_type: int
   element_size: 4
 statements:
@@ -57,8 +57,7 @@ statements:
       - type: call
         name: g
 - line: 17
-  domain: '{ [S_2[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
-    j }'
+  domain: '{ [S_2[i, j] -> [N, M]] : i >= 0 and j >= 0 and N > i and M > j }'
   body:
     type: expression
     expr:
@@ -95,8 +94,7 @@ statements:
     read: 1
     write: 0
 - line: 20
-  domain: '{ [S_3[i, j] -> [N, M]] : i >= 0 and j >= 0 and N >= 1 + i and M >= 1 +
-    j }'
+  domain: '{ [S_3[i, j] -> [N, M]] : i >= 0 and j >= 0 and N > i and M > j }'
   body:
     type: expression
     expr:
@@ -164,8 +162,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_6[] -> a[o0, o1] : o0 >= 0 and o1 >= 0 and o0 <= 99 and o1 <=
-          99 }'
+        killed: '{ S_6[] -> a[o0, o1] : 0 <= o0 <= 99 and 0 <= o1 <= 99 }'
         index: '{ S_6[] -> a[] }'
         depth: 2
         reference: __pet_ref_14

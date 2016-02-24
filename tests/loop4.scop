@@ -2,13 +2,13 @@ start: 34
 end: 127
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i] : i >= 5 and i <= 6; S_2[]; S_1[] }", child: { sequence:
+schedule: '{ domain: "{ S_0[i] : 5 <= i <= 6; S_2[]; S_1[] }", child: { sequence:
   [ { filter: "{ S_0[i] }", child: { schedule: "L_0[{ S_0[i] -> [(i)] }]" } }, { filter:
   "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[]
   }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  extent: '{ a[i0] : 0 <= i0 <= 9 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -17,7 +17,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[i] : i >= 5 and i <= 6 }'
+  domain: '{ S_0[i] : 5 <= i <= 6 }'
   body:
     type: expression
     expr:
@@ -56,7 +56,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_2[] -> a[o0] : o0 >= 0 and o0 <= 9 }'
+        killed: '{ S_2[] -> a[o0] : 0 <= o0 <= 9 }'
         index: '{ S_2[] -> a[] }'
         depth: 1
         reference: __pet_ref_3

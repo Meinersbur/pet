@@ -1,18 +1,18 @@
 start: 66
 end: 204
 indent: "\t"
-context: '[N] -> {  : N <= 2147483647 and N >= 0 }'
-schedule: '{ domain: "[N] -> { S_4[]; S_1[i, j] : i >= 0 and j >= i and j <= -1 +
-  N; S_0[i, j] : i >= 0 and j >= i and j <= -1 + N; S_3[]; S_2[] }", child: { sequence:
-  [ { filter: "[N] -> { S_1[i, j]; S_0[i, j] }", child: { schedule: "[N] -> L_0[{
-  S_1[i, j] -> [(i)]; S_0[i, j] -> [(i)] }]", child: { schedule: "[N] -> L_1[{ S_1[i,
-  j] -> [(j)]; S_0[i, j] -> [(j)] }]", child: { sequence: [ { filter: "[N] -> { S_0[i,
-  j] }" }, { filter: "[N] -> { S_1[i, j] }" } ] } } } }, { filter: "[N] -> { S_4[];
-  S_3[]; S_2[] }", child: { set: [ { filter: "{ S_2[] }" }, { filter: "{ S_3[] }"
-  }, { filter: "{ S_4[] }" } ] } } ] } }'
+context: '[N] -> {  : 0 <= N <= 2147483647 }'
+schedule: '{ domain: "[N] -> { S_4[]; S_1[i, j] : i >= 0 and i <= j < N; S_0[i, j]
+  : i >= 0 and i <= j < N; S_3[]; S_2[] }", child: { sequence: [ { filter: "[N] ->
+  { S_1[i, j]; S_0[i, j] }", child: { schedule: "[N] -> L_0[{ S_1[i, j] -> [(i)];
+  S_0[i, j] -> [(i)] }]", child: { schedule: "[N] -> L_1[{ S_1[i, j] -> [(j)]; S_0[i,
+  j] -> [(j)] }]", child: { sequence: [ { filter: "[N] -> { S_0[i, j] }" }, { filter:
+  "[N] -> { S_1[i, j] }" } ] } } } }, { filter: "[N] -> { S_4[]; S_3[]; S_2[] }",
+  child: { set: [ { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" }, { filter: "{ S_4[]
+  }" } ] } } ] } }'
 arrays:
 - context: '[N] -> {  : N >= 0 }'
-  extent: '[N] -> { a[i0, i1] : i0 >= 0 and i1 >= 0 and i1 <= -1 + N }'
+  extent: '[N] -> { a[i0, i1] : i0 >= 0 and 0 <= i1 < N }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -29,7 +29,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '[N] -> { S_0[i, j] : i >= 0 and j >= i and j <= -1 + N }'
+  domain: '[N] -> { S_0[i, j] : i >= 0 and i <= j < N }'
   body:
     type: expression
     expr:
@@ -70,7 +70,7 @@ statements:
           read: 1
           write: 0
 - line: 10
-  domain: '[N] -> { S_1[i, j] : i >= 0 and j >= i and j <= -1 + N }'
+  domain: '[N] -> { S_1[i, j] : i >= 0 and i <= j < N }'
   body:
     type: expression
     expr:
@@ -83,7 +83,7 @@ statements:
         read: 0
         write: 1
       - type: access
-        index: '[N] -> { S_1[i, j] -> a[((-1 + i) : i >= 1; (0) : i = 0), (0)] }'
+        index: '[N] -> { S_1[i, j] -> a[((-1 + i) : i > 0; (0) : i = 0), (0)] }'
         reference: __pet_ref_5
         read: 1
         write: 0

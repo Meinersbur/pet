@@ -1,12 +1,11 @@
 start: 110
 end: 153
 indent: "\t"
-context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
+context: '[n] -> {  : 0 <= n <= 2147483647 }'
 schedule: '{ domain: "[n] -> { S_0[] }" }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + n and i1 >= 0 and i1 <= -1
-    + n }'
+  extent: '[n] -> { A[i0, i1] : 0 <= i0 < n and 0 <= i1 < n }'
   element_type: float
   element_size: 4
 statements:

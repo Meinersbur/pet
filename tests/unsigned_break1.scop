@@ -2,12 +2,12 @@ start: 40
 end: 150
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[k] : k <= 257 and k >= 252; S_2[]; S_1[k] : exists
-  (e0 = floor((-1 + k)/256): k <= 257 and k >= 252 and 256e0 >= -256 + k and 256e0
-  <= -2 + k) }", child: { sequence: [ { filter: "{ S_0[k]; S_1[k] }", child: { schedule:
-  "L_0[{ S_0[k] -> [(k)]; S_1[k] -> [(k)] }]", child: { sequence: [ { filter: "{ S_0[k]
-  }" }, { filter: "{ S_1[k] }" } ] } } }, { filter: "{ S_3[]; S_2[] }", child: { set:
-  [ { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[k] : 252 <= k <= 257; S_2[]; S_1[k] : 252 <= k
+  <= 257 and 256*floor((-1 + k)/256) <= -2 + k }", child: { sequence: [ { filter:
+  "{ S_0[k]; S_1[k] }", child: { schedule: "L_0[{ S_0[k] -> [(k)]; S_1[k] -> [(k)]
+  }]", child: { sequence: [ { filter: "{ S_0[k] }" }, { filter: "{ S_1[k] }" } ] }
+  } }, { filter: "{ S_3[]; S_2[] }", child: { set: [ { filter: "{ S_2[] }" }, { filter:
+  "{ S_3[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -19,7 +19,7 @@ arrays:
   element_size: 1
 statements:
 - line: 8
-  domain: '{ S_0[k] : k <= 257 and k >= 252 }'
+  domain: '{ S_0[k] : 252 <= k <= 257 }'
   body:
     type: expression
     expr:
@@ -34,8 +34,7 @@ statements:
       - type: int
         value: 5
 - line: 11
-  domain: '{ S_1[k] : exists (e0 = floor((-1 + k)/256): k <= 257 and k >= 252 and
-    256e0 >= -256 + k and 256e0 <= -2 + k) }'
+  domain: '{ S_1[k] : 252 <= k <= 257 and 256*floor((-1 + k)/256) <= -2 + k }'
   body:
     type: expression
     expr:

@@ -2,14 +2,13 @@ start: 60
 end: 256
 indent: '        '
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[i, j, k] : (i <= 199 and j <= 199 and j >= 256
-  - i and k >= 0) or (i <= 199 and i >= 0 and j <= 255 - i and j <= 199 and j >= 0
-  and k >= 0 and k <= -1 + i + j); S_2[]; S_1[]; S_4[] }", child: { sequence: [ {
-  filter: "{ S_0[i, j, k] }", child: { schedule: "L_0[{ S_0[i, j, k] -> [(i)] }]",
-  child: { schedule: "L_1[{ S_0[i, j, k] -> [(j)] }]", child: { schedule: "L_2[{ S_0[i,
-  j, k] -> [(k)] }]" } } } }, { filter: "{ S_3[]; S_2[]; S_1[]; S_4[] }", child: {
-  set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" },
-  { filter: "{ S_4[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[i, j, k] : i <= 199 and j <= 199 and k >= 0 and
+  (j >= 256 - i or (i >= 0 and 0 <= j <= 255 - i and k < i + j)); S_2[]; S_1[]; S_4[]
+  }", child: { sequence: [ { filter: "{ S_0[i, j, k] }", child: { schedule: "L_0[{
+  S_0[i, j, k] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j, k] -> [(j)] }]",
+  child: { schedule: "L_2[{ S_0[i, j, k] -> [(k)] }]" } } } }, { filter: "{ S_3[];
+  S_2[]; S_1[]; S_4[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[]
+  }" }, { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -29,9 +28,8 @@ arrays:
   element_size: 1
 statements:
 - line: 10
-  domain: '{ S_0[i, j, k] : (i <= 199 and j <= 199 and j >= 256 - i and k >= 0) or
-    (i <= 199 and i >= 0 and j <= 255 - i and j <= 199 and j >= 0 and k >= 0 and k
-    <= -1 + i + j) }'
+  domain: '{ S_0[i, j, k] : i <= 199 and j <= 199 and k >= 0 and (j >= 256 - i or
+    (i >= 0 and 0 <= j <= 255 - i and k < i + j)) }'
   body:
     type: expression
     expr:

@@ -1,7 +1,7 @@
 start: 25
 end: 94
 indent: "\t"
-context: '[m] -> {  : m >= 6 and m <= 2147483647 }'
+context: '[m] -> {  : 6 <= m <= 2147483647 }'
 schedule: '{ domain: "[m] -> { S_0[]; S_1[] }", child: { sequence: [ { filter: "{
   S_0[] }" }, { filter: "{ S_1[] }" } ] } }'
 arrays:

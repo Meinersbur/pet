@@ -2,17 +2,16 @@ start: 127
 end: 359
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and
-  j <= 19 and k >= 0 and k <= 29 and l >= 0 and l <= 39; S_2[i, j, k, l] : i >= 0
-  and i <= 9 and j >= 0 and j <= 19 and k >= 0 and k <= 29 and l >= 0 and l <= 39;
-  S_0[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0 and k <= 29
-  and l >= 0 and l <= 39 }", child: { sequence: [ { filter: "{ S_1[i, j, k, l]; S_2[i,
-  j, k, l]; S_0[i, j, k, l] }", child: { schedule: "L_0[{ S_1[i, j, k, l] -> [(i)];
-  S_2[i, j, k, l] -> [(i)]; S_0[i, j, k, l] -> [(i)] }]", child: { schedule: "L_1[{
-  S_1[i, j, k, l] -> [(j)]; S_2[i, j, k, l] -> [(j)]; S_0[i, j, k, l] -> [(j)] }]",
-  child: { schedule: "L_2[{ S_1[i, j, k, l] -> [(k)]; S_2[i, j, k, l] -> [(k)]; S_0[i,
-  j, k, l] -> [(k)] }]", child: { schedule: "L_3[{ S_1[i, j, k, l] -> [(l)]; S_2[i,
-  j, k, l] -> [(l)]; S_0[i, j, k, l] -> [(l)] }]", child: { sequence: [ { filter:
+schedule: '{ domain: "{ S_3[]; S_1[i, j, k, l] : 0 <= i <= 9 and 0 <= j <= 19 and
+  0 <= k <= 29 and 0 <= l <= 39; S_2[i, j, k, l] : 0 <= i <= 9 and 0 <= j <= 19 and
+  0 <= k <= 29 and 0 <= l <= 39; S_0[i, j, k, l] : 0 <= i <= 9 and 0 <= j <= 19 and
+  0 <= k <= 29 and 0 <= l <= 39 }", child: { sequence: [ { filter: "{ S_1[i, j, k,
+  l]; S_2[i, j, k, l]; S_0[i, j, k, l] }", child: { schedule: "L_0[{ S_1[i, j, k,
+  l] -> [(i)]; S_2[i, j, k, l] -> [(i)]; S_0[i, j, k, l] -> [(i)] }]", child: { schedule:
+  "L_1[{ S_1[i, j, k, l] -> [(j)]; S_2[i, j, k, l] -> [(j)]; S_0[i, j, k, l] -> [(j)]
+  }]", child: { schedule: "L_2[{ S_1[i, j, k, l] -> [(k)]; S_2[i, j, k, l] -> [(k)];
+  S_0[i, j, k, l] -> [(k)] }]", child: { schedule: "L_3[{ S_1[i, j, k, l] -> [(l)];
+  S_2[i, j, k, l] -> [(l)]; S_0[i, j, k, l] -> [(l)] }]", child: { sequence: [ { filter:
   "{ S_0[i, j, k, l] }" }, { filter: "{ S_1[i, j, k, l] }" }, { filter: "{ S_2[i,
   j, k, l] }" } ] } } } } } }, { filter: "{ S_3[] }" } ] } }'
 types:
@@ -20,19 +19,19 @@ types:
   definition: "struct s {\n    int a[30][40];\n}"
 arrays:
 - context: '{  :  }'
-  extent: '{ s[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1 <= 19 }'
+  extent: '{ s[i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 19 }'
   element_type: struct s
   element_size: 4800
   element_is_record: 1
 - context: '{  :  }'
-  extent: '{ s_a[s[i0, i1] -> a[i2, i3]] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1
-    <= 19 and i2 >= 0 and i3 >= 0 and i2 <= 29 and i3 <= 39 }'
+  extent: '{ s_a[s[i0, i1] -> a[i2, i3]] : 0 <= i0 <= 9 and 0 <= i1 <= 19 and 0 <=
+    i2 <= 29 and 0 <= i3 <= 39 }'
   element_type: int
   element_size: 4
 statements:
 - line: 18
-  domain: '{ S_0[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
-    and k <= 29 and l >= 0 and l <= 39 }'
+  domain: '{ S_0[i, j, k, l] : 0 <= i <= 9 and 0 <= j <= 19 and 0 <= k <= 29 and 0
+    <= l <= 39 }'
   body:
     type: expression
     expr:
@@ -45,8 +44,8 @@ statements:
         read: 1
         write: 0
 - line: 19
-  domain: '{ S_1[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
-    and k <= 29 and l >= 0 and l <= 39 }'
+  domain: '{ S_1[i, j, k, l] : 0 <= i <= 9 and 0 <= j <= 19 and 0 <= k <= 29 and 0
+    <= l <= 39 }'
   body:
     type: expression
     expr:
@@ -63,8 +62,8 @@ statements:
         read: 1
         write: 1
 - line: 20
-  domain: '{ S_2[i, j, k, l] : i >= 0 and i <= 9 and j >= 0 and j <= 19 and k >= 0
-    and k <= 29 and l >= 0 and l <= 39 }'
+  domain: '{ S_2[i, j, k, l] : 0 <= i <= 9 and 0 <= j <= 19 and 0 <= k <= 29 and 0
+    <= l <= 39 }'
   body:
     type: expression
     expr:
@@ -89,8 +88,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_3[] -> s[o0, o1] : o0 >= 0 and o1 >= 0 and o0 <= 9 and o1 <=
-          19 }'
+        killed: '{ S_3[] -> s[o0, o1] : 0 <= o0 <= 9 and 0 <= o1 <= 19 }'
         index: '{ S_3[] -> s[] }'
         depth: 2
         reference: __pet_ref_3

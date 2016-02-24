@@ -2,15 +2,15 @@ start: 50
 end: 174
 indent: '    '
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 99; S_5[]; S_6[]; S_0[i] : i >= 0
-  and i <= 99; S_4[] }", child: { sequence: [ { filter: "{ S_3[i]; S_0[i] }", child:
-  { schedule: "L_0[{ S_3[i] -> [(i)]; S_0[i] -> [(i)] }]", child: { sequence: [ {
-  filter: "{ S_0[i] }" }, { filter: "{ S_3[i] }" } ] } } }, { filter: "{ S_5[]; S_6[];
-  S_4[] }", child: { set: [ { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" }, { filter:
-  "{ S_6[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[i] : 0 <= i <= 99; S_5[]; S_6[]; S_0[i] : 0 <= i <= 99;
+  S_4[] }", child: { sequence: [ { filter: "{ S_3[i]; S_0[i] }", child: { schedule:
+  "L_0[{ S_3[i] -> [(i)]; S_0[i] -> [(i)] }]", child: { sequence: [ { filter: "{ S_0[i]
+  }" }, { filter: "{ S_3[i] }" } ] } } }, { filter: "{ S_5[]; S_6[]; S_4[] }", child:
+  { set: [ { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" }, { filter: "{ S_6[] }"
+  } ] } } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  extent: '{ a[i0] : 0 <= i0 <= 99 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -23,7 +23,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_0[i] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -38,7 +38,7 @@ statements:
       - type: call
         name: f
 - line: 10
-  domain: '{ S_3[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_3[i] : 0 <= i <= 99 }'
   body:
     type: if
     condition:
@@ -119,7 +119,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_6[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        killed: '{ S_6[] -> a[o0] : 0 <= o0 <= 99 }'
         index: '{ S_6[] -> a[] }'
         depth: 1
         reference: __pet_ref_7

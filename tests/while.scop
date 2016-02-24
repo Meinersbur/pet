@@ -1,20 +1,20 @@
 start: 83
 end: 210
 indent: "\t"
-context: '[n] -> {  : n <= 2147483647 and n >= -2147483648 }'
-schedule: '{ domain: "[n] -> { S2[x, t] : x >= 0 and x <= -1 + n and t >= 0; S_4[];
-  S1[x] : x >= 0 and x <= -1 + n; S_1[x, t] : x >= 0 and x <= -1 + n and t >= 0; R[x]
-  : x >= 0 and x <= -1 + n }", child: { sequence: [ { filter: "[n] -> { S2[x, t];
-  S1[x]; S_1[x, t]; R[x] }", child: { schedule: "[n] -> L_0[{ S2[x, t] -> [(x)]; S1[x]
-  -> [(x)]; S_1[x, t] -> [(x)]; R[x] -> [(x)] }]", child: { sequence: [ { filter:
-  "[n] -> { S1[x] }" }, { filter: "[n] -> { S2[x, t]; S_1[x, t] }", child: { schedule:
-  "[n] -> L_1[{ S2[x, t] -> [(t)]; S_1[x, t] -> [(t)] }]", child: { sequence: [ {
-  filter: "[n] -> { S_1[x, t] }" }, { filter: "[n] -> { S2[x, t] }" } ] } } }, { filter:
-  "[n] -> { R[x] }" } ] } } }, { filter: "[n] -> { S_4[] }" } ] } }'
+context: '[n] -> {  : -2147483648 <= n <= 2147483647 }'
+schedule: '{ domain: "[n] -> { S2[x, t] : 0 <= x < n and t >= 0; S_4[]; S1[x] : 0
+  <= x < n; S_1[x, t] : 0 <= x < n and t >= 0; R[x] : 0 <= x < n }", child: { sequence:
+  [ { filter: "[n] -> { S2[x, t]; S1[x]; S_1[x, t]; R[x] }", child: { schedule: "[n]
+  -> L_0[{ S2[x, t] -> [(x)]; S1[x] -> [(x)]; S_1[x, t] -> [(x)]; R[x] -> [(x)] }]",
+  child: { sequence: [ { filter: "[n] -> { S1[x] }" }, { filter: "[n] -> { S2[x, t];
+  S_1[x, t] }", child: { schedule: "[n] -> L_1[{ S2[x, t] -> [(t)]; S_1[x, t] -> [(t)]
+  }]", child: { sequence: [ { filter: "[n] -> { S_1[x, t] }" }, { filter: "[n] ->
+  { S2[x, t] }" } ] } } }, { filter: "[n] -> { R[x] }" } ] } } }, { filter: "[n] ->
+  { S_4[] }" } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '[n] -> { __pet_test_0[x, t] : x >= 0 and x <= -1 + n and t >= 0 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  extent: '[n] -> { __pet_test_0[x, t] : 0 <= x < n and t >= 0 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
@@ -24,7 +24,7 @@ arrays:
   element_size: 4
 statements:
 - line: 12
-  domain: '[n] -> { S1[x] : x >= 0 and x <= -1 + n }'
+  domain: '[n] -> { S1[x] : 0 <= x < n }'
   body:
     type: expression
     expr:
@@ -39,7 +39,7 @@ statements:
       - type: call
         name: f
 - line: 13
-  domain: '[n] -> { [S_1[x, t] -> [1]] : x >= 0 and x <= -1 + n and t >= 0 }'
+  domain: '[n] -> { [S_1[x, t] -> [__pet_test_0 = 1]] : 0 <= x < n and t >= 0 }'
   body:
     type: expression
     expr:
@@ -66,12 +66,12 @@ statements:
           write: 0
   arguments:
   - type: access
-    index: '[n] -> { S_1[x, t] -> __pet_test_0[(x), ((-1 + t) : t >= 1)] }'
+    index: '[n] -> { S_1[x, t] -> __pet_test_0[(x), ((-1 + t) : t > 0)] }'
     reference: __pet_ref_1
     read: 1
     write: 0
 - line: 14
-  domain: '[n] -> { [S2[x, t] -> [1]] : x >= 0 and x <= -1 + n and t >= 0 }'
+  domain: '[n] -> { [S2[x, t] -> [__pet_test_0 = 1]] : 0 <= x < n and t >= 0 }'
   body:
     type: expression
     expr:
@@ -98,7 +98,7 @@ statements:
     read: 1
     write: 0
 - line: 16
-  domain: '[n] -> { R[x] : x >= 0 and x <= -1 + n }'
+  domain: '[n] -> { R[x] : 0 <= x < n }'
   body:
     type: expression
     expr:
@@ -125,5 +125,5 @@ statements:
         kill: 1
 implications:
 - satisfied: 1
-  extension: '[n] -> { __pet_test_0[x, t] -> __pet_test_0[x, t''] : t'' <= t and x
-    >= 0 and x <= -1 + n and t'' >= 0 }'
+  extension: '[n] -> { __pet_test_0[x, t] -> __pet_test_0[x'' = x, t''] : 0 <= x <
+    n and 0 <= t'' <= t }'

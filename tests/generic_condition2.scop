@@ -2,12 +2,11 @@ start: 38
 end: 144
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_0[i, j] : exists (e0 = floor((2 + 4i)/5): i <= 4
-  and i >= 0 and 5e0 <= 5i - j and 5e0 >= -2 + 4i and j >= i); S_2[]; S_1[] }", child:
-  { sequence: [ { filter: "{ S_0[i, j] }", child: { schedule: "L_0[{ S_0[i, j] ->
-  [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)] }]" } } }, { filter: "{
-  S_3[]; S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[]
-  }" }, { filter: "{ S_3[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[]; S_0[i, j] : 0 <= i <= 4 and j >= i and 5*floor((2 +
+  4i)/5) <= 5i - j; S_2[]; S_1[] }", child: { sequence: [ { filter: "{ S_0[i, j] }",
+  child: { schedule: "L_0[{ S_0[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i,
+  j] -> [(j)] }]" } } }, { filter: "{ S_3[]; S_2[]; S_1[] }", child: { set: [ { filter:
+  "{ S_1[] }" }, { filter: "{ S_2[] }" }, { filter: "{ S_3[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -23,8 +22,8 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[i, j] : exists (e0 = floor((2 + 4i)/5): i <= 4 and i >= 0 and 5e0
-    <= 5i - j and 5e0 >= -2 + 4i and j >= i) }'
+  domain: '{ S_0[i, j] : 0 <= i <= 4 and j >= i and 5*floor((2 + 4i)/5) <= 5i - j
+    }'
   body:
     type: expression
     expr:

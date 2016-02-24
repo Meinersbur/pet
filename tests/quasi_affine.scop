@@ -1,17 +1,17 @@
 start: 88
 end: 222
 indent: "\t"
-context: '[N, in] -> {  : N <= 2147483646 and N >= -1 and in <= 2147483647 and in
-  >= -2147483648 }'
-schedule: '{ domain: "[N, in] -> { S_3[]; S_4[]; S_2[] : N >= 0; S_1[i] : i >= 1 and
-  i <= N; S_0[] : N >= 0; S_6[]; S_5[] }", child: { sequence: [ { filter: "[N] ->
-  { S_0[] }" }, { filter: "[N] -> { S_1[i] }", child: { schedule: "[N] -> L_0[{ S_1[i]
-  -> [(i)] }]" } }, { filter: "[N] -> { S_2[] }" }, { filter: "[N] -> { S_5[]; S_4[];
+context: '[N, in] -> {  : -1 <= N <= 2147483646 and -2147483648 <= in <= 2147483647
+  }'
+schedule: '{ domain: "[N, in] -> { S_3[]; S_4[]; S_2[] : N >= 0; S_1[i] : 0 < i <=
+  N; S_0[] : N >= 0; S_6[]; S_5[] }", child: { sequence: [ { filter: "[N] -> { S_0[]
+  }" }, { filter: "[N] -> { S_1[i] }", child: { schedule: "[N] -> L_0[{ S_1[i] ->
+  [(i)] }]" } }, { filter: "[N] -> { S_2[] }" }, { filter: "[N] -> { S_5[]; S_4[];
   S_6[]; S_3[] }", child: { set: [ { filter: "{ S_3[] }" }, { filter: "{ S_4[] }"
   }, { filter: "{ S_5[] }" }, { filter: "{ S_6[] }" } ] } } ] } }'
 arrays:
-- context: '[N] -> {  : N <= 2147483646 and N >= -1 }'
-  extent: '[N, in] -> { A[i0] : i0 <= N and i0 >= 0 }'
+- context: '[N] -> {  : -1 <= N <= 2147483646 }'
+  extent: '[N, in] -> { A[i0] : 0 <= i0 <= N }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -46,7 +46,7 @@ statements:
         read: 1
         write: 0
 - line: 16
-  domain: '[N, in] -> { S_1[i] : i >= 1 and i <= N }'
+  domain: '[N, in] -> { S_1[i] : 0 < i <= N }'
   body:
     type: expression
     expr:
@@ -125,7 +125,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '[N, in] -> { S_5[] -> A[o0] : o0 <= N and o0 >= 0 }'
+        killed: '[N, in] -> { S_5[] -> A[o0] : 0 <= o0 <= N }'
         index: '[N, in] -> { S_5[] -> A[] }'
         depth: 1
         reference: __pet_ref_8

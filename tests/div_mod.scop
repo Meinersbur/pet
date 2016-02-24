@@ -2,12 +2,13 @@ start: 30
 end: 232
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[-1]; S_5[]; S_2[1]; S_0[-2]; S_4[]; S_1[2] }", child:
-  { sequence: [ { filter: "{ S_3[i]; S_2[i]; S_0[i]; S_1[i] }", child: { schedule:
-  "L_0[{ S_2[i] -> [(i)]; S_3[i] -> [(i)]; S_0[i] -> [(i)]; S_1[i] -> [(i)] }]", child:
-  { sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" }, { filter: "{ S_2[i]
-  }" }, { filter: "{ S_3[i] }" } ] } } }, { filter: "{ S_5[]; S_4[] }", child: { set:
-  [ { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[i = -1]; S_5[]; S_2[i = 1]; S_0[i = -2]; S_4[]; S_1[i
+  = 2] }", child: { sequence: [ { filter: "{ S_3[i]; S_2[i]; S_0[i]; S_1[i] }", child:
+  { schedule: "L_0[{ S_2[i] -> [(i)]; S_3[i] -> [(i)]; S_0[i] -> [(i)]; S_1[i] ->
+  [(i)] }]", child: { sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }"
+  }, { filter: "{ S_2[i] }" }, { filter: "{ S_3[i] }" } ] } } }, { filter: "{ S_5[];
+  S_4[] }", child: { set: [ { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" } ] } }
+  ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -19,7 +20,7 @@ arrays:
   element_size: 4
 statements:
 - line: 9
-  domain: '{ S_0[-2] }'
+  domain: '{ S_0[i = -2] }'
   body:
     type: expression
     expr:
@@ -42,7 +43,7 @@ statements:
           - type: int
             value: 2
 - line: 11
-  domain: '{ S_1[2] }'
+  domain: '{ S_1[i = 2] }'
   body:
     type: expression
     expr:
@@ -68,7 +69,7 @@ statements:
           - type: int
             value: 2
 - line: 13
-  domain: '{ S_2[1] }'
+  domain: '{ S_2[i = 1] }'
   body:
     type: expression
     expr:
@@ -91,7 +92,7 @@ statements:
           - type: int
             value: 2
 - line: 15
-  domain: '{ S_3[-1] }'
+  domain: '{ S_3[i = -1] }'
   body:
     type: expression
     expr:

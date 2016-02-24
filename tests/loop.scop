@@ -2,7 +2,7 @@ start: 30
 end: 94
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i] : i >= 0 and i <= 9; S_2[]; S_1[] }", child: { sequence:
+schedule: '{ domain: "{ S_0[i] : 0 <= i <= 9; S_2[]; S_1[] }", child: { sequence:
   [ { filter: "{ S_0[i] }", child: { schedule: "L_0[{ S_0[i] -> [(i)] }]" } }, { filter:
   "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[] }" }, { filter: "{ S_2[]
   }" } ] } } ] } }'
@@ -17,7 +17,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_0[i] : i >= 0 and i <= 9 }'
+  domain: '{ S_0[i] : 0 <= i <= 9 }'
   body:
     type: expression
     expr:

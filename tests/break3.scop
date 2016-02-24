@@ -2,24 +2,24 @@ start: 43
 end: 186
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[]; S_5[]; S_0[i, j] : i >= 0 and i <= 99 and j >= 0 and
-  j <= 99; S_2[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_4[]; S_1[i, j]
-  : i >= 0 and i <= 99 and j >= 0 and j <= 99 }", child: { sequence: [ { filter: "{
-  S_0[i, j]; S_2[i, j]; S_1[i, j] }", child: { schedule: "L_0[{ S_0[i, j] -> [(i)];
-  S_1[i, j] -> [(i)]; S_2[i, j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j]
-  -> [(j)]; S_1[i, j] -> [(j)]; S_2[i, j] -> [(j)] }]", child: { sequence: [ { filter:
-  "{ S_0[i, j] }" }, { filter: "{ S_1[i, j] }" }, { filter: "{ S_2[i, j] }" } ] }
-  } } }, { filter: "{ S_3[]; S_5[]; S_4[] }", child: { set: [ { filter: "{ S_3[] }"
-  }, { filter: "{ S_4[] }" }, { filter: "{ S_5[] }" } ] } } ] } }'
+schedule: '{ domain: "{ S_3[]; S_5[]; S_0[i, j] : 0 <= i <= 99 and 0 <= j <= 99; S_2[i,
+  j] : 0 <= i <= 99 and 0 <= j <= 99; S_4[]; S_1[i, j] : 0 <= i <= 99 and 0 <= j <=
+  99 }", child: { sequence: [ { filter: "{ S_0[i, j]; S_2[i, j]; S_1[i, j] }", child:
+  { schedule: "L_0[{ S_0[i, j] -> [(i)]; S_1[i, j] -> [(i)]; S_2[i, j] -> [(i)] }]",
+  child: { schedule: "L_1[{ S_0[i, j] -> [(j)]; S_1[i, j] -> [(j)]; S_2[i, j] -> [(j)]
+  }]", child: { sequence: [ { filter: "{ S_0[i, j] }" }, { filter: "{ S_1[i, j] }"
+  }, { filter: "{ S_2[i, j] }" } ] } } } }, { filter: "{ S_3[]; S_5[]; S_4[] }", child:
+  { set: [ { filter: "{ S_3[] }" }, { filter: "{ S_4[] }" }, { filter: "{ S_5[] }"
+  } ] } } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ __pet_test_0[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  extent: '{ __pet_test_0[i, j] : 0 <= i <= 99 and 0 <= j <= 99 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  extent: '{ a[i0] : 0 <= i0 <= 99 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -32,7 +32,7 @@ arrays:
   element_size: 4
 statements:
 - line: 10
-  domain: '{ [S_0[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_0[i, j] -> [__pet_test_0 = 0]] : 0 <= i <= 99 and 0 <= j <= 99 }'
   body:
     type: expression
     expr:
@@ -48,12 +48,12 @@ statements:
         value: 0
   arguments:
   - type: access
-    index: '{ S_0[i, j] -> __pet_test_0[(i), ((-1 + j) : j >= 1)] }'
+    index: '{ S_0[i, j] -> __pet_test_0[(i), ((-1 + j) : j > 0)] }'
     reference: __pet_ref_0
     read: 1
     write: 0
 - line: 11
-  domain: '{ [S_1[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_1[i, j] -> [__pet_test_0 = 0]] : 0 <= i <= 99 and 0 <= j <= 99 }'
   body:
     type: expression
     expr:
@@ -69,12 +69,12 @@ statements:
         name: f
   arguments:
   - type: access
-    index: '{ S_1[i, j] -> __pet_test_0[(i), ((-1 + j) : j >= 1)] }'
+    index: '{ S_1[i, j] -> __pet_test_0[(i), ((-1 + j) : j > 0)] }'
     reference: __pet_ref_2
     read: 1
     write: 0
 - line: 13
-  domain: '{ [S_2[i, j] -> [0]] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ [S_2[i, j] -> [__pet_test_0 = 0]] : 0 <= i <= 99 and 0 <= j <= 99 }'
   body:
     type: expression
     expr:
@@ -140,12 +140,12 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_5[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        killed: '{ S_5[] -> a[o0] : 0 <= o0 <= 99 }'
         index: '{ S_5[] -> a[] }'
         depth: 1
         reference: __pet_ref_10
         kill: 1
 implications:
 - satisfied: 0
-  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i, j''] : j'' <= j and i <= 99
-    and i >= 0 and j'' <= 99 and j'' >= 0 }'
+  extension: '{ __pet_test_0[i, j] -> __pet_test_0[i'' = i, j''] : 0 <= i <= 99 and
+    0 <= j'' <= 99 and j'' <= j }'

@@ -1,9 +1,9 @@
 start: 34
 end: 110
 indent: "\t"
-context: '[n, m] -> {  : m <= 2147483645 and m >= -2147483648 and n <= 2147483646
-  and n >= -2147483648 }'
-schedule: '{ domain: "[n, m] -> { S_1[]; S_0[i] : i >= n and i <= m }", child: { sequence:
+context: '[n, m] -> {  : -2147483648 <= n <= 2147483646 and -2147483648 <= m <= 2147483645
+  }'
+schedule: '{ domain: "[n, m] -> { S_1[]; S_0[i] : n <= i <= m }", child: { sequence:
   [ { filter: "[n, m] -> { S_0[i] }", child: { schedule: "[n, m] -> L_0[{ S_0[i] ->
   [(i)] }]" } }, { filter: "[n, m] -> { S_1[] }" } ] } }'
 arrays:
@@ -13,7 +13,7 @@ arrays:
   element_size: 4
 statements:
 - line: 7
-  domain: '[n, m] -> { S_0[i] : i >= n and i <= m }'
+  domain: '[n, m] -> { S_0[i] : n <= i <= m }'
   body:
     type: expression
     expr:

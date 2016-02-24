@@ -47,7 +47,7 @@ statements:
         reference: __pet_ref_1
         kill: 1
 - line: 6
-  domain: '{ [S_4[] -> [a]] : a >= 1 }'
+  domain: '{ [S_4[] -> [a]] : a > 0 }'
   body:
     type: expression
     expr:

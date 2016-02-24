@@ -1,20 +1,18 @@
 start: 38
 end: 142
 indent: "\t"
-context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
-schedule: '{ domain: "[n] -> { S_0[i, j] : i >= 0 and i <= -1 + n and j >= 0 and j
-  <= -1 + n }", child: { schedule: "[n] -> L_0[{ S_0[i, j] -> [(i)] }]", child: {
-  schedule: "[n] -> L_1[{ S_0[i, j] -> [(j)] }]" } } }'
+context: '[n] -> {  : 0 <= n <= 2147483647 }'
+schedule: '{ domain: "[n] -> { S_0[i, j] : 0 <= i < n and 0 <= j < n }", child: {
+  schedule: "[n] -> L_0[{ S_0[i, j] -> [(i)] }]", child: { schedule: "[n] -> L_1[{
+  S_0[i, j] -> [(j)] }]" } } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0, i1] : i0 >= 0 and i0 <= -1 + n and i1 >= 0 and i1 <= -1
-    + n }'
+  extent: '[n] -> { A[i0, i1] : 0 <= i0 < n and 0 <= i1 < n }'
   element_type: int
   element_size: 4
 statements:
 - line: 6
-  domain: '[n] -> { S_0[i, j] : i >= 0 and i <= -1 + n and j >= 0 and j <= -1 + n
-    }'
+  domain: '[n] -> { S_0[i, j] : 0 <= i < n and 0 <= j < n }'
   body:
     type: expression
     expr:

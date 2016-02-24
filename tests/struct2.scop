@@ -2,27 +2,26 @@ start: 58
 end: 166
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 19; S_1[]
-  }", child: { sequence: [ { filter: "{ S_0[i, j] }", child: { schedule: "L_0[{ S_0[i,
-  j] -> [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)] }]" } } }, { filter:
-  "{ S_1[] }" } ] } }'
+schedule: '{ domain: "{ S_0[i, j] : 0 <= i <= 9 and 0 <= j <= 19; S_1[] }", child:
+  { sequence: [ { filter: "{ S_0[i, j] }", child: { schedule: "L_0[{ S_0[i, j] ->
+  [(i)] }]", child: { schedule: "L_1[{ S_0[i, j] -> [(j)] }]" } } }, { filter: "{
+  S_1[] }" } ] } }'
 types:
 - name: s
   definition: "struct s {\n    int a;\n}"
 arrays:
 - context: '{  :  }'
-  extent: '{ s[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1 <= 19 }'
+  extent: '{ s[i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 19 }'
   element_type: struct s
   element_size: 4
   element_is_record: 1
 - context: '{  :  }'
-  extent: '{ s_a[s[i0, i1] -> a[]] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1 <= 19
-    }'
+  extent: '{ s_a[s[i0, i1] -> a[]] : 0 <= i0 <= 9 and 0 <= i1 <= 19 }'
   element_type: int
   element_size: 4
 statements:
 - line: 12
-  domain: '{ S_0[i, j] : i >= 0 and i <= 9 and j >= 0 and j <= 19 }'
+  domain: '{ S_0[i, j] : 0 <= i <= 9 and 0 <= j <= 19 }'
   body:
     type: expression
     expr:
@@ -45,8 +44,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_1[] -> s[o0, o1] : o0 >= 0 and o1 >= 0 and o0 <= 9 and o1 <=
-          19 }'
+        killed: '{ S_1[] -> s[o0, o1] : 0 <= o0 <= 9 and 0 <= o1 <= 19 }'
         index: '{ S_1[] -> s[] }'
         depth: 2
         reference: __pet_ref_1
