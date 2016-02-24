@@ -100,7 +100,7 @@ libpet_la_SOURCES = \
 	version.h \
 	version.cc \
 	pet.cc
-libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
+libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS) $(CLANG_RFLAG)
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema \
 	$(LIB_CLANG_EDIT) -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \

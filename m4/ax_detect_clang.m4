@@ -2,6 +2,7 @@ AC_DEFUN([AX_DETECT_CLANG], [
 AC_SUBST(CLANG_CXXFLAGS)
 AC_SUBST(CLANG_LDFLAGS)
 AC_SUBST(CLANG_LIBS)
+AC_SUBST(CLANG_RFLAG)
 AX_SUBMODULE(clang,system,system)
 llvm_config="llvm-config"
 AC_CHECK_PROG([llvm_config_found], ["$llvm_config"], [yes])
@@ -17,13 +18,31 @@ fi
 CLANG_CXXFLAGS=`$llvm_config --cxxflags | \
 	$SED -e 's/-Wcovered-switch-default//'`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
-targets=`$llvm_config --targets-built`
-components="$targets asmparser bitreader support mc"
-$llvm_config --components | $GREP option > /dev/null 2> /dev/null
-if test $? -eq 0; then
-	components="$components option"
+CLANG_VERSION=`$llvm_config --version`
+CLANG_LIB="LLVM-$CLANG_VERSION"
+
+SAVE_LDFLAGS="$LDFLAGS"
+LDFLAGS="$CLANG_LDFLAGS $LDFLAGS"
+AC_CHECK_LIB([$CLANG_LIB], [main], [have_lib_llvm=yes], [have_lib_llvm=no])
+LDFLAGS="$SAVE_LDFLAGS"
+
+# Use single libLLVM shared library when available.
+# Otherwise, try and figure out all the required libraries
+if test "$have_lib_llvm" = yes; then
+	# Construct a -R argument for libtool.
+	# This is apparently required to ensure that libpet.so
+	# keeps track of the location where libLLVM can be found.
+	CLANG_RFLAG=`echo "$CLANG_LDFLAGS" | $SED -e 's/-L/-R/g'`
+	CLANG_LIBS="-l$CLANG_LIB"
+else
+	targets=`$llvm_config --targets-built`
+	components="$targets asmparser bitreader support mc"
+	$llvm_config --components | $GREP option > /dev/null 2> /dev/null
+	if test $? -eq 0; then
+		components="$components option"
+	fi
+	CLANG_LIBS=`$llvm_config --libs $components`
 fi
-CLANG_LIBS=`$llvm_config --libs $components`
 systemlibs=`$llvm_config --system-libs 2> /dev/null | tail -1`
 if test $? -eq 0; then
 	CLANG_LIBS="$CLANG_LIBS $systemlibs"
