@@ -90,6 +90,11 @@ struct pet_expr_double {
  * type is valid when type == pet_expr_cast
  * op is valid otherwise
  *
+ * "hash" is a copy of the hash value computed by pet_expr_get_hash.
+ * It is zero when it has not been computed yet.  The value is reset
+ * whenever the pet_expr is modified (in pet_expr_cow and
+ * introduce_access_relations).
+ *
  * If type_size is not zero, then the expression is of an integer type
  * and type_size represents the size of the type in bits.
  * If type_size is greater than zero, then the type is unsigned
@@ -101,6 +106,8 @@ struct pet_expr_double {
 struct pet_expr {
 	int ref;
 	isl_ctx *ctx;
+
+	uint32_t hash;
 
 	enum pet_expr_type type;
 
@@ -149,6 +156,8 @@ __isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,
 	__isl_keep pet_context *pc);
 __isl_give pet_expr *pet_expr_resolve_assume(__isl_take pet_expr *expr,
 	__isl_keep pet_context *pc);
+
+uint32_t pet_expr_get_hash(__isl_keep pet_expr *expr);
 
 int pet_expr_is_address_of(__isl_keep pet_expr *expr);
 int pet_expr_is_assume(__isl_keep pet_expr *expr);

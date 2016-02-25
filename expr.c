@@ -34,6 +34,7 @@
 
 #include <string.h>
 
+#include <isl/hash.h>
 #include <isl/union_set.h>
 
 #include "aff.h"
@@ -545,13 +546,21 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 	return dup;
 }
 
+/* Return a pet_expr that is equal to "expr" and that has only
+ * a single reference.
+ *
+ * If "expr" itself only has one reference, then clear its hash value
+ * since the returned pet_expr will be modified.
+ */
 __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 
-	if (expr->ref == 1)
+	if (expr->ref == 1) {
+		expr->hash = 0;
 		return expr;
+	}
 	expr->ref--;
 	return pet_expr_dup(expr);
 }
@@ -915,6 +924,8 @@ static __isl_give isl_union_map *construct_access_relation(
  *
  * We do not cow since adding an explicit access relation
  * does not change the meaning of the expression.
+ * However, the explicit access relations may modify the hash value,
+ * so the cached value is reset.
  */
 static __isl_give pet_expr *introduce_access_relations(
 	__isl_take pet_expr *expr)
@@ -933,6 +944,7 @@ static __isl_give pet_expr *introduce_access_relations(
 	if (!access)
 		return pet_expr_free(expr);
 
+	expr->hash = 0;
 	kill = expr->acc.kill;
 	read = expr->acc.read;
 	write = expr->acc.write;
@@ -955,6 +967,68 @@ static __isl_give pet_expr *introduce_access_relations(
 		return pet_expr_free(expr);
 
 	return expr;
+}
+
+/* Return a hash value that digests "expr".
+ * If a hash value was computed already, then return that value.
+ * Otherwise, compute the hash value and store a copy in expr->hash.
+ */
+uint32_t pet_expr_get_hash(__isl_keep pet_expr *expr)
+{
+	int i;
+	enum pet_expr_access_type type;
+	uint32_t hash, hash_f;
+
+	if (!expr)
+		return 0;
+	if (expr->hash)
+		return expr->hash;
+
+	hash = isl_hash_init();
+	isl_hash_byte(hash, expr->type & 0xFF);
+	isl_hash_byte(hash, expr->n_arg & 0xFF);
+	for (i = 0; i < expr->n_arg; ++i) {
+		uint32_t hash_i;
+		hash_i = pet_expr_get_hash(expr->args[i]);
+		isl_hash_hash(hash, hash_i);
+	}
+	switch (expr->type) {
+	case pet_expr_error:
+		return 0;
+	case pet_expr_double:
+		hash = isl_hash_string(hash, expr->d.s);
+		break;
+	case pet_expr_int:
+		hash_f = isl_val_get_hash(expr->i);
+		isl_hash_hash(hash, hash_f);
+		break;
+	case pet_expr_access:
+		isl_hash_byte(hash, expr->acc.read & 0xFF);
+		isl_hash_byte(hash, expr->acc.write & 0xFF);
+		isl_hash_byte(hash, expr->acc.kill & 0xFF);
+		hash_f = isl_id_get_hash(expr->acc.ref_id);
+		isl_hash_hash(hash, hash_f);
+		hash_f = isl_multi_pw_aff_get_hash(expr->acc.index);
+		isl_hash_hash(hash, hash_f);
+		isl_hash_byte(hash, expr->acc.depth & 0xFF);
+		for (type = pet_expr_access_begin;
+		     type < pet_expr_access_end; ++type) {
+			hash_f = isl_union_map_get_hash(expr->acc.access[type]);
+			isl_hash_hash(hash, hash_f);
+		}
+		break;
+	case pet_expr_op:
+		isl_hash_byte(hash, expr->op & 0xFF);
+		break;
+	case pet_expr_call:
+		hash = isl_hash_string(hash, expr->c.name);
+		break;
+	case pet_expr_cast:
+		hash = isl_hash_string(hash, expr->type_name);
+		break;
+	}
+	expr->hash = hash;
+	return hash;
 }
 
 /* Return 1 if the two pet_exprs are equivalent.
