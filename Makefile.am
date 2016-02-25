@@ -78,6 +78,8 @@ libpet_la_SOURCES = \
 	options.c \
 	patch.h \
 	patch.c \
+	pet_expr_to_isl_pw_aff.h \
+	pet_expr_to_isl_pw_aff.c \
 	print.c \
 	print.h \
 	tree.h \
