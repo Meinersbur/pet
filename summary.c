@@ -112,6 +112,13 @@ __isl_give pet_function_summary *pet_function_summary_copy(
 	return summary;
 }
 
+/* Return the isl_ctx in which "summary" was created.
+ */
+isl_ctx *pet_function_summary_get_ctx(__isl_keep pet_function_summary *summary)
+{
+	return summary ? summary->ctx : NULL;
+}
+
 /* Free the data stored in "arg".
  */
 static void free_arg(struct pet_function_summary_arg *arg)

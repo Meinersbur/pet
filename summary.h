@@ -25,6 +25,8 @@ __isl_give pet_function_summary *pet_function_summary_copy(
 __isl_null pet_function_summary *pet_function_summary_free(
 	__isl_take pet_function_summary *summary);
 
+isl_ctx *pet_function_summary_get_ctx(__isl_keep pet_function_summary *summary);
+
 int pet_function_summary_get_n_arg(__isl_keep pet_function_summary *summary);
 
 __isl_give pet_function_summary *pet_function_summary_set_int(
