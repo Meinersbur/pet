@@ -3489,85 +3489,156 @@ error:
 	return NULL;
 }
 
-/* Dump the arguments of "expr" to stderr with indentation "indent".
+/* Dump the arguments of "expr" to "p" as a YAML sequence keyed
+ * by "args", if there are any such arguments.
  */
-static void dump_arguments(__isl_keep pet_expr *expr, int indent)
+static __isl_give isl_printer *dump_arguments(__isl_keep pet_expr *expr,
+	__isl_take isl_printer *p)
 {
 	int i;
 
-	for (i = 0; i < expr->n_arg; ++i)
-		pet_expr_dump_with_indent(expr->args[i], indent);
+	if (expr->n_arg == 0)
+		return p;
+
+	p = isl_printer_print_str(p, "args");
+	p = isl_printer_yaml_next(p);
+	p = isl_printer_yaml_start_sequence(p);
+	for (i = 0; i < expr->n_arg; ++i) {
+		p = pet_expr_print(expr->args[i], p);
+		p = isl_printer_yaml_next(p);
+	}
+	p = isl_printer_yaml_end_sequence(p);
+
+	return p;
 }
 
-void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
+/* Print "expr" to "p" in YAML format.
+ */
+__isl_give isl_printer *pet_expr_print(__isl_keep pet_expr *expr,
+	__isl_take isl_printer *p)
 {
-	if (!expr)
-		return;
-
-	fprintf(stderr, "%*s", indent, "");
+	if (!expr || !p)
+		return isl_printer_free(p);
 
 	switch (expr->type) {
 	case pet_expr_double:
-		fprintf(stderr, "%s\n", expr->d.s);
+		p = isl_printer_print_str(p, expr->d.s);
 		break;
 	case pet_expr_int:
-		isl_val_dump(expr->i);
+		p = isl_printer_print_val(p, expr->i);
 		break;
 	case pet_expr_access:
+		p = isl_printer_yaml_start_mapping(p);
 		if (expr->acc.ref_id) {
-			isl_id_dump(expr->acc.ref_id);
-			fprintf(stderr, "%*s", indent, "");
+			p = isl_printer_print_str(p, "ref_id");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_id(p, expr->acc.ref_id);
+			p = isl_printer_yaml_next(p);
 		}
-		isl_multi_pw_aff_dump(expr->acc.index);
-		fprintf(stderr, "%*sdepth: %d\n", indent + 2,
-				"", expr->acc.depth);
+		p = isl_printer_print_str(p, "index");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_multi_pw_aff(p, expr->acc.index);
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, "depth");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_int(p, expr->acc.depth);
+		p = isl_printer_yaml_next(p);
 		if (expr->acc.kill) {
-			fprintf(stderr, "%*skill: 1\n", indent + 2, "");
+			p = isl_printer_print_str(p, "kill");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_int(p, 1);
+			p = isl_printer_yaml_next(p);
 		} else {
-			fprintf(stderr, "%*sread: %d\n", indent + 2,
-					"", expr->acc.read);
-			fprintf(stderr, "%*swrite: %d\n", indent + 2,
-					"", expr->acc.write);
+			p = isl_printer_print_str(p, "read");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_int(p, expr->acc.read);
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_str(p, "write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_int(p, expr->acc.write);
+			p = isl_printer_yaml_next(p);
 		}
 		if (expr->acc.access[pet_expr_access_may_read]) {
-			fprintf(stderr, "%*smay_read: ", indent + 2, "");
-			isl_union_map_dump(
+			p = isl_printer_print_str(p, "may_read");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 				expr->acc.access[pet_expr_access_may_read]);
+			p = isl_printer_yaml_next(p);
 		}
 		if (expr->acc.access[pet_expr_access_may_write]) {
-			fprintf(stderr, "%*smay_write: ", indent + 2, "");
-			isl_union_map_dump(
+			p = isl_printer_print_str(p, "may_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 				expr->acc.access[pet_expr_access_may_write]);
+			p = isl_printer_yaml_next(p);
 		}
 		if (expr->acc.access[pet_expr_access_must_write]) {
-			fprintf(stderr, "%*smust_write: ", indent + 2, "");
-			isl_union_map_dump(
+			p = isl_printer_print_str(p, "must_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 				expr->acc.access[pet_expr_access_must_write]);
+			p = isl_printer_yaml_next(p);
 		}
-		dump_arguments(expr, indent + 2);
+		p = dump_arguments(expr, p);
+		p = isl_printer_yaml_end_mapping(p);
 		break;
 	case pet_expr_op:
-		fprintf(stderr, "%s\n", op_str[expr->op]);
-		dump_arguments(expr, indent + 2);
+		p = isl_printer_yaml_start_mapping(p);
+		p = isl_printer_print_str(p, "op");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, op_str[expr->op]);
+		p = isl_printer_yaml_next(p);
+		p = dump_arguments(expr, p);
+		p = isl_printer_yaml_end_mapping(p);
 		break;
 	case pet_expr_call:
-		fprintf(stderr, "%s/%d\n", expr->c.name, expr->n_arg);
-		dump_arguments(expr, indent + 2);
+		p = isl_printer_yaml_start_mapping(p);
+		p = isl_printer_print_str(p, "call");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, expr->c.name);
+		p = isl_printer_print_str(p, "/");
+		p = isl_printer_print_int(p, expr->n_arg);
+		p = isl_printer_yaml_next(p);
+		p = dump_arguments(expr, p);
 		if (expr->c.summary) {
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "summary:\n");
-			pet_function_summary_dump_with_indent(expr->c.summary,
-								indent + 2);
+			p = isl_printer_print_str(p, "summary");
+			p = isl_printer_yaml_next(p);
+			p = pet_function_summary_print(expr->c.summary, p);
 		}
+		p = isl_printer_yaml_end_mapping(p);
 		break;
 	case pet_expr_cast:
-		fprintf(stderr, "(%s)\n", expr->type_name);
-		dump_arguments(expr, indent + 2);
+		p = isl_printer_yaml_start_mapping(p);
+		p = isl_printer_print_str(p, "cast");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, expr->type_name);
+		p = isl_printer_yaml_next(p);
+		p = dump_arguments(expr, p);
+		p = isl_printer_yaml_end_mapping(p);
 		break;
 	case pet_expr_error:
-		fprintf(stderr, "ERROR\n");
+		p = isl_printer_print_str(p, "ERROR");
 		break;
 	}
+
+	return p;
+}
+
+/* Dump "expr" to stderr with indentation "indent".
+ */
+void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
+{
+	isl_printer *p;
+
+	if (!expr)
+		return;
+
+	p = isl_printer_to_file(pet_expr_get_ctx(expr), stderr);
+	p = isl_printer_set_indent(p, indent);
+	p = isl_printer_set_yaml_style(p, ISL_YAML_STYLE_BLOCK);
+	p = pet_expr_print(expr, p);
+
+	isl_printer_free(p);
 }
 
 void pet_expr_dump(__isl_keep pet_expr *expr)

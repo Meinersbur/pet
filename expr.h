@@ -240,6 +240,8 @@ __isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_access_patch(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *prefix, int add);
 
+__isl_give isl_printer *pet_expr_print(__isl_keep pet_expr *expr,
+	__isl_take isl_printer *p);
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 
 #if defined(__cplusplus)
