@@ -45,6 +45,8 @@ __isl_give isl_union_map *pet_function_summary_arg_get_access(
 	__isl_keep pet_function_summary *summary, int pos,
 	enum pet_expr_access_type type);
 
+__isl_give isl_printer *pet_function_summary_print(
+	__isl_keep pet_function_summary *summary, __isl_take isl_printer *p);
 void pet_function_summary_dump_with_indent(
 	__isl_keep pet_function_summary *summary, int indent);
 void pet_function_summary_dump(__isl_keep pet_function_summary *summary);

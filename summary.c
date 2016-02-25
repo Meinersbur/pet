@@ -313,42 +313,71 @@ __isl_give isl_union_map *pet_function_summary_arg_get_access(
 	return isl_union_map_copy(summary->arg[pos].access[type]);
 }
 
-void pet_function_summary_dump_with_indent(
-	__isl_keep pet_function_summary *summary, int indent)
+/* Print "summary" to "p" in YAML format.
+ */
+__isl_give isl_printer *pet_function_summary_print(
+	__isl_keep pet_function_summary *summary, __isl_take isl_printer *p)
 {
 	int i;
 
-	if (!summary)
-		return;
-	fprintf(stderr, "%*s", indent, "");
-	fprintf(stderr, "n: %d\n", summary->n);
+	if (!summary || !p)
+		return isl_printer_free(p);
+	p = isl_printer_yaml_start_sequence(p);
 	for (i = 0; i < summary->n; ++i) {
 		switch (summary->arg[i].type) {
 		case pet_arg_int:
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "id:");
-			isl_id_dump(summary->arg[i].id);
+			p = isl_printer_yaml_start_mapping(p);
+			p = isl_printer_print_str(p, "id");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_id(p, summary->arg[i].id);
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_yaml_end_mapping(p);
 			break;
 		case pet_arg_other:
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "other\n");
+			p = isl_printer_print_str(p, "other");
 			break;
 		case pet_arg_array:
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "may_read: ");
-			isl_union_map_dump(
+			p = isl_printer_yaml_start_mapping(p);
+			p = isl_printer_print_str(p, "may_read");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 			    summary->arg[i].access[pet_expr_access_may_read]);
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "may_write: ");
-			isl_union_map_dump(
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_str(p, "may_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 			    summary->arg[i].access[pet_expr_access_may_write]);
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "must_write: ");
-			isl_union_map_dump(
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_str(p, "must_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 			    summary->arg[i].access[pet_expr_access_must_write]);
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_yaml_end_mapping(p);
 			break;
 		}
 	}
+	p = isl_printer_yaml_end_sequence(p);
+
+	return p;
+}
+
+/* Dump "summary" to stderr with indentation "indent".
+ */
+void pet_function_summary_dump_with_indent(
+	__isl_keep pet_function_summary *summary, int indent)
+{
+	isl_printer *p;
+
+	if (!summary)
+		return;
+
+	p = isl_printer_to_file(pet_function_summary_get_ctx(summary), stderr);
+	p = isl_printer_set_indent(p, indent);
+	p = isl_printer_set_yaml_style(p, ISL_YAML_STYLE_BLOCK);
+	p = pet_function_summary_print(summary, p);
+
+	isl_printer_free(p);
 }
 
 void pet_function_summary_dump(__isl_keep pet_function_summary *summary)
