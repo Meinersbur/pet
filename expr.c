@@ -1139,6 +1139,44 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 	return 1;
 }
 
+/* Do "expr1" and "expr2" represent two accesses to the same array
+ * that are also of the same type?  That is, can these two accesses
+ * be replaced by a single access?
+ */
+isl_bool pet_expr_is_same_access(__isl_keep pet_expr *expr1,
+	__isl_keep pet_expr *expr2)
+{
+	isl_space *space1, *space2;
+	isl_bool same;
+
+	if (!expr1 || !expr2)
+		return isl_bool_error;
+	if (pet_expr_get_type(expr1) != pet_expr_access)
+		return isl_bool_false;
+	if (pet_expr_get_type(expr2) != pet_expr_access)
+		return isl_bool_false;
+	if (expr1->acc.read != expr2->acc.read)
+		return isl_bool_false;
+	if (expr1->acc.write != expr2->acc.write)
+		return isl_bool_false;
+	if (expr1->acc.kill != expr2->acc.kill)
+		return isl_bool_false;
+	if (expr1->acc.depth != expr2->acc.depth)
+		return isl_bool_false;
+
+	space1 = isl_multi_pw_aff_get_space(expr1->acc.index);
+	space2 = isl_multi_pw_aff_get_space(expr2->acc.index);
+	same = isl_space_tuple_is_equal(space1, isl_dim_out,
+					space2, isl_dim_out);
+	if (same >= 0 && same)
+		same = isl_space_tuple_is_equal(space1, isl_dim_in,
+						space2, isl_dim_in);
+	isl_space_free(space1);
+	isl_space_free(space2);
+
+	return same;
+}
+
 /* Does the access expression "expr" read the accessed elements?
  */
 isl_bool pet_expr_access_is_read(__isl_keep pet_expr *expr)
