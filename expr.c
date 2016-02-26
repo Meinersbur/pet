@@ -1069,6 +1069,19 @@ isl_bool pet_expr_access_is_write(__isl_keep pet_expr *expr)
 	return expr->acc.write;
 }
 
+/* Does the access expression "expr" kill the accessed elements?
+ */
+isl_bool pet_expr_access_is_kill(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return isl_bool_error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return isl_bool_error);
+
+	return expr->acc.kill;
+}
+
 /* Return the identifier of the array accessed by "expr".
  *
  * If "expr" represents a member access, then return the identifier

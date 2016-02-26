@@ -171,6 +171,8 @@ isl_bool pet_expr_is_affine(__isl_keep pet_expr *expr);
 isl_bool pet_expr_access_is_read(__isl_keep pet_expr *expr);
 /* Does the access expression "expr" write to the accessed elements? */
 isl_bool pet_expr_access_is_write(__isl_keep pet_expr *expr);
+/* Does the access expression "expr" kill the accessed elements? */
+isl_bool pet_expr_access_is_kill(__isl_keep pet_expr *expr);
 /* Mark "expr" as a read depending on "read". */
 __isl_give pet_expr *pet_expr_access_set_read(__isl_take pet_expr *expr,
 	int read);
