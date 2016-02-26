@@ -3232,27 +3232,48 @@ static __isl_give isl_pw_aff *extract_affine_from_call(
  * Otherwise return NaN.
  *
  * "pc" is the context in which the affine expression is created.
+ *
+ * Store the result in "pc" such that it can be reused in case
+ * pet_expr_extract_affine is called again on the same pair of
+ * "expr" and "pc".
  */
 __isl_give isl_pw_aff *pet_expr_extract_affine(__isl_keep pet_expr *expr,
 	__isl_keep pet_context *pc)
 {
+	isl_maybe_isl_pw_aff m;
+	isl_pw_aff *pa;
+
 	if (!expr)
 		return NULL;
 
+	m = pet_context_get_extracted_affine(pc, expr);
+	if (m.valid < 0 || m.valid)
+		return m.value;
+
 	switch (pet_expr_get_type(expr)) {
 	case pet_expr_access:
-		return extract_affine_from_access(expr, pc);
+		pa = extract_affine_from_access(expr, pc);
+		break;
 	case pet_expr_int:
-		return extract_affine_from_int(expr, pc);
+		pa = extract_affine_from_int(expr, pc);
+		break;
 	case pet_expr_op:
-		return extract_affine_from_op(expr, pc);
+		pa = extract_affine_from_op(expr, pc);
+		break;
 	case pet_expr_call:
-		return extract_affine_from_call(expr, pc);
+		pa = extract_affine_from_call(expr, pc);
+		break;
 	case pet_expr_cast:
 	case pet_expr_double:
 	case pet_expr_error:
-		return non_affine(pet_context_get_space(pc));
+		pa = non_affine(pet_context_get_space(pc));
+		break;
 	}
+
+	if (pet_context_set_extracted_affine(pc, expr, pa) < 0)
+		return isl_pw_aff_free(pa);
+
+	return pa;
 }
 
 /* Extract an affine expressions representing the comparison "LHS op RHS"

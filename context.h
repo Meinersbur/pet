@@ -52,6 +52,11 @@ __isl_give pet_context *pet_context_preimage_domain(__isl_take pet_context *pc,
 __isl_give pet_context *pet_context_intersect_domain(__isl_take pet_context *pc,
 	__isl_take isl_set *set);
 
+__isl_give isl_maybe_isl_pw_aff pet_context_get_extracted_affine(
+	__isl_keep pet_context *pc, __isl_keep pet_expr *expr);
+isl_stat pet_context_set_extracted_affine(__isl_keep pet_context *pc,
+	__isl_keep pet_expr *expr, __isl_keep isl_pw_aff *pa);
+
 void pet_context_dump(__isl_keep pet_context *pc);
 
 #if defined(__cplusplus)

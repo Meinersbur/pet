@@ -42,6 +42,7 @@
 #include "nest.h"
 #include "patch.h"
 #include "tree.h"
+#include "pet_expr_to_isl_pw_aff.h"
 
 /* A pet_context represents the context in which a pet_expr
  * in converted to an affine expression.
@@ -55,6 +56,10 @@
  *
  * If "allow_nested" is set, then the affine expression created
  * in this context may involve new parameters that encode a pet_expr.
+ *
+ * "extracted_affine" caches the results of pet_expr_extract_affine.
+ * It may be NULL if no results have been cached so far and
+ * it is cleared (in pet_context_cow) whenever the context is changed.
  */
 struct pet_context {
 	int ref;
@@ -62,6 +67,8 @@ struct pet_context {
 	isl_set *domain;
 	isl_id_to_pw_aff *assignments;
 	int allow_nested;
+
+	pet_expr_to_isl_pw_aff *extracted_affine;
 };
 
 /* Create a pet_context with the given domain, assignments,
@@ -124,14 +131,22 @@ static __isl_give pet_context *pet_context_dup(__isl_keep pet_context *pc)
 }
 
 /* Return a pet_context that is equal to "pc" and that has only one reference.
+ *
+ * If "pc" itself only has one reference, then clear the cache of
+ * pet_expr_extract_affine results since the returned pet_context
+ * will be modified and the cached results may no longer be valid
+ * after these modifications.
  */
 static __isl_give pet_context *pet_context_cow(__isl_take pet_context *pc)
 {
 	if (!pc)
 		return NULL;
 
-	if (pc->ref == 1)
+	if (pc->ref == 1) {
+		pet_expr_to_isl_pw_aff_free(pc->extracted_affine);
+		pc->extracted_affine = NULL;
 		return pc;
+	}
 	pc->ref--;
 	return pet_context_dup(pc);
 }
@@ -158,8 +173,51 @@ __isl_null pet_context *pet_context_free(__isl_take pet_context *pc)
 
 	isl_set_free(pc->domain);
 	isl_id_to_pw_aff_free(pc->assignments);
+	pet_expr_to_isl_pw_aff_free(pc->extracted_affine);
 	free(pc);
 	return NULL;
+}
+
+/* If an isl_pw_aff corresponding to "expr" has been cached in "pc",
+ * then return a copy of that isl_pw_aff.
+ * Otherwise, return (isl_bool_false, NULL).
+ */
+__isl_give isl_maybe_isl_pw_aff pet_context_get_extracted_affine(
+	__isl_keep pet_context *pc, __isl_keep pet_expr *expr)
+{
+	isl_maybe_isl_pw_aff m = { isl_bool_false, NULL };
+
+	if (!pc)
+		goto error;
+	if (!pc->extracted_affine)
+		return m;
+	return pet_expr_to_isl_pw_aff_try_get(pc->extracted_affine, expr);
+error:
+	m.valid = isl_bool_error;
+	return m;
+}
+
+/* Keep track of the fact that "expr" maps to "pa" in "pc".
+ */
+isl_stat pet_context_set_extracted_affine(__isl_keep pet_context *pc,
+	__isl_keep pet_expr *expr, __isl_keep isl_pw_aff *pa)
+{
+	if (!pc || !expr)
+		return isl_stat_error;
+
+	if (!pc->extracted_affine) {
+		isl_ctx *ctx;
+
+		ctx = pet_context_get_ctx(pc);
+		pc->extracted_affine = pet_expr_to_isl_pw_aff_alloc(ctx, 1);
+	}
+
+	pc->extracted_affine = pet_expr_to_isl_pw_aff_set(pc->extracted_affine,
+				    pet_expr_copy(expr), isl_pw_aff_copy(pa));
+	if (!pc->extracted_affine)
+		return isl_stat_error;
+
+	return isl_stat_ok;
 }
 
 /* Return the isl_ctx in which "pc" was created.
