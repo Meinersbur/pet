@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ * Copyright 2016      Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1001,15 +1002,117 @@ static __isl_give pet_expr *plug_in_affine(__isl_take pet_expr *expr,
 	return pet_expr_map_top_down(expr, &expr_plug_in_affine, pc);
 }
 
+/* Given an affine condition "cond" and two access expressions "lhs" and
+ * "rhs" to the same array, construct an access expression to the array that
+ * performs the "lhs" access if "cond" is satisfied and the "rhs" access
+ * otherwise.
+ *
+ * That is, replace
+ *
+ *	c ? A[f] : A[g]
+ *
+ * by
+ *
+ *	A[c ? f : g].
+ */
+static __isl_give pet_expr *merged_access(__isl_take pet_expr *cond,
+	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs)
+{
+	isl_multi_pw_aff *index1, *index2;
+	isl_pw_aff *c;
+	int i, n;
+
+	c = pet_expr_get_affine(cond);
+	index1 = pet_expr_access_get_index(lhs);
+	index2 = pet_expr_access_get_index(rhs);
+	n = isl_multi_pw_aff_dim(index1, isl_dim_out);
+	for (i = 0; i < n; ++i) {
+		isl_pw_aff *pa1, *pa2;
+
+		pa1 = isl_multi_pw_aff_get_pw_aff(index1, i);
+		pa2 = isl_multi_pw_aff_get_pw_aff(index2, i);
+		pa1 = isl_pw_aff_cond(isl_pw_aff_copy(c), pa1, pa2);
+		index1 = isl_multi_pw_aff_set_pw_aff(index1, i, pa1);
+	}
+	isl_pw_aff_free(c);
+	isl_multi_pw_aff_free(index2);
+
+	lhs = pet_expr_access_set_index(lhs, index1);
+
+	pet_expr_free(cond);
+	pet_expr_free(rhs);
+
+	return lhs;
+}
+
+/* If "expr" is a conditional access to an array expressed as a conditional
+ * operator with two accesses to the same array and an affine condition,
+ * then replace the conditional operator by a single access to the array.
+ *
+ * If either of the two accesses has any arguments or access relations,
+ * then the original expression is kept since replacing it may lose
+ * information.
+ */
+static __isl_give pet_expr *merge_conditional_access(__isl_take pet_expr *expr,
+	void *user)
+{
+	pet_expr *cond, *lhs, *rhs;
+	isl_bool ok;
+
+	if (pet_expr_op_get_type(expr) != pet_op_cond)
+		return expr;
+
+	cond = pet_expr_get_arg(expr, 0);
+	lhs = pet_expr_get_arg(expr, 1);
+	rhs = pet_expr_get_arg(expr, 2);
+	ok = pet_expr_get_n_arg(lhs) == 0 && pet_expr_get_n_arg(rhs) == 0;
+	if (ok > 0)
+		ok = pet_expr_is_affine(cond);
+	if (ok > 0)
+		ok = pet_expr_is_same_access(lhs, rhs);
+	if (ok > 0)
+		ok = isl_bool_not(pet_expr_access_has_any_access_relation(lhs));
+	if (ok > 0)
+		ok = isl_bool_not(pet_expr_access_has_any_access_relation(rhs));
+	if (ok > 0) {
+		pet_expr_free(expr);
+		return merged_access(cond, lhs, rhs);
+	}
+	pet_expr_free(cond);
+	pet_expr_free(lhs);
+	pet_expr_free(rhs);
+	if (ok < 0)
+		return pet_expr_free(expr);
+	return expr;
+}
+
+/* Look for any conditional access to an array expressed as a conditional
+ * operator with two accesses to the same array and replace it
+ * by a single access to the array.
+ */
+static __isl_give pet_expr *merge_conditional_accesses(
+	__isl_take pet_expr *expr)
+{
+	return pet_expr_map_op(expr, &merge_conditional_access, NULL);
+}
+
 /* Evaluate "expr" in the context of "pc".
  *
  * In particular, we first make sure that all the access expressions
  * inside "expr" have the same domain as "pc".
  * Then, we plug in affine expressions for scalar reads,
  * plug in the arguments of all access expressions in "expr" as well
- * as any other affine expressions that may appear inside "expr" and
+ * as any other affine expressions that may appear inside "expr",
+ * merge conditional accesses to the same array and
  * plug in the access relations from the summary functions associated
  * to call expressions.
+ *
+ * The merging of conditional accesses needs to be performed after
+ * the detection of affine expressions such that it can simply
+ * check if the condition is an affine expression.
+ * It needs to be performed before access relations are plugged in
+ * such that these access relations only need to be plugged into
+ * the fused access.
  */
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr)
@@ -1018,6 +1121,7 @@ __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	expr = plug_in_affine_read(expr, pc);
 	expr = pet_expr_plug_in_args(expr, pc);
 	expr = plug_in_affine(expr, pc);
+	expr = merge_conditional_accesses(expr);
 	expr = plug_in_summaries(expr, pc);
 	return expr;
 }
