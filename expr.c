@@ -1347,6 +1347,16 @@ __isl_give pet_expr *pet_expr_map_call(__isl_take pet_expr *expr,
 	return pet_expr_map_expr_of_type(expr, pet_expr_call, fn, user);
 }
 
+/* Modify all expressions of type pet_expr_op in "expr"
+ * by calling "fn" on them.
+ */
+__isl_give pet_expr *pet_expr_map_op(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	return pet_expr_map_expr_of_type(expr, pet_expr_op, fn, user);
+}
+
 /* Call "fn" on each of the subexpressions of "expr" of type "type".
  *
  * Return -1 on error (where fn returning a negative value is treated as
