@@ -486,8 +486,10 @@ struct pet_scop *pet_scop_from_pet_stmt(__isl_take isl_space *space,
 	isl_union_set *domain;
 	isl_schedule *schedule;
 
-	if (!stmt)
-		space = isl_space_free(space);
+	if (!stmt) {
+		isl_space_free(space);
+		return NULL;
+	}
 
 	set = pet_nested_remove_from_set(isl_set_copy(stmt->domain));
 	domain = isl_union_set_from_set(set);
