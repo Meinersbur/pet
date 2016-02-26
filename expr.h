@@ -168,6 +168,7 @@ int pet_expr_is_max(__isl_keep pet_expr *expr);
 int pet_expr_is_scalar_access(__isl_keep pet_expr *expr);
 int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2);
 
+__isl_give isl_pw_aff *pet_expr_get_affine(__isl_keep pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_parameter_space(
 	__isl_take pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_augmented_domain_space(

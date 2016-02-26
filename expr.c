@@ -848,6 +848,28 @@ isl_bool pet_expr_is_affine(__isl_keep pet_expr *expr)
 	return !has_id;
 }
 
+/* Given that "expr" represents an affine expression, i.e., that
+ * it is an access to an unnamed (1D) space, return this affine expression.
+ */
+__isl_give isl_pw_aff *pet_expr_get_affine(__isl_keep pet_expr *expr)
+{
+	isl_bool is_affine;
+	isl_pw_aff *pa;
+	isl_multi_pw_aff *mpa;
+
+	is_affine = pet_expr_is_affine(expr);
+	if (is_affine < 0)
+		return NULL;
+	if (!is_affine)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an affine expression", return NULL);
+
+	mpa = pet_expr_access_get_index(expr);
+	pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
+	isl_multi_pw_aff_free(mpa);
+	return pa;
+}
+
 /* Does "expr" represent an access to a scalar, i.e., a zero-dimensional array,
  * not part of any struct?
  */
@@ -2771,15 +2793,8 @@ static __isl_give isl_pw_aff *extract_affine_from_access(
 	int pos;
 	isl_id *id;
 
-	if (pet_expr_is_affine(expr)) {
-		isl_pw_aff *pa;
-		isl_multi_pw_aff *mpa;
-
-		mpa = pet_expr_access_get_index(expr);
-		pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
-		isl_multi_pw_aff_free(mpa);
-		return pa;
-	}
+	if (pet_expr_is_affine(expr))
+		return pet_expr_get_affine(expr);
 
 	if (pet_expr_get_type_size(expr) == 0)
 		return non_affine(pet_context_get_space(pc));
