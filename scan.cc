@@ -1,7 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
- * Copyright 2015      Sven Verdoolaege. All rights reserved.
+ * Copyright 2015-2016 Sven Verdoolaege. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -2071,6 +2071,12 @@ __isl_give pet_tree *PetScan::insert_initial_declarations(
  * such that no extra kill will be introduced at the end of the (partial)
  * block.  If, on the other hand, the final range contains
  * no statements, then we discard the entire range.
+ * If only a subrange of the sequence was extracted, but each statement
+ * in the sequence was extracted completely, and if there are some
+ * variable declarations in the sequence before or inside
+ * the extracted subrange, then check if any of these variables are
+ * not used after the extracted subrange.  If so, add kills to these
+ * variables.
  *
  * If the entire range was extracted, apart from some initial declarations,
  * then we try and extend the range with the latest of those initial
@@ -2083,7 +2089,11 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	int j, skip;
 	bool has_kills = false;
 	bool partial_range = false;
+	bool outer_partial = false;
 	pet_tree *tree;
+	SourceManager &SM = PP.getSourceManager();
+	pet_killed_locals kl(SM);
+	unsigned range_start, range_end;
 
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j)
 		;
@@ -2096,6 +2106,8 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 		for (; i != stmt_range.second; ++i) {
 			if ((*i)->getStmtClass() != Stmt::DeclStmtClass)
 				break;
+			if (options->autodetect)
+				kl.add_locals(cast<DeclStmt>(*i));
 			++skip;
 		}
 
@@ -2108,16 +2120,25 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 			pet_tree_free(tree_i);
 			break;
 		}
-		if (tree_i && child->getStmtClass() == Stmt::DeclStmtClass &&
-		    block)
-			has_kills = true;
+		if (child->getStmtClass() == Stmt::DeclStmtClass) {
+			if (options->autodetect)
+				kl.add_locals(cast<DeclStmt>(child));
+			if (tree_i && block)
+				has_kills = true;
+		}
 		if (options->autodetect) {
-			if (tree_i)
+			if (tree_i) {
+				range_end = getExpansionOffset(SM,
+							child->getLocEnd());
+				if (pet_tree_block_n_child(tree) == 0)
+					range_start = getExpansionOffset(SM,
+							child->getLocStart());
 				tree = pet_tree_block_add_child(tree, tree_i);
-			else
+			} else {
 				partial_range = true;
+			}
 			if (pet_tree_block_n_child(tree) != 0 && !tree_i)
-				partial = true;
+				outer_partial = partial = true;
 		} else {
 			tree = pet_tree_block_add_child(tree, tree_i);
 		}
@@ -2132,6 +2153,11 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	if (partial) {
 		if (has_kills)
 			tree = pet_tree_block_set_block(tree, 0);
+		if (outer_partial) {
+			kl.remove_accessed_after(parent,
+						 range_start, range_end);
+			tree = add_kills(tree, kl.locals);
+		}
 	} else if (partial_range) {
 		if (pet_tree_block_n_child(tree) == 0) {
 			pet_tree_free(tree);
