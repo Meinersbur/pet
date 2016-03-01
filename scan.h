@@ -191,7 +191,7 @@ private:
 	__isl_give pet_tree *extract(clang::Stmt *stmt,
 		bool skip_declarations = false);
 	__isl_give pet_tree *extract(clang::StmtRange stmt_range, bool block,
-		bool skip_declarations);
+		bool skip_declarations, clang::Stmt *parent);
 	__isl_give pet_tree *extract(clang::IfStmt *stmt);
 	__isl_give pet_tree *extract(clang::WhileStmt *stmt);
 	__isl_give pet_tree *extract(clang::CompoundStmt *stmt,

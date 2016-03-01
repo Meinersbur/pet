@@ -1579,7 +1579,7 @@ __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 
 	saved_declarations = declarations;
 	declarations.clear();
-	tree = extract(stmt->children(), true, skip_declarations);
+	tree = extract(stmt->children(), true, skip_declarations, stmt);
 	for (it = declarations.begin(); it != declarations.end(); ++it) {
 		isl_id *id;
 		pet_expr *expr;
@@ -2062,6 +2062,7 @@ __isl_give pet_tree *PetScan::insert_initial_declarations(
  * a compound statement.
  * "skip_declarations" is set if we should skip initial declarations
  * in the sequence of statements.
+ * "parent" is the statement that has stmt_range as (some of) its children.
  *
  * If autodetect is set, then we allow the extraction of only a subrange
  * of the sequence of statements.  However, if there is at least one
@@ -2076,7 +2077,7 @@ __isl_give pet_tree *PetScan::insert_initial_declarations(
  * declarations.
  */
 __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
-	bool skip_declarations)
+	bool skip_declarations, Stmt *parent)
 {
 	StmtIterator i;
 	int j, skip;
@@ -2446,7 +2447,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 
 	kl.remove_accessed_after(stmt, loc.start, loc.end);
 
-	tree = extract(StmtRange(start, end), false, false);
+	tree = extract(StmtRange(start, end), false, false, stmt);
 	tree = add_kills(tree, kl.locals);
 	return extract_scop(tree);
 }
