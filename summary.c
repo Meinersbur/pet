@@ -362,10 +362,9 @@ __isl_give isl_printer *pet_function_summary_print(
 	return p;
 }
 
-/* Dump "summary" to stderr with indentation "indent".
+/* Dump "summary" to stderr.
  */
-void pet_function_summary_dump_with_indent(
-	__isl_keep pet_function_summary *summary, int indent)
+void pet_function_summary_dump(__isl_keep pet_function_summary *summary)
 {
 	isl_printer *p;
 
@@ -373,14 +372,8 @@ void pet_function_summary_dump_with_indent(
 		return;
 
 	p = isl_printer_to_file(pet_function_summary_get_ctx(summary), stderr);
-	p = isl_printer_set_indent(p, indent);
 	p = isl_printer_set_yaml_style(p, ISL_YAML_STYLE_BLOCK);
 	p = pet_function_summary_print(summary, p);
 
 	isl_printer_free(p);
-}
-
-void pet_function_summary_dump(__isl_keep pet_function_summary *summary)
-{
-	pet_function_summary_dump_with_indent(summary, 0);
 }
