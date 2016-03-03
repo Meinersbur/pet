@@ -3489,10 +3489,18 @@ error:
 	return NULL;
 }
 
-void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
+/* Dump the arguments of "expr" to stderr with indentation "indent".
+ */
+static void dump_arguments(__isl_keep pet_expr *expr, int indent)
 {
 	int i;
 
+	for (i = 0; i < expr->n_arg; ++i)
+		pet_expr_dump_with_indent(expr->args[i], indent);
+}
+
+void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
+{
 	if (!expr)
 		return;
 
@@ -3536,18 +3544,15 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 			isl_union_map_dump(
 				expr->acc.access[pet_expr_access_must_write]);
 		}
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
+		dump_arguments(expr, indent + 2);
 		break;
 	case pet_expr_op:
 		fprintf(stderr, "%s\n", op_str[expr->op]);
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
+		dump_arguments(expr, indent + 2);
 		break;
 	case pet_expr_call:
 		fprintf(stderr, "%s/%d\n", expr->c.name, expr->n_arg);
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
+		dump_arguments(expr, indent + 2);
 		if (expr->c.summary) {
 			fprintf(stderr, "%*s", indent, "");
 			fprintf(stderr, "summary:\n");
@@ -3557,8 +3562,7 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 		break;
 	case pet_expr_cast:
 		fprintf(stderr, "(%s)\n", expr->type_name);
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
+		dump_arguments(expr, indent + 2);
 		break;
 	case pet_expr_error:
 		fprintf(stderr, "ERROR\n");
