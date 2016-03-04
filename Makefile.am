@@ -68,6 +68,8 @@ libpet_la_SOURCES = \
 	id.cc \
 	inliner.h \
 	inliner.cc \
+	killed_locals.h \
+	killed_locals.cc \
 	loc.h \
 	loc.c \
 	nest.h \
