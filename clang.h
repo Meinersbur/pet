@@ -7,6 +7,7 @@
 #include <clang/AST/Type.h>
 
 clang::QualType pet_clang_base_type(clang::QualType qt);
+int pet_clang_array_depth(const clang::QualType qt);
 clang::RecordDecl *pet_clang_record_decl(clang::QualType T);
 clang::Expr *pet_clang_strip_casts(clang::Expr *expr);
 int pet_clang_get_type_size(clang::QualType qt, clang::ASTContext &ast_context);

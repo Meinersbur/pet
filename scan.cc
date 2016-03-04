@@ -458,23 +458,6 @@ __isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 	return extract_index_expr(expr->getSubExpr());
 }
 
-/* Return the depth of an array of the given type.
- */
-static int array_depth(QualType qt)
-{
-	const Type *type = qt.getTypePtr();
-
-	if (type->isPointerType())
-		return 1 + array_depth(type->getPointeeType());
-	if (type->isArrayType()) {
-		const ArrayType *atype;
-		type = type->getCanonicalTypeInternal().getTypePtr();
-		atype = cast<ArrayType>(type);
-		return 1 + array_depth(atype->getElementType());
-	}
-	return 0;
-}
-
 /* Return the depth of the array accessed by the index expression "index".
  * If "index" is an affine expression, i.e., if it does not access
  * any array, then return 1.
@@ -515,7 +498,7 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 
-	return array_depth(decl->getType());
+	return pet_clang_array_depth(decl->getType());
 }
 
 /* Return the depth of the array accessed by the access expression "expr".
@@ -947,7 +930,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	res = extract_expr(expr);
 	if (!res)
 		return NULL;
-	if (array_depth(expr->getType()) > 0)
+	if (pet_clang_array_depth(expr->getType()) > 0)
 		is_partial = 1;
 	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
@@ -1851,7 +1834,7 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 		int is_addr = 0;
 
 		arg = call->getArg(i);
-		if (array_depth(type) == 0) {
+		if (pet_clang_array_depth(type) == 0) {
 			string name = parm->getName().str();
 			if (name_in_use(name, NULL))
 				name = generate_new_name(name);
@@ -2289,7 +2272,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 		isl_union_set *data_set;
 		isl_union_set *may_read_i, *may_write_i, *must_write_i;
 
-		if (array_depth(type) == 0)
+		if (pet_clang_array_depth(type) == 0)
 			continue;
 
 		array = body_scan.extract_array(parm, NULL, pc);
@@ -2530,7 +2513,7 @@ bool killed_locals::check_decl_in_expr(Expr *expr)
 		return true;
 
 	expr_end = getExpansionOffset(SM, ref->getLocEnd());
-	depth = array_depth(expr->getType());
+	depth = pet_clang_array_depth(expr->getType());
 	if (loc >= scop_end || loc <= old_addr_end || depth != 0)
 		locals.erase(decl);
 	if (loc >= scop_start && loc <= scop_end)
@@ -2821,7 +2804,7 @@ __isl_give pet_expr *PetScan::get_array_size(QualType qt)
 	if (type_size.find(type) != type_size.end())
 		return pet_expr_copy(type_size[type]);
 
-	depth = array_depth(qt);
+	depth = pet_clang_array_depth(qt);
 	inf = pet_expr_new_int(isl_val_infty(ctx));
 	expr = pet_expr_new_call(ctx, "bounds", depth);
 	for (int i = 0; i < depth; ++i)
@@ -2937,7 +2920,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 {
 	struct pet_array *array;
 	QualType qt = pet_id_get_array_type(id);
-	int depth = array_depth(qt);
+	int depth = pet_clang_array_depth(qt);
 	QualType base = pet_clang_base_type(qt);
 	string name;
 	isl_space *space;

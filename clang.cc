@@ -116,3 +116,20 @@ FunctionDecl *pet_clang_find_function_decl_with_body(FunctionDecl *fd)
 
 	return const_cast<FunctionDecl *>(def);
 }
+
+/* Return the depth of an array of the given type.
+ */
+int pet_clang_array_depth(QualType qt)
+{
+	const Type *type = qt.getTypePtr();
+
+	if (type->isPointerType())
+		return 1 + pet_clang_array_depth(type->getPointeeType());
+	if (type->isArrayType()) {
+		const ArrayType *atype;
+		type = type->getCanonicalTypeInternal().getTypePtr();
+		atype = cast<ArrayType>(type);
+		return 1 + pet_clang_array_depth(atype->getElementType());
+	}
+	return 0;
+}
