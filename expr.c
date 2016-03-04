@@ -211,18 +211,18 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 
 /* Does the access expression "expr" have any explicit access relation?
  */
-static int has_any_access_relation(__isl_keep pet_expr *expr)
+isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr)
 {
 	enum pet_expr_access_type type;
 
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 
 	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type)
 		if (expr->acc.access[type])
-			return 1;
+			return isl_bool_true;
 
-	return 0;
+	return isl_bool_false;
 }
 
 /* Are all relevant access relations explicitly available in "expr"?
@@ -262,7 +262,7 @@ __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 		return NULL;
 	if (expr->acc.depth == depth)
 		return expr;
-	if (has_any_access_relation(expr))
+	if (pet_expr_access_has_any_access_relation(expr))
 		isl_die(pet_expr_get_ctx(expr), isl_error_unsupported,
 			"depth cannot be changed after access relation "
 			"has been set or computed", return pet_expr_free(expr));
@@ -1629,7 +1629,7 @@ __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	if (!has_any_access_relation(expr))
+	if (!pet_expr_access_has_any_access_relation(expr))
 		return expr;
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);

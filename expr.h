@@ -179,6 +179,7 @@ __isl_give isl_space *pet_expr_access_get_domain_space(
 	__isl_keep pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr);
 
+isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr);
 __isl_give isl_union_map *pet_expr_access_get_dependent_access(
 	__isl_keep pet_expr *expr, enum pet_expr_access_type type);
 __isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr);
