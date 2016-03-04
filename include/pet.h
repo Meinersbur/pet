@@ -171,13 +171,13 @@ int pet_expr_is_affine(__isl_keep pet_expr *expr);
 int pet_expr_access_is_read(__isl_keep pet_expr *expr);
 /* Does the access expression "expr" write to the accessed elements? */
 int pet_expr_access_is_write(__isl_keep pet_expr *expr);
-/* Mark "expr" as a read dependening on "read". */
+/* Mark "expr" as a read depending on "read". */
 __isl_give pet_expr *pet_expr_access_set_read(__isl_take pet_expr *expr,
 	int read);
-/* Mark "expr" as a write dependening on "write". */
+/* Mark "expr" as a write depending on "write". */
 __isl_give pet_expr *pet_expr_access_set_write(__isl_take pet_expr *expr,
 	int write);
-/* Mark "expr" as a kill dependening on "kill". */
+/* Mark "expr" as a kill depending on "kill". */
 __isl_give pet_expr *pet_expr_access_set_kill(__isl_take pet_expr *expr,
 	int kill);
 /* Return the reference identifier of access expression "expr". */
