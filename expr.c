@@ -823,18 +823,18 @@ int pet_expr_is_max(__isl_keep pet_expr *expr)
 /* Does "expr" represent an access to an unnamed space, i.e.,
  * does it represent an affine expression?
  */
-int pet_expr_is_affine(__isl_keep pet_expr *expr)
+isl_bool pet_expr_is_affine(__isl_keep pet_expr *expr)
 {
 	int has_id;
 
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 	if (expr->type != pet_expr_access)
-		return 0;
+		return isl_bool_false;
 
 	has_id = isl_multi_pw_aff_has_tuple_id(expr->acc.index, isl_dim_out);
 	if (has_id < 0)
-		return -1;
+		return isl_bool_error;
 
 	return !has_id;
 }
@@ -1045,26 +1045,26 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 
 /* Does the access expression "expr" read the accessed elements?
  */
-int pet_expr_access_is_read(__isl_keep pet_expr *expr)
+isl_bool pet_expr_access_is_read(__isl_keep pet_expr *expr)
 {
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return -1);
+			"not an access expression", return isl_bool_error);
 
 	return expr->acc.read;
 }
 
 /* Does the access expression "expr" write to the accessed elements?
  */
-int pet_expr_access_is_write(__isl_keep pet_expr *expr)
+isl_bool pet_expr_access_is_write(__isl_keep pet_expr *expr)
 {
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return -1);
+			"not an access expression", return isl_bool_error);
 
 	return expr->acc.write;
 }

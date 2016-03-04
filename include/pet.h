@@ -166,11 +166,11 @@ __isl_give pet_expr *pet_expr_op_set_type(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_from_index(__isl_take isl_multi_pw_aff *index);
 
 /* Does "expr" represent an affine expression? */
-int pet_expr_is_affine(__isl_keep pet_expr *expr);
+isl_bool pet_expr_is_affine(__isl_keep pet_expr *expr);
 /* Does the access expression "expr" read the accessed elements? */
-int pet_expr_access_is_read(__isl_keep pet_expr *expr);
+isl_bool pet_expr_access_is_read(__isl_keep pet_expr *expr);
 /* Does the access expression "expr" write to the accessed elements? */
-int pet_expr_access_is_write(__isl_keep pet_expr *expr);
+isl_bool pet_expr_access_is_write(__isl_keep pet_expr *expr);
 /* Mark "expr" as a read depending on "read". */
 __isl_give pet_expr *pet_expr_access_set_read(__isl_take pet_expr *expr,
 	int read);
