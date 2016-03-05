@@ -150,7 +150,7 @@ static __isl_give pet_expr *substitute_access(__isl_take pet_expr *expr,
 	void *user)
 {
 	pet_substituter *substituter = (pet_substituter *) user;
-	int i, n, expr_n_arg;
+	int n, expr_n_arg;
 	int is_addr = 0;
 	isl_id *id;
 	isl_multi_pw_aff *index;

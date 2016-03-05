@@ -24,16 +24,20 @@ TEST_EXTENSIONS = .sh
 
 include_HEADERS = include/pet.h
 
+BUILT_SOURCES = \
+	gitversion.h
+
 CLEANFILES = \
+	test.scop \
 	gitversion.h \
-	test.scop
+	isl.py
 
 DISTCLEANFILES = \
+	test.c \
 	pet-uninstalled.sh \
 	pet-uninstalled.pc \
 	pet.pc \
-	pet.pc.in \
-	test.c
+	pet.pc.in
 
 EXTRA_DIST = \
 	interface/isl.py.top \
@@ -98,7 +102,7 @@ libpet_la_SOURCES = \
 	version.h \
 	version.cc \
 	pet.cc
-libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
+libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS) $(CLANG_RFLAG)
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema \
 	$(LIB_CLANG_EDIT) -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
@@ -144,7 +148,7 @@ isl.py: interface/isl.py.top
 			> isl.py
 
 dist-hook: isl.py
-	cp isl.py $(distdir)/
+	cp $< $(distdir)/
 	echo @GIT_HEAD_VERSION@ > $(distdir)/GIT_HEAD_ID
 
 gitversion.h: @GIT_HEAD@

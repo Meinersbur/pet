@@ -784,7 +784,7 @@ __isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
 		n = group.size();
 		tree = pet_tree_new_block(ctx, 0, n);
 
-		for (int i = 0; i < n; ++i) {
+		for (unsigned i = 0; i < n; ++i) {
 			pet_tree *tree_i;
 			pet_loc *loc;
 
@@ -806,7 +806,6 @@ __isl_give pet_tree *PetScan::extract(DeclStmt *stmt)
 __isl_give pet_expr *PetScan::extract_expr(ConditionalOperator *expr)
 {
 	pet_expr *cond, *lhs, *rhs;
-	isl_pw_aff *pa;
 
 	cond = extract_expr(expr->getCond());
 	lhs = extract_expr(expr->getTrueExpr());
@@ -1068,7 +1067,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	if (!res)
 		return NULL;
 
-	for (int i = 0; i < n_arg; ++i) {
+	for (unsigned i = 0; i < n_arg; ++i) {
 		Expr *arg = expr->getArg(i);
 		res = pet_expr_set_arg(res, i,
 			    PetScan::extract_argument(fd, i, arg, !is_kill));
@@ -1427,7 +1426,6 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	Expr *lhs, *rhs;
 	ValueDecl *iv;
 	pet_tree *tree;
-	struct pet_scop *scop;
 	int independent;
 	int declared;
 	pet_expr *pe_init, *pe_inc, *pe_iv, *pe_cond;
@@ -1750,8 +1748,6 @@ __isl_give pet_tree *PetScan::extract(IfStmt *stmt)
 {
 	pet_expr *pe_cond;
 	pet_tree *tree, *tree_else;
-	struct pet_scop *scop;
-	int int_size;
 
 	pe_cond = extract_expr(stmt->getCond());
 	tree = extract(stmt->getThen());
@@ -1845,7 +1841,7 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 	unsigned n;
 
 	n = fd->getNumParams();
-	for (int i = 0; i < n; ++i) {
+	for (unsigned i = 0; i < n; ++i) {
 		ParmVarDecl *parm = fd->getParamDecl(i);
 		QualType type = parm->getType();
 		Expr *arg, *sub;
@@ -2248,7 +2244,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 
 	n = fd->getNumParams();
 	summary = pet_function_summary_alloc(ctx, n);
-	for (int i = 0; i < n; ++i) {
+	for (unsigned i = 0; i < n; ++i) {
 		ParmVarDecl *parm = fd->getParamDecl(i);
 		QualType type = parm->getType();
 		isl_id *id;
@@ -2283,7 +2279,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	to_inner = pet_scop_compute_outer_to_inner(scop);
 	pet_scop_free(scop);
 
-	for (int i = 0; i < n; ++i) {
+	for (unsigned i = 0; i < n; ++i) {
 		ParmVarDecl *parm = fd->getParamDecl(i);
 		QualType type = parm->getType();
 		struct pet_array *array;
@@ -2468,7 +2464,7 @@ void killed_locals::add_locals(DeclStmt *stmt)
 	} else {
 		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
 		unsigned n = group.size();
-		for (int i = 0; i < n; ++i)
+		for (unsigned i = 0; i < n; ++i)
 			add_local(group[i]);
 	}
 }
@@ -3346,7 +3342,7 @@ void PetScan::set_current_stmt(Stmt *stmt)
  */
 bool PetScan::is_current_stmt_marked_independent()
 {
-	for (int i = 0; i < independent.size(); ++i) {
+	for (unsigned i = 0; i < independent.size(); ++i) {
 		unsigned line = independent[i].line;
 
 		if (last_line < line && line < current_line)

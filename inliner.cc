@@ -99,7 +99,7 @@ void pet_inliner::add_array_arg(ValueDecl *decl, __isl_take pet_expr *expr,
 {
 	isl_id *id;
 
-	for (int j = 0; j < expr->n_arg; ++j) {
+	for (unsigned j = 0; j < expr->n_arg; ++j) {
 		pet_expr *var;
 		QualType type = ast_context.IntTy;
 
@@ -124,7 +124,7 @@ __isl_give pet_tree *pet_inliner::inline_tree(__isl_take pet_tree *tree)
 
 	block = pet_tree_new_block(ctx, 1, n);
 
-	for (int i = 0; i < assignments.size(); ++i) {
+	for (unsigned i = 0; i < assignments.size(); ++i) {
 		pet_tree *tree_i;
 
 		expr = pet_expr_copy(assignments[i].first);

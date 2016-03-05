@@ -143,10 +143,11 @@ struct PetScan {
 		clang::DeclContext *decl_context, ScopLoc &loc,
 		pet_options *options, __isl_take isl_union_map *value_bounds,
 		std::vector<Independent> &independent) :
-		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
+		PP(PP),
 		ast_context(ast_context), decl_context(decl_context), loc(loc),
-		options(options), value_bounds(value_bounds),
-		partial(false), last_line(0), current_line(0),
+		ctx(isl_union_map_get_ctx(value_bounds)),
+		options(options), partial(false), value_bounds(value_bounds),
+		last_line(0), current_line(0),
 		independent(independent), n_rename(0),
 		declared_names_collected(false), n_arg(0) { }
 

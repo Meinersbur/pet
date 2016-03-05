@@ -35,9 +35,11 @@ Requirements:
 	are not supported.
 
 	Also, if you are following the instructions on how to build
-	the svn version, make sure you also install LLVM
+	from source, make sure you also install LLVM
 	(through "make install").  You may want to specify an installation
-	directory using the --prefix configure option.
+	directory using the CMAKE_INSTALL_PREFIX cmake option.
+	You may also want to set the LLVM_BUILD_LLVM_DYLIB option
+	to enable the creation of a single shared library.
 
 	If you configure older versions of LLVM using cmake, you may end up
 	with clang libraries that have been compiled with -fno-rtti without
@@ -59,8 +61,7 @@ automake and libtool.
 
 	git clone git://repo.or.cz/pet.git
 	cd pet
-	git submodule init
-	git submodule update
+	./get_submodules.sh
 	./autogen.sh
 
 Compilation:

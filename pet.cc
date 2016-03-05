@@ -149,7 +149,7 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 	isl_union_map *value_bounds;
 
 	PragmaValueBoundsHandler(isl_ctx *ctx, Sema &sema) :
-	    PragmaHandler("value_bounds"), ctx(ctx), sema(sema) {
+	    PragmaHandler("value_bounds"), sema(sema), ctx(ctx) {
 		isl_space *space = isl_space_params_alloc(ctx, 0);
 		value_bounds = isl_union_map_empty(space);
 	}
@@ -569,8 +569,9 @@ struct PetASTConsumer : public ASTConsumer {
 		DiagnosticsEngine &diags, ScopLocList &scops,
 		const char *function, pet_options *options,
 		int (*fn)(struct pet_scop *scop, void *user), void *user) :
-		ctx(ctx), PP(PP), ast_context(ast_context), diags(diags),
+		PP(PP), ast_context(ast_context), diags(diags),
 		scops(scops), function(function), options(options),
+		ctx(ctx),
 		vb_handler(NULL), fn(fn), user(user), error(false)
 	{
 		isl_space *space;
@@ -720,12 +721,12 @@ static const char *pencil_implicit_functions[] = {
 static bool is_implicit(const IdentifierInfo *ident, int pencil)
 {
 	const char *name = ident->getNameStart();
-	for (int i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
 		if (!strcmp(name, implicit_functions[i]))
 			return true;
 	if (!pencil)
 		return false;
-	for (int i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
 		if (!strcmp(name, pencil_implicit_functions[i]))
 			return true;
 	return false;

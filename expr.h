@@ -11,36 +11,23 @@
 extern "C" {
 #endif
 
-/* d is valid when type == pet_expr_double
- * i isl valid when type == pet_expr_int
- * acc is valid when type == pet_expr_access
- * c is valid when type == pet_expr_call
- * type is valid when type == pet_expr_cast
- * op is valid otherwise
+/* Representation of access expression.
  *
- * If type_size is not zero, then the expression is of an integer type
- * and type_size represents the size of the type in bits.
- * If type_size is greater than zero, then the type is unsigned
- * and the number of bits is equal to type_size.
- * If type_size is less than zero, then the type is signed
- * and the number of bits is equal to -type_size.
- * type_size may also be zero if the size is (still) unknown.
- *
- * For each access expression inside the body of a statement, acc.ref_id
+ * For each access expression inside the body of a statement, "ref_id"
  * is a unique reference identifier.
- * acc.index represents the index expression, while acc.access
+ * "index" represents the index expression, while "access"
  * represents the corresponding access relations.
  * The output dimension of the index expression may be smaller
  * than the number of dimensions of the accessed array (recorded
- * in acc.depth).
+ * in "depth").
  * The target space of the access relation, on the other hand,
  * is equal to the array space.
- * The entries in acc.access may be NULL if they can be derived directly from
- * acc.index and acc.depth in construct_access_relation or if they are
+ * The entries in "access" may be NULL if they can be derived directly from
+ * "index" and "depth" in construct_access_relation or if they are
  * irrelevant for the given type of access.
- * In particular, the entries of acc.access may be NULL if there are
+ * In particular, the entries of "access" may be NULL if there are
  * no additional constraints on the access relations.
- * Both acc.index and the acc.access entries usually map an iteration space
+ * Both "index" and the "access" entries usually map an iteration space
  * to a (partial) data space.
  * If the access has arguments, however, then the domain of the
  * mapping is a wrapped mapping from the iteration space
@@ -67,13 +54,49 @@ extern "C" {
  * killed array elements.  Such accesses are marked neither read nor write.
  * Since a kill can never be a read (or a write), the killed access
  * relation is stored in the same location as the may read access relation.
+ */
+struct pet_expr_access {
+	isl_id *ref_id;
+	isl_multi_pw_aff *index;
+	int depth;
+	unsigned read : 1;
+	unsigned write : 1;
+	unsigned kill : 1;
+	isl_union_map *access[pet_expr_access_end];
+};
+/* Representation of call expression.
  *
  * A function call is represented by the name of the called function and
  * an optional function summary (the value NULL indicating that there is
  * no function summary).
+ */
+struct pet_expr_call {
+	char *name;
+	pet_function_summary *summary;
+};
+/* Representation of double expression.
  *
  * A double is represented as both an (approximate) value "val" and
  * a string representation "s".
+ */
+struct pet_expr_double {
+	double val;
+	char *s;
+};
+/* d is valid when type == pet_expr_double
+ * i isl valid when type == pet_expr_int
+ * acc is valid when type == pet_expr_access
+ * c is valid when type == pet_expr_call
+ * type is valid when type == pet_expr_cast
+ * op is valid otherwise
+ *
+ * If type_size is not zero, then the expression is of an integer type
+ * and type_size represents the size of the type in bits.
+ * If type_size is greater than zero, then the type is unsigned
+ * and the number of bits is equal to type_size.
+ * If type_size is less than zero, then the type is signed
+ * and the number of bits is equal to -type_size.
+ * type_size may also be zero if the size is (still) unknown.
  */
 struct pet_expr {
 	int ref;
@@ -87,25 +110,11 @@ struct pet_expr {
 	pet_expr **args;
 
 	union {
-		struct {
-			isl_id *ref_id;
-			isl_multi_pw_aff *index;
-			int depth;
-			unsigned read : 1;
-			unsigned write : 1;
-			unsigned kill : 1;
-			isl_union_map *access[pet_expr_access_end];
-		} acc;
+		struct pet_expr_access acc;
 		enum pet_op_type op;
-		struct {
-			char *name;
-			pet_function_summary *summary;
-		} c;
+		struct pet_expr_call c;
 		char *type_name;
-		struct {
-			double val;
-			char *s;
-		} d;
+		struct pet_expr_double d;
 		isl_val *i;
 	};
 };
