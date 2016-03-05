@@ -1024,6 +1024,8 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
 	for (int i = 0; i < options->n_define; ++i)
 		PO.addMacroDef(options->defines[i]);
+        for (int i = 0; i < options->n_include_file; ++i)
+            PO.Includes.push_back(options->include_files[i]);
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 	add_predefines(PP, options->pencil);
