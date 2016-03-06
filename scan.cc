@@ -460,15 +460,17 @@ __isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 
 /* Return the depth of an array of the given type.
  */
-static int array_depth(const Type *type)
+static int array_depth(QualType qt)
 {
+	const Type *type = qt.getTypePtr();
+
 	if (type->isPointerType())
-		return 1 + array_depth(type->getPointeeType().getTypePtr());
+		return 1 + array_depth(type->getPointeeType());
 	if (type->isArrayType()) {
 		const ArrayType *atype;
 		type = type->getCanonicalTypeInternal().getTypePtr();
 		atype = cast<ArrayType>(type);
-		return 1 + array_depth(atype->getElementType().getTypePtr());
+		return 1 + array_depth(atype->getElementType());
 	}
 	return 0;
 }
@@ -513,7 +515,7 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 
-	return array_depth(decl->getType().getTypePtr());
+	return array_depth(decl->getType());
 }
 
 /* Return the depth of the array accessed by the access expression "expr".
@@ -945,7 +947,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	res = extract_expr(expr);
 	if (!res)
 		return NULL;
-	if (array_depth(expr->getType().getTypePtr()) > 0)
+	if (array_depth(expr->getType()) > 0)
 		is_partial = 1;
 	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
@@ -1849,7 +1851,7 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 		int is_addr = 0;
 
 		arg = call->getArg(i);
-		if (array_depth(type.getTypePtr()) == 0) {
+		if (array_depth(type) == 0) {
 			string name = parm->getName().str();
 			if (name_in_use(name, NULL))
 				name = generate_new_name(name);
@@ -2174,12 +2176,12 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 {
 	PetScan *ps = (PetScan *) user;
 	isl_id *id;
-	const Type *type;
+	QualType qt;
 
 	id = pet_expr_access_get_id(access);
-	type = pet_id_get_array_type(id).getTypePtr();
+	qt = pet_id_get_array_type(id);
 	isl_id_free(id);
-	return ps->get_array_size(type);
+	return ps->get_array_size(qt);
 }
 
 /* Construct and return a pet_array corresponding to the variable
@@ -2287,7 +2289,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 		isl_union_set *data_set;
 		isl_union_set *may_read_i, *may_write_i, *must_write_i;
 
-		if (array_depth(type.getTypePtr()) == 0)
+		if (array_depth(type) == 0)
 			continue;
 
 		array = body_scan.extract_array(parm, NULL, pc);
@@ -2528,7 +2530,7 @@ bool killed_locals::check_decl_in_expr(Expr *expr)
 		return true;
 
 	expr_end = getExpansionOffset(SM, ref->getLocEnd());
-	depth = array_depth(expr->getType().getTypePtr());
+	depth = array_depth(expr->getType());
 	if (loc >= scop_end || loc <= old_addr_end || depth != 0)
 		locals.erase(decl);
 	if (loc >= scop_start && loc <= scop_end)
@@ -2717,35 +2719,37 @@ error:
 
 #ifdef HAVE_DECAYEDTYPE
 
-/* If "type" is a decayed type, then set *decayed to true and
+/* If "qt" is a decayed type, then set *decayed to true and
  * return the original type.
  */
-static const Type *undecay(const Type *type, bool *decayed)
+static QualType undecay(QualType qt, bool *decayed)
 {
+	const Type *type = qt.getTypePtr();
+
 	*decayed = isa<DecayedType>(type);
 	if (*decayed)
-		type = cast<DecayedType>(type)->getOriginalType().getTypePtr();
-	return type;
+		qt = cast<DecayedType>(type)->getOriginalType();
+	return qt;
 }
 
 #else
 
-/* If "type" is a decayed type, then set *decayed to true and
+/* If "qt" is a decayed type, then set *decayed to true and
  * return the original type.
  * Since this version of clang does not define a DecayedType,
  * we cannot obtain the original type even if it had been decayed and
  * we set *decayed to false.
  */
-static const Type *undecay(const Type *type, bool *decayed)
+static QualType undecay(QualType qt, bool *decayed)
 {
 	*decayed = false;
-	return type;
+	return qt;
 }
 
 #endif
 
 /* Figure out the size of the array at position "pos" and all
- * subsequent positions from "type" and update the corresponding
+ * subsequent positions from "qt" and update the corresponding
  * argument of "expr" accordingly.
  *
  * The initial type (when pos is zero) may be a pointer type decayed
@@ -2756,7 +2760,7 @@ static const Type *undecay(const Type *type, bool *decayed)
  * take the outer array size into account if it was marked static.
  */
 __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
-	const Type *type, int pos)
+	QualType qt, int pos)
 {
 	const ArrayType *atype;
 	pet_expr *size;
@@ -2766,36 +2770,36 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 		return NULL;
 
 	if (pos == 0)
-		type = undecay(type, &decayed);
+		qt = undecay(qt, &decayed);
 
-	if (type->isPointerType()) {
-		type = type->getPointeeType().getTypePtr();
-		return set_upper_bounds(expr, type, pos + 1);
+	if (qt->isPointerType()) {
+		qt = qt->getPointeeType();
+		return set_upper_bounds(expr, qt, pos + 1);
 	}
-	if (!type->isArrayType())
+	if (!qt->isArrayType())
 		return expr;
 
-	type = type->getCanonicalTypeInternal().getTypePtr();
-	atype = cast<ArrayType>(type);
+	qt = qt->getCanonicalTypeInternal();
+	atype = cast<ArrayType>(qt.getTypePtr());
 
 	if (decayed && atype->getSizeModifier() != ArrayType::Static) {
-		type = atype->getElementType().getTypePtr();
-		return set_upper_bounds(expr, type, pos + 1);
+		qt = atype->getElementType();
+		return set_upper_bounds(expr, qt, pos + 1);
 	}
 
-	if (type->isConstantArrayType()) {
+	if (qt->isConstantArrayType()) {
 		const ConstantArrayType *ca = cast<ConstantArrayType>(atype);
 		size = extract_expr(ca->getSize());
 		expr = pet_expr_set_arg(expr, pos, size);
-	} else if (type->isVariableArrayType()) {
+	} else if (qt->isVariableArrayType()) {
 		const VariableArrayType *vla = cast<VariableArrayType>(atype);
 		size = extract_expr(vla->getSizeExpr());
 		expr = pet_expr_set_arg(expr, pos, size);
 	}
 
-	type = atype->getElementType().getTypePtr();
+	qt = atype->getElementType();
 
-	return set_upper_bounds(expr, type, pos + 1);
+	return set_upper_bounds(expr, qt, pos + 1);
 }
 
 /* Construct a pet_expr that holds the sizes of an array of the given type.
@@ -2808,22 +2812,23 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
  * The result is stored in the type_size cache so that we can reuse
  * it if this method gets called on the same type again later on.
  */
-__isl_give pet_expr *PetScan::get_array_size(const Type *type)
+__isl_give pet_expr *PetScan::get_array_size(QualType qt)
 {
 	int depth;
 	pet_expr *expr, *inf;
+	const Type *type = qt.getTypePtr();
 
 	if (type_size.find(type) != type_size.end())
 		return pet_expr_copy(type_size[type]);
 
-	depth = array_depth(type);
+	depth = array_depth(qt);
 	inf = pet_expr_new_int(isl_val_infty(ctx));
 	expr = pet_expr_new_call(ctx, "bounds", depth);
 	for (int i = 0; i < depth; ++i)
 		expr = pet_expr_set_arg(expr, i, pet_expr_copy(inf));
 	pet_expr_free(inf);
 
-	expr = set_upper_bounds(expr, type, 0);
+	expr = set_upper_bounds(expr, qt, 0);
 	type_size[type] = pet_expr_copy(expr);
 
 	return expr;
@@ -2846,7 +2851,7 @@ static int is_infty(__isl_keep pet_expr *expr)
 }
 
 /* Figure out the dimensions of an array "array" based on its type
- * "type" and update "array" accordingly.
+ * "qt" and update "array" accordingly.
  *
  * We first construct a pet_expr that holds the sizes of the array
  * in each dimension.  The resulting expression may containing
@@ -2861,7 +2866,7 @@ static int is_infty(__isl_keep pet_expr *expr)
  * then we leave the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
-	const Type *type, __isl_keep pet_context *pc)
+	QualType qt, __isl_keep pet_context *pc)
 {
 	int n;
 	pet_expr *expr;
@@ -2869,7 +2874,7 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	if (!array)
 		return NULL;
 
-	expr = get_array_size(type);
+	expr = get_array_size(qt);
 
 	n = pet_expr_get_n_arg(expr);
 	for (int i = 0; i < n; ++i) {
@@ -2932,8 +2937,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 {
 	struct pet_array *array;
 	QualType qt = pet_id_get_array_type(id);
-	const Type *type = qt.getTypePtr();
-	int depth = array_depth(type);
+	int depth = array_depth(qt);
 	QualType base = pet_clang_base_type(qt);
 	string name;
 	isl_space *space;
@@ -2950,7 +2954,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	space = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(space);
 
-	array = set_upper_bounds(array, type, pc);
+	array = set_upper_bounds(array, qt, pc);
 	if (!array)
 		return NULL;
 
