@@ -178,7 +178,7 @@ private:
 		__isl_keep pet_context *pc);
 	struct pet_array *extract_array(clang::ValueDecl *decl,
 		PetTypes *types, __isl_keep pet_context *pc);
-	struct pet_array *extract_array(__isl_keep isl_id_list *delcs,
+	struct pet_array *extract_array(__isl_keep isl_id_list *decls,
 		PetTypes *types, __isl_keep pet_context *pc);
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		const clang::Type *type, int pos);
