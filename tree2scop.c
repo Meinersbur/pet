@@ -876,9 +876,9 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop_body = pet_scop_reset_context(scop_body);
-	if (expr_inc) {
+	if (expr_inc)
 		scop_body = scop_add_inc(scop_body, expr_inc, loc, pc, state);
-	} else
+	else
 		pet_loc_free(loc);
 	scop_body = pet_scop_reset_skips(scop_body);
 
