@@ -770,7 +770,7 @@ static __isl_give pet_context *apply_affine_continue(__isl_take pet_context *pc,
 	return pc;
 }
 
-/* Add a scop for evaluating the loop increment "inc" add the end
+/* Add a scop for evaluating the loop increment "inc" at the end
  * of a loop body "scop" within the context "pc".
  *
  * The skip conditions resulting from continue statements inside
@@ -1498,7 +1498,7 @@ static struct pet_scop *set_independence(struct pet_scop *scop,
  * check if there even is an upper bound.
  *
  * Wrapping on unsigned iterators can be avoided entirely if
- * loop condition is simple, the loop iterator is incremented
+ * the loop condition is simple, the loop iterator is incremented
  * [decremented] by one and the last value before wrapping cannot
  * possibly satisfy the loop condition.
  *
