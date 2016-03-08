@@ -1,5 +1,5 @@
-start: 74
-end: 216
+start: 87
+end: 229
 indent: '    '
 context: '[N] -> {  : 8 <= N <= 16 }'
 schedule: '{ domain: "[N] -> { S_5[]; S_4[]; S_1[i, j] : i >= 0 and 0 <= j < N; S_0[i,
@@ -22,14 +22,14 @@ arrays:
   element_size: 4
 - context: '{  :  }'
   extent: '[N] -> { i[] }'
-  element_type: int
+  element_type: unsigned int
   element_size: 4
 - context: '{  :  }'
   extent: '[N] -> { j[] }'
   element_type: int
   element_size: 4
 statements:
-- line: 12
+- line: 13
   domain: '[N] -> { S_0[i, j] : i >= 0 and 0 <= j < N }'
   body:
     type: expression
@@ -44,7 +44,7 @@ statements:
         write: 1
       - type: int
         value: 0
-- line: 14
+- line: 15
   domain: '[N] -> { S_1[i, j] : i >= 0 and 0 <= j < N }'
   body:
     type: expression
