@@ -1206,7 +1206,7 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
  * and after the loop.
  */
 static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
-	__isl_keep pet_context *init_pc, __isl_take pet_context *pc,
+	__isl_keep pet_context *pc_init, __isl_take pet_context *pc,
 	struct pet_state *state)
 {
 	int declared;
@@ -1227,7 +1227,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	init = pet_expr_copy(tree->u.l.init);
 	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
 	scop_init = scop_from_expr(init, state->n_stmt++,
-					pet_tree_get_loc(tree), init_pc);
+					pet_tree_get_loc(tree), pc_init);
 
 	expr_iv = pet_expr_copy(tree->u.l.iv);
 	type_size = pet_expr_get_type_size(expr_iv);
@@ -1245,12 +1245,12 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	if (!declared)
 		return scop;
 
-	array = extract_array(tree->u.l.iv, init_pc, state);
+	array = extract_array(tree->u.l.iv, pc_init, state);
 	if (array)
 		array->declared = 1;
-	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
+	scop_kill = kill(pet_tree_get_loc(tree), array, pc_init, state);
 	scop = pet_scop_add_seq(state->ctx, scop_kill, scop);
-	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
+	scop_kill = kill(pet_tree_get_loc(tree), array, pc_init, state);
 	scop_kill = pet_scop_add_array(scop_kill, array);
 	scop = pet_scop_add_seq(state->ctx, scop, scop_kill);
 
