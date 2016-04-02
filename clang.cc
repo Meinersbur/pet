@@ -53,6 +53,27 @@ QualType pet_clang_base_type(QualType qt)
 	return qt;
 }
 
+/* Return the first typedef type that "qt" points to
+ * or the base type if there is no such typedef type.
+ * Do not call getCanonicalTypeInternal as in pet_clang_base_type
+ * because that throws away all internal typedef types.
+ */
+QualType pet_clang_base_or_typedef_type(QualType qt)
+{
+	const Type *type = qt.getTypePtr();
+
+	if (isa<TypedefType>(type))
+		return qt;
+	if (type->isPointerType())
+		return pet_clang_base_type(type->getPointeeType());
+	if (type->isArrayType()) {
+		const ArrayType *atype;
+		atype = cast<ArrayType>(type);
+		return pet_clang_base_type(atype->getElementType());
+	}
+	return qt;
+}
+
 /* Given a record type, return the corresponding RecordDecl.
  */
 RecordDecl *pet_clang_record_decl(QualType T)

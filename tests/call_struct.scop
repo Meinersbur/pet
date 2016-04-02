@@ -6,11 +6,11 @@ schedule: '{ domain: "{ S_0[]; S_2[]; S_1[i] : 0 < i <= 3 }", child: { sequence:
   { filter: "{ S_0[] }" }, { filter: "{ S_1[i] }", child: { schedule: "L_0[{ S_1[i]
   -> [(i)] }]" } }, { filter: "{ S_2[] }" } ] } }'
 types:
-- name: s
-  definition: "struct s {\n    struct s0 c[10];\n}"
 - name: s0
   definition: "struct s0 {\n    struct {\n        int a[10];\n    } f[10];\n    int
     b;\n}"
+- name: s
+  definition: "struct s {\n    struct s0 c[10];\n}"
 arrays:
 - context: '{  :  }'
   extent: '{ s[i0] : 0 <= i0 <= 9 }'

@@ -2728,6 +2728,22 @@ static bool has_printable_definition(RecordDecl *decl)
 	return decl->getLexicalDeclContext() == decl->getDeclContext();
 }
 
+/* Add all TypedefType objects that appear when dereferencing "type"
+ * to "types".
+ */
+static void insert_intermediate_typedefs(PetTypes *types, QualType type)
+{
+	type = pet_clang_base_or_typedef_type(type);
+	while (isa<TypedefType>(type)) {
+		const TypedefType *tt;
+
+		tt = cast<TypedefType>(type);
+		types->insert(tt->getDecl());
+		type = tt->desugar();
+		type = pet_clang_base_or_typedef_type(type);
+	}
+}
+
 /* Construct and return a pet_array corresponding to the variable
  * represented by "id".
  * In particular, initialize array->extent to
@@ -2740,8 +2756,8 @@ static bool has_printable_definition(RecordDecl *decl)
  *
  * If the base type is that of a record with a top-level definition or
  * of a typedef and if "types" is not null, then the RecordDecl or
- * TypedefType corresponding to the type
- * is added to "types".
+ * TypedefType corresponding to the type, as well as any intermediate
+ * TypedefType, is added to "types".
  *
  * If the base type is that of a record with no top-level definition,
  * then we replace it by "<subfield>".
@@ -2775,6 +2791,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	name = base.getAsString();
 
 	if (types) {
+		insert_intermediate_typedefs(types, qt);
 		if (isa<TypedefType>(base)) {
 			types->insert(cast<TypedefType>(base)->getDecl());
 		} else if (base->isRecordType()) {
@@ -2880,7 +2897,8 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	std::set<TypeDecl *> &types_done);
 
 /* For each of the fields of "decl" that is itself a record type
- * or a typedef, add a corresponding pet_type to "scop".
+ * or a typedef, or an array of such type, add a corresponding pet_type
+ * to "scop".
  */
 static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
@@ -2891,6 +2909,7 @@ static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	for (it = decl->field_begin(); it != decl->field_end(); ++it) {
 		QualType type = it->getType();
 
+		type = pet_clang_base_or_typedef_type(type);
 		if (isa<TypedefType>(type)) {
 			TypedefNameDecl *typedefdecl;
 
