@@ -2959,6 +2959,9 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * ourselves since clang does not print the definition of the structure
  * in the typedef.  We also make sure in this case that the types of
  * the fields in the structure are added first.
+ * Since the definition of the structure also gets printed this way,
+ * add it to types_done such that it will not be printed again,
+ * not even without the typedef.
  */
 static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	TypedefNameDecl *decl, Preprocessor &PP, PetTypes &types,
@@ -2981,6 +2984,7 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 		rec->print(S, PrintingPolicy(PP.getLangOpts()));
 		S << " ";
 		S << decl->getName();
+		types_done.insert(rec);
 	} else {
 		decl->print(S, PrintingPolicy(PP.getLangOpts()));
 	}
@@ -3010,6 +3014,11 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * If any of the extracted arrays refers to a member access or
  * has a typedef'd type as base type,
  * then also add the required types to "scop".
+ * The typedef types are printed first because their definitions
+ * may include the definition of a struct and these struct definitions
+ * should not be printed separately.  While the typedef definition
+ * is being printed, the struct is marked as having been printed as well,
+ * such that the later printing of the struct by itself can be prevented.
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	__isl_keep pet_context *pc)
@@ -3060,13 +3069,13 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	if (!scop->types)
 		goto error;
 
-	for (records_it = types.records.begin();
-	     records_it != types.records.end(); ++records_it)
-		scop = add_type(ctx, scop, *records_it, PP, types, types_done);
-
 	for (typedefs_it = types.typedefs.begin();
 	     typedefs_it != types.typedefs.end(); ++typedefs_it)
 		scop = add_type(ctx, scop, *typedefs_it, PP, types, types_done);
+
+	for (records_it = types.records.begin();
+	     records_it != types.records.end(); ++records_it)
+		scop = add_type(ctx, scop, *records_it, PP, types, types_done);
 
 	return scop;
 error:
