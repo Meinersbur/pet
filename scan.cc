@@ -1988,6 +1988,9 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	case Stmt::DeclStmtClass:
 		tree = extract(cast<DeclStmt>(stmt));
 		break;
+	case Stmt::NullStmtClass:
+		tree = pet_tree_new_block(ctx, 0, 0);
+		break;
 	default:
 		report_unsupported_statement_type(stmt);
 		return NULL;
