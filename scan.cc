@@ -1839,6 +1839,7 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 			string name = parm->getName().str();
 			if (name_in_use(name, NULL))
 				name = generate_new_name(name);
+			used_names.insert(name);
 			inliner.add_scalar_arg(parm, name, extract_expr(arg));
 			continue;
 		}
