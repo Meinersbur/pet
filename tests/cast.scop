@@ -1,7 +1,7 @@
 start: 44
 end: 87
 indent: "\t"
-context: '[c] -> {  : c <= 127 and c >= -128 }'
+context: '[c] -> {  : -128 <= c <= 127 }'
 schedule: '{ domain: "[c] -> { S_1[]; S_0[]; S_2[] }", child: { sequence: [ { filter:
   "{ S_0[] }" }, { filter: "{ S_2[]; S_1[] }", child: { set: [ { filter: "{ S_1[]
   }" }, { filter: "{ S_2[] }" } ] } } ] } }'

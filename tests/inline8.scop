@@ -2,12 +2,12 @@ start: 175
 end: 245
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[i, i''] : i >= 0 and i <= 9 and i'' >= 0 and i'' <= 19;
-  S_2[i] : i >= 0 and i <= 9; S_0[i] : i >= 0 and i <= 9; S_1[i] : i >= 0 and i <=
-  9 }", child: { schedule: "L_0[{ S_3[i, i''] -> [(i)]; S_2[i] -> [(i)]; S_1[i] ->
-  [(i)]; S_0[i] -> [(i)] }]", child: { sequence: [ { filter: "{ S_0[i] }" }, { filter:
-  "{ S_1[i] }" }, { filter: "{ S_3[i, i''] }", child: { schedule: "L_1[{ S_3[i, i'']
-  -> [(i'')] }]" } }, { filter: "{ S_2[i] }" } ] } } }'
+schedule: '{ domain: "{ S_3[i, i''] : 0 <= i <= 9 and 0 <= i'' <= 19; S_2[i] : 0 <=
+  i <= 9; S_0[i] : 0 <= i <= 9; S_1[i] : 0 <= i <= 9 }", child: { schedule: "L_0[{
+  S_3[i, i''] -> [(i)]; S_2[i] -> [(i)]; S_1[i] -> [(i)]; S_0[i] -> [(i)] }]", child:
+  { sequence: [ { filter: "{ S_0[i] }" }, { filter: "{ S_1[i] }" }, { filter: "{ S_3[i,
+  i''] }", child: { schedule: "L_1[{ S_3[i, i''] -> [(i'')] }]" } }, { filter: "{
+  S_2[i] }" } ] } } }'
 types:
 - name: s
   definition: "struct s {\n    int a[30][40];\n    int b[50];\n}"
@@ -18,23 +18,23 @@ arrays:
   element_size: 4
   declared: 1
 - context: '{  :  }'
-  extent: '{ s[i0, i1] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1 <= 19 }'
+  extent: '{ s[i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 19 }'
   element_type: struct s
   element_size: 5000
   element_is_record: 1
 - context: '{  :  }'
-  extent: '{ s_a[s[i0, i1] -> a[i2, i3]] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1
-    <= 19 and i2 >= 0 and i3 >= 0 and i2 <= 29 and i3 <= 39 }'
+  extent: '{ s_a[s[i0, i1] -> a[i2, i3]] : 0 <= i0 <= 9 and 0 <= i1 <= 19 and 0 <=
+    i2 <= 29 and 0 <= i3 <= 39 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
-  extent: '{ s_b[s[i0, i1] -> b[i2]] : i0 >= 0 and i1 >= 0 and i0 <= 9 and i1 <= 19
-    and i2 >= 0 and i2 <= 49 }'
+  extent: '{ s_b[s[i0, i1] -> b[i2]] : 0 <= i0 <= 9 and 0 <= i1 <= 19 and 0 <= i2
+    <= 49 }'
   element_type: int
   element_size: 4
 statements:
 - line: -1
-  domain: '{ S_0[i] : i >= 0 and i <= 9 }'
+  domain: '{ S_0[i] : 0 <= i <= 9 }'
   body:
     type: expression
     expr:
@@ -47,7 +47,7 @@ statements:
         reference: __pet_ref_0
         kill: 1
 - line: -1
-  domain: '{ S_1[i] : i >= 0 and i <= 9 }'
+  domain: '{ S_1[i] : 0 <= i <= 9 }'
   body:
     type: expression
     expr:
@@ -65,7 +65,7 @@ statements:
         read: 1
         write: 0
 - line: 11
-  domain: '{ S_3[i, i''] : i >= 0 and i <= 9 and i'' >= 0 and i'' <= 19 }'
+  domain: '{ S_3[i, i''] : 0 <= i <= 9 and 0 <= i'' <= 19 }'
   body:
     type: expression
     expr:
@@ -84,7 +84,7 @@ statements:
           read: 1
           write: 1
 - line: -1
-  domain: '{ S_2[i] : i >= 0 and i <= 9 }'
+  domain: '{ S_2[i] : 0 <= i <= 9 }'
   body:
     type: expression
     expr:

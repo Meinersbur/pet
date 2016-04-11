@@ -15,7 +15,7 @@ arrays:
   element_size: 4
 statements:
 - line: 7
-  domain: '{ [S_0[] -> [test]] : test <= -1 or test >= 1 }'
+  domain: '{ [S_0[] -> [test]] : test < 0 or test > 0 }'
   body:
     type: expression
     expr:

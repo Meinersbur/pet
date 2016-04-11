@@ -2,8 +2,9 @@ start: 22
 end: 45
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_0[t] : t >= 0 }", child: { schedule: "L_0[{ S_0[t] -> [(t)]
-  }]" } }'
+schedule: '{ domain: "{ S_0[t] : t >= 0; S_1[] }", child: { sequence: [ { filter:
+  "{ S_0[t] }", child: { schedule: "L_0[{ S_0[t] -> [(t)] }]" } }, { filter: "{ S_1[]
+  }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -25,3 +26,16 @@ statements:
         write: 1
       - type: int
         value: 5
+- line: -1
+  domain: '{ S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_1[] -> a[] }'
+        index: '{ S_1[] -> a[] }'
+        reference: __pet_ref_1
+        kill: 1

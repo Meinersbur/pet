@@ -9,7 +9,7 @@ schedule: '{ domain: "{ S_3[]; S_0[]; S_5[]; S_6[]; S_4[]; S_1[]; S_2[] }", chil
   } ] } }'
 arrays:
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  extent: '{ a[i0] : 0 <= i0 <= 9 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -93,7 +93,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_4[] -> a[o0] : o0 >= 0 and o0 <= 9 }'
+        killed: '{ S_4[] -> a[o0] : 0 <= o0 <= 9 }'
         index: '{ S_4[] -> a[] }'
         depth: 1
         reference: __pet_ref_5

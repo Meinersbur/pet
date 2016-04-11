@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ * Copyright 2016      Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -42,6 +43,7 @@
 #include "nest.h"
 #include "patch.h"
 #include "tree.h"
+#include "pet_expr_to_isl_pw_aff.h"
 
 /* A pet_context represents the context in which a pet_expr
  * in converted to an affine expression.
@@ -55,6 +57,10 @@
  *
  * If "allow_nested" is set, then the affine expression created
  * in this context may involve new parameters that encode a pet_expr.
+ *
+ * "extracted_affine" caches the results of pet_expr_extract_affine.
+ * It may be NULL if no results have been cached so far and
+ * it is cleared (in pet_context_cow) whenever the context is changed.
  */
 struct pet_context {
 	int ref;
@@ -62,6 +68,8 @@ struct pet_context {
 	isl_set *domain;
 	isl_id_to_pw_aff *assignments;
 	int allow_nested;
+
+	pet_expr_to_isl_pw_aff *extracted_affine;
 };
 
 /* Create a pet_context with the given domain, assignments,
@@ -124,14 +132,22 @@ static __isl_give pet_context *pet_context_dup(__isl_keep pet_context *pc)
 }
 
 /* Return a pet_context that is equal to "pc" and that has only one reference.
+ *
+ * If "pc" itself only has one reference, then clear the cache of
+ * pet_expr_extract_affine results since the returned pet_context
+ * will be modified and the cached results may no longer be valid
+ * after these modifications.
  */
 static __isl_give pet_context *pet_context_cow(__isl_take pet_context *pc)
 {
 	if (!pc)
 		return NULL;
 
-	if (pc->ref == 1)
+	if (pc->ref == 1) {
+		pet_expr_to_isl_pw_aff_free(pc->extracted_affine);
+		pc->extracted_affine = NULL;
 		return pc;
+	}
 	pc->ref--;
 	return pet_context_dup(pc);
 }
@@ -158,8 +174,51 @@ __isl_null pet_context *pet_context_free(__isl_take pet_context *pc)
 
 	isl_set_free(pc->domain);
 	isl_id_to_pw_aff_free(pc->assignments);
+	pet_expr_to_isl_pw_aff_free(pc->extracted_affine);
 	free(pc);
 	return NULL;
+}
+
+/* If an isl_pw_aff corresponding to "expr" has been cached in "pc",
+ * then return a copy of that isl_pw_aff.
+ * Otherwise, return (isl_bool_false, NULL).
+ */
+__isl_give isl_maybe_isl_pw_aff pet_context_get_extracted_affine(
+	__isl_keep pet_context *pc, __isl_keep pet_expr *expr)
+{
+	isl_maybe_isl_pw_aff m = { isl_bool_false, NULL };
+
+	if (!pc)
+		goto error;
+	if (!pc->extracted_affine)
+		return m;
+	return pet_expr_to_isl_pw_aff_try_get(pc->extracted_affine, expr);
+error:
+	m.valid = isl_bool_error;
+	return m;
+}
+
+/* Keep track of the fact that "expr" maps to "pa" in "pc".
+ */
+isl_stat pet_context_set_extracted_affine(__isl_keep pet_context *pc,
+	__isl_keep pet_expr *expr, __isl_keep isl_pw_aff *pa)
+{
+	if (!pc || !expr)
+		return isl_stat_error;
+
+	if (!pc->extracted_affine) {
+		isl_ctx *ctx;
+
+		ctx = pet_context_get_ctx(pc);
+		pc->extracted_affine = pet_expr_to_isl_pw_aff_alloc(ctx, 1);
+	}
+
+	pc->extracted_affine = pet_expr_to_isl_pw_aff_set(pc->extracted_affine,
+				    pet_expr_copy(expr), isl_pw_aff_copy(pa));
+	if (!pc->extracted_affine)
+		return isl_stat_error;
+
+	return isl_stat_ok;
 }
 
 /* Return the isl_ctx in which "pc" was created.
@@ -848,14 +907,212 @@ static __isl_give pet_expr *plug_in_summaries(__isl_take pet_expr *expr,
 	return pet_expr_map_call(expr, &call_plug_in_summary, pc);
 }
 
+/* Given an access expression "expr", check that it is an affine
+ * access expression and set *only_affine to 1.
+ * If "expr" is not an affine access expression, then set *only_affine to 0
+ * and abort.
+ */
+static int check_only_affine(__isl_keep pet_expr *expr, void *user)
+{
+	int *only_affine = user;
+	int is_affine;
+
+	is_affine = pet_expr_is_affine(expr);
+	if (is_affine < 0)
+		return -1;
+	if (!is_affine) {
+		*only_affine = 0;
+		return -1;
+	}
+	*only_affine = 1;
+
+	return 0;
+}
+
+/* Does "expr" have any affine access subexpression and no other
+ * access subexpressions?
+ *
+ * only_affine is initialized to -1 and set to 1 as soon as one affine
+ * access subexpression has been found and to 0 if some other access
+ * subexpression has been found.  In this latter case, the search is
+ * aborted.
+ */
+static isl_bool has_only_affine_access_sub_expr(__isl_keep pet_expr *expr)
+{
+	int only_affine = -1;
+
+	if (pet_expr_foreach_access_expr(expr, &check_only_affine,
+					&only_affine) < 0 &&
+	    only_affine != 0)
+		return isl_bool_error;
+
+	return only_affine > 0;
+}
+
+/* Try and replace "expr" by an affine access expression by essentially
+ * evaluating operations and/or special calls on affine access expressions.
+ * It therefore only makes sense to do this if "expr" is a call or an operation
+ * and if it has at least one affine access subexpression and no other
+ * access subexpressions.
+ */
+static __isl_give pet_expr *expr_plug_in_affine(__isl_take pet_expr *expr,
+	void *user)
+{
+	enum pet_expr_type type;
+	pet_context *pc = user;
+	isl_pw_aff *pa;
+	isl_bool contains_access;
+
+	type = pet_expr_get_type(expr);
+	if (type != pet_expr_call && type != pet_expr_op)
+		return expr;
+	contains_access = has_only_affine_access_sub_expr(expr);
+	if (contains_access < 0)
+		return pet_expr_free(expr);
+	if (!contains_access)
+		return expr;
+
+	pa = pet_expr_extract_affine(expr, pc);
+	if (!pa)
+		return pet_expr_free(expr);
+	if (isl_pw_aff_involves_nan(pa)) {
+		isl_pw_aff_free(pa);
+		return expr;
+	}
+
+	pet_expr_free(expr);
+	expr = pet_expr_from_index(isl_multi_pw_aff_from_pw_aff(pa));
+
+	return expr;
+}
+
+/* Detect affine subexpressions in "expr".
+ *
+ * The detection is performed top-down in order to be able
+ * to exploit the min/max optimization in comparisons.
+ * That is, if some subexpression is of the form max(a,b) <= min(c,d)
+ * and if the affine expressions were being detected bottom-up, then
+ * affine expressions for max(a,b) and min(c,d) would be constructed
+ * first and it would no longer be possible to optimize the extraction
+ * of the comparison as a <= c && a <= d && b <= c && b <= d.
+ */
+static __isl_give pet_expr *plug_in_affine(__isl_take pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	return pet_expr_map_top_down(expr, &expr_plug_in_affine, pc);
+}
+
+/* Given an affine condition "cond" and two access expressions "lhs" and
+ * "rhs" to the same array, construct an access expression to the array that
+ * performs the "lhs" access if "cond" is satisfied and the "rhs" access
+ * otherwise.
+ *
+ * That is, replace
+ *
+ *	c ? A[f] : A[g]
+ *
+ * by
+ *
+ *	A[c ? f : g].
+ */
+static __isl_give pet_expr *merged_access(__isl_take pet_expr *cond,
+	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs)
+{
+	isl_multi_pw_aff *index1, *index2;
+	isl_pw_aff *c;
+	int i, n;
+
+	c = pet_expr_get_affine(cond);
+	index1 = pet_expr_access_get_index(lhs);
+	index2 = pet_expr_access_get_index(rhs);
+	n = isl_multi_pw_aff_dim(index1, isl_dim_out);
+	for (i = 0; i < n; ++i) {
+		isl_pw_aff *pa1, *pa2;
+
+		pa1 = isl_multi_pw_aff_get_pw_aff(index1, i);
+		pa2 = isl_multi_pw_aff_get_pw_aff(index2, i);
+		pa1 = isl_pw_aff_cond(isl_pw_aff_copy(c), pa1, pa2);
+		index1 = isl_multi_pw_aff_set_pw_aff(index1, i, pa1);
+	}
+	isl_pw_aff_free(c);
+	isl_multi_pw_aff_free(index2);
+
+	lhs = pet_expr_access_set_index(lhs, index1);
+
+	pet_expr_free(cond);
+	pet_expr_free(rhs);
+
+	return lhs;
+}
+
+/* If "expr" is a conditional access to an array expressed as a conditional
+ * operator with two accesses to the same array and an affine condition,
+ * then replace the conditional operator by a single access to the array.
+ *
+ * If either of the two accesses has any arguments or access relations,
+ * then the original expression is kept since replacing it may lose
+ * information.
+ */
+static __isl_give pet_expr *merge_conditional_access(__isl_take pet_expr *expr,
+	void *user)
+{
+	pet_expr *cond, *lhs, *rhs;
+	isl_bool ok;
+
+	if (pet_expr_op_get_type(expr) != pet_op_cond)
+		return expr;
+
+	cond = pet_expr_get_arg(expr, 0);
+	lhs = pet_expr_get_arg(expr, 1);
+	rhs = pet_expr_get_arg(expr, 2);
+	ok = pet_expr_get_n_arg(lhs) == 0 && pet_expr_get_n_arg(rhs) == 0;
+	if (ok > 0)
+		ok = pet_expr_is_affine(cond);
+	if (ok > 0)
+		ok = pet_expr_is_same_access(lhs, rhs);
+	if (ok > 0)
+		ok = isl_bool_not(pet_expr_access_has_any_access_relation(lhs));
+	if (ok > 0)
+		ok = isl_bool_not(pet_expr_access_has_any_access_relation(rhs));
+	if (ok > 0) {
+		pet_expr_free(expr);
+		return merged_access(cond, lhs, rhs);
+	}
+	pet_expr_free(cond);
+	pet_expr_free(lhs);
+	pet_expr_free(rhs);
+	if (ok < 0)
+		return pet_expr_free(expr);
+	return expr;
+}
+
+/* Look for any conditional access to an array expressed as a conditional
+ * operator with two accesses to the same array and replace it
+ * by a single access to the array.
+ */
+static __isl_give pet_expr *merge_conditional_accesses(
+	__isl_take pet_expr *expr)
+{
+	return pet_expr_map_op(expr, &merge_conditional_access, NULL);
+}
+
 /* Evaluate "expr" in the context of "pc".
  *
  * In particular, we first make sure that all the access expressions
  * inside "expr" have the same domain as "pc".
  * Then, we plug in affine expressions for scalar reads,
- * plug in the arguments of all access expressions in "expr" and
+ * plug in the arguments of all access expressions in "expr" as well
+ * as any other affine expressions that may appear inside "expr",
+ * merge conditional accesses to the same array and
  * plug in the access relations from the summary functions associated
  * to call expressions.
+ *
+ * The merging of conditional accesses needs to be performed after
+ * the detection of affine expressions such that it can simply
+ * check if the condition is an affine expression.
+ * It needs to be performed before access relations are plugged in
+ * such that these access relations only need to be plugged into
+ * the fused access.
  */
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr)
@@ -863,6 +1120,8 @@ __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	expr = pet_expr_insert_domain(expr, pet_context_get_space(pc));
 	expr = plug_in_affine_read(expr, pc);
 	expr = pet_expr_plug_in_args(expr, pc);
+	expr = plug_in_affine(expr, pc);
+	expr = merge_conditional_accesses(expr);
 	expr = plug_in_summaries(expr, pc);
 	return expr;
 }

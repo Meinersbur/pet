@@ -90,6 +90,11 @@ struct pet_expr_double {
  * type is valid when type == pet_expr_cast
  * op is valid otherwise
  *
+ * "hash" is a copy of the hash value computed by pet_expr_get_hash.
+ * It is zero when it has not been computed yet.  The value is reset
+ * whenever the pet_expr is modified (in pet_expr_cow and
+ * introduce_access_relations).
+ *
  * If type_size is not zero, then the expression is of an integer type
  * and type_size represents the size of the type in bits.
  * If type_size is greater than zero, then the type is unsigned
@@ -101,6 +106,8 @@ struct pet_expr_double {
 struct pet_expr {
 	int ref;
 	isl_ctx *ctx;
+
+	uint32_t hash;
 
 	enum pet_expr_type type;
 
@@ -150,6 +157,8 @@ __isl_give isl_pw_aff *pet_expr_extract_comparison(enum pet_op_type op,
 __isl_give pet_expr *pet_expr_resolve_assume(__isl_take pet_expr *expr,
 	__isl_keep pet_context *pc);
 
+uint32_t pet_expr_get_hash(__isl_keep pet_expr *expr);
+
 int pet_expr_is_address_of(__isl_keep pet_expr *expr);
 int pet_expr_is_assume(__isl_keep pet_expr *expr);
 int pet_expr_is_boolean(__isl_keep pet_expr *expr);
@@ -158,7 +167,10 @@ int pet_expr_is_min(__isl_keep pet_expr *expr);
 int pet_expr_is_max(__isl_keep pet_expr *expr);
 int pet_expr_is_scalar_access(__isl_keep pet_expr *expr);
 int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2);
+isl_bool pet_expr_is_same_access(__isl_keep pet_expr *expr1,
+	__isl_keep pet_expr *expr2);
 
+__isl_give isl_pw_aff *pet_expr_get_affine(__isl_keep pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_parameter_space(
 	__isl_take pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_augmented_domain_space(
@@ -167,14 +179,21 @@ __isl_give isl_space *pet_expr_access_get_domain_space(
 	__isl_keep pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr);
 
+isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr);
 __isl_give isl_union_map *pet_expr_access_get_dependent_access(
 	__isl_keep pet_expr *expr, enum pet_expr_access_type type);
 __isl_give isl_map *pet_expr_access_get_may_access(__isl_keep pet_expr *expr);
 
+__isl_give pet_expr *pet_expr_map_top_down(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user);
 __isl_give pet_expr *pet_expr_map_access(__isl_take pet_expr *expr,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);
 __isl_give pet_expr *pet_expr_map_call(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user);
+__isl_give pet_expr *pet_expr_map_op(__isl_take pet_expr *expr,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);
 
@@ -240,6 +259,8 @@ __isl_give pet_expr *pet_expr_insert_domain(__isl_take pet_expr *expr,
 __isl_give pet_expr *pet_expr_access_patch(__isl_take pet_expr *expr,
 	__isl_take isl_multi_pw_aff *prefix, int add);
 
+__isl_give isl_printer *pet_expr_print(__isl_keep pet_expr *expr,
+	__isl_take isl_printer *p);
 void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent);
 
 #if defined(__cplusplus)

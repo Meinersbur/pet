@@ -70,6 +70,8 @@ libpet_la_SOURCES = \
 	id.cc \
 	inliner.h \
 	inliner.cc \
+	killed_locals.h \
+	killed_locals.cc \
 	loc.h \
 	loc.c \
 	nest.h \
@@ -78,6 +80,8 @@ libpet_la_SOURCES = \
 	options.c \
 	patch.h \
 	patch.c \
+	pet_expr_to_isl_pw_aff.h \
+	pet_expr_to_isl_pw_aff.c \
 	print.c \
 	print.h \
 	tree.h \

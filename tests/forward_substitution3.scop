@@ -20,7 +20,7 @@ arrays:
   declared: 1
   exposed: 1
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 9 }'
+  extent: '{ a[i0] : 0 <= i0 <= 9 }'
   element_type: int
   element_size: 4
 statements:
@@ -122,7 +122,7 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_6[] -> a[o0] : o0 >= 0 and o0 <= 9 }'
+        killed: '{ S_6[] -> a[o0] : 0 <= o0 <= 9 }'
         index: '{ S_6[] -> a[] }'
         depth: 1
         reference: __pet_ref_7

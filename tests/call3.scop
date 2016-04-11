@@ -1,15 +1,13 @@
 start: 120
 end: 225
 indent: "\t"
-context: '[n] -> {  : exists (e0 = floor((n)/4): 4e0 = n and n >= 0 and n <= 2147483647)
-  }'
-schedule: '{ domain: "[n] -> { S_0[]; S_1[i] : exists (e0 = floor((i)/4): 4e0 = i
-  and i >= 0 and i <= -4 + n) }", child: { sequence: [ { filter: "[n] -> { S_0[] }"
-  }, { filter: "[n] -> { S_1[i] }", child: { schedule: "[n] -> L_0[{ S_1[i] -> [(i)]
-  }]" } } ] } }'
+context: '[n] -> {  : 4*floor((n)/4) = n and 0 <= n <= 2147483647 }'
+schedule: '{ domain: "[n] -> { S_0[]; S_1[i] : 4*floor((i)/4) = i and 0 <= i <= -4
+  + n }", child: { sequence: [ { filter: "[n] -> { S_0[] }" }, { filter: "[n] -> {
+  S_1[i] }", child: { schedule: "[n] -> L_0[{ S_1[i] -> [(i)] }]" } } ] } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0] : i0 >= 0 and i0 <= -1 + n }'
+  extent: '[n] -> { A[i0] : 0 <= i0 < n }'
   element_type: int
   element_size: 4
 statements:
@@ -27,8 +25,7 @@ statements:
         read: 1
         write: 0
 - line: 12
-  domain: '[n] -> { S_1[i] : exists (e0 = floor((i)/4): 4e0 = i and i >= 0 and i <=
-    -4 + n) }'
+  domain: '[n] -> { S_1[i] : 4*floor((i)/4) = i and 0 <= i <= -4 + n }'
   body:
     type: expression
     expr:
@@ -39,9 +36,9 @@ statements:
         operation: '&'
         arguments:
         - type: access
-          may_read: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
-          may_write: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
-          must_write: '[n] -> { S_1[i] -> A[o0] : o0 <= 3 + i and o0 >= i }'
+          may_read: '[n] -> { S_1[i] -> A[o0] : i <= o0 <= 3 + i }'
+          may_write: '[n] -> { S_1[i] -> A[o0] : i <= o0 <= 3 + i }'
+          must_write: '[n] -> { S_1[i] -> A[o0] : i <= o0 <= 3 + i }'
           index: '[n] -> { S_1[i] -> A[(i)] }'
           reference: __pet_ref_1
           read: 1

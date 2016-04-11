@@ -1,7 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
- * Copyright 2015      Sven Verdoolaege. All rights reserved.
+ * Copyright 2015-2016 Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,6 +60,7 @@
 #include "expr.h"
 #include "id.h"
 #include "inliner.h"
+#include "killed_locals.h"
 #include "nest.h"
 #include "options.h"
 #include "scan.h"
@@ -458,21 +459,6 @@ __isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 	return extract_index_expr(expr->getSubExpr());
 }
 
-/* Return the depth of an array of the given type.
- */
-static int array_depth(const Type *type)
-{
-	if (type->isPointerType())
-		return 1 + array_depth(type->getPointeeType().getTypePtr());
-	if (type->isArrayType()) {
-		const ArrayType *atype;
-		type = type->getCanonicalTypeInternal().getTypePtr();
-		atype = cast<ArrayType>(type);
-		return 1 + array_depth(atype->getElementType().getTypePtr());
-	}
-	return 0;
-}
-
 /* Return the depth of the array accessed by the index expression "index".
  * If "index" is an affine expression, i.e., if it does not access
  * any array, then return 1.
@@ -513,7 +499,7 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	decl = pet_id_get_decl(id);
 	isl_id_free(id);
 
-	return array_depth(decl->getType().getTypePtr());
+	return pet_clang_array_depth(decl->getType());
 }
 
 /* Return the depth of the array accessed by the access expression "expr".
@@ -945,7 +931,7 @@ __isl_give pet_expr *PetScan::extract_argument(FunctionDecl *fd, int pos,
 	res = extract_expr(expr);
 	if (!res)
 		return NULL;
-	if (array_depth(expr->getType().getTypePtr()) > 0)
+	if (pet_clang_array_depth(expr->getType()) > 0)
 		is_partial = 1;
 	if (detect_writes && (is_addr || is_partial) &&
 	    pet_expr_get_type(res) == pet_expr_access) {
@@ -1593,7 +1579,7 @@ __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 
 	saved_declarations = declarations;
 	declarations.clear();
-	tree = extract(stmt->children(), true, skip_declarations);
+	tree = extract(stmt->children(), true, skip_declarations, stmt);
 	for (it = declarations.begin(); it != declarations.end(); ++it) {
 		isl_id *id;
 		pet_expr *expr;
@@ -1849,10 +1835,11 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 		int is_addr = 0;
 
 		arg = call->getArg(i);
-		if (array_depth(type.getTypePtr()) == 0) {
+		if (pet_clang_array_depth(type) == 0) {
 			string name = parm->getName().str();
 			if (name_in_use(name, NULL))
 				name = generate_new_name(name);
+			used_names.insert(name);
 			inliner.add_scalar_arg(parm, name, extract_expr(arg));
 			continue;
 		}
@@ -2001,6 +1988,9 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	case Stmt::DeclStmtClass:
 		tree = extract(cast<DeclStmt>(stmt));
 		break;
+	case Stmt::NullStmtClass:
+		tree = pet_tree_new_block(ctx, 0, 0);
+		break;
 	default:
 		report_unsupported_statement_type(stmt);
 		return NULL;
@@ -2076,6 +2066,7 @@ __isl_give pet_tree *PetScan::insert_initial_declarations(
  * a compound statement.
  * "skip_declarations" is set if we should skip initial declarations
  * in the sequence of statements.
+ * "parent" is the statement that has stmt_range as (some of) its children.
  *
  * If autodetect is set, then we allow the extraction of only a subrange
  * of the sequence of statements.  However, if there is at least one
@@ -2084,19 +2075,29 @@ __isl_give pet_tree *PetScan::insert_initial_declarations(
  * such that no extra kill will be introduced at the end of the (partial)
  * block.  If, on the other hand, the final range contains
  * no statements, then we discard the entire range.
+ * If only a subrange of the sequence was extracted, but each statement
+ * in the sequence was extracted completely, and if there are some
+ * variable declarations in the sequence before or inside
+ * the extracted subrange, then check if any of these variables are
+ * not used after the extracted subrange.  If so, add kills to these
+ * variables.
  *
  * If the entire range was extracted, apart from some initial declarations,
  * then we try and extend the range with the latest of those initial
  * declarations.
  */
 __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
-	bool skip_declarations)
+	bool skip_declarations, Stmt *parent)
 {
 	StmtIterator i;
 	int j, skip;
 	bool has_kills = false;
 	bool partial_range = false;
+	bool outer_partial = false;
 	pet_tree *tree;
+	SourceManager &SM = PP.getSourceManager();
+	pet_killed_locals kl(SM);
+	unsigned range_start, range_end;
 
 	for (i = stmt_range.first, j = 0; i != stmt_range.second; ++i, ++j)
 		;
@@ -2109,6 +2110,8 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 		for (; i != stmt_range.second; ++i) {
 			if ((*i)->getStmtClass() != Stmt::DeclStmtClass)
 				break;
+			if (options->autodetect)
+				kl.add_locals(cast<DeclStmt>(*i));
 			++skip;
 		}
 
@@ -2121,16 +2124,25 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 			pet_tree_free(tree_i);
 			break;
 		}
-		if (tree_i && child->getStmtClass() == Stmt::DeclStmtClass &&
-		    block)
-			has_kills = true;
+		if (child->getStmtClass() == Stmt::DeclStmtClass) {
+			if (options->autodetect)
+				kl.add_locals(cast<DeclStmt>(child));
+			if (tree_i && block)
+				has_kills = true;
+		}
 		if (options->autodetect) {
-			if (tree_i)
+			if (tree_i) {
+				range_end = getExpansionOffset(SM,
+							child->getLocEnd());
+				if (pet_tree_block_n_child(tree) == 0)
+					range_start = getExpansionOffset(SM,
+							child->getLocStart());
 				tree = pet_tree_block_add_child(tree, tree_i);
-			else
+			} else {
 				partial_range = true;
+			}
 			if (pet_tree_block_n_child(tree) != 0 && !tree_i)
-				partial = true;
+				outer_partial = partial = true;
 		} else {
 			tree = pet_tree_block_add_child(tree, tree_i);
 		}
@@ -2145,6 +2157,11 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 	if (partial) {
 		if (has_kills)
 			tree = pet_tree_block_set_block(tree, 0);
+		if (outer_partial) {
+			kl.remove_accessed_after(parent,
+						 range_start, range_end);
+			tree = add_kills(tree, kl.locals);
+		}
 	} else if (partial_range) {
 		if (pet_tree_block_n_child(tree) == 0) {
 			pet_tree_free(tree);
@@ -2174,12 +2191,12 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 {
 	PetScan *ps = (PetScan *) user;
 	isl_id *id;
-	const Type *type;
+	QualType qt;
 
 	id = pet_expr_access_get_id(access);
-	type = pet_id_get_array_type(id).getTypePtr();
+	qt = pet_id_get_array_type(id);
 	isl_id_free(id);
-	return ps->get_array_size(type);
+	return ps->get_array_size(qt);
 }
 
 /* Construct and return a pet_array corresponding to the variable
@@ -2287,7 +2304,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 		isl_union_set *data_set;
 		isl_union_set *may_read_i, *may_write_i, *must_write_i;
 
-		if (array_depth(type.getTypePtr()) == 0)
+		if (pet_clang_array_depth(type) == 0)
 			continue;
 
 		array = body_scan.extract_array(parm, NULL, pc);
@@ -2374,203 +2391,6 @@ struct pet_scop *PetScan::extract_scop(__isl_take pet_tree *tree)
 	return scop;
 }
 
-/* Given a DeclRefExpr or an ArraySubscriptExpr, return a pointer
- * to the base DeclRefExpr.
- * If the expression is something other than a nested ArraySubscriptExpr
- * with a DeclRefExpr at the base, then return NULL.
- */
-static DeclRefExpr *extract_array_base(Expr *expr)
-{
-	while (isa<ArraySubscriptExpr>(expr)) {
-		expr = (cast<ArraySubscriptExpr>(expr))->getBase();
-		expr = pet_clang_strip_casts(expr);
-	}
-	return dyn_cast<DeclRefExpr>(expr);
-}
-
-/* Structure for keeping track of local variables that can be killed
- * after the scop.
- * In particular, variables of interest are first added to "locals"
- * Then the Stmt in which the variable declaration appears is scanned
- * for any possible leak of a pointer or any use after a specified scop.
- * In such cases, the variable is removed from "locals".
- * The scop is assumed to appear at the same level of the declaration.
- * In particular, it does not appear inside a nested control structure,
- * meaning that it is sufficient to look at uses of the variables
- * that textually appear after the specified scop.
- *
- * locals is the set of variables of interest.
- * accessed keeps track of the variables that are accessed inside the scop.
- * scop_start is the start of the scop
- * scop_end is the end of the scop
- * addr_end is the end of the latest visited address_of expression.
- * expr_end is the end of the latest handled expression.
- */
-struct killed_locals : RecursiveASTVisitor<killed_locals> {
-	SourceManager &SM;
-	set<ValueDecl *> locals;
-	set<ValueDecl *> accessed;
-	unsigned scop_start;
-	unsigned scop_end;
-	unsigned addr_end;
-	unsigned expr_end;
-
-	killed_locals(SourceManager &SM) : SM(SM) {}
-
-	void add_local(Decl *decl);
-	void add_locals(DeclStmt *stmt);
-	void set_addr_end(UnaryOperator *expr);
-	bool check_decl_in_expr(Expr *expr);
-	void remove_accessed_after(Stmt *stmt, unsigned start, unsigned end);
-	bool VisitUnaryOperator(UnaryOperator *expr) {
-		if (expr->getOpcode() == UO_AddrOf)
-			set_addr_end(expr);
-		return true;
-	}
-	bool VisitArraySubscriptExpr(ArraySubscriptExpr *expr) {
-		return check_decl_in_expr(expr);
-	}
-	bool VisitDeclRefExpr(DeclRefExpr *expr) {
-		return check_decl_in_expr(expr);
-	}
-	void dump() {
-		set<ValueDecl *>::iterator it;
-		cerr << "local" << endl;
-		for (it = locals.begin(); it != locals.end(); ++it)
-			(*it)->dump();
-		cerr << "accessed" << endl;
-		for (it = accessed.begin(); it != accessed.end(); ++it)
-			(*it)->dump();
-	}
-};
-
-/* Add "decl" to the set of local variables, provided it is a ValueDecl.
- */
-void killed_locals::add_local(Decl *decl)
-{
-	ValueDecl *vd;
-
-	vd = dyn_cast<ValueDecl>(decl);
-	if (vd)
-		locals.insert(vd);
-}
-
-/* Add all variables declared by "stmt" to the set of local variables.
- */
-void killed_locals::add_locals(DeclStmt *stmt)
-{
-	if (stmt->isSingleDecl()) {
-		add_local(stmt->getSingleDecl());
-	} else {
-		const DeclGroup &group = stmt->getDeclGroup().getDeclGroup();
-		unsigned n = group.size();
-		for (unsigned i = 0; i < n; ++i)
-			add_local(group[i]);
-	}
-}
-
-/* Set this->addr_end to the end of the address_of expression "expr".
- */
-void killed_locals::set_addr_end(UnaryOperator *expr)
-{
-	addr_end = getExpansionOffset(SM, expr->getLocEnd());
-}
-
-/* Given an expression of type ArraySubscriptExpr or DeclRefExpr,
- * check two things
- * - is the variable used inside the scop?
- * - is the variable used after the scop or can a pointer be taken?
- * Return true if the traversal should continue.
- *
- * Reset the pointer to the end of the latest address-of expression
- * such that only the first array or scalar is considered to have
- * its address taken.  In particular, accesses inside the indices
- * of the array should not be considered to have their address taken.
- *
- * If the variable is not one of the local variables or
- * if the access appears inside an expression that was already handled,
- * then simply return.
- *
- * Otherwise, the expression is handled and "expr_end" is updated
- * to prevent subexpressions with the same base expression
- * from being handled as well.
- *
- * If a higher-dimensional slice of an array is accessed or
- * if the access appears inside an address-of expression,
- * then a pointer may leak, so the variable should not be killed.
- * Similarly, if the access appears after the end of the scop,
- * then the variable should not be killed.
- *
- * Otherwise, if the access appears inside the scop, then
- * keep track of the fact that the variable was accessed at least once
- * inside the scop.
- */
-bool killed_locals::check_decl_in_expr(Expr *expr)
-{
-	unsigned loc;
-	int depth;
-	DeclRefExpr *ref;
-	ValueDecl *decl;
-	unsigned old_addr_end;
-
-	ref = extract_array_base(expr);
-	if (!ref)
-		return true;
-
-	old_addr_end = addr_end;
-	addr_end = 0;
-
-	decl = ref->getDecl();
-	if (locals.find(decl) == locals.end())
-		return true;
-	loc = getExpansionOffset(SM, expr->getLocStart());
-	if (loc <= expr_end)
-		return true;
-
-	expr_end = getExpansionOffset(SM, ref->getLocEnd());
-	depth = array_depth(expr->getType().getTypePtr());
-	if (loc >= scop_end || loc <= old_addr_end || depth != 0)
-		locals.erase(decl);
-	if (loc >= scop_start && loc <= scop_end)
-		accessed.insert(decl);
-
-	return locals.size() != 0;
-}
-
-/* Remove the local variables that may be accessed inside "stmt" after
- * the scop starting at "start" and ending at "end", or that
- * are not accessed at all inside that scop.
- *
- * If there are no local variables that could potentially be killed,
- * then simply return.
- *
- * Otherwise, scan "stmt" for any potential use of the variables
- * after the scop.  This includes a possible pointer being taken
- * to (part of) the variable.  If there is any such use, then
- * the variable is removed from the set of local variables.
- *
- * At the same time, keep track of the variables that are
- * used anywhere inside the scop.  At the end, replace the local
- * variables with the intersection with these accessed variables.
- */
-void killed_locals::remove_accessed_after(Stmt *stmt, unsigned start,
-	unsigned end)
-{
-	set<ValueDecl *> accessed_local;
-
-	if (locals.size() == 0)
-		return;
-	scop_start = start;
-	scop_end = end;
-	addr_end = 0;
-	expr_end = 0;
-	TraverseStmt(stmt);
-	set_intersection(locals.begin(), locals.end(),
-			 accessed.begin(), accessed.end(),
-			 inserter(accessed_local, accessed_local.begin()));
-	locals = accessed_local;
-}
-
 /* Add a call to __pencil_kill to the end of "tree" that kills
  * all the variables in "locals" and return the result.
  *
@@ -2631,7 +2451,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	if (start_off >= loc.start && end_off <= loc.end)
 		return extract_scop(extract(stmt));
 
-	killed_locals kl(SM);
+	pet_killed_locals kl(SM);
 	StmtIterator start;
 	for (start = stmt->child_begin(); start != stmt->child_end(); ++start) {
 		Stmt *child = *start;
@@ -2657,7 +2477,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 
 	kl.remove_accessed_after(stmt, loc.start, loc.end);
 
-	tree = extract(StmtRange(start, end), false, false);
+	tree = extract(StmtRange(start, end), false, false, stmt);
 	tree = add_kills(tree, kl.locals);
 	return extract_scop(tree);
 }
@@ -2717,35 +2537,37 @@ error:
 
 #ifdef HAVE_DECAYEDTYPE
 
-/* If "type" is a decayed type, then set *decayed to true and
+/* If "qt" is a decayed type, then set *decayed to true and
  * return the original type.
  */
-static const Type *undecay(const Type *type, bool *decayed)
+static QualType undecay(QualType qt, bool *decayed)
 {
+	const Type *type = qt.getTypePtr();
+
 	*decayed = isa<DecayedType>(type);
 	if (*decayed)
-		type = cast<DecayedType>(type)->getOriginalType().getTypePtr();
-	return type;
+		qt = cast<DecayedType>(type)->getOriginalType();
+	return qt;
 }
 
 #else
 
-/* If "type" is a decayed type, then set *decayed to true and
+/* If "qt" is a decayed type, then set *decayed to true and
  * return the original type.
  * Since this version of clang does not define a DecayedType,
  * we cannot obtain the original type even if it had been decayed and
  * we set *decayed to false.
  */
-static const Type *undecay(const Type *type, bool *decayed)
+static QualType undecay(QualType qt, bool *decayed)
 {
 	*decayed = false;
-	return type;
+	return qt;
 }
 
 #endif
 
 /* Figure out the size of the array at position "pos" and all
- * subsequent positions from "type" and update the corresponding
+ * subsequent positions from "qt" and update the corresponding
  * argument of "expr" accordingly.
  *
  * The initial type (when pos is zero) may be a pointer type decayed
@@ -2756,7 +2578,7 @@ static const Type *undecay(const Type *type, bool *decayed)
  * take the outer array size into account if it was marked static.
  */
 __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
-	const Type *type, int pos)
+	QualType qt, int pos)
 {
 	const ArrayType *atype;
 	pet_expr *size;
@@ -2766,36 +2588,36 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 		return NULL;
 
 	if (pos == 0)
-		type = undecay(type, &decayed);
+		qt = undecay(qt, &decayed);
 
-	if (type->isPointerType()) {
-		type = type->getPointeeType().getTypePtr();
-		return set_upper_bounds(expr, type, pos + 1);
+	if (qt->isPointerType()) {
+		qt = qt->getPointeeType();
+		return set_upper_bounds(expr, qt, pos + 1);
 	}
-	if (!type->isArrayType())
+	if (!qt->isArrayType())
 		return expr;
 
-	type = type->getCanonicalTypeInternal().getTypePtr();
-	atype = cast<ArrayType>(type);
+	qt = qt->getCanonicalTypeInternal();
+	atype = cast<ArrayType>(qt.getTypePtr());
 
 	if (decayed && atype->getSizeModifier() != ArrayType::Static) {
-		type = atype->getElementType().getTypePtr();
-		return set_upper_bounds(expr, type, pos + 1);
+		qt = atype->getElementType();
+		return set_upper_bounds(expr, qt, pos + 1);
 	}
 
-	if (type->isConstantArrayType()) {
+	if (qt->isConstantArrayType()) {
 		const ConstantArrayType *ca = cast<ConstantArrayType>(atype);
 		size = extract_expr(ca->getSize());
 		expr = pet_expr_set_arg(expr, pos, size);
-	} else if (type->isVariableArrayType()) {
+	} else if (qt->isVariableArrayType()) {
 		const VariableArrayType *vla = cast<VariableArrayType>(atype);
 		size = extract_expr(vla->getSizeExpr());
 		expr = pet_expr_set_arg(expr, pos, size);
 	}
 
-	type = atype->getElementType().getTypePtr();
+	qt = atype->getElementType();
 
-	return set_upper_bounds(expr, type, pos + 1);
+	return set_upper_bounds(expr, qt, pos + 1);
 }
 
 /* Construct a pet_expr that holds the sizes of an array of the given type.
@@ -2808,22 +2630,23 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
  * The result is stored in the type_size cache so that we can reuse
  * it if this method gets called on the same type again later on.
  */
-__isl_give pet_expr *PetScan::get_array_size(const Type *type)
+__isl_give pet_expr *PetScan::get_array_size(QualType qt)
 {
 	int depth;
 	pet_expr *expr, *inf;
+	const Type *type = qt.getTypePtr();
 
 	if (type_size.find(type) != type_size.end())
 		return pet_expr_copy(type_size[type]);
 
-	depth = array_depth(type);
+	depth = pet_clang_array_depth(qt);
 	inf = pet_expr_new_int(isl_val_infty(ctx));
 	expr = pet_expr_new_call(ctx, "bounds", depth);
 	for (int i = 0; i < depth; ++i)
 		expr = pet_expr_set_arg(expr, i, pet_expr_copy(inf));
 	pet_expr_free(inf);
 
-	expr = set_upper_bounds(expr, type, 0);
+	expr = set_upper_bounds(expr, qt, 0);
 	type_size[type] = pet_expr_copy(expr);
 
 	return expr;
@@ -2846,7 +2669,7 @@ static int is_infty(__isl_keep pet_expr *expr)
 }
 
 /* Figure out the dimensions of an array "array" based on its type
- * "type" and update "array" accordingly.
+ * "qt" and update "array" accordingly.
  *
  * We first construct a pet_expr that holds the sizes of the array
  * in each dimension.  The resulting expression may containing
@@ -2861,7 +2684,7 @@ static int is_infty(__isl_keep pet_expr *expr)
  * then we leave the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
-	const Type *type, __isl_keep pet_context *pc)
+	QualType qt, __isl_keep pet_context *pc)
 {
 	int n;
 	pet_expr *expr;
@@ -2869,7 +2692,7 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 	if (!array)
 		return NULL;
 
-	expr = get_array_size(type);
+	expr = get_array_size(qt);
 
 	n = pet_expr_get_n_arg(expr);
 	for (int i = 0; i < n; ++i) {
@@ -2909,6 +2732,22 @@ static bool has_printable_definition(RecordDecl *decl)
 	return decl->getLexicalDeclContext() == decl->getDeclContext();
 }
 
+/* Add all TypedefType objects that appear when dereferencing "type"
+ * to "types".
+ */
+static void insert_intermediate_typedefs(PetTypes *types, QualType type)
+{
+	type = pet_clang_base_or_typedef_type(type);
+	while (isa<TypedefType>(type)) {
+		const TypedefType *tt;
+
+		tt = cast<TypedefType>(type);
+		types->insert(tt->getDecl());
+		type = tt->desugar();
+		type = pet_clang_base_or_typedef_type(type);
+	}
+}
+
 /* Construct and return a pet_array corresponding to the variable
  * represented by "id".
  * In particular, initialize array->extent to
@@ -2921,8 +2760,8 @@ static bool has_printable_definition(RecordDecl *decl)
  *
  * If the base type is that of a record with a top-level definition or
  * of a typedef and if "types" is not null, then the RecordDecl or
- * TypedefType corresponding to the type
- * is added to "types".
+ * TypedefType corresponding to the type, as well as any intermediate
+ * TypedefType, is added to "types".
  *
  * If the base type is that of a record with no top-level definition,
  * then we replace it by "<subfield>".
@@ -2932,8 +2771,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 {
 	struct pet_array *array;
 	QualType qt = pet_id_get_array_type(id);
-	const Type *type = qt.getTypePtr();
-	int depth = array_depth(type);
+	int depth = pet_clang_array_depth(qt);
 	QualType base = pet_clang_base_type(qt);
 	string name;
 	isl_space *space;
@@ -2950,13 +2788,14 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	space = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(space);
 
-	array = set_upper_bounds(array, type, pc);
+	array = set_upper_bounds(array, qt, pc);
 	if (!array)
 		return NULL;
 
 	name = base.getAsString();
 
 	if (types) {
+		insert_intermediate_typedefs(types, qt);
 		if (isa<TypedefType>(base)) {
 			types->insert(cast<TypedefType>(base)->getDecl());
 		} else if (base->isRecordType()) {
@@ -3062,7 +2901,8 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	std::set<TypeDecl *> &types_done);
 
 /* For each of the fields of "decl" that is itself a record type
- * or a typedef, add a corresponding pet_type to "scop".
+ * or a typedef, or an array of such type, add a corresponding pet_type
+ * to "scop".
  */
 static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	RecordDecl *decl, Preprocessor &PP, PetTypes &types,
@@ -3073,6 +2913,7 @@ static struct pet_scop *add_field_types(isl_ctx *ctx, struct pet_scop *scop,
 	for (it = decl->field_begin(); it != decl->field_end(); ++it) {
 		QualType type = it->getType();
 
+		type = pet_clang_base_or_typedef_type(type);
 		if (isa<TypedefType>(type)) {
 			TypedefNameDecl *typedefdecl;
 
@@ -3141,6 +2982,9 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * ourselves since clang does not print the definition of the structure
  * in the typedef.  We also make sure in this case that the types of
  * the fields in the structure are added first.
+ * Since the definition of the structure also gets printed this way,
+ * add it to types_done such that it will not be printed again,
+ * not even without the typedef.
  */
 static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 	TypedefNameDecl *decl, Preprocessor &PP, PetTypes &types,
@@ -3163,6 +3007,7 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
 		rec->print(S, PrintingPolicy(PP.getLangOpts()));
 		S << " ";
 		S << decl->getName();
+		types_done.insert(rec);
 	} else {
 		decl->print(S, PrintingPolicy(PP.getLangOpts()));
 	}
@@ -3192,6 +3037,11 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * If any of the extracted arrays refers to a member access or
  * has a typedef'd type as base type,
  * then also add the required types to "scop".
+ * The typedef types are printed first because their definitions
+ * may include the definition of a struct and these struct definitions
+ * should not be printed separately.  While the typedef definition
+ * is being printed, the struct is marked as having been printed as well,
+ * such that the later printing of the struct by itself can be prevented.
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	__isl_keep pet_context *pc)
@@ -3242,13 +3092,13 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	if (!scop->types)
 		goto error;
 
-	for (records_it = types.records.begin();
-	     records_it != types.records.end(); ++records_it)
-		scop = add_type(ctx, scop, *records_it, PP, types, types_done);
-
 	for (typedefs_it = types.typedefs.begin();
 	     typedefs_it != types.typedefs.end(); ++typedefs_it)
 		scop = add_type(ctx, scop, *typedefs_it, PP, types, types_done);
+
+	for (records_it = types.records.begin();
+	     records_it != types.records.end(); ++records_it)
+		scop = add_type(ctx, scop, *records_it, PP, types, types_done);
 
 	return scop;
 error:

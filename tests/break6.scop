@@ -15,30 +15,30 @@ schedule: '{ domain: "{ S_3[t] : t >= 0; S_10[]; S_5[t] : t >= 0; S_0[]; S_6[t] 
 arrays:
 - context: '{  :  }'
   extent: '{ __pet_test_0[t] : t >= 0 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
   extent: '{ __pet_test_1[t] : t >= 0 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
   extent: '{ __pet_test_2[t] : t >= 0 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
   extent: '{ __pet_test_3[t] : t >= 0 }'
-  value_bounds: '{ [i0] : i0 >= 0 and i0 <= 1 }'
+  value_bounds: '{ [i0] : 0 <= i0 <= 1 }'
   element_type: int
   element_size: 4
   uniquely_defined: 1
 - context: '{  :  }'
-  extent: '{ a[i0] : i0 >= 0 and i0 <= 99 }'
+  extent: '{ a[i0] : 0 <= i0 <= 99 }'
   element_type: int
   element_size: 4
 - context: '{  :  }'
@@ -62,7 +62,7 @@ statements:
       - type: call
         name: f
 - line: 8
-  domain: '{ [S_1[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_1[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -86,17 +86,17 @@ statements:
           value: 100
   arguments:
   - type: access
-    index: '{ S_1[t] -> __pet_test_0[((-1 + t) : t >= 1)] }'
+    index: '{ S_1[t] -> __pet_test_0[((-1 + t) : t > 0)] }'
     reference: __pet_ref_1
     read: 1
     write: 0
   - type: access
-    index: '{ S_1[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
+    index: '{ S_1[t] -> __pet_test_1[((-1 + t) : t > 0)] }'
     reference: __pet_ref_2
     read: 1
     write: 0
 - line: 9
-  domain: '{ [S_2[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_2[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -123,12 +123,12 @@ statements:
     read: 1
     write: 0
   - type: access
-    index: '{ S_2[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
+    index: '{ S_2[t] -> __pet_test_1[((-1 + t) : t > 0)] }'
     reference: __pet_ref_6
     read: 1
     write: 0
 - line: 10
-  domain: '{ [S_3[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_3[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -149,12 +149,12 @@ statements:
     read: 1
     write: 0
   - type: access
-    index: '{ S_3[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
+    index: '{ S_3[t] -> __pet_test_1[((-1 + t) : t > 0)] }'
     reference: __pet_ref_10
     read: 1
     write: 0
 - line: 12
-  domain: '{ [S_4[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_4[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -186,7 +186,7 @@ statements:
     read: 1
     write: 0
 - line: 13
-  domain: '{ [S_5[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_5[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -212,7 +212,7 @@ statements:
     read: 1
     write: 0
 - line: -1
-  domain: '{ [S_6[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_6[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -238,7 +238,7 @@ statements:
           read: 1
           write: 0
         - type: access
-          may_read: '{ [S_6[t] -> [0]] -> __pet_test_2[t] }'
+          may_read: '{ [S_6[t] -> [__pet_test_1 = 0]] -> __pet_test_2[t'' = t] }'
           index: '{ [S_6[t] -> [__pet_test_1]] -> __pet_test_2[(t)] }'
           reference: __pet_ref_25
           read: 1
@@ -256,12 +256,13 @@ statements:
     read: 1
     write: 0
   - type: access
-    index: '{ S_6[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
+    index: '{ S_6[t] -> __pet_test_1[((-1 + t) : t > 0)] }'
     reference: __pet_ref_20
     read: 1
     write: 0
 - line: 15
-  domain: '{ [S_7[t] -> [1, 0, 0]] : t >= 0 }'
+  domain: '{ [S_7[t] -> [__pet_test_0 = 1, __pet_test_1 = 0, __pet_test_3 = 0]] :
+    t >= 0 }'
   body:
     type: expression
     expr:
@@ -288,7 +289,7 @@ statements:
     read: 1
     write: 0
   - type: access
-    index: '{ S_7[t] -> __pet_test_1[((-1 + t) : t >= 1)] }'
+    index: '{ S_7[t] -> __pet_test_1[((-1 + t) : t > 0)] }'
     reference: __pet_ref_27
     read: 1
     write: 0
@@ -298,7 +299,7 @@ statements:
     read: 1
     write: 0
 - line: 8
-  domain: '{ [S_8[t] -> [1, 0]] : t >= 0 }'
+  domain: '{ [S_8[t] -> [__pet_test_0 = 1, __pet_test_1 = 0]] : t >= 0 }'
   body:
     type: expression
     expr:
@@ -345,13 +346,13 @@ statements:
       operation: kill
       arguments:
       - type: access
-        killed: '{ S_10[] -> a[o0] : o0 >= 0 and o0 <= 99 }'
+        killed: '{ S_10[] -> a[o0] : 0 <= o0 <= 99 }'
         index: '{ S_10[] -> a[] }'
         depth: 1
         reference: __pet_ref_35
         kill: 1
 implications:
 - satisfied: 0
-  extension: '{ __pet_test_1[t] -> __pet_test_1[t''] : t'' <= t and t'' >= 0 }'
+  extension: '{ __pet_test_1[t] -> __pet_test_1[t''] : 0 <= t'' <= t }'
 - satisfied: 1
-  extension: '{ __pet_test_0[t] -> __pet_test_0[t''] : t'' <= t and t'' >= 0 }'
+  extension: '{ __pet_test_0[t] -> __pet_test_0[t''] : 0 <= t'' <= t }'
