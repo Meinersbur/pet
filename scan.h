@@ -157,7 +157,7 @@ struct PetScan {
 
 	static __isl_give isl_val *extract_int(isl_ctx *ctx,
 		clang::IntegerLiteral *expr);
-	__isl_give pet_expr *get_array_size(clang::QualType qt);
+	__isl_give pet_expr *get_array_size(__isl_keep isl_id *id);
 	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
 private:
@@ -183,7 +183,7 @@ private:
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		clang::QualType qt, int pos);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
-		clang::QualType qt, __isl_keep pet_context *pc);
+		__isl_keep pet_context *pc);
 
 	__isl_give pet_tree *insert_initial_declarations(
 		__isl_take pet_tree *tree, int n_decl,

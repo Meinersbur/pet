@@ -2191,12 +2191,13 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 {
 	PetScan *ps = (PetScan *) user;
 	isl_id *id;
-	QualType qt;
+	pet_expr *size;
 
 	id = pet_expr_access_get_id(access);
-	qt = pet_id_get_array_type(id);
+	size = ps->get_array_size(id);
 	isl_id_free(id);
-	return ps->get_array_size(qt);
+
+	return size;
 }
 
 /* Construct and return a pet_array corresponding to the variable
@@ -2620,7 +2621,7 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 	return set_upper_bounds(expr, qt, pos + 1);
 }
 
-/* Construct a pet_expr that holds the sizes of an array of the given type.
+/* Construct a pet_expr that holds the sizes of the array represented by "id".
  * The returned expression is a call expression with as arguments
  * the sizes in each dimension.  If we are unable to derive the size
  * in a given dimension, then the corresponding argument is set to infinity.
@@ -2630,8 +2631,9 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
  * The result is stored in the type_size cache so that we can reuse
  * it if this method gets called on the same type again later on.
  */
-__isl_give pet_expr *PetScan::get_array_size(QualType qt)
+__isl_give pet_expr *PetScan::get_array_size(__isl_keep isl_id *id)
 {
+	QualType qt = pet_id_get_array_type(id);
 	int depth;
 	pet_expr *expr, *inf;
 	const Type *type = qt.getTypePtr();
@@ -2668,8 +2670,8 @@ static int is_infty(__isl_keep pet_expr *expr)
 	return res;
 }
 
-/* Figure out the dimensions of an array "array" based on its type
- * "qt" and update "array" accordingly.
+/* Figure out the dimensions of an array "array" and
+ * update "array" accordingly.
  *
  * We first construct a pet_expr that holds the sizes of the array
  * in each dimension.  The resulting expression may containing
@@ -2684,15 +2686,18 @@ static int is_infty(__isl_keep pet_expr *expr)
  * then we leave the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
-	QualType qt, __isl_keep pet_context *pc)
+	__isl_keep pet_context *pc)
 {
 	int n;
+	isl_id *id;
 	pet_expr *expr;
 
 	if (!array)
 		return NULL;
 
-	expr = get_array_size(qt);
+	id = isl_set_get_tuple_id(array->extent);
+	expr = get_array_size(id);
+	isl_id_free(id);
 
 	n = pet_expr_get_n_arg(expr);
 	for (int i = 0; i < n; ++i) {
@@ -2793,7 +2798,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	space = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(space);
 
-	array = set_upper_bounds(array, qt, pc);
+	array = set_upper_bounds(array, pc);
 	if (!array)
 		return NULL;
 
