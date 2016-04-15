@@ -1871,7 +1871,7 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
  * followed by the inlined function body with the formal arguments
  * replaced by (expressions containing) these temporary variables.
  *
- * The actual inlining is taken care of by the pet_inliner function.
+ * The actual inlining is taken care of by the pet_inliner object.
  * This function merely calls set_inliner_arguments to tell
  * the pet_inliner about the actual arguments, extracts a pet_tree
  * from the body of the called function and then passes this pet_tree
