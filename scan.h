@@ -192,6 +192,8 @@ private:
 		clang::QualType qt, int pos);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
 		__isl_keep pet_context *pc);
+	int substitute_array_sizes(__isl_keep pet_tree *tree,
+		pet_substituter *substituter);
 
 	__isl_give pet_tree *insert_initial_declarations(
 		__isl_take pet_tree *tree, int n_decl,

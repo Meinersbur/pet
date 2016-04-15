@@ -1863,6 +1863,59 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 	return 0;
 }
 
+/* Internal data structure for PetScan::substitute_array_sizes.
+ * ps is the PetScan on which the method was called.
+ * substituter is the substituter that is used to substitute variables
+ * in the size expressions.
+ */
+struct pet_substitute_array_sizes_data {
+	PetScan *ps;
+	pet_substituter *substituter;
+};
+
+extern "C" {
+	static int substitute_array_size(__isl_keep pet_tree *tree, void *user);
+}
+
+/* If "tree" is a declaration, then perform the substitutions
+ * in data->substituter on its size expression and store the result
+ * in the size expression cache of data->ps such that the modified expression
+ * will be used in subsequent calls to get_array_size.
+ */
+static int substitute_array_size(__isl_keep pet_tree *tree, void *user)
+{
+	struct pet_substitute_array_sizes_data *data;
+	isl_id *id;
+	pet_expr *var, *size;
+
+	if (!pet_tree_is_decl(tree))
+		return 0;
+
+	data = (struct pet_substitute_array_sizes_data *) user;
+	var = pet_tree_decl_get_var(tree);
+	id = pet_expr_access_get_id(var);
+	pet_expr_free(var);
+
+	size = data->ps->get_array_size(id);
+	size = data->substituter->substitute(size);
+	data->ps->set_array_size(id, size);
+
+	return 0;
+}
+
+/* Perform the substitutions in "substituter" on all the arrays declared
+ * inside "tree" and store the results in the size expression cache
+ * such that the modified expressions will be used in subsequent calls
+ * to get_array_size.
+ */
+int PetScan::substitute_array_sizes(__isl_keep pet_tree *tree,
+	pet_substituter *substituter)
+{
+	struct pet_substitute_array_sizes_data data = { this, substituter };
+
+	return pet_tree_foreach_sub_tree(tree, &substitute_array_size, &data);
+}
+
 /* Try and construct a pet_tree from the body of "fd" using the actual
  * arguments in "call" in place of the formal arguments.
  * "fd" is assumed to point to the declaration with a function body.
@@ -1876,6 +1929,10 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
  * the pet_inliner about the actual arguments, extracts a pet_tree
  * from the body of the called function and then passes this pet_tree
  * to the pet_inliner.
+ * The substitutions performed by the inliner are also applied
+ * to the size expressions of the arrays declared in the inlined
+ * function.  These size expressions are not stored in the tree
+ * itself, but rather in the size expression cache.
  *
  * During the extraction of the function body, all variables names
  * that are declared in the calling function as well all variable
@@ -1912,6 +1969,8 @@ __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
 
 	tree_loc = construct_pet_loc(call->getSourceRange(), true);
 	tree = pet_tree_set_loc(tree, tree_loc);
+
+	substitute_array_sizes(tree, &inliner);
 
 	return inliner.inline_tree(tree);
 }
