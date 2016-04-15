@@ -216,6 +216,7 @@ PetScan::~PetScan()
 	for (it_s = summary_cache.begin(); it_s != summary_cache.end(); ++it_s)
 		pet_function_summary_free(it_s->second);
 
+	isl_id_to_pet_expr_free(id_size);
 	isl_union_map_free(value_bounds);
 }
 
@@ -2628,8 +2629,10 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
  * In fact, we initialize all arguments to infinity and then update
  * them if we are able to figure out the size.
  *
- * The result is stored in the type_size cache so that we can reuse
- * it if this method gets called on the same type again later on.
+ * The result is stored in the id_size cache so that it can be reused
+ * if this method is called on the same array identifier later.
+ * The result is also stored in the type_size cache in case
+ * it gets called on a different array identifier with the same type.
  */
 __isl_give pet_expr *PetScan::get_array_size(__isl_keep isl_id *id)
 {
@@ -2637,7 +2640,11 @@ __isl_give pet_expr *PetScan::get_array_size(__isl_keep isl_id *id)
 	int depth;
 	pet_expr *expr, *inf;
 	const Type *type = qt.getTypePtr();
+	isl_maybe_pet_expr m;
 
+	m = isl_id_to_pet_expr_try_get(id_size, id);
+	if (m.valid < 0 || m.valid)
+		return m.value;
 	if (type_size.find(type) != type_size.end())
 		return pet_expr_copy(type_size[type]);
 
@@ -2650,6 +2657,8 @@ __isl_give pet_expr *PetScan::get_array_size(__isl_keep isl_id *id)
 
 	expr = set_upper_bounds(expr, qt, 0);
 	type_size[type] = pet_expr_copy(expr);
+	id_size = isl_id_to_pet_expr_set(id_size, isl_id_copy(id),
+					pet_expr_copy(expr));
 
 	return expr;
 }

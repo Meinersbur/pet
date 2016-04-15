@@ -11,6 +11,7 @@
 
 #include "context.h"
 #include "inliner.h"
+#include "isl_id_to_pet_expr.h"
 #include "loc.h"
 #include "scop.h"
 #include "summary.h"
@@ -99,6 +100,10 @@ struct PetScan {
 	 */
 	bool partial;
 
+	/* A cache of size expressions for array identifiers as computed
+	 * by PetScan::get_array_size.
+	 */
+	isl_id_to_pet_expr *id_size;
 	/* A cache of size expressions for array types as computed
 	 * by PetScan::get_array_size.
 	 */
@@ -149,7 +154,9 @@ struct PetScan {
 		options(options), partial(false), value_bounds(value_bounds),
 		last_line(0), current_line(0),
 		independent(independent), n_rename(0),
-		declared_names_collected(false), n_arg(0) { }
+		declared_names_collected(false), n_arg(0) {
+		id_size = isl_id_to_pet_expr_alloc(ctx, 0);
+	}
 
 	~PetScan();
 
