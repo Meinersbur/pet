@@ -68,10 +68,13 @@ libpet_la_SOURCES = \
 	id.cc \
 	inliner.h \
 	inliner.cc \
+	isl_id_to_pet_expr.h \
+	isl_id_to_pet_expr.c \
 	killed_locals.h \
 	killed_locals.cc \
 	loc.h \
 	loc.c \
+	maybe_pet_expr.h \
 	nest.h \
 	nest.c \
 	options.h \
