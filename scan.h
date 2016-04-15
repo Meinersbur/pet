@@ -101,7 +101,7 @@ struct PetScan {
 	bool partial;
 
 	/* A cache of size expressions for array identifiers as computed
-	 * by PetScan::get_array_size.
+	 * by PetScan::get_array_size, or set by PetScan::set_array_size.
 	 */
 	isl_id_to_pet_expr *id_size;
 	/* A cache of size expressions for array types as computed
@@ -165,6 +165,7 @@ struct PetScan {
 	static __isl_give isl_val *extract_int(isl_ctx *ctx,
 		clang::IntegerLiteral *expr);
 	__isl_give pet_expr *get_array_size(__isl_keep isl_id *id);
+	void set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size);
 	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
 private:

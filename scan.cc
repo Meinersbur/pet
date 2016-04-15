@@ -2663,6 +2663,14 @@ __isl_give pet_expr *PetScan::get_array_size(__isl_keep isl_id *id)
 	return expr;
 }
 
+/* Set the array size of the array identified by "id" to "size",
+ * replacing any previously stored value.
+ */
+void PetScan::set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size)
+{
+	id_size = isl_id_to_pet_expr_set(id_size, id, size);
+}
+
 /* Does "expr" represent the "integer" infinity?
  */
 static int is_infty(__isl_keep pet_expr *expr)
