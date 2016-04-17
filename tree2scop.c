@@ -2562,7 +2562,9 @@ static int extract_declared_arrays(__isl_keep pet_tree *node, void *user)
 
 /* Convert a pet_tree that consists of more than a single leaf
  * to a pet_scop with a single statement encapsulating the entire pet_tree.
- * Do so within the context of "pc".
+ * Do so within the context of "pc", taking into account the writes inside
+ * "tree".  That is, first clear any previously assigned values to variables
+ * that are written by "tree".
  *
  * After constructing the core scop, we also look for any arrays (or scalars)
  * that are declared inside "tree".  Each of those arrays is marked as
@@ -2576,15 +2578,18 @@ static struct pet_scop *scop_from_tree_macro(__isl_take pet_tree *tree,
 {
 	struct pet_tree_extract_declared_arrays_data data = { pc, state };
 
+	data.pc = pet_context_copy(data.pc);
+	data.pc = pet_context_clear_writes_in_tree(data.pc, tree);
 	data.scop = scop_from_unevaluated_tree(pet_tree_copy(tree),
-						state->n_stmt++, pc);
+						state->n_stmt++, data.pc);
 
 	data.any = 0;
-	data.ctx = pet_context_get_ctx(pc);
+	data.ctx = pet_context_get_ctx(data.pc);
 	if (pet_tree_foreach_sub_tree(tree, &extract_declared_arrays,
 					&data) < 0)
 		data.scop = pet_scop_free(data.scop);
 	pet_tree_free(tree);
+	pet_context_free(data.pc);
 
 	if (!data.any)
 		return data.scop;

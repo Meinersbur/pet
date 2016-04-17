@@ -2765,6 +2765,11 @@ static void insert_intermediate_typedefs(PetTypes *types, QualType type)
  *
  * If the base type is that of a record with no top-level definition,
  * then we replace it by "<subfield>".
+ *
+ * If the variable is a scalar, i.e., a zero-dimensional array,
+ * then the "const" qualifier, if any, is removed from the base type.
+ * This makes it easier for users of pet to turn initializations
+ * into assignments.
  */
 struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	PetTypes *types, __isl_keep pet_context *pc)
@@ -2792,6 +2797,8 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	if (!array)
 		return NULL;
 
+	if (depth == 0)
+		base.removeLocalConst();
 	name = base.getAsString();
 
 	if (types) {
