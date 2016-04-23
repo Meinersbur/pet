@@ -1017,6 +1017,15 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
 	return decl;
 }
 
+/* Is "name" the name of an assume statement?
+ * "pencil" indicates whether pencil builtins and pragmas should be supported.
+ * If "pencil" is set, then "__pencil_assume" is accepted.
+ */
+static bool is_assume(int pencil, const string &name)
+{
+	return pencil && name == "__pencil_assume";
+}
+
 /* Construct a pet_expr representing a function call.
  *
  * In the special case of a "call" to __pencil_assume,
@@ -1046,7 +1055,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	name = fd->getDeclName().getAsString();
 	n_arg = expr->getNumArgs();
 
-	if (options->pencil && n_arg == 1 && name == "__pencil_assume")
+	if (n_arg == 1 && is_assume(options->pencil, name))
 		return extract_assume(expr->getArg(0));
 	is_kill = options->pencil && name == "__pencil_kill";
 
