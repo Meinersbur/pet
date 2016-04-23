@@ -882,7 +882,7 @@ __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
 }
 
 /* Extract an assume statement from the argument "expr"
- * of a __pencil_assume statement.
+ * of a __builtin_assume or __pencil_assume statement.
  */
 __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 {
@@ -1019,16 +1019,19 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
 
 /* Is "name" the name of an assume statement?
  * "pencil" indicates whether pencil builtins and pragmas should be supported.
- * If "pencil" is set, then "__pencil_assume" is accepted.
+ * "__builtin_assume" is always accepted.
+ * If "pencil" is set, then "__pencil_assume" is also accepted.
  */
 static bool is_assume(int pencil, const string &name)
 {
+	if (name == "__builtin_assume")
+		return true;
 	return pencil && name == "__pencil_assume";
 }
 
 /* Construct a pet_expr representing a function call.
  *
- * In the special case of a "call" to __pencil_assume,
+ * In the special case of a "call" to __builtin_assume or __pencil_assume,
  * construct an assume expression instead.
  *
  * In the case of a "call" to __pencil_kill, the arguments
