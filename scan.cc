@@ -3172,8 +3172,7 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 	}
 	if (scop) {
 		free(scop->func);
-		if (scop->func)
-			scop->func = strdup(fd->getName().str().c_str());
+		scop->func = strdup(fd->getName().str().c_str());
 	}
 	scop = add_parameter_bounds(scop);
 	scop = pet_scop_gist(scop, value_bounds);
