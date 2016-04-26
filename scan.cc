@@ -149,28 +149,6 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 	}
 }
 
-#if defined(DECLREFEXPR_CREATE_REQUIRES_BOOL)
-static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
-{
-	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
-		SourceLocation(), var, false, var->getInnerLocStart(),
-		var->getType(), VK_LValue);
-}
-#elif defined(DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION)
-static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
-{
-	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
-		SourceLocation(), var, var->getInnerLocStart(), var->getType(),
-		VK_LValue);
-}
-#else
-static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
-{
-	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
-		var, var->getInnerLocStart(), var->getType(), VK_LValue);
-}
-#endif
-
 #ifdef GETTYPEINFORETURNSTYPEINFO
 
 static int size_in_bytes(ASTContext &context, QualType type)
@@ -1422,7 +1400,7 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	BinaryOperator *ass;
 	Decl *decl;
 	Stmt *init;
-	Expr *lhs, *rhs;
+	Expr *rhs;
 	ValueDecl *iv;
 	pet_tree *tree;
 	int independent;
@@ -1448,7 +1426,6 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 		iv = extract_induction_variable(ass);
 		if (!iv)
 			return NULL;
-		lhs = ass->getLHS();
 		rhs = ass->getRHS();
 	} else if ((decl = initialization_declaration(init)) != NULL) {
 		VarDecl *var = extract_induction_variable(init, decl);
@@ -1456,7 +1433,6 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 			return NULL;
 		iv = var;
 		rhs = var->getInit();
-		lhs = create_DeclRefExpr(var);
 	} else {
 		unsupported(stmt->getInit());
 		return NULL;
