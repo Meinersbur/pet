@@ -2281,11 +2281,9 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	__isl_keep pet_context *pc, void *user)
 {
 	PetScan *ps = (PetScan *) user;
-	isl_ctx *ctx;
 	isl_id *id;
 	pet_array *array;
 
-	ctx = pet_expr_get_ctx(access);
 	id = pet_expr_access_get_id(access);
 	array = ps->extract_array(id, NULL, pc);
 	isl_id_free(id);
