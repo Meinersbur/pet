@@ -16,6 +16,7 @@ struct pet_substituter {
 
 	void add_sub(__isl_take isl_id *id, __isl_take pet_expr *expr);
 
+	__isl_give pet_expr *substitute(__isl_take pet_expr *expr);
 	__isl_give pet_tree *substitute(__isl_take pet_tree *tree);
 
 	~pet_substituter();

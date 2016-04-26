@@ -3800,6 +3800,7 @@ void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
 	p = isl_printer_to_file(pet_expr_get_ctx(expr), stderr);
 	p = isl_printer_set_indent(p, indent);
 	p = isl_printer_set_yaml_style(p, ISL_YAML_STYLE_BLOCK);
+	p = isl_printer_start_line(p);
 	p = pet_expr_print(expr, p);
 
 	isl_printer_free(p);

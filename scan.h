@@ -11,6 +11,7 @@
 
 #include "context.h"
 #include "inliner.h"
+#include "isl_id_to_pet_expr.h"
 #include "loc.h"
 #include "scop.h"
 #include "summary.h"
@@ -99,6 +100,10 @@ struct PetScan {
 	 */
 	bool partial;
 
+	/* A cache of size expressions for array identifiers as computed
+	 * by PetScan::get_array_size, or set by PetScan::set_array_size.
+	 */
+	isl_id_to_pet_expr *id_size;
 	/* A cache of size expressions for array types as computed
 	 * by PetScan::get_array_size.
 	 */
@@ -149,7 +154,9 @@ struct PetScan {
 		options(options), partial(false), value_bounds(value_bounds),
 		last_line(0), current_line(0),
 		independent(independent), n_rename(0),
-		declared_names_collected(false), n_arg(0) { }
+		declared_names_collected(false), n_arg(0) {
+		id_size = isl_id_to_pet_expr_alloc(ctx, 0);
+	}
 
 	~PetScan();
 
@@ -157,7 +164,8 @@ struct PetScan {
 
 	static __isl_give isl_val *extract_int(isl_ctx *ctx,
 		clang::IntegerLiteral *expr);
-	__isl_give pet_expr *get_array_size(clang::QualType qt);
+	__isl_give pet_expr *get_array_size(__isl_keep isl_id *id);
+	void set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size);
 	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
 private:
@@ -183,7 +191,9 @@ private:
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
 		clang::QualType qt, int pos);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
-		clang::QualType qt, __isl_keep pet_context *pc);
+		__isl_keep pet_context *pc);
+	int substitute_array_sizes(__isl_keep pet_tree *tree,
+		pet_substituter *substituter);
 
 	__isl_give pet_tree *insert_initial_declarations(
 		__isl_take pet_tree *tree, int n_decl,

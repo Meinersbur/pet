@@ -216,6 +216,7 @@ PetScan::~PetScan()
 	for (it_s = summary_cache.begin(); it_s != summary_cache.end(); ++it_s)
 		pet_function_summary_free(it_s->second);
 
+	isl_id_to_pet_expr_free(id_size);
 	isl_union_map_free(value_bounds);
 }
 
@@ -1862,6 +1863,59 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
 	return 0;
 }
 
+/* Internal data structure for PetScan::substitute_array_sizes.
+ * ps is the PetScan on which the method was called.
+ * substituter is the substituter that is used to substitute variables
+ * in the size expressions.
+ */
+struct pet_substitute_array_sizes_data {
+	PetScan *ps;
+	pet_substituter *substituter;
+};
+
+extern "C" {
+	static int substitute_array_size(__isl_keep pet_tree *tree, void *user);
+}
+
+/* If "tree" is a declaration, then perform the substitutions
+ * in data->substituter on its size expression and store the result
+ * in the size expression cache of data->ps such that the modified expression
+ * will be used in subsequent calls to get_array_size.
+ */
+static int substitute_array_size(__isl_keep pet_tree *tree, void *user)
+{
+	struct pet_substitute_array_sizes_data *data;
+	isl_id *id;
+	pet_expr *var, *size;
+
+	if (!pet_tree_is_decl(tree))
+		return 0;
+
+	data = (struct pet_substitute_array_sizes_data *) user;
+	var = pet_tree_decl_get_var(tree);
+	id = pet_expr_access_get_id(var);
+	pet_expr_free(var);
+
+	size = data->ps->get_array_size(id);
+	size = data->substituter->substitute(size);
+	data->ps->set_array_size(id, size);
+
+	return 0;
+}
+
+/* Perform the substitutions in "substituter" on all the arrays declared
+ * inside "tree" and store the results in the size expression cache
+ * such that the modified expressions will be used in subsequent calls
+ * to get_array_size.
+ */
+int PetScan::substitute_array_sizes(__isl_keep pet_tree *tree,
+	pet_substituter *substituter)
+{
+	struct pet_substitute_array_sizes_data data = { this, substituter };
+
+	return pet_tree_foreach_sub_tree(tree, &substitute_array_size, &data);
+}
+
 /* Try and construct a pet_tree from the body of "fd" using the actual
  * arguments in "call" in place of the formal arguments.
  * "fd" is assumed to point to the declaration with a function body.
@@ -1870,11 +1924,15 @@ int PetScan::set_inliner_arguments(pet_inliner &inliner, CallExpr *call,
  * followed by the inlined function body with the formal arguments
  * replaced by (expressions containing) these temporary variables.
  *
- * The actual inlining is taken care of by the pet_inliner function.
+ * The actual inlining is taken care of by the pet_inliner object.
  * This function merely calls set_inliner_arguments to tell
  * the pet_inliner about the actual arguments, extracts a pet_tree
  * from the body of the called function and then passes this pet_tree
  * to the pet_inliner.
+ * The substitutions performed by the inliner are also applied
+ * to the size expressions of the arrays declared in the inlined
+ * function.  These size expressions are not stored in the tree
+ * itself, but rather in the size expression cache.
  *
  * During the extraction of the function body, all variables names
  * that are declared in the calling function as well all variable
@@ -1911,6 +1969,8 @@ __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
 
 	tree_loc = construct_pet_loc(call->getSourceRange(), true);
 	tree = pet_tree_set_loc(tree, tree_loc);
+
+	substitute_array_sizes(tree, &inliner);
 
 	return inliner.inline_tree(tree);
 }
@@ -2191,12 +2251,13 @@ static __isl_give pet_expr *get_array_size(__isl_keep pet_expr *access,
 {
 	PetScan *ps = (PetScan *) user;
 	isl_id *id;
-	QualType qt;
+	pet_expr *size;
 
 	id = pet_expr_access_get_id(access);
-	qt = pet_id_get_array_type(id);
+	size = ps->get_array_size(id);
 	isl_id_free(id);
-	return ps->get_array_size(qt);
+
+	return size;
 }
 
 /* Construct and return a pet_array corresponding to the variable
@@ -2620,22 +2681,29 @@ __isl_give pet_expr *PetScan::set_upper_bounds(__isl_take pet_expr *expr,
 	return set_upper_bounds(expr, qt, pos + 1);
 }
 
-/* Construct a pet_expr that holds the sizes of an array of the given type.
+/* Construct a pet_expr that holds the sizes of the array represented by "id".
  * The returned expression is a call expression with as arguments
  * the sizes in each dimension.  If we are unable to derive the size
  * in a given dimension, then the corresponding argument is set to infinity.
  * In fact, we initialize all arguments to infinity and then update
  * them if we are able to figure out the size.
  *
- * The result is stored in the type_size cache so that we can reuse
- * it if this method gets called on the same type again later on.
+ * The result is stored in the id_size cache so that it can be reused
+ * if this method is called on the same array identifier later.
+ * The result is also stored in the type_size cache in case
+ * it gets called on a different array identifier with the same type.
  */
-__isl_give pet_expr *PetScan::get_array_size(QualType qt)
+__isl_give pet_expr *PetScan::get_array_size(__isl_keep isl_id *id)
 {
+	QualType qt = pet_id_get_array_type(id);
 	int depth;
 	pet_expr *expr, *inf;
 	const Type *type = qt.getTypePtr();
+	isl_maybe_pet_expr m;
 
+	m = isl_id_to_pet_expr_try_get(id_size, id);
+	if (m.valid < 0 || m.valid)
+		return m.value;
 	if (type_size.find(type) != type_size.end())
 		return pet_expr_copy(type_size[type]);
 
@@ -2648,8 +2716,18 @@ __isl_give pet_expr *PetScan::get_array_size(QualType qt)
 
 	expr = set_upper_bounds(expr, qt, 0);
 	type_size[type] = pet_expr_copy(expr);
+	id_size = isl_id_to_pet_expr_set(id_size, isl_id_copy(id),
+					pet_expr_copy(expr));
 
 	return expr;
+}
+
+/* Set the array size of the array identified by "id" to "size",
+ * replacing any previously stored value.
+ */
+void PetScan::set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size)
+{
+	id_size = isl_id_to_pet_expr_set(id_size, id, size);
 }
 
 /* Does "expr" represent the "integer" infinity?
@@ -2668,8 +2746,8 @@ static int is_infty(__isl_keep pet_expr *expr)
 	return res;
 }
 
-/* Figure out the dimensions of an array "array" based on its type
- * "qt" and update "array" accordingly.
+/* Figure out the dimensions of an array "array" and
+ * update "array" accordingly.
  *
  * We first construct a pet_expr that holds the sizes of the array
  * in each dimension.  The resulting expression may containing
@@ -2684,15 +2762,18 @@ static int is_infty(__isl_keep pet_expr *expr)
  * then we leave the corresponding size of "array" untouched.
  */
 struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
-	QualType qt, __isl_keep pet_context *pc)
+	__isl_keep pet_context *pc)
 {
 	int n;
+	isl_id *id;
 	pet_expr *expr;
 
 	if (!array)
 		return NULL;
 
-	expr = get_array_size(qt);
+	id = isl_set_get_tuple_id(array->extent);
+	expr = get_array_size(id);
+	isl_id_free(id);
 
 	n = pet_expr_get_n_arg(expr);
 	for (int i = 0; i < n; ++i) {
@@ -2793,7 +2874,7 @@ struct pet_array *PetScan::extract_array(__isl_keep isl_id *id,
 	space = isl_space_params_alloc(ctx, 0);
 	array->context = isl_set_universe(space);
 
-	array = set_upper_bounds(array, qt, pc);
+	array = set_upper_bounds(array, pc);
 	if (!array)
 		return NULL;
 

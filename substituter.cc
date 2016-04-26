@@ -49,6 +49,19 @@ extern "C" {
 		void *user);
 }
 
+/* Perform the substitutions stored in "subs" on "expr" and return
+ * the results.
+ * In particular, perform the substitutions on each of the access
+ * subexpressions in "expr".
+ */
+__isl_give pet_expr *pet_substituter::substitute(__isl_take pet_expr *expr)
+{
+	if (subs.size() == 0)
+		return expr;
+	expr = pet_expr_map_access(expr, &substitute_access, this);
+	return expr;
+}
+
 /* Perform the substitutions stored in "subs" on "tree" and return
  * the results.
  * In particular, perform the substitutions on each of the access
