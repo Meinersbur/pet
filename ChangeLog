@@ -1,3 +1,9 @@
+version: 0.09
+date: Tue May  3 15:06:19 CEST 2016
+changes:
+	- push affine conditions into index expressions
+	- properly support undeclared loop iterators
+---
 version: 0.08
 date: Fri Jan 15 08:27:46 CET 2016
 changes:

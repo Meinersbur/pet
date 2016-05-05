@@ -149,28 +149,6 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 	}
 }
 
-#if defined(DECLREFEXPR_CREATE_REQUIRES_BOOL)
-static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
-{
-	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
-		SourceLocation(), var, false, var->getInnerLocStart(),
-		var->getType(), VK_LValue);
-}
-#elif defined(DECLREFEXPR_CREATE_REQUIRES_SOURCELOCATION)
-static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
-{
-	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
-		SourceLocation(), var, var->getInnerLocStart(), var->getType(),
-		VK_LValue);
-}
-#else
-static DeclRefExpr *create_DeclRefExpr(VarDecl *var)
-{
-	return DeclRefExpr::Create(var->getASTContext(), var->getQualifierLoc(),
-		var, var->getInnerLocStart(), var->getType(), VK_LValue);
-}
-#endif
-
 #ifdef GETTYPEINFORETURNSTYPEINFO
 
 static int size_in_bytes(ASTContext &context, QualType type)
@@ -882,7 +860,7 @@ __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
 }
 
 /* Extract an assume statement from the argument "expr"
- * of a __pencil_assume statement.
+ * of a __builtin_assume or __pencil_assume statement.
  */
 __isl_give pet_expr *PetScan::extract_assume(Expr *expr)
 {
@@ -1017,9 +995,21 @@ FunctionDecl *PetScan::get_summary_function(CallExpr *call)
 	return decl;
 }
 
+/* Is "name" the name of an assume statement?
+ * "pencil" indicates whether pencil builtins and pragmas should be supported.
+ * "__builtin_assume" is always accepted.
+ * If "pencil" is set, then "__pencil_assume" is also accepted.
+ */
+static bool is_assume(int pencil, const string &name)
+{
+	if (name == "__builtin_assume")
+		return true;
+	return pencil && name == "__pencil_assume";
+}
+
 /* Construct a pet_expr representing a function call.
  *
- * In the special case of a "call" to __pencil_assume,
+ * In the special case of a "call" to __builtin_assume or __pencil_assume,
  * construct an assume expression instead.
  *
  * In the case of a "call" to __pencil_kill, the arguments
@@ -1046,7 +1036,7 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	name = fd->getDeclName().getAsString();
 	n_arg = expr->getNumArgs();
 
-	if (options->pencil && n_arg == 1 && name == "__pencil_assume")
+	if (n_arg == 1 && is_assume(options->pencil, name))
 		return extract_assume(expr->getArg(0));
 	is_kill = options->pencil && name == "__pencil_kill";
 
@@ -1410,7 +1400,7 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 	BinaryOperator *ass;
 	Decl *decl;
 	Stmt *init;
-	Expr *lhs, *rhs;
+	Expr *rhs;
 	ValueDecl *iv;
 	pet_tree *tree;
 	int independent;
@@ -1436,7 +1426,6 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 		iv = extract_induction_variable(ass);
 		if (!iv)
 			return NULL;
-		lhs = ass->getLHS();
 		rhs = ass->getRHS();
 	} else if ((decl = initialization_declaration(init)) != NULL) {
 		VarDecl *var = extract_induction_variable(init, decl);
@@ -1444,7 +1433,6 @@ __isl_give pet_tree *PetScan::extract_for(ForStmt *stmt)
 			return NULL;
 		iv = var;
 		rhs = var->getInit();
-		lhs = create_DeclRefExpr(var);
 	} else {
 		unsupported(stmt->getInit());
 		return NULL;
@@ -2269,11 +2257,9 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
 	__isl_keep pet_context *pc, void *user)
 {
 	PetScan *ps = (PetScan *) user;
-	isl_ctx *ctx;
 	isl_id *id;
 	pet_array *array;
 
-	ctx = pet_expr_get_ctx(access);
 	id = pet_expr_access_get_id(access);
 	array = ps->extract_array(id, NULL, pc);
 	isl_id_free(id);

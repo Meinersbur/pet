@@ -33,7 +33,7 @@ struct StmtRange : std::pair<StmtIterator,StmtIterator> {
 };
 #endif
 
-};
+}
 
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.

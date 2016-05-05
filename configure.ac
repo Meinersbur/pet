@@ -1,11 +1,11 @@
-AC_INIT([pet], [0.08], [pet@meinersbur.de])
+AC_INIT([pet], [0.09], [pet@meinersbur.de])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AC_SUBST(versioninfo)
-versioninfo=8:0:0
+versioninfo=9:0:1
 
 AC_PROG_CC
 AC_PROG_CXX
