@@ -178,6 +178,20 @@ AC_EGREP_HEADER([initializeBuiltins],
 	[clang/Basic/Builtins.h], [],
 	[AC_DEFINE([initializeBuiltins], [InitializeBuiltins],
 		[Define to InitializeBuiltins for older versions of clang])])
+AC_TRY_COMPILE([
+	#include <clang/Basic/TargetOptions.h>
+	#include <clang/Lex/PreprocessorOptions.h>
+	#include <clang/Frontend/CompilerInstance.h>
+], [
+	using namespace clang;
+	CompilerInstance *Clang;
+	TargetOptions TO;
+	llvm::Triple T(TO.Triple);
+	PreprocessorOptions PO;
+	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
+			T, PO, LangStandard::lang_unspecified);
+], [AC_DEFINE([SETLANGDEFAULTS_TAKES_5_ARGUMENTS], [],
+	[Define if CompilerInvocation::setLangDefaults takes 5 arguments])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
