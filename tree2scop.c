@@ -47,6 +47,42 @@
 #include "state.h"
 #include "tree2scop.h"
 
+/* If "stmt" is an affine assumption, then record the assumption in "pc".
+ */
+static __isl_give pet_context *add_affine_assumption(struct pet_stmt *stmt,
+	__isl_take pet_context *pc)
+{
+	isl_bool affine;
+	isl_set *cond;
+
+	affine = pet_stmt_is_affine_assume(stmt);
+	if (affine < 0)
+		return pet_context_free(pc);
+	if (!affine)
+		return pc;
+	cond = pet_stmt_assume_get_affine_condition(stmt);
+	cond = isl_set_reset_tuple_id(cond);
+	pc = pet_context_intersect_domain(pc, cond);
+	return pc;
+}
+
+/* Given a scop "scop" derived from an assumption statement,
+ * record the assumption in "pc", if it is affine.
+ * Note that "scop" should consist of exactly one statement.
+ */
+static __isl_give pet_context *scop_add_affine_assumption(
+	__isl_keep pet_scop *scop, __isl_take pet_context *pc)
+{
+	int i;
+
+	if (!scop)
+		return pet_context_free(pc);
+	for (i = 0; i < scop->n_stmt; ++i)
+		pc = add_affine_assumption(scop->stmts[i], pc);
+
+	return pc;
+}
+
 /* Update "pc" by taking into account the writes in "stmt".
  * That is, clear any previously assigned values to variables
  * that are written by "stmt".
@@ -2419,6 +2455,7 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  * After extracting a statement, we update "pc"
  * based on the top-level assignments in the statement
  * so that we can exploit them in subsequent statements in the same block.
+ * Top-level affine assumptions are also recorded in the context.
  *
  * If there are any breaks or continues in the individual statements,
  * then we may have to compute a new skip condition.
@@ -2465,6 +2502,8 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		if (pet_scop_has_affine_skip(scop, pet_skip_now))
 			pc = apply_affine_continue(pc, scop);
 		scop_i = scop_from_tree(tree->u.b.child[i], pc, state);
+		if (pet_tree_is_assume(tree->u.b.child[i]))
+			pc = scop_add_affine_assumption(scop_i, pc);
 		pc = scop_handle_writes(scop_i, pc);
 		if (is_assignment(tree->u.b.child[i]))
 			pc = handle_assignment(pc, tree->u.b.child[i]);

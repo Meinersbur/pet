@@ -5,7 +5,7 @@ context: '[S, n, m] -> {  : 0 <= S <= 2147483647 and n >= -2147483648 and n < m 
   2147483648 - n and m <= 2147483647 }'
 schedule: '{ domain: "[S, n, m] -> { S_0[]; S_1[i] : 0 <= i < n }", child: { sequence:
   [ { filter: "[n] -> { S_0[] }" }, { filter: "[n] -> { S_1[i] }", child: { schedule:
-  "[n] -> L_0[{ S_1[i] -> [(i)] }]" } } ] } }'
+  "[m, n] -> L_0[{ S_1[i] -> [(i)] }]" } } ] } }'
 arrays:
 - context: '[S] -> {  : S >= 0 }'
   extent: '[S, n, m] -> { D[i0] : 0 <= i0 < S }'
