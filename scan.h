@@ -37,11 +37,15 @@ struct StmtRange : std::pair<StmtIterator,StmtIterator> {
 
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.
+ * "scop" and "endscop" are the source locations of the scop and
+ * endscop pragmas.
  * "start_line" is the line number of the start position.
  */
 struct ScopLoc {
 	ScopLoc() : end(0) {}
 
+	clang::SourceLocation scop;
+	clang::SourceLocation endscop;
 	unsigned start_line;
 	unsigned start;
 	unsigned end;

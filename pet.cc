@@ -382,12 +382,16 @@ struct ScopLocList {
 	/* Add a new start (#pragma scop) location to the list.
 	 * If the last #pragma scop did not have a matching
 	 * #pragma endscop then overwrite it.
+	 * "start" points to the location of the scop pragma.
 	 */
-	void add_start(unsigned line, unsigned start) {
+	void add_start(SourceManager &SM, SourceLocation start) {
 		ScopLoc loc;
 
+		loc.scop = start;
+		int line = SM.getExpansionLineNumber(start);
+		start = translateLineCol(SM, SM.getFileID(start), line, 1);
 		loc.start_line = line;
-		loc.start = start;
+		loc.start = SM.getFileOffset(start);
 		if (list.size() == 0 || list[list.size() - 1].end != 0)
 			list.push_back(loc);
 		else
@@ -398,11 +402,15 @@ struct ScopLocList {
 	 * in the list.
 	 * If there is no such pair of if the end of that pair
 	 * is already set, then ignore the spurious #pragma endscop.
+	 * "end" points to the location of the endscop pragma.
 	 */
-	void add_end(unsigned end) {
+	void add_end(SourceManager &SM, SourceLocation end) {
 		if (list.size() == 0 || list[list.size() - 1].end != 0)
 			return;
-		list[list.size() - 1].end = end;
+		list[list.size() - 1].endscop = end;
+		int line = SM.getExpansionLineNumber(end);
+		end = translateLineCol(SM, SM.getFileID(end), line + 1, 1);
+		list[list.size() - 1].end = SM.getFileOffset(end);
 	}
 };
 
@@ -424,9 +432,7 @@ struct PragmaScopHandler : public PragmaHandler {
 				  Token &ScopTok) {
 		SourceManager &SM = PP.getSourceManager();
 		SourceLocation sloc = ScopTok.getLocation();
-		int line = SM.getExpansionLineNumber(sloc);
-		sloc = translateLineCol(SM, SM.getFileID(sloc), line, 1);
-		scops.add_start(line, SM.getFileOffset(sloc));
+		scops.add_start(SM, sloc);
 	}
 };
 
@@ -448,9 +454,7 @@ struct PragmaEndScopHandler : public PragmaHandler {
 				  Token &EndScopTok) {
 		SourceManager &SM = PP.getSourceManager();
 		SourceLocation sloc = EndScopTok.getLocation();
-		int line = SM.getExpansionLineNumber(sloc);
-		sloc = translateLineCol(SM, SM.getFileID(sloc), line + 1, 1);
-		scops.add_end(SM.getFileOffset(sloc));
+		scops.add_end(SM, sloc);
 	}
 };
 
