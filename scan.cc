@@ -318,6 +318,27 @@ void PetScan::report_unsupported_declaration(Decl *decl)
 	report(decl, id);
 }
 
+/* Report an unbalanced pair of scop/endscop pragmas, unless autodetect is set.
+ */
+void PetScan::report_unbalanced_pragmas(SourceLocation scop,
+	SourceLocation endscop)
+{
+	if (options->autodetect)
+		return;
+
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	{
+		unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "unbalanced endscop pragma");
+		DiagnosticBuilder B2 = diag.Report(endscop, id);
+	}
+	{
+		unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Note,
+					   "corresponding scop pragma");
+		DiagnosticBuilder B = diag.Report(scop, id);
+	}
+}
+
 /* Extract an integer from "val", which is assumed to be non-negative.
  */
 static __isl_give isl_val *extract_unsigned(isl_ctx *ctx,
@@ -2480,6 +2501,9 @@ __isl_give pet_tree *PetScan::add_kills(__isl_take pet_tree *tree,
  * then check if there are any variable declarations before the scop
  * inside "stmt".  If so, and if these variables are not used
  * after the scop, then add kills to the variables.
+ *
+ * If the scop starts in the middle of one of the children, without
+ * also ending in that child, then report an error.
  */
 struct pet_scop *PetScan::scan(Stmt *stmt)
 {
@@ -2510,6 +2534,10 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			return scan(child);
 		if (start_off >= loc.start)
 			break;
+		if (loc.start < end_off) {
+			report_unbalanced_pragmas(loc.scop, loc.endscop);
+			return NULL;
+		}
 		if (isa<DeclStmt>(child))
 			kl.add_locals(cast<DeclStmt>(child));
 	}

@@ -296,4 +296,6 @@ private:
 	void report_missing_summary_function_body(clang::Stmt *stmt);
 	void report_unsupported_inline_function_argument(clang::Stmt *stmt);
 	void report_unsupported_declaration(clang::Decl *decl);
+	void report_unbalanced_pragmas(clang::SourceLocation scop,
+		clang::SourceLocation endscop);
 };
