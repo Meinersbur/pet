@@ -21,6 +21,7 @@ void pet_stmt_dump(struct pet_stmt *stmt);
 void *pet_stmt_free(struct pet_stmt *stmt);
 
 int pet_stmt_is_assume(struct pet_stmt *stmt);
+isl_bool pet_stmt_is_affine_assume(struct pet_stmt *stmt);
 
 struct pet_type *pet_type_alloc(isl_ctx *ctx, const char *name,
 	const char *definition);
