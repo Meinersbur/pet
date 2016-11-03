@@ -432,6 +432,20 @@ __isl_give isl_multi_pw_aff *pet_stmt_assume_get_index(struct pet_stmt *stmt)
 	return pet_tree_assume_get_index(stmt->body);
 }
 
+/* Assuming "stmt" is an assume statement with an affine assumption,
+ * return the assumption as a set.
+ */
+__isl_give isl_set *pet_stmt_assume_get_affine_condition(struct pet_stmt *stmt)
+{
+	isl_multi_pw_aff *index;
+	isl_pw_aff *pa;
+
+	index = pet_stmt_assume_get_index(stmt);
+	pa = isl_multi_pw_aff_get_pw_aff(index, 0);
+	isl_multi_pw_aff_free(index);
+	return isl_pw_aff_non_zero_set(pa);
+}
+
 /* Update "context" with the constraints imposed on the outer iteration
  * domain by "stmt".
  *
@@ -454,14 +468,9 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	if (affine < 0)
 		return isl_set_free(context);
 	if (affine) {
-		isl_multi_pw_aff *index;
-		isl_pw_aff *pa;
 		isl_set *cond;
 
-		index = pet_stmt_assume_get_index(stmt);
-		pa = isl_multi_pw_aff_get_pw_aff(index, 0);
-		isl_multi_pw_aff_free(index);
-		cond = isl_pw_aff_non_zero_set(pa);
+		cond = pet_stmt_assume_get_affine_condition(stmt);
 		cond = isl_set_reset_tuple_id(cond);
 		return isl_set_intersect(context, cond);
 	}

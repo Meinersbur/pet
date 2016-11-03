@@ -22,6 +22,7 @@ void *pet_stmt_free(struct pet_stmt *stmt);
 
 int pet_stmt_is_assume(struct pet_stmt *stmt);
 isl_bool pet_stmt_is_affine_assume(struct pet_stmt *stmt);
+__isl_give isl_set *pet_stmt_assume_get_affine_condition(struct pet_stmt *stmt);
 
 struct pet_type *pet_type_alloc(isl_ctx *ctx, const char *name,
 	const char *definition);
