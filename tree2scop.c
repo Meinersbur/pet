@@ -2323,6 +2323,8 @@ static int tree_is_decl(__isl_keep pet_tree *tree)
 		return 0;
 	if (pet_tree_block_get_block(tree))
 		return 0;
+	if (tree->u.b.n == 0)
+		return 0;
 
 	for (i = 0; i < tree->u.b.n; ++i) {
 		is_decl = tree_is_decl(tree->u.b.child[i]);
