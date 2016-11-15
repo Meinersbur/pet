@@ -1418,10 +1418,10 @@ int pet_tree_is_assume(__isl_keep pet_tree *tree)
 /* Is "tree" an expression tree that performs an assume operation
  * such that the assumed expression is affine?
  */
-int pet_tree_is_affine_assume(__isl_keep pet_tree *tree)
+isl_bool pet_tree_is_affine_assume(__isl_keep pet_tree *tree)
 {
 	if (!pet_tree_is_assume(tree))
-		return 0;
+		return isl_bool_false;
 	return pet_expr_is_affine(tree->u.e.expr->args[0]);
 }
 

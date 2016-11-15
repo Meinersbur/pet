@@ -92,7 +92,7 @@ int pet_tree_is_equal(__isl_keep pet_tree *tree1, __isl_keep pet_tree *tree2);
 int pet_tree_is_kill(__isl_keep pet_tree *tree);
 int pet_tree_is_assign(__isl_keep pet_tree *tree);
 int pet_tree_is_assume(__isl_keep pet_tree *tree);
-int pet_tree_is_affine_assume(__isl_keep pet_tree *tree);
+isl_bool pet_tree_is_affine_assume(__isl_keep pet_tree *tree);
 __isl_give isl_multi_pw_aff *pet_tree_assume_get_index(
 	__isl_keep pet_tree *tree);
 

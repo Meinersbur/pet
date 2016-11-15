@@ -415,10 +415,10 @@ error:
 
 /* Is "stmt" an assume statement with an affine assumption?
  */
-int pet_stmt_is_affine_assume(struct pet_stmt *stmt)
+isl_bool pet_stmt_is_affine_assume(struct pet_stmt *stmt)
 {
 	if (!stmt)
-		return 0;
+		return isl_bool_error;
 	return pet_tree_is_affine_assume(stmt->body);
 }
 
@@ -447,9 +447,13 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	__isl_take isl_set *context)
 {
 	int i;
+	isl_bool affine;
 	pet_expr *body;
 
-	if (pet_stmt_is_affine_assume(stmt)) {
+	affine = pet_stmt_is_affine_assume(stmt);
+	if (affine < 0)
+		return isl_set_free(context);
+	if (affine) {
 		isl_multi_pw_aff *index;
 		isl_pw_aff *pa;
 		isl_set *cond;
