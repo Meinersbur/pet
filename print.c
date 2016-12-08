@@ -32,9 +32,14 @@
  * Leiden University.
  */
 
+#include <isl/id.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
 #include <isl/aff.h>
 #include <isl/ast.h>
 #include <isl/ast_build.h>
+#include <isl/printer.h>
+#include <isl/val.h>
 #include <pet.h>
 #include "expr.h"
 #include "print.h"
