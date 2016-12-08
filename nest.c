@@ -34,6 +34,14 @@
 
 #include <string.h>
 
+#include <isl/id.h>
+#include <isl/space.h>
+#include <isl/set.h>
+#include <isl/map.h>
+#include <isl/union_map.h>
+#include <isl/aff.h>
+#include <isl/val.h>
+
 #include "aff.h"
 #include "expr.h"
 #include "expr_arg.h"
