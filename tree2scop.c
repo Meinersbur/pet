@@ -35,7 +35,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
 #include <isl/id_to_pw_aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
 
 #include "aff.h"
