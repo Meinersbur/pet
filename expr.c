@@ -34,8 +34,17 @@
 
 #include <string.h>
 
+#include <isl/ctx.h>
 #include <isl/hash.h>
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
+#include <isl/printer.h>
 
 #include "aff.h"
 #include "array.h"
