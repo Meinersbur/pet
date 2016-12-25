@@ -105,9 +105,7 @@ static __isl_give isl_ast_build *set_options(__isl_take isl_ast_build *build,
 	struct options *options, __isl_keep isl_union_map *schedule)
 {
 	isl_ctx *ctx;
-	isl_space *space;
-	isl_union_set *domain, *separate;
-	isl_union_map *opt, *opt_s, *opt_a;
+	isl_union_map *opt;
 
 	if (!options->separate && !options->atomic && !options->read_options)
 		return build;
