@@ -2167,7 +2167,6 @@ error:
  */
 static int access_collect_params(__isl_keep pet_expr *expr, void *user)
 {
-	int i;
 	isl_space *expr_space;
 	isl_space **space = user;
 
