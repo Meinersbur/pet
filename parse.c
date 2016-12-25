@@ -620,7 +620,7 @@ static __isl_give pet_expr *extract_expr(isl_ctx *ctx,
 
 		if (key->type != YAML_SCALAR_NODE)
 			isl_die(ctx, isl_error_invalid, "expecting scalar key",
-				return pet_expr_free(expr));
+				return NULL);
 
 		if (!strcmp((char *) key->data.scalar.value, "type"))
 			type = extract_expr_type(ctx, document, value);
