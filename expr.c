@@ -262,9 +262,6 @@ static int has_relevant_access_relations(__isl_keep pet_expr *expr)
 __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 	int depth)
 {
-	isl_map *access;
-	int dim;
-
 	if (!expr)
 		return NULL;
 	if (expr->acc.depth == depth)
