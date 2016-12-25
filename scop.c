@@ -1628,8 +1628,6 @@ static __isl_give isl_schedule *schedule_embed(
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_multi_aff *sched)
 {
-	int i;
-
 	if (!scop)
 		goto error;
 
