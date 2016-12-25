@@ -250,21 +250,6 @@ __isl_give isl_set *pet_nested_remove_from_set(__isl_take isl_set *set)
 	return set;
 }
 
-/* Remove all parameters from "map" that refer to nested accesses.
- */
-static __isl_give isl_map *pet_nested_remove_from_map(__isl_take isl_map *map)
-{
-	int i;
-	int nparam;
-
-	nparam = isl_map_dim(map, isl_dim_param);
-	for (i = nparam - 1; i >= 0; --i)
-		if (pet_nested_in_map(map, i))
-			map = isl_map_project_out(map, isl_dim_param, i, 1);
-
-	return map;
-}
-
 /* Remove all parameters from "umap" that refer to nested accesses.
  */
 static __isl_give isl_union_map *pet_nested_remove_from_union_map(
