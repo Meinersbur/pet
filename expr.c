@@ -2839,7 +2839,6 @@ static __isl_give isl_pw_aff *nested_access(__isl_keep pet_expr *expr,
 static __isl_give isl_pw_aff *extract_affine_from_access(
 	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
 {
-	int pos;
 	isl_id *id;
 
 	if (pet_expr_is_affine(expr))
