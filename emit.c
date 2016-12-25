@@ -129,7 +129,7 @@ static int emit_named_unsigned(yaml_emitter_t *emitter, const char *name,
 {
 	if (emit_string(emitter, name) < 0)
 		return -1;
-	if (emit_int(emitter, u) < 0)
+	if (emit_unsigned(emitter, u) < 0)
 		return -1;
 	return 0;
 }
