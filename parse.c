@@ -1145,7 +1145,7 @@ static __isl_give pet_tree *extract_tree(isl_ctx *ctx,
 
 		if (key->type != YAML_SCALAR_NODE)
 			isl_die(ctx, isl_error_invalid, "expecting scalar key",
-				return pet_tree_free(tree));
+				return NULL);
 
 		if (!strcmp((char *) key->data.scalar.value, "type"))
 			type = extract_tree_type(ctx, document, value);
