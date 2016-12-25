@@ -2454,7 +2454,6 @@ static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 	struct pet_expr_collect_accesses_data *data = user;
 	int i;
 	isl_id *id;
-	isl_space *dim;
 
 	if (!expr)
 		return -1;
