@@ -192,8 +192,6 @@ static int check_domain(__isl_keep isl_union_map *schedule,
 {
 	isl_union_set *dom1, *dom2;
 	int equal;
-	isl_set *s1, *s2;
-	isl_id *id1, *id2;
 	int r = 0;
 
 	dom1 = isl_union_map_domain(isl_union_map_copy(schedule));
