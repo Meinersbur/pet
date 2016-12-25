@@ -955,7 +955,6 @@ static __isl_give isl_union_map *construct_access_relation(
 static __isl_give pet_expr *introduce_access_relations(
 	__isl_take pet_expr *expr)
 {
-	enum pet_expr_access_type type;
 	isl_union_map *access;
 	int dim;
 	int kill, read, write;
