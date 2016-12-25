@@ -2452,7 +2452,6 @@ struct pet_expr_collect_accesses_data {
 static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 {
 	struct pet_expr_collect_accesses_data *data = user;
-	int i;
 
 	if (!expr)
 		return -1;
