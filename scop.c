@@ -1889,7 +1889,6 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	int i;
 	int implied;
 	isl_id *id;
-	isl_ctx *ctx;
 	isl_pw_multi_aff *pma;
 	isl_multi_aff *add_dom;
 	isl_space *space;
