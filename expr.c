@@ -956,7 +956,6 @@ static __isl_give pet_expr *introduce_access_relations(
 	__isl_take pet_expr *expr)
 {
 	isl_union_map *access;
-	int dim;
 	int kill, read, write;
 
 	if (!expr)
