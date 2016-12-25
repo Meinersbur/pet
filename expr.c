@@ -921,7 +921,6 @@ static __isl_give isl_union_map *construct_access_relation(
 {
 	isl_map *access;
 	int dim;
-	int read, write;
 
 	if (!expr)
 		return NULL;
