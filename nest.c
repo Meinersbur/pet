@@ -843,13 +843,10 @@ error:
 struct pet_stmt *pet_stmt_resolve_nested(struct pet_stmt *stmt)
 {
 	int i, n;
-	int pos;
 	int nparam;
 	unsigned n_arg;
 	isl_ctx *ctx;
 	isl_map *map;
-	isl_space *space;
-	isl_multi_aff *ma;
 	int *param2pos;
 
 	if (!stmt)
