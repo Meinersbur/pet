@@ -238,8 +238,6 @@ isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr)
  */
 static int has_relevant_access_relations(__isl_keep pet_expr *expr)
 {
-	enum pet_expr_access_type type;
-
 	if (!expr)
 		return -1;
 
