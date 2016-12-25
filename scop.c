@@ -1697,8 +1697,6 @@ static struct pet_scop *pet_scop_restrict_skip(struct pet_scop *scop,
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond)
 {
-	int i;
-
 	scop = pet_scop_restrict_skip(scop, pet_skip_now, cond);
 	scop = pet_scop_restrict_skip(scop, pet_skip_later, cond);
 
