@@ -1064,8 +1064,6 @@ error:
 
 void *pet_implication_free(struct pet_implication *implication)
 {
-	int i;
-
 	if (!implication)
 		return NULL;
 
