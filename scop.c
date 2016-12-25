@@ -1540,40 +1540,6 @@ static __isl_give isl_set *context_embed(__isl_take isl_set *context,
 	return context;
 }
 
-/* Update the implication with respect to an embedding into a loop
- * with iteration domain "dom".
- *
- * Since embed_access extends virtual arrays along with the domain
- * of the access, we need to do the same with domain and range
- * of the implication.  Since the original implication is only valid
- * within a given iteration of the loop, the extended implication
- * maps the extra array dimension corresponding to the extra loop
- * to itself.
- */
-static struct pet_implication *pet_implication_embed(
-	struct pet_implication *implication, __isl_take isl_set *dom)
-{
-	isl_id *id;
-	isl_map *map;
-
-	if (!implication)
-		goto error;
-
-	map = isl_set_identity(dom);
-	id = isl_map_get_tuple_id(implication->extension, isl_dim_in);
-	map = isl_map_flat_product(map, implication->extension);
-	map = isl_map_set_tuple_id(map, isl_dim_in, isl_id_copy(id));
-	map = isl_map_set_tuple_id(map, isl_dim_out, id);
-	implication->extension = map;
-	if (!implication->extension)
-		return pet_implication_free(implication);
-
-	return implication;
-error:
-	isl_set_free(dom);
-	return NULL;
-}
-
 /* Internal data structure for outer_projection_mupa.
  *
  * "n" is the number of outer dimensions onto which to project.
