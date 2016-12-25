@@ -1841,7 +1841,6 @@ static int filter_implied(struct pet_scop *scop,
 {
 	int i;
 	int implied;
-	isl_id *test_id;
 	isl_map *domain;
 	isl_map *test_map;
 
