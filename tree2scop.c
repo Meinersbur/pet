@@ -224,7 +224,6 @@ static struct pet_scop *kill(__isl_take pet_loc *loc, struct pet_array *array,
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *expr;
-	struct pet_scop *scop;
 
 	if (!array)
 		goto error;
