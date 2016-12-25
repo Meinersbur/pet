@@ -2872,8 +2872,6 @@ static struct pet_array *array_anonymize(struct pet_array *array)
 static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 {
 	int i;
-	isl_space *space;
-	isl_set *domain;
 
 	if (!stmt)
 		return NULL;
