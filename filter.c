@@ -60,7 +60,6 @@ __isl_give isl_pw_multi_aff *pet_filter_insert_pma(__isl_take isl_space *space,
 	isl_space *space2;
 	isl_multi_aff *ma;
 	isl_pw_multi_aff *pma0, *pma, *pma_dom, *pma_ran;
-	isl_set *dom;
 
 	if (isl_space_is_wrapping(space)) {
 		space2 = isl_space_map_from_set(isl_space_copy(space));
