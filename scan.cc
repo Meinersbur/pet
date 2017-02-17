@@ -247,6 +247,16 @@ void PetScan::report_unsupported_unary_operator(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report an unsupported binary operator, unless autodetect is set.
+ */
+void PetScan::report_unsupported_binary_operator(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+			       "this type of binary operator is not supported");
+	report(stmt, id);
+}
+
 /* Report an unsupported statement type, unless autodetect is set.
  */
 void PetScan::report_unsupported_statement_type(Stmt *stmt)
@@ -708,7 +718,7 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 
 	op = BinaryOperatorKind2pet_op_type(expr->getOpcode());
 	if (op == pet_op_last) {
-		unsupported(expr);
+		report_unsupported_binary_operator(expr);
 		return NULL;
 	}
 

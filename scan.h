@@ -293,6 +293,7 @@ private:
 	void report(clang::Decl *decl, unsigned id);
 	void unsupported(clang::Stmt *stmt);
 	void report_unsupported_unary_operator(clang::Stmt *stmt);
+	void report_unsupported_binary_operator(clang::Stmt *stmt);
 	void report_unsupported_statement_type(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
