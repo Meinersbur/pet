@@ -106,6 +106,12 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 		return pet_op_mul_assign;
 	case BO_DivAssign:
 		return pet_op_div_assign;
+	case BO_AndAssign:
+		return pet_op_and_assign;
+	case BO_XorAssign:
+		return pet_op_xor_assign;
+	case BO_OrAssign:
+		return pet_op_or_assign;
 	case BO_Assign:
 		return pet_op_assign;
 	case BO_Add:
