@@ -58,6 +58,7 @@ static const char *type_str[] = {
 	[pet_tree_if] = "if",
 	[pet_tree_if_else] = "if-else",
 	[pet_tree_while] = "while",
+	[pet_tree_return] = "return",
 };
 
 /* Return a textual representation of the type "type".
@@ -163,6 +164,28 @@ __isl_give pet_tree *pet_tree_new_expr(__isl_take pet_expr *expr)
 		return NULL;
 	ctx = pet_expr_get_ctx(expr);
 	tree = pet_tree_alloc(ctx, pet_tree_expr);
+	if (!tree)
+		goto error;
+
+	tree->u.e.expr = expr;
+
+	return tree;
+error:
+	pet_expr_free(expr);
+	return NULL;
+}
+
+/* Return a new pet_tree representing the return of expression "expr".
+ */
+__isl_give pet_tree *pet_tree_new_return(__isl_take pet_expr *expr)
+{
+	isl_ctx *ctx;
+	pet_tree *tree;
+
+	if (!expr)
+		return NULL;
+	ctx = pet_expr_get_ctx(expr);
+	tree = pet_tree_alloc(ctx, pet_tree_return);
 	if (!tree)
 		goto error;
 
@@ -413,6 +436,9 @@ static __isl_give pet_tree *pet_tree_dup(__isl_keep pet_tree *tree)
 	case pet_tree_expr:
 		dup = pet_tree_new_expr(pet_expr_copy(tree->u.e.expr));
 		break;
+	case pet_tree_return:
+		dup = pet_tree_new_return(pet_expr_copy(tree->u.e.expr));
+		break;
 	case pet_tree_for:
 		dup = pet_tree_new_for(tree->u.l.independent,
 		    tree->u.l.declared,
@@ -508,6 +534,7 @@ __isl_null pet_tree *pet_tree_free(__isl_take pet_tree *tree)
 		pet_expr_free(tree->u.d.var);
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		pet_expr_free(tree->u.e.expr);
 		break;
 	case pet_tree_for:
@@ -602,6 +629,19 @@ __isl_give pet_expr *pet_tree_expr_get_expr(__isl_keep pet_tree *tree)
 	if (pet_tree_get_type(tree) != pet_tree_expr)
 		isl_die(pet_tree_get_ctx(tree), isl_error_invalid,
 			"not an expression tree", return NULL);
+
+	return pet_expr_copy(tree->u.e.expr);
+}
+
+/* Given a return tree "tree", return the returned expression.
+ */
+__isl_give pet_expr *pet_tree_return_get_expr(__isl_keep pet_tree *tree)
+{
+	if (!tree)
+		return NULL;
+	if (pet_tree_get_type(tree) != pet_tree_return)
+		isl_die(pet_tree_get_ctx(tree), isl_error_invalid,
+			"not a return tree", return NULL);
 
 	return pet_expr_copy(tree->u.e.expr);
 }
@@ -910,6 +950,7 @@ int pet_tree_foreach_sub_tree(__isl_keep pet_tree *tree,
 	case pet_tree_decl:
 	case pet_tree_decl_init:
 	case pet_tree_expr:
+	case pet_tree_return:
 		break;
 	case pet_tree_if:
 		if (pet_tree_foreach_sub_tree(tree->u.i.then_body,
@@ -978,6 +1019,7 @@ static int foreach_expr(__isl_keep pet_tree *tree, void *user)
 			return -1;
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		if (data->fn(tree->u.e.expr, data->user) < 0)
 			return -1;
 		break;
@@ -1103,6 +1145,7 @@ __isl_give pet_tree *pet_tree_map_expr(__isl_take pet_tree *tree,
 			return pet_tree_free(tree);
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		tree->u.e.expr = fn(tree->u.e.expr, user);
 		if (!tree->u.e.expr)
 			return pet_tree_free(tree);
@@ -1341,6 +1384,7 @@ int pet_tree_is_equal(__isl_keep pet_tree *tree1, __isl_keep pet_tree *tree2)
 			return equal;
 		return pet_expr_is_equal(tree1->u.d.init, tree2->u.d.init);
 	case pet_tree_expr:
+	case pet_tree_return:
 		return pet_expr_is_equal(tree1->u.e.expr, tree2->u.e.expr);
 	case pet_tree_for:
 		if (tree1->u.l.declared != tree2->u.l.declared)
@@ -1525,6 +1569,7 @@ int pet_tree_has_continue_or_break(__isl_keep pet_tree *tree)
 	case pet_tree_decl:
 	case pet_tree_decl_init:
 	case pet_tree_expr:
+	case pet_tree_return:
 	case pet_tree_for:
 	case pet_tree_while:
 	case pet_tree_infinite_loop:
@@ -1581,6 +1626,11 @@ void pet_tree_dump_with_indent(__isl_keep pet_tree *tree, int indent)
 							indent + 2);
 		break;
 	case pet_tree_expr:
+		pet_expr_dump_with_indent(tree->u.e.expr, indent);
+		break;
+	case pet_tree_return:
+		print_indent(indent);
+		fprintf(stderr, "return:\n");
 		pet_expr_dump_with_indent(tree->u.e.expr, indent);
 		break;
 	case pet_tree_break:

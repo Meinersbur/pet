@@ -286,7 +286,8 @@ enum pet_tree_type {
 	pet_tree_if_else,	/* An if with an else branch */
 	pet_tree_for,
 	pet_tree_infinite_loop,
-	pet_tree_while
+	pet_tree_while,
+	pet_tree_return,
 };
 
 struct pet_tree;
@@ -308,6 +309,9 @@ enum pet_tree_type pet_tree_get_type(__isl_keep pet_tree *tree);
 
 /* Return the expression of the expression tree "tree". */
 __isl_give pet_expr *pet_tree_expr_get_expr(__isl_keep pet_tree *tree);
+
+/* Return the expression returned by the return tree "tree". */
+__isl_give pet_expr *pet_tree_return_get_expr(__isl_keep pet_tree *tree);
 
 /* Return the number of children of the block tree "tree". */
 int pet_tree_block_n_child(__isl_keep pet_tree *tree);

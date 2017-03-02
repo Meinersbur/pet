@@ -701,6 +701,27 @@ static __isl_give isl_printer *print_pet_tree_decl_init(
 	return p;
 }
 
+/* Print "tree" to "p", where "tree" is of type pet_tree_return.
+ *
+ * The access subexpressions are replaced by the isl_ast_expr
+ * associated to its reference identifier in "ref2expr".
+ */
+static __isl_give isl_printer *print_pet_tree_return(__isl_take isl_printer *p,
+	__isl_keep pet_tree *tree, __isl_keep isl_id_to_ast_expr *ref2expr)
+{
+	pet_expr *expr;
+
+	expr = pet_tree_expr_get_expr(tree);
+	p = isl_printer_start_line(p);
+	p = isl_printer_print_str(p, "return ");
+	p = print_pet_expr(p, expr, 1, ref2expr);
+	p = isl_printer_print_str(p, ";");
+	p = isl_printer_end_line(p);
+	pet_expr_free(expr);
+
+	return p;
+}
+
 /* Print "tree" to "p".
  *
  * If "in_block" is set, then the caller has just printed a block,
@@ -741,6 +762,8 @@ static __isl_give isl_printer *print_pet_tree(__isl_take isl_printer *p,
 		p = isl_printer_end_line(p);
 		pet_expr_free(expr);
 		break;
+	case pet_tree_return:
+		return print_pet_tree_return(p, tree, ref2expr);
 	case pet_tree_if:
 	case pet_tree_if_else:
 		return print_pet_tree_if(p, tree, ref2expr);

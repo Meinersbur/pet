@@ -731,6 +731,7 @@ static int emit_tree(yaml_emitter_t *emitter, __isl_keep pet_tree *tree)
 			return -1;
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		if (emit_named_expr(emitter, "expr", tree->u.e.expr) < 0)
 			return -1;
 		break;

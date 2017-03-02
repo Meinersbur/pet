@@ -23,8 +23,9 @@ extern "C" {
  * "var" is the variable that is being declared.
  * "init" is the initial value (in case of pet_tree_decl_init).
  *
- * The "e" field of the union is used for type pet_tree_expr.
- * "expr" is the expression represented by the tree.
+ * The "e" field of the union is used for type pet_tree_expr and
+ * for type pet_tree_return.
+ * "expr" is the expression represented or returned by the tree.
  *
  * The "l" field of the union is used for types pet_tree_for,
  * pet_tree_infinite_loop and pet_tree_while.
@@ -101,6 +102,7 @@ __isl_give pet_tree *pet_tree_new_decl_init(__isl_take pet_expr *var,
 	__isl_take pet_expr *init);
 
 __isl_give pet_tree *pet_tree_new_expr(__isl_take pet_expr *expr);
+__isl_give pet_tree *pet_tree_new_return(__isl_take pet_expr *expr);
 
 __isl_give pet_tree *pet_tree_set_label(__isl_take pet_tree *tree,
 	__isl_take isl_id *label);

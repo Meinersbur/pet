@@ -823,9 +823,10 @@ error:
 	return NULL;
 }
 
-/* Extract a pet_tree of type pet_tree_expr from "node".
+/* Extract a pet_expr corresponding to a pet_tree with a single "expr" field
+ * from "node".
  */
-static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
+static __isl_give pet_expr *extract_expr_field(isl_ctx *ctx,
 	yaml_document_t *document, yaml_node_t *node)
 {
 	yaml_node_pair_t *pair;
@@ -853,7 +854,23 @@ static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
 		isl_die(ctx, isl_error_invalid,
 			"no expr field", return NULL);
 
-	return pet_tree_new_expr(expr);
+	return expr;
+}
+
+/* Extract a pet_tree of type pet_tree_expr from "node".
+ */
+static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	return pet_tree_new_expr(extract_expr_field(ctx, document, node));
+}
+
+/* Extract a pet_tree of type pet_tree_return from "node".
+ */
+static __isl_give pet_tree *extract_tree_return(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	return pet_tree_new_return(extract_expr_field(ctx, document, node));
 }
 
 /* Extract a pet_tree of type pet_tree_while from "node".
@@ -1177,6 +1194,9 @@ static __isl_give pet_tree *extract_tree(isl_ctx *ctx,
 		break;
 	case pet_tree_expr:
 		tree = extract_tree_expr(ctx, document, node);
+		break;
+	case pet_tree_return:
+		tree = extract_tree_return(ctx, document, node);
 		break;
 	case pet_tree_for:
 		tree = extract_tree_for(ctx, document, node);
