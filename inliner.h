@@ -56,7 +56,8 @@ struct pet_inliner : pet_substituter {
 	void add_array_arg(clang::ValueDecl *decl, __isl_take pet_expr *expr,
 		int is_add);
 
-	__isl_give pet_tree *inline_tree(__isl_take pet_tree *tree);
+	__isl_give pet_tree *inline_tree(__isl_take pet_tree *tree,
+		__isl_keep isl_id *return_id);
 
 	~pet_inliner();
 };

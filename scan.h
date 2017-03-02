@@ -154,8 +154,15 @@ struct PetScan {
 	/* A set of names known to be in use. */
 	std::set<std::string> used_names;
 
+	/* If not NULL, then "call2id" maps inlined call expressions
+	 * that return a value to the corresponding variables.
+	 */
+	std::map<clang::Stmt *, isl_id *> *call2id;
+
 	/* Sequence number of the next temporary inlined argument variable. */
 	int n_arg;
+	/* Sequence number of the next temporary inlined return variable. */
+	int n_ret;
 
 	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
 		clang::DeclContext *decl_context, ScopLoc &loc,
@@ -167,7 +174,8 @@ struct PetScan {
 		options(options), return_root(NULL), partial(false),
 		value_bounds(value_bounds), last_line(0), current_line(0),
 		independent(independent), n_rename(0),
-		declared_names_collected(false), n_arg(0) {
+		declared_names_collected(false), call2id(NULL),
+		n_arg(0), n_ret(0) {
 		id_size = isl_id_to_pet_expr_alloc(ctx, 0);
 	}
 
@@ -182,7 +190,7 @@ struct PetScan {
 	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
 	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
-		clang::FunctionDecl *fd);
+		clang::FunctionDecl *fd, __isl_keep isl_id *return_id);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();

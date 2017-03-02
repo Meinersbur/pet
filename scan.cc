@@ -61,6 +61,7 @@
 #include "expr_plus.h"
 #include "id.h"
 #include "inliner.h"
+#include "inlined_calls.h"
 #include "killed_locals.h"
 #include "nest.h"
 #include "options.h"
@@ -996,6 +997,11 @@ static bool is_assume(int pencil, const string &name)
 
 /* Construct a pet_expr representing a function call.
  *
+ * If this->call2id is not NULL and it contains a mapping for this call,
+ * then this means that the corresponding function has been inlined.
+ * Return a pet_expr that reads from the variable that
+ * stores the return value of the inlined call.
+ *
  * In the special case of a "call" to __builtin_assume or __pencil_assume,
  * construct an assume expression instead.
  *
@@ -1013,6 +1019,10 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	string name;
 	unsigned n_arg;
 	bool is_kill;
+
+	if (call2id && call2id->find(expr) != call2id->end())
+		return pet_expr_access_from_id(isl_id_copy(call2id[0][expr]),
+						ast_context);
 
 	fd = expr->getDirectCallee();
 	if (!fd) {
@@ -1940,12 +1950,16 @@ int PetScan::substitute_array_sizes(__isl_keep pet_tree *tree,
  * of (parts of) the actual arguments to temporary variables
  * followed by the inlined function body with the formal arguments
  * replaced by (expressions containing) these temporary variables.
+ * If "return_id" is set, then it is used to store the return value
+ * of the inlined function.
  *
  * The actual inlining is taken care of by the pet_inliner object.
  * This function merely calls set_inliner_arguments to tell
  * the pet_inliner about the actual arguments, extracts a pet_tree
  * from the body of the called function and then passes this pet_tree
  * to the pet_inliner.
+ * The body of the called function is allowed to have a return statement
+ * at the end.
  * The substitutions performed by the inliner are also applied
  * to the size expressions of the arrays declared in the inlined
  * function.  These size expressions are not stored in the tree
@@ -1963,7 +1977,7 @@ int PetScan::substitute_array_sizes(__isl_keep pet_tree *tree,
  * function.
  */
 __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
-	FunctionDecl *fd)
+	FunctionDecl *fd, __isl_keep isl_id *return_id)
 {
 	int save_autodetect;
 	pet_tree *tree;
@@ -1980,6 +1994,7 @@ __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
 	collect_declared_names();
 	body_scan.add_new_used_names(declared_names);
 	body_scan.add_new_used_names(used_names);
+	body_scan.return_root = fd->getBody();
 	tree = body_scan.extract(fd->getBody(), false);
 	add_new_used_names(body_scan.used_names);
 	options->autodetect = save_autodetect;
@@ -1989,30 +2004,38 @@ __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
 
 	substitute_array_sizes(tree, &inliner);
 
-	return inliner.inline_tree(tree);
+	return inliner.inline_tree(tree, return_id);
 }
 
 /* Try and construct a pet_tree corresponding
  * to the expression statement "stmt".
  *
- * If the outer expression is a function call and if the corresponding
- * function body is marked "inline", then return a pet_tree
- * corresponding to the inlined function.
+ * First look for function calls that have corresponding bodies
+ * marked "inline".  Extract the inlined functions in a pet_inlined_calls
+ * object.  Then extract the statement itself, replacing calls
+ * to inlined function by accesses to the corresponding return variables, and
+ * return the combined result.
+ * If the outer expression is itself a call to an inlined function,
+ * then it already appears as one of the inlined functions and
+ * no separate pet_tree needs to be extracted for "stmt" itself.
  */
 __isl_give pet_tree *PetScan::extract_expr_stmt(Stmt *stmt)
 {
 	pet_expr *expr;
+	pet_tree *tree;
+	pet_inlined_calls ic(this);
 
-	if (stmt->getStmtClass() == Stmt::CallExprClass) {
-		CallExpr *call = cast<CallExpr>(stmt);
-		FunctionDecl *fd = call->getDirectCallee();
-		fd = pet_clang_find_function_decl_with_body(fd);
-		if (fd && fd->isInlineSpecified())
-			return extract_inlined_call(call, fd);
+	ic.collect(stmt);
+	if (ic.calls.size() >= 1 && ic.calls[0] == stmt) {
+		tree = pet_tree_new_block(ctx, 0, 0);
+	} else {
+		call2id = &ic.call2id;
+		expr = extract_expr(cast<Expr>(stmt));
+		tree = extract(expr, stmt->getSourceRange(), true);
+		call2id = NULL;
 	}
-
-	expr = extract_expr(cast<Expr>(stmt));
-	return extract(expr, stmt->getSourceRange(), true);
+	tree = ic.add_inlined(tree);
+	return tree;
 }
 
 /* Try and construct a pet_tree corresponding to "stmt".
