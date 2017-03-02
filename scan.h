@@ -103,6 +103,11 @@ struct PetScan {
 	ScopLoc &loc;
 	isl_ctx *ctx;
 	pet_options *options;
+	/* If not NULL, then return_root represents the compound statement
+	 * in which a return statement is allowed as the final child.
+	 * If return_root is NULL, then no return statements are allowed.
+	 */
+	clang::Stmt *return_root;
 	/* Set if the pet_scop returned by an extract method only
 	 * represents part of the input tree.
 	 */
@@ -159,8 +164,8 @@ struct PetScan {
 		PP(PP),
 		ast_context(ast_context), decl_context(decl_context), loc(loc),
 		ctx(isl_union_map_get_ctx(value_bounds)),
-		options(options), partial(false), value_bounds(value_bounds),
-		last_line(0), current_line(0),
+		options(options), return_root(NULL), partial(false),
+		value_bounds(value_bounds), last_line(0), current_line(0),
 		independent(independent), n_rename(0),
 		declared_names_collected(false), n_arg(0) {
 		id_size = isl_id_to_pet_expr_alloc(ctx, 0);
@@ -217,6 +222,7 @@ private:
 	__isl_give pet_tree *extract(clang::LabelStmt *stmt);
 	__isl_give pet_tree *extract(clang::Decl *decl);
 	__isl_give pet_tree *extract(clang::DeclStmt *expr);
+	__isl_give pet_tree *extract(clang::ReturnStmt *stmt);
 
 	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,
 		bool skip_semi);
@@ -301,6 +307,8 @@ private:
 	void report_unsupported_declaration(clang::Decl *decl);
 	void report_unbalanced_pragmas(clang::SourceLocation scop,
 		clang::SourceLocation endscop);
+	void report_unsupported_return(clang::Stmt *stmt);
+	void report_return_not_at_end_of_function(clang::Stmt *stmt);
 };
 
 #endif

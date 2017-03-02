@@ -1,7 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
- * Copyright 2015-2016 Sven Verdoolaege. All rights reserved.
+ * Copyright 2015-2017 Sven Verdoolaege. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -354,6 +354,28 @@ void PetScan::report_unbalanced_pragmas(SourceLocation scop,
 					   "corresponding scop pragma");
 		DiagnosticBuilder B = diag.Report(scop, id);
 	}
+}
+
+/* Report a return statement in an unsupported context,
+ * unless autodetect is set.
+ */
+void PetScan::report_unsupported_return(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+			   "return statements not supported in this context");
+	report(stmt, id);
+}
+
+/* Report a return statement that does not appear at the end of a function,
+ * unless autodetect is set.
+ */
+void PetScan::report_return_not_at_end_of_function(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+		       "return statement must be final statement in function");
+	report(stmt, id);
 }
 
 /* Extract an integer from "val", which is assumed to be non-negative.
@@ -1710,6 +1732,49 @@ __isl_give pet_tree *PetScan::extract(IfStmt *stmt)
 	return tree;
 }
 
+/* Is "parent" a compound statement that has "stmt" as its final child?
+ */
+static bool final_in_compound(ReturnStmt *stmt, Stmt *parent)
+{
+	CompoundStmt *c;
+
+	c = dyn_cast<CompoundStmt>(parent);
+	if (c) {
+		StmtIterator i;
+		Stmt *last;
+		StmtRange range = c->children();
+
+		for (i = range.first; i != range.second; ++i)
+			last = *i;
+		return last == stmt;
+	}
+	return false;
+}
+
+/* Try and construct a pet_tree for a return statement "stmt".
+ *
+ * Return statements are only allowed in a context where
+ * this->return_root has been set.
+ * Furthermore, "stmt" should appear as the last child
+ * in the compound statement this->return_root.
+ */
+__isl_give pet_tree *PetScan::extract(ReturnStmt *stmt)
+{
+	pet_expr *val;
+
+	if (!return_root) {
+		report_unsupported_return(stmt);
+		return NULL;
+	}
+	if (!final_in_compound(stmt, return_root)) {
+		report_return_not_at_end_of_function(stmt);
+		return NULL;
+	}
+
+	val = extract_expr(stmt->getRetValue());
+	return pet_tree_new_return(val);
+}
+
 /* Try and construct a pet_tree for a label statement.
  */
 __isl_give pet_tree *PetScan::extract(LabelStmt *stmt)
@@ -2003,6 +2068,9 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 	case Stmt::NullStmtClass:
 		tree = pet_tree_new_block(ctx, 0, 0);
 		break;
+	case Stmt::ReturnStmtClass:
+		tree = extract(cast<ReturnStmt>(stmt));
+		break;
 	default:
 		report_unsupported_statement_type(stmt);
 		return NULL;
@@ -2240,6 +2308,7 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
  * We then collect the accessed array elements and attach them
  * to the corresponding array arguments, taking into account
  * that the function body may access members of array elements.
+ * The function body is allowed to have a return statement at the end.
  *
  * The reason for representing the integer arguments as parameters in
  * the context is that if we were to instead start with a context
@@ -2291,6 +2360,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	PetScan body_scan(PP, ast_context, fd, loc, options,
 				isl_union_map_copy(value_bounds), independent);
 
+	body_scan.return_root = fd->getBody();
 	tree = body_scan.extract(fd->getBody(), false);
 
 	domain = isl_set_universe(space);
