@@ -56,7 +56,7 @@ using namespace clang;
 static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 {
 	isl_id *id;
-	ValueDecl *decl;
+	QualType qt;
 
 	if (!index)
 		return -1;
@@ -83,10 +83,10 @@ static int extract_depth(__isl_keep isl_multi_pw_aff *index)
 	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
 	if (!id)
 		return -1;
-	decl = pet_id_get_decl(id);
+	qt = pet_id_get_array_type(id);
 	isl_id_free(id);
 
-	return pet_clang_array_depth(decl->getType());
+	return pet_clang_array_depth(qt);
 }
 
 /* Return the depth of the array accessed by the access expression "expr".
