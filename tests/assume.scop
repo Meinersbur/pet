@@ -1,19 +1,19 @@
 start: 64
 end: 206
 indent: '        '
-context: '[S, n, m] -> {  : 0 <= S <= 2147483647 and n >= -2147483648 and n < m <=
-  2147483648 - n and m <= 2147483647 }'
-schedule: '{ domain: "[S, n, m] -> { S_0[]; S_1[i] : 0 <= i < n }", child: { sequence:
-  [ { filter: "[n] -> { S_0[] }" }, { filter: "[n] -> { S_1[i] }", child: { schedule:
-  "[m, n] -> L_0[{ S_1[i] -> [(i)] }]" } } ] } }'
+context: '[S, m, n] -> {  : 0 <= S <= 2147483647 and m <= 2147483647 and -2147483648
+  <= n <= 2147483648 - m and n < m }'
+schedule: '{ domain: "[S, m, n] -> { S_1[i] : 0 <= i < n; S_0[] }", child: { sequence:
+  [ { filter: "[m, n] -> { S_0[] }" }, { filter: "[m, n] -> { S_1[i] }", child: {
+  schedule: "[m, n] -> L_0[{ S_1[i] -> [(i)] }]" } } ] } }'
 arrays:
 - context: '[S] -> {  : S >= 0 }'
-  extent: '[S, n, m] -> { D[i0] : 0 <= i0 < S }'
+  extent: '[S, m, n] -> { D[i0] : 0 <= i0 < S }'
   element_type: int
   element_size: 4
 statements:
 - line: 4
-  domain: '[S, n, m] -> { S_0[] }'
+  domain: '[S, m, n] -> { S_0[] }'
   body:
     type: expression
     expr:
@@ -21,12 +21,12 @@ statements:
       operation: assume
       arguments:
       - type: access
-        index: '[S, n, m] -> { S_0[] -> [(1)] }'
+        index: '[S, m, n] -> { S_0[] -> [(1)] }'
         reference: __pet_ref_0
         read: 1
         write: 0
 - line: 6
-  domain: '[S, n, m] -> { S_1[i] : 0 <= i < n }'
+  domain: '[S, m, n] -> { S_1[i] : 0 <= i < n }'
   body:
     type: expression
     expr:
@@ -34,12 +34,12 @@ statements:
       operation: =
       arguments:
       - type: access
-        index: '[S, n, m] -> { S_1[i] -> D[(i)] }'
+        index: '[S, m, n] -> { S_1[i] -> D[(i)] }'
         reference: __pet_ref_1
         read: 0
         write: 1
       - type: access
-        index: '[S, n, m] -> { S_1[i] -> D[(m + i)] }'
+        index: '[S, m, n] -> { S_1[i] -> D[(m + i)] }'
         reference: __pet_ref_2
         read: 1
         write: 0

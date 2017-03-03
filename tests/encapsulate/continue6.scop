@@ -4,8 +4,8 @@ indent: "\t"
 context: '{  :  }'
 schedule: '{ domain: "{ S_3[i] : 0 <= i <= 99; S_5[i] : 0 <= i <= 99; S_10[i, j] :
   0 <= i <= 99 and 0 <= j <= 99; S_11[]; S_6[i, j] : 2*floor((j)/2) = j and 0 <= i
-  <= 99 and 0 <= j <= 99; S_4[i] : 0 <= i <= 99; S_7[i, j] : 2*floor((-1 + j)/2) =
-  -1 + j and 0 <= i <= 99 and 0 <= j <= 99 }", child: { sequence: [ { filter: "{ S_3[i];
+  <= 99 and 0 <= j <= 99; S_4[i] : 0 <= i <= 99; S_7[i, j] : 2*floor((1 + j)/2) =
+  1 + j and 0 <= i <= 99 and 0 <= j <= 99 }", child: { sequence: [ { filter: "{ S_3[i];
   S_5[i]; S_10[i, j]; S_6[i, j]; S_4[i]; S_7[i, j] }", child: { schedule: "L_0[{ S_7[i,
   j] -> [(i)]; S_10[i, j] -> [(i)]; S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)];
   S_6[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_4[i] }" }, { filter:
@@ -145,8 +145,8 @@ statements:
       - type: int
         value: 0
 - line: 20
-  domain: '{ S_7[i, j] : 2*floor((-1 + j)/2) = -1 + j and 0 <= i <= 99 and 0 <= j
-    <= 99 }'
+  domain: '{ S_7[i, j] : 2*floor((1 + j)/2) = 1 + j and 0 <= i <= 99 and 0 <= j <=
+    99 }'
   body:
     type: expression
     expr:
