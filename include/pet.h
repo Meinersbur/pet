@@ -444,6 +444,8 @@ struct pet_type {
  *
  * declared is set if the array was declared somewhere inside the scop.
  * exposed is set if the declared array is visible outside the scop.
+ * outer is set if the type of the array elements is a record and
+ * the fields of this record are represented by separate pet_array structures.
  */
 struct pet_array {
 	isl_set *context;
@@ -456,6 +458,7 @@ struct pet_array {
 	int uniquely_defined;
 	int declared;
 	int exposed;
+	int outer;
 };
 
 /* This structure represents an implication on a boolean filter.

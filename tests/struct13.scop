@@ -14,6 +14,7 @@ arrays:
   element_type: a
   element_size: 4
   element_is_record: 1
+  outer: 1
 - context: '[n] -> {  : n >= 0 }'
   extent: '[n] -> { s_a[s[i0] -> a[]] : 0 <= i0 < n }'
   element_type: field

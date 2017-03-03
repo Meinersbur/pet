@@ -1196,6 +1196,8 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 		return 0;
 	if (array1->exposed != array2->exposed)
 		return 0;
+	if (array1->outer != array2->outer)
+		return 0;
 
 	return 1;
 }
@@ -2613,7 +2615,7 @@ static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
 		isl_set *set;
 		isl_map *map;
 
-		if (to_innermost && array->element_is_record)
+		if (to_innermost && array->outer)
 			continue;
 
 		set = isl_set_copy(array->extent);

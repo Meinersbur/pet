@@ -3160,12 +3160,19 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * should not be printed separately.  While the typedef definition
  * is being printed, the struct is marked as having been printed as well,
  * such that the later printing of the struct by itself can be prevented.
+ *
+ * If the sequence of nested array declarations from which the pet_array
+ * is extracted appears as the prefix of some other sequence,
+ * then the pet_array is marked as "outer".
+ * The arrays that already appear in scop->arrays at the start of
+ * this function are assumed to be simple arrays, so they are not marked
+ * as outer.
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	__isl_keep pet_context *pc)
 {
 	int i, n;
-	array_desc_set arrays;
+	array_desc_set arrays, has_sub;
 	array_desc_set::iterator it;
 	PetTypes types;
 	std::set<TypeDecl *> types_done;
@@ -3189,12 +3196,21 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 		goto error;
 	scop->arrays = scop_arrays;
 
+	for (it = arrays.begin(); it != arrays.end(); ++it) {
+		isl_id_list *list = isl_id_list_copy(*it);
+		int n = isl_id_list_n_id(list);
+		list = isl_id_list_drop(list, n - 1, 1);
+		has_sub.insert(list);
+	}
+
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
 		array = extract_array(*it, &types, pc);
 		scop->arrays[n_array + i] = array;
 		if (!scop->arrays[n_array + i])
 			goto error;
+		if (has_sub.find(*it) != has_sub.end())
+			array->outer = 1;
 		scop->n_array++;
 		scop->context = isl_set_intersect(scop->context,
 						isl_set_copy(array->context));

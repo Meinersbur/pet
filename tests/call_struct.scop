@@ -17,11 +17,13 @@ arrays:
   element_type: struct s
   element_size: 4040
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ s_c[s[i0] -> c[i1]] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }'
   element_type: struct s0
   element_size: 404
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ s_c_b[s_c[s[i0] -> c[i1]] -> b[]] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }'
   element_type: int
@@ -32,6 +34,7 @@ arrays:
   element_type: <subfield>
   element_size: 40
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ s_c_f_a[s_c_f[s_c[s[i0] -> c[i1]] -> f[i2]] -> a[i3]] : 0 <= i0 <= 9
     and 0 <= i1 <= 9 and 0 <= i2 <= 9 and 0 <= i3 <= 9 }'
