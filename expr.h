@@ -177,7 +177,8 @@ __isl_give isl_space *pet_expr_access_get_augmented_domain_space(
 	__isl_keep pet_expr *expr);
 __isl_give isl_space *pet_expr_access_get_domain_space(
 	__isl_keep pet_expr *expr);
-__isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr);
+isl_stat pet_expr_access_foreach_data_space(__isl_keep pet_expr *expr,
+	isl_stat (*fn)(__isl_take isl_space *space, void *user), void *user);
 
 isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr);
 __isl_give isl_union_map *pet_expr_access_get_dependent_access(

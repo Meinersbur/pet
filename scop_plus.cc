@@ -85,12 +85,12 @@ static void collect_sub_arrays(ValueDecl *decl,
 	}
 }
 
-/* Extract one or more sequences of declarations from the access expression
- * "expr" and add them to "arrays".
+/* Extract one or more sequences of declarations from the accessed
+ * data space "space" and add them to "arrays".
  *
- * If "expr" represents an array access, then the extracted sequence
+ * If "space" represents an array access, then the extracted sequence
  * contains a single element corresponding to the array declaration.
- * Otherwise, if "expr" represents a member access, then the extracted
+ * Otherwise, if "space" represents a member access, then the extracted
  * sequences contain an element for the outer array of structures and
  * for each nested array or scalar.  One such sequence is (recursively)
  * added for each member of the accessed outer array.
@@ -104,18 +104,12 @@ static void collect_sub_arrays(ValueDecl *decl,
  * in "arrays", then its subfields have already been added as well,
  * so there is nothing left to do.
  */
-static void access_collect_arrays(__isl_keep pet_expr *expr,
-	array_desc_set &arrays)
+static isl_stat space_collect_arrays(__isl_take isl_space *space, void *user)
 {
+	array_desc_set *arrays = (array_desc_set *) user;
 	isl_id *id;
-	isl_space *space;
 	ValueDecl *decl;
 	isl_id_list *ancestors;
-
-	if (pet_expr_is_affine(expr))
-		return;
-
-	space = pet_expr_access_get_data_space(expr);
 
 	while (space && isl_space_is_wrapping(space))
 		space = isl_space_domain(isl_space_unwrap(space));
@@ -123,19 +117,34 @@ static void access_collect_arrays(__isl_keep pet_expr *expr,
 	id = isl_space_get_tuple_id(space, isl_dim_set);
 	isl_space_free(space);
 	if (!id)
-		return;
+		return isl_stat_ok;
 
 	decl = pet_id_get_decl(id);
 
 	if (!decl) {
 		isl_id_free(id);
-		return;
+		return isl_stat_ok;
 	}
 
 	ancestors = isl_id_list_from_id(id);
-	if (arrays.find(ancestors) == arrays.end())
-		collect_sub_arrays(decl, ancestors, arrays);
+	if (arrays->find(ancestors) == arrays->end())
+		collect_sub_arrays(decl, ancestors, *arrays);
 	isl_id_list_free(ancestors);
+
+	return isl_stat_ok;
+}
+
+/* Extract one or more sequences of declarations from the access expression
+ * "expr" and add them to "arrays".
+ */
+static void access_collect_arrays(__isl_keep pet_expr *expr,
+	array_desc_set &arrays)
+{
+	if (pet_expr_is_affine(expr))
+		return;
+
+	pet_expr_access_foreach_data_space(expr,
+					    &space_collect_arrays, &arrays);
 }
 
 static void expr_collect_arrays(__isl_keep pet_expr *expr,
