@@ -181,6 +181,8 @@ struct PetScan {
 	void set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size);
 	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
+	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
+		clang::FunctionDecl *fd);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
@@ -250,8 +252,6 @@ private:
 				clang::ValueDecl *iv);
 	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
 	__isl_give pet_tree *extract_expr_stmt(clang::Stmt *stmt);
-	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
-		clang::FunctionDecl *fd);
 	int set_inliner_arguments(pet_inliner &inliner, clang::CallExpr *call,
 		clang::FunctionDecl *fd);
 
