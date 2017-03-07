@@ -135,6 +135,9 @@ __isl_give pet_tree *pet_tree_set_loc(__isl_take pet_tree *tree,
 int pet_tree_foreach_sub_tree(__isl_keep pet_tree *tree,
 	int (*fn)(__isl_keep pet_tree *tree, void *user), void *user);
 
+__isl_give pet_tree *pet_tree_map_top_down(__isl_take pet_tree *tree,
+	__isl_give pet_tree *(*fn)(__isl_take pet_tree *tree, void *user),
+	void *user);
 __isl_give pet_tree *pet_tree_map_access_expr(__isl_take pet_tree *tree,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);

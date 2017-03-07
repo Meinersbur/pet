@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ * Copyright 2017      Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1104,6 +1105,69 @@ int pet_tree_foreach_access_expr(__isl_keep pet_tree *tree,
 	struct pet_tree_foreach_access_expr_data data = { fn, user };
 
 	return pet_tree_foreach_expr(tree, &foreach_access_expr, &data);
+}
+
+/* Modify all subtrees of "tree", include "tree" itself,
+ * by calling "fn" on them.
+ * The subtrees are traversed in depth first preorder.
+ */
+__isl_give pet_tree *pet_tree_map_top_down(__isl_take pet_tree *tree,
+	__isl_give pet_tree *(*fn)(__isl_take pet_tree *tree, void *user),
+	void *user)
+{
+	int i;
+
+	if (!tree)
+		return NULL;
+
+	tree = fn(tree, user);
+	tree = pet_tree_cow(tree);
+	if (!tree)
+		return NULL;
+
+	switch (tree->type) {
+	case pet_tree_error:
+		return pet_tree_free(tree);
+	case pet_tree_block:
+		for (i = 0; i < tree->u.b.n; ++i) {
+			tree->u.b.child[i] =
+			    pet_tree_map_top_down(tree->u.b.child[i], fn, user);
+			if (!tree->u.b.child[i])
+				return pet_tree_free(tree);
+		}
+		break;
+	case pet_tree_break:
+	case pet_tree_continue:
+	case pet_tree_decl:
+	case pet_tree_decl_init:
+	case pet_tree_expr:
+	case pet_tree_return:
+		break;
+	case pet_tree_if:
+		tree->u.i.then_body =
+			pet_tree_map_top_down(tree->u.i.then_body, fn, user);
+		if (!tree->u.i.then_body)
+			return pet_tree_free(tree);
+		break;
+	case pet_tree_if_else:
+		tree->u.i.then_body =
+			pet_tree_map_top_down(tree->u.i.then_body, fn, user);
+		tree->u.i.else_body =
+			pet_tree_map_top_down(tree->u.i.else_body, fn, user);
+		if (!tree->u.i.then_body || !tree->u.i.else_body)
+			return pet_tree_free(tree);
+		break;
+	case pet_tree_while:
+	case pet_tree_for:
+	case pet_tree_infinite_loop:
+		tree->u.l.body =
+			pet_tree_map_top_down(tree->u.l.body, fn, user);
+		if (!tree->u.l.body)
+			return pet_tree_free(tree);
+		break;
+	}
+
+	return tree;
 }
 
 /* Modify all top-level expressions in the nodes of "tree"
