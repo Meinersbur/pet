@@ -1,3 +1,6 @@
+#ifndef PET_SCAN_H
+#define PET_SCAN_H
+
 #include <map>
 
 #include <clang/Basic/SourceManager.h>
@@ -299,3 +302,5 @@ private:
 	void report_unbalanced_pragmas(clang::SourceLocation scop,
 		clang::SourceLocation endscop);
 };
+
+#endif
