@@ -1,6 +1,7 @@
 #ifndef PET_SCAN_H
 #define PET_SCAN_H
 
+#include <set>
 #include <map>
 
 #include <clang/Basic/SourceManager.h>
