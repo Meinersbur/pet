@@ -99,6 +99,10 @@ static void collect_sub_arrays(ValueDecl *decl,
  * is a virtual scalar.  We don't need to collect such scalars
  * because they are added to the scop of the statement writing
  * to the scalar.
+ *
+ * If the sequence consisting of the outer array already appears
+ * in "arrays", then its subfields have already been added as well,
+ * so there is nothing left to do.
  */
 static void access_collect_arrays(__isl_keep pet_expr *expr,
 	array_desc_set &arrays)
@@ -129,7 +133,8 @@ static void access_collect_arrays(__isl_keep pet_expr *expr,
 	}
 
 	ancestors = isl_id_list_from_id(id);
-	collect_sub_arrays(decl, ancestors, arrays);
+	if (arrays.find(ancestors) == arrays.end())
+		collect_sub_arrays(decl, ancestors, arrays);
 	isl_id_list_free(ancestors);
 }
 
