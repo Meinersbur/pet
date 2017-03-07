@@ -53,15 +53,31 @@ __isl_give isl_id *pet_id_from_name_and_decl(isl_ctx *ctx, const char *name,
 	return isl_id_alloc(ctx, name, decl);
 }
 
-/* Create an isl_id with name "__pet_arg_<n>" and associated type "qt".
+/* Create an isl_id with name specified by "name_template" and "n" and
+ * associated type "qt".
  */
-__isl_give isl_id *pet_id_arg_from_type(isl_ctx *ctx, int n, QualType qt)
+static __isl_give isl_id *pet_id_from_type(isl_ctx *ctx,
+	const char *name_template, int n, QualType qt)
 {
 	char name[50];
 	const Type *type = qt.getTypePtr();
 
-	snprintf(name, sizeof(name), "__pet_arg_%d", n);
+	snprintf(name, sizeof(name), name_template, n);
 	return isl_id_alloc(ctx, name, const_cast<Type *>(type));
+}
+
+/* Create an isl_id with name "__pet_arg_<n>" and associated type "qt".
+ */
+__isl_give isl_id *pet_id_arg_from_type(isl_ctx *ctx, int n, QualType qt)
+{
+	return pet_id_from_type(ctx, "__pet_arg_%d", n, qt);
+}
+
+/* Create an isl_id with name "__pet_ret_<n>" and associated type "qt".
+ */
+__isl_give isl_id *pet_id_ret_from_type(isl_ctx *ctx, int n, QualType qt)
+{
+	return pet_id_from_type(ctx, "__pet_ret_%d", n, qt);
 }
 
 /* Compare the prefix of "s" to "prefix" up to the length of "prefix".
@@ -71,9 +87,10 @@ static int prefixcmp(const char *s, const char *prefix)
 	return strncmp(s, prefix, strlen(prefix));
 }
 
-/* Is "id" an identifier created by pet_id_arg_from_type?
+/* Is "id" an identifier created by pet_id_arg_from_type or
+ * pet_id_ret_from_type?
  */
-static int pet_id_is_arg(__isl_keep isl_id *id)
+static int pet_id_is_arg_or_ret(__isl_keep isl_id *id)
 {
 	const char *name;
 
@@ -82,18 +99,18 @@ static int pet_id_is_arg(__isl_keep isl_id *id)
 	name = isl_id_get_name(id);
 	if (!name)
 		return 0;
-	return !prefixcmp(name, "__pet_arg");
+	return !prefixcmp(name, "__pet_arg") || !prefixcmp(name, "__pet_ret");
 }
 
 /* Extract the ValueDecl that was associated to "id"
  * in pet_id_from_decl.
  *
- * If "id" was create by pet_id_arg_from_type, then there is no
- * ValueDecl associated to it, so return NULL instead.
+ * If "id" was create by pet_id_arg_from_type or pet_id_ret_from_type,
+ * then there is no ValueDecl associated to it, so return NULL instead.
  */
 ValueDecl *pet_id_get_decl(__isl_keep isl_id *id)
 {
-	if (pet_id_is_arg(id))
+	if (pet_id_is_arg_or_ret(id))
 		return NULL;
 
 	return (ValueDecl *) isl_id_get_user(id);
@@ -134,8 +151,8 @@ static bool is_vla_with_static_size(QualType T)
  * return the original type (i.e., the variable length array).
  * Otherwise, return the type of decl.
  *
- * If "id" was created by pet_id_arg_from_type, then it has
- * a type associated to it, so return that type instead.
+ * If "id" was created by pet_id_arg_from_type or pet_id_ret_from_type,
+ * then it has a type associated to it, so return that type instead.
  */
 QualType pet_id_get_array_type(__isl_keep isl_id *id)
 {
@@ -143,7 +160,7 @@ QualType pet_id_get_array_type(__isl_keep isl_id *id)
 	ParmVarDecl *parm;
 	QualType T;
 
-	if (pet_id_is_arg(id)) {
+	if (pet_id_is_arg_or_ret(id)) {
 		const Type *type;
 		type = (const Type *) isl_id_get_user(id);
 		return QualType(type, 0);
