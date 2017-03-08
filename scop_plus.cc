@@ -48,7 +48,7 @@ using namespace clang;
  * to "arrays".  The final element in the sequence may be a leaf
  * and may therefore refer to a primitive type rather than a record type.
  *
- * Futhermore, if the innermost array in the sequence is an array of structures
+ * Furthermore, if the innermost array in the sequence is an array of structures
  * then recursively call collect_sub_arrays for all subfields of this
  * structure.
  */
@@ -86,7 +86,7 @@ static void collect_sub_arrays(ValueDecl *decl,
 }
 
 /* Extract one or more sequences of declarations from the access expression
- * "expr" and them to "arrays".
+ * "expr" and add them to "arrays".
  *
  * If "expr" represents an array access, then the extracted sequence
  * contains a single element corresponding to the array declaration.
