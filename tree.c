@@ -174,7 +174,7 @@ error:
 	return NULL;
 }
 
-/* Return a new pet_tree representing an intially empty sequence
+/* Return a new pet_tree representing an initially empty sequence
  * of trees with room for "n" trees.
  * "block" indicates whether the sequence has its own scope.
  */
