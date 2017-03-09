@@ -42,9 +42,9 @@ using namespace std;
 using namespace clang;
 
 /* Add an assignment of "expr" to a variable with identifier "id" and
- * type "qt" and return a pet_expr corresponding to the assigned variable.
+ * return a pet_expr corresponding to the assigned variable.
  */
-__isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id, QualType qt,
+__isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id,
 	__isl_take pet_expr *expr)
 {
 	pet_expr *var;
@@ -70,12 +70,11 @@ __isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id, QualType qt,
 void pet_inliner::add_scalar_arg(ValueDecl *decl, const string &name,
 	__isl_take pet_expr *expr)
 {
-	QualType type = decl->getType();
 	isl_id *id;
 	pet_expr *var;
 
 	id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
-	var = assign(id, type, expr);
+	var = assign(id, expr);
 	id = pet_id_from_decl(ctx, decl);
 	add_sub(id, var);
 }
@@ -102,7 +101,7 @@ void pet_inliner::add_array_arg(ValueDecl *decl, __isl_take pet_expr *expr,
 		QualType type = ast_context.IntTy;
 
 		id = pet_id_arg_from_type(ctx, n_arg++, type);
-		var = assign(id, type, pet_expr_copy(expr->args[j]));
+		var = assign(id, pet_expr_copy(expr->args[j]));
 		expr = pet_expr_set_arg(expr, j, var);
 	}
 	if (is_addr)

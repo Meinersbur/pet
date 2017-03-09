@@ -48,7 +48,7 @@ struct pet_inliner : pet_substituter {
 	pet_inliner(isl_ctx *ctx, int &n_arg, clang::ASTContext &ast_context) :
 		ctx(ctx), n_arg(n_arg), ast_context(ast_context) {}
 
-	__isl_give pet_expr *assign( __isl_take isl_id *id, clang::QualType qt,
+	__isl_give pet_expr *assign( __isl_take isl_id *id,
 		__isl_take pet_expr *expr);
 
 	void add_scalar_arg(clang::ValueDecl *decl, const std::string &name,
