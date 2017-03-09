@@ -34,6 +34,7 @@
 
 #include "clang.h"
 #include "expr.h"
+#include "expr_plus.h"
 #include "id.h"
 #include "inliner.h"
 
@@ -46,12 +47,9 @@ using namespace clang;
 __isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id, QualType qt,
 	__isl_take pet_expr *expr)
 {
-	int type_size;
 	pet_expr *var;
 
-	var = pet_id_create_index_expr(id);
-	type_size = pet_clang_get_type_size(qt, ast_context);
-	var = pet_expr_set_type_size(var, type_size);
+	var = pet_expr_access_from_id(id, ast_context);
 
 	assignments.push_back(pair<pet_expr *, pet_expr *>(var, expr));
 

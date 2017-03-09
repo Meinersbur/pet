@@ -1547,9 +1547,7 @@ __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 
 		name = generate_new_name(name);
 		id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
-		expr = pet_id_create_index_expr(id);
-		expr = pet_expr_access_from_index(decl->getType(), expr,
-						ast_context);
+		expr = pet_expr_access_from_id(id, ast_context);
 		id = pet_id_from_decl(ctx, decl);
 		substituter.add_sub(id, expr);
 		used_names.insert(name);

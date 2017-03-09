@@ -119,3 +119,17 @@ __isl_give pet_expr *pet_expr_access_from_index(QualType qt,
 
 	return index;
 }
+
+/* Construct an access pet_expr for an access
+ * to the variable represented by "id".
+ */
+__isl_give pet_expr *pet_expr_access_from_id(__isl_take isl_id *id,
+	ASTContext &ast_context)
+{
+	QualType qt;
+	pet_expr *expr;
+
+	qt = pet_id_get_array_type(id);
+	expr = pet_id_create_index_expr(id);
+	return pet_expr_access_from_index(qt, expr, ast_context);
+}
