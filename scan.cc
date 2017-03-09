@@ -58,6 +58,7 @@
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
+#include "expr_plus.h"
 #include "id.h"
 #include "inliner.h"
 #include "killed_locals.h"
@@ -475,63 +476,6 @@ __isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 	return extract_index_expr(expr->getSubExpr());
 }
 
-/* Return the depth of the array accessed by the index expression "index".
- * If "index" is an affine expression, i.e., if it does not access
- * any array, then return 1.
- * If "index" represent a member access, i.e., if its range is a wrapped
- * relation, then return the sum of the depth of the array of structures
- * and that of the member inside the structure.
- */
-static int extract_depth(__isl_keep isl_multi_pw_aff *index)
-{
-	isl_id *id;
-	ValueDecl *decl;
-
-	if (!index)
-		return -1;
-
-	if (isl_multi_pw_aff_range_is_wrapping(index)) {
-		int domain_depth, range_depth;
-		isl_multi_pw_aff *domain, *range;
-
-		domain = isl_multi_pw_aff_copy(index);
-		domain = isl_multi_pw_aff_range_factor_domain(domain);
-		domain_depth = extract_depth(domain);
-		isl_multi_pw_aff_free(domain);
-		range = isl_multi_pw_aff_copy(index);
-		range = isl_multi_pw_aff_range_factor_range(range);
-		range_depth = extract_depth(range);
-		isl_multi_pw_aff_free(range);
-
-		return domain_depth + range_depth;
-	}
-
-	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
-		return 1;
-
-	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
-	if (!id)
-		return -1;
-	decl = pet_id_get_decl(id);
-	isl_id_free(id);
-
-	return pet_clang_array_depth(decl->getType());
-}
-
-/* Return the depth of the array accessed by the access expression "expr".
- */
-static int extract_depth(__isl_keep pet_expr *expr)
-{
-	isl_multi_pw_aff *index;
-	int depth;
-
-	index = pet_expr_access_get_index(expr);
-	depth = extract_depth(index);
-	isl_multi_pw_aff_free(index);
-
-	return depth;
-}
-
 /* Construct a pet_expr representing an index expression for an access
  * to the variable referenced by "expr".
  *
@@ -848,23 +792,6 @@ __isl_give pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 	return pet_expr_new_double(ctx, d, s.c_str());
 }
 
-/* Convert the index expression "index" into an access pet_expr of type "qt".
- */
-__isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
-	__isl_take pet_expr *index)
-{
-	int depth;
-	int type_size;
-
-	depth = extract_depth(index);
-	type_size = pet_clang_get_type_size(qt, ast_context);
-
-	index = pet_expr_set_type_size(index, type_size);
-	index = pet_expr_access_set_depth(index, depth);
-
-	return index;
-}
-
 /* Extract an index expression from "expr" and then convert it into
  * an access pet_expr.
  *
@@ -880,7 +807,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 	if (pet_expr_get_type(index) == pet_expr_int)
 		return index;
 
-	return extract_access_expr(expr->getType(), index);
+	return pet_expr_access_from_index(expr->getType(), index, ast_context);
 }
 
 /* Extract an index expression from "decl" and then convert it into
@@ -888,7 +815,8 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
  */
 __isl_give pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
-	return extract_access_expr(decl->getType(), extract_index_expr(decl));
+	return pet_expr_access_from_index(decl->getType(),
+					extract_index_expr(decl), ast_context);
 }
 
 __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
@@ -1620,7 +1548,8 @@ __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 		name = generate_new_name(name);
 		id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
 		expr = pet_id_create_index_expr(id);
-		expr = extract_access_expr(decl->getType(), expr);
+		expr = pet_expr_access_from_index(decl->getType(), expr,
+						ast_context);
 		id = pet_id_from_decl(ctx, decl);
 		substituter.add_sub(id, expr);
 		used_names.insert(name);

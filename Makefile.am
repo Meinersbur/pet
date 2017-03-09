@@ -62,6 +62,8 @@ libpet_la_SOURCES = \
 	expr_access_type.h \
 	expr_arg.h \
 	expr_arg.c \
+	expr_plus.h \
+	expr_plus.cc \
 	filter.h \
 	filter.c \
 	id.h \
