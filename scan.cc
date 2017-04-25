@@ -1,7 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
- * Copyright 2015-2016 Sven Verdoolaege. All rights reserved.
+ * Copyright 2015-2017 Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,8 +58,10 @@
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
+#include "expr_plus.h"
 #include "id.h"
 #include "inliner.h"
+#include "inlined_calls.h"
 #include "killed_locals.h"
 #include "nest.h"
 #include "options.h"
@@ -106,6 +108,12 @@ static enum pet_op_type BinaryOperatorKind2pet_op_type(BinaryOperatorKind kind)
 		return pet_op_mul_assign;
 	case BO_DivAssign:
 		return pet_op_div_assign;
+	case BO_AndAssign:
+		return pet_op_and_assign;
+	case BO_XorAssign:
+		return pet_op_xor_assign;
+	case BO_OrAssign:
+		return pet_op_or_assign;
 	case BO_Assign:
 		return pet_op_assign;
 	case BO_Add:
@@ -247,6 +255,16 @@ void PetScan::report_unsupported_unary_operator(Stmt *stmt)
 	report(stmt, id);
 }
 
+/* Report an unsupported binary operator, unless autodetect is set.
+ */
+void PetScan::report_unsupported_binary_operator(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+			       "this type of binary operator is not supported");
+	report(stmt, id);
+}
+
 /* Report an unsupported statement type, unless autodetect is set.
  */
 void PetScan::report_unsupported_statement_type(Stmt *stmt)
@@ -316,6 +334,49 @@ void PetScan::report_unsupported_declaration(Decl *decl)
 	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
 				   "unsupported declaration");
 	report(decl, id);
+}
+
+/* Report an unbalanced pair of scop/endscop pragmas, unless autodetect is set.
+ */
+void PetScan::report_unbalanced_pragmas(SourceLocation scop,
+	SourceLocation endscop)
+{
+	if (options->autodetect)
+		return;
+
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	{
+		unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+					   "unbalanced endscop pragma");
+		DiagnosticBuilder B2 = diag.Report(endscop, id);
+	}
+	{
+		unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Note,
+					   "corresponding scop pragma");
+		DiagnosticBuilder B = diag.Report(scop, id);
+	}
+}
+
+/* Report a return statement in an unsupported context,
+ * unless autodetect is set.
+ */
+void PetScan::report_unsupported_return(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+			   "return statements not supported in this context");
+	report(stmt, id);
+}
+
+/* Report a return statement that does not appear at the end of a function,
+ * unless autodetect is set.
+ */
+void PetScan::report_return_not_at_end_of_function(Stmt *stmt)
+{
+	DiagnosticsEngine &diag = PP.getDiagnostics();
+	unsigned id = diag.getCustomDiagID(DiagnosticsEngine::Warning,
+		       "return statement must be final statement in function");
+	report(stmt, id);
 }
 
 /* Extract an integer from "val", which is assumed to be non-negative.
@@ -436,63 +497,6 @@ static __isl_give isl_set *set_parameter_bounds(__isl_take isl_set *set,
 __isl_give pet_expr *PetScan::extract_index_expr(ImplicitCastExpr *expr)
 {
 	return extract_index_expr(expr->getSubExpr());
-}
-
-/* Return the depth of the array accessed by the index expression "index".
- * If "index" is an affine expression, i.e., if it does not access
- * any array, then return 1.
- * If "index" represent a member access, i.e., if its range is a wrapped
- * relation, then return the sum of the depth of the array of structures
- * and that of the member inside the structure.
- */
-static int extract_depth(__isl_keep isl_multi_pw_aff *index)
-{
-	isl_id *id;
-	ValueDecl *decl;
-
-	if (!index)
-		return -1;
-
-	if (isl_multi_pw_aff_range_is_wrapping(index)) {
-		int domain_depth, range_depth;
-		isl_multi_pw_aff *domain, *range;
-
-		domain = isl_multi_pw_aff_copy(index);
-		domain = isl_multi_pw_aff_range_factor_domain(domain);
-		domain_depth = extract_depth(domain);
-		isl_multi_pw_aff_free(domain);
-		range = isl_multi_pw_aff_copy(index);
-		range = isl_multi_pw_aff_range_factor_range(range);
-		range_depth = extract_depth(range);
-		isl_multi_pw_aff_free(range);
-
-		return domain_depth + range_depth;
-	}
-
-	if (!isl_multi_pw_aff_has_tuple_id(index, isl_dim_out))
-		return 1;
-
-	id = isl_multi_pw_aff_get_tuple_id(index, isl_dim_out);
-	if (!id)
-		return -1;
-	decl = pet_id_get_decl(id);
-	isl_id_free(id);
-
-	return pet_clang_array_depth(decl->getType());
-}
-
-/* Return the depth of the array accessed by the access expression "expr".
- */
-static int extract_depth(__isl_keep pet_expr *expr)
-{
-	isl_multi_pw_aff *index;
-	int depth;
-
-	index = pet_expr_access_get_index(expr);
-	depth = extract_depth(index);
-	isl_multi_pw_aff_free(index);
-
-	return depth;
 }
 
 /* Construct a pet_expr representing an index expression for an access
@@ -687,7 +691,7 @@ __isl_give pet_expr *PetScan::extract_expr(BinaryOperator *expr)
 
 	op = BinaryOperatorKind2pet_op_type(expr->getOpcode());
 	if (op == pet_op_last) {
-		unsupported(expr);
+		report_unsupported_binary_operator(expr);
 		return NULL;
 	}
 
@@ -811,23 +815,6 @@ __isl_give pet_expr *PetScan::extract_expr(FloatingLiteral *expr)
 	return pet_expr_new_double(ctx, d, s.c_str());
 }
 
-/* Convert the index expression "index" into an access pet_expr of type "qt".
- */
-__isl_give pet_expr *PetScan::extract_access_expr(QualType qt,
-	__isl_take pet_expr *index)
-{
-	int depth;
-	int type_size;
-
-	depth = extract_depth(index);
-	type_size = pet_clang_get_type_size(qt, ast_context);
-
-	index = pet_expr_set_type_size(index, type_size);
-	index = pet_expr_access_set_depth(index, depth);
-
-	return index;
-}
-
 /* Extract an index expression from "expr" and then convert it into
  * an access pet_expr.
  *
@@ -843,7 +830,7 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
 	if (pet_expr_get_type(index) == pet_expr_int)
 		return index;
 
-	return extract_access_expr(expr->getType(), index);
+	return pet_expr_access_from_index(expr->getType(), index, ast_context);
 }
 
 /* Extract an index expression from "decl" and then convert it into
@@ -851,7 +838,8 @@ __isl_give pet_expr *PetScan::extract_access_expr(Expr *expr)
  */
 __isl_give pet_expr *PetScan::extract_access_expr(ValueDecl *decl)
 {
-	return extract_access_expr(decl->getType(), extract_index_expr(decl));
+	return pet_expr_access_from_index(decl->getType(),
+					extract_index_expr(decl), ast_context);
 }
 
 __isl_give pet_expr *PetScan::extract_expr(ParenExpr *expr)
@@ -1009,6 +997,11 @@ static bool is_assume(int pencil, const string &name)
 
 /* Construct a pet_expr representing a function call.
  *
+ * If this->call2id is not NULL and it contains a mapping for this call,
+ * then this means that the corresponding function has been inlined.
+ * Return a pet_expr that reads from the variable that
+ * stores the return value of the inlined call.
+ *
  * In the special case of a "call" to __builtin_assume or __pencil_assume,
  * construct an assume expression instead.
  *
@@ -1026,6 +1019,10 @@ __isl_give pet_expr *PetScan::extract_expr(CallExpr *expr)
 	string name;
 	unsigned n_arg;
 	bool is_kill;
+
+	if (call2id && call2id->find(expr) != call2id->end())
+		return pet_expr_access_from_id(isl_id_copy(call2id[0][expr]),
+						ast_context);
 
 	fd = expr->getDirectCallee();
 	if (!fd) {
@@ -1582,8 +1579,7 @@ __isl_give pet_tree *PetScan::extract(CompoundStmt *stmt,
 
 		name = generate_new_name(name);
 		id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
-		expr = pet_id_create_index_expr(id);
-		expr = extract_access_expr(decl->getType(), expr);
+		expr = pet_expr_access_from_id(id, ast_context);
 		id = pet_id_from_decl(ctx, decl);
 		substituter.add_sub(id, expr);
 		used_names.insert(name);
@@ -1744,6 +1740,49 @@ __isl_give pet_tree *PetScan::extract(IfStmt *stmt)
 	} else
 		tree = pet_tree_new_if(pe_cond, tree);
 	return tree;
+}
+
+/* Is "parent" a compound statement that has "stmt" as its final child?
+ */
+static bool final_in_compound(ReturnStmt *stmt, Stmt *parent)
+{
+	CompoundStmt *c;
+
+	c = dyn_cast<CompoundStmt>(parent);
+	if (c) {
+		StmtIterator i;
+		Stmt *last;
+		StmtRange range = c->children();
+
+		for (i = range.first; i != range.second; ++i)
+			last = *i;
+		return last == stmt;
+	}
+	return false;
+}
+
+/* Try and construct a pet_tree for a return statement "stmt".
+ *
+ * Return statements are only allowed in a context where
+ * this->return_root has been set.
+ * Furthermore, "stmt" should appear as the last child
+ * in the compound statement this->return_root.
+ */
+__isl_give pet_tree *PetScan::extract(ReturnStmt *stmt)
+{
+	pet_expr *val;
+
+	if (!return_root) {
+		report_unsupported_return(stmt);
+		return NULL;
+	}
+	if (!final_in_compound(stmt, return_root)) {
+		report_return_not_at_end_of_function(stmt);
+		return NULL;
+	}
+
+	val = extract_expr(stmt->getRetValue());
+	return pet_tree_new_return(val);
 }
 
 /* Try and construct a pet_tree for a label statement.
@@ -1911,12 +1950,16 @@ int PetScan::substitute_array_sizes(__isl_keep pet_tree *tree,
  * of (parts of) the actual arguments to temporary variables
  * followed by the inlined function body with the formal arguments
  * replaced by (expressions containing) these temporary variables.
+ * If "return_id" is set, then it is used to store the return value
+ * of the inlined function.
  *
  * The actual inlining is taken care of by the pet_inliner object.
  * This function merely calls set_inliner_arguments to tell
  * the pet_inliner about the actual arguments, extracts a pet_tree
  * from the body of the called function and then passes this pet_tree
  * to the pet_inliner.
+ * The body of the called function is allowed to have a return statement
+ * at the end.
  * The substitutions performed by the inliner are also applied
  * to the size expressions of the arrays declared in the inlined
  * function.  These size expressions are not stored in the tree
@@ -1934,7 +1977,7 @@ int PetScan::substitute_array_sizes(__isl_keep pet_tree *tree,
  * function.
  */
 __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
-	FunctionDecl *fd)
+	FunctionDecl *fd, __isl_keep isl_id *return_id)
 {
 	int save_autodetect;
 	pet_tree *tree;
@@ -1951,6 +1994,7 @@ __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
 	collect_declared_names();
 	body_scan.add_new_used_names(declared_names);
 	body_scan.add_new_used_names(used_names);
+	body_scan.return_root = fd->getBody();
 	tree = body_scan.extract(fd->getBody(), false);
 	add_new_used_names(body_scan.used_names);
 	options->autodetect = save_autodetect;
@@ -1960,30 +2004,38 @@ __isl_give pet_tree *PetScan::extract_inlined_call(CallExpr *call,
 
 	substitute_array_sizes(tree, &inliner);
 
-	return inliner.inline_tree(tree);
+	return inliner.inline_tree(tree, return_id);
 }
 
 /* Try and construct a pet_tree corresponding
  * to the expression statement "stmt".
  *
- * If the outer expression is a function call and if the corresponding
- * function body is marked "inline", then return a pet_tree
- * corresponding to the inlined function.
+ * First look for function calls that have corresponding bodies
+ * marked "inline".  Extract the inlined functions in a pet_inlined_calls
+ * object.  Then extract the statement itself, replacing calls
+ * to inlined function by accesses to the corresponding return variables, and
+ * return the combined result.
+ * If the outer expression is itself a call to an inlined function,
+ * then it already appears as one of the inlined functions and
+ * no separate pet_tree needs to be extracted for "stmt" itself.
  */
 __isl_give pet_tree *PetScan::extract_expr_stmt(Stmt *stmt)
 {
 	pet_expr *expr;
+	pet_tree *tree;
+	pet_inlined_calls ic(this);
 
-	if (stmt->getStmtClass() == Stmt::CallExprClass) {
-		CallExpr *call = cast<CallExpr>(stmt);
-		FunctionDecl *fd = call->getDirectCallee();
-		fd = pet_clang_find_function_decl_with_body(fd);
-		if (fd && fd->isInlineSpecified())
-			return extract_inlined_call(call, fd);
+	ic.collect(stmt);
+	if (ic.calls.size() >= 1 && ic.calls[0] == stmt) {
+		tree = pet_tree_new_block(ctx, 0, 0);
+	} else {
+		call2id = &ic.call2id;
+		expr = extract_expr(cast<Expr>(stmt));
+		tree = extract(expr, stmt->getSourceRange(), true);
+		call2id = NULL;
 	}
-
-	expr = extract_expr(cast<Expr>(stmt));
-	return extract(expr, stmt->getSourceRange(), true);
+	tree = ic.add_inlined(tree);
+	return tree;
 }
 
 /* Try and construct a pet_tree corresponding to "stmt".
@@ -2038,6 +2090,9 @@ __isl_give pet_tree *PetScan::extract(Stmt *stmt, bool skip_declarations)
 		break;
 	case Stmt::NullStmtClass:
 		tree = pet_tree_new_block(ctx, 0, 0);
+		break;
+	case Stmt::ReturnStmtClass:
+		tree = extract(cast<ReturnStmt>(stmt));
 		break;
 	default:
 		report_unsupported_statement_type(stmt);
@@ -2276,6 +2331,7 @@ static struct pet_array *extract_array(__isl_keep pet_expr *access,
  * We then collect the accessed array elements and attach them
  * to the corresponding array arguments, taking into account
  * that the function body may access members of array elements.
+ * The function body is allowed to have a return statement at the end.
  *
  * The reason for representing the integer arguments as parameters in
  * the context is that if we were to instead start with a context
@@ -2327,6 +2383,7 @@ __isl_give pet_function_summary *PetScan::get_summary(FunctionDecl *fd)
 	PetScan body_scan(PP, ast_context, fd, loc, options,
 				isl_union_map_copy(value_bounds), independent);
 
+	body_scan.return_root = fd->getBody();
 	tree = body_scan.extract(fd->getBody(), false);
 
 	domain = isl_set_universe(space);
@@ -2480,6 +2537,9 @@ __isl_give pet_tree *PetScan::add_kills(__isl_take pet_tree *tree,
  * then check if there are any variable declarations before the scop
  * inside "stmt".  If so, and if these variables are not used
  * after the scop, then add kills to the variables.
+ *
+ * If the scop starts in the middle of one of the children, without
+ * also ending in that child, then report an error.
  */
 struct pet_scop *PetScan::scan(Stmt *stmt)
 {
@@ -2510,6 +2570,10 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 			return scan(child);
 		if (start_off >= loc.start)
 			break;
+		if (loc.start < end_off) {
+			report_unbalanced_pragmas(loc.scop, loc.endscop);
+			return NULL;
+		}
 		if (isa<DeclStmt>(child))
 			kl.add_locals(cast<DeclStmt>(child));
 	}
@@ -3116,12 +3180,19 @@ static struct pet_scop *add_type(isl_ctx *ctx, struct pet_scop *scop,
  * should not be printed separately.  While the typedef definition
  * is being printed, the struct is marked as having been printed as well,
  * such that the later printing of the struct by itself can be prevented.
+ *
+ * If the sequence of nested array declarations from which the pet_array
+ * is extracted appears as the prefix of some other sequence,
+ * then the pet_array is marked as "outer".
+ * The arrays that already appear in scop->arrays at the start of
+ * this function are assumed to be simple arrays, so they are not marked
+ * as outer.
  */
 struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 	__isl_keep pet_context *pc)
 {
 	int i, n;
-	array_desc_set arrays;
+	array_desc_set arrays, has_sub;
 	array_desc_set::iterator it;
 	PetTypes types;
 	std::set<TypeDecl *> types_done;
@@ -3145,12 +3216,21 @@ struct pet_scop *PetScan::scan_arrays(struct pet_scop *scop,
 		goto error;
 	scop->arrays = scop_arrays;
 
+	for (it = arrays.begin(); it != arrays.end(); ++it) {
+		isl_id_list *list = isl_id_list_copy(*it);
+		int n = isl_id_list_n_id(list);
+		list = isl_id_list_drop(list, n - 1, 1);
+		has_sub.insert(list);
+	}
+
 	for (it = arrays.begin(), i = 0; it != arrays.end(); ++it, ++i) {
 		struct pet_array *array;
 		array = extract_array(*it, &types, pc);
 		scop->arrays[n_array + i] = array;
 		if (!scop->arrays[n_array + i])
 			goto error;
+		if (has_sub.find(*it) != has_sub.end())
+			array->outer = 1;
 		scop->n_array++;
 		scop->context = isl_set_intersect(scop->context,
 						isl_set_copy(array->context));

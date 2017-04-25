@@ -77,6 +77,9 @@ enum pet_op_type {
 	pet_op_sub_assign,
 	pet_op_mul_assign,
 	pet_op_div_assign,
+	pet_op_and_assign,
+	pet_op_xor_assign,
+	pet_op_or_assign,
 	pet_op_assign,
 	pet_op_add,
 	pet_op_sub,
@@ -283,7 +286,8 @@ enum pet_tree_type {
 	pet_tree_if_else,	/* An if with an else branch */
 	pet_tree_for,
 	pet_tree_infinite_loop,
-	pet_tree_while
+	pet_tree_while,
+	pet_tree_return,
 };
 
 struct pet_tree;
@@ -305,6 +309,9 @@ enum pet_tree_type pet_tree_get_type(__isl_keep pet_tree *tree);
 
 /* Return the expression of the expression tree "tree". */
 __isl_give pet_expr *pet_tree_expr_get_expr(__isl_keep pet_tree *tree);
+
+/* Return the expression returned by the return tree "tree". */
+__isl_give pet_expr *pet_tree_return_get_expr(__isl_keep pet_tree *tree);
 
 /* Return the number of children of the block tree "tree". */
 int pet_tree_block_n_child(__isl_keep pet_tree *tree);
@@ -441,6 +448,8 @@ struct pet_type {
  *
  * declared is set if the array was declared somewhere inside the scop.
  * exposed is set if the declared array is visible outside the scop.
+ * outer is set if the type of the array elements is a record and
+ * the fields of this record are represented by separate pet_array structures.
  */
 struct pet_array {
 	isl_set *context;
@@ -453,6 +462,7 @@ struct pet_array {
 	int uniquely_defined;
 	int declared;
 	int exposed;
+	int outer;
 };
 
 /* This structure represents an implication on a boolean filter.

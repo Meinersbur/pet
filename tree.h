@@ -23,8 +23,9 @@ extern "C" {
  * "var" is the variable that is being declared.
  * "init" is the initial value (in case of pet_tree_decl_init).
  *
- * The "e" field of the union is used for type pet_tree_expr.
- * "expr" is the expression represented by the tree.
+ * The "e" field of the union is used for type pet_tree_expr and
+ * for type pet_tree_return.
+ * "expr" is the expression represented or returned by the tree.
  *
  * The "l" field of the union is used for types pet_tree_for,
  * pet_tree_infinite_loop and pet_tree_while.
@@ -92,7 +93,7 @@ int pet_tree_is_equal(__isl_keep pet_tree *tree1, __isl_keep pet_tree *tree2);
 int pet_tree_is_kill(__isl_keep pet_tree *tree);
 int pet_tree_is_assign(__isl_keep pet_tree *tree);
 int pet_tree_is_assume(__isl_keep pet_tree *tree);
-int pet_tree_is_affine_assume(__isl_keep pet_tree *tree);
+isl_bool pet_tree_is_affine_assume(__isl_keep pet_tree *tree);
 __isl_give isl_multi_pw_aff *pet_tree_assume_get_index(
 	__isl_keep pet_tree *tree);
 
@@ -101,6 +102,7 @@ __isl_give pet_tree *pet_tree_new_decl_init(__isl_take pet_expr *var,
 	__isl_take pet_expr *init);
 
 __isl_give pet_tree *pet_tree_new_expr(__isl_take pet_expr *expr);
+__isl_give pet_tree *pet_tree_new_return(__isl_take pet_expr *expr);
 
 __isl_give pet_tree *pet_tree_set_label(__isl_take pet_tree *tree,
 	__isl_take isl_id *label);
@@ -133,6 +135,9 @@ __isl_give pet_tree *pet_tree_set_loc(__isl_take pet_tree *tree,
 int pet_tree_foreach_sub_tree(__isl_keep pet_tree *tree,
 	int (*fn)(__isl_keep pet_tree *tree, void *user), void *user);
 
+__isl_give pet_tree *pet_tree_map_top_down(__isl_take pet_tree *tree,
+	__isl_give pet_tree *(*fn)(__isl_take pet_tree *tree, void *user),
+	void *user);
 __isl_give pet_tree *pet_tree_map_access_expr(__isl_take pet_tree *tree,
 	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
 	void *user);

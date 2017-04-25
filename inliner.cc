@@ -1,6 +1,6 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
- * Copyright 2015      Sven Verdoolaege. All rights reserved.
+ * Copyright 2015,2017 Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +34,7 @@
 
 #include "clang.h"
 #include "expr.h"
+#include "expr_plus.h"
 #include "id.h"
 #include "inliner.h"
 
@@ -41,17 +42,14 @@ using namespace std;
 using namespace clang;
 
 /* Add an assignment of "expr" to a variable with identifier "id" and
- * type "qt" and return a pet_expr corresponding to the assigned variable.
+ * return a pet_expr corresponding to the assigned variable.
  */
-__isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id, QualType qt,
+__isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id,
 	__isl_take pet_expr *expr)
 {
-	int type_size;
 	pet_expr *var;
 
-	var = pet_id_create_index_expr(id);
-	type_size = pet_clang_get_type_size(qt, ast_context);
-	var = pet_expr_set_type_size(var, type_size);
+	var = pet_expr_access_from_id(id, ast_context);
 
 	assignments.push_back(pair<pet_expr *, pet_expr *>(var, expr));
 
@@ -72,12 +70,11 @@ __isl_give pet_expr *pet_inliner::assign( __isl_take isl_id *id, QualType qt,
 void pet_inliner::add_scalar_arg(ValueDecl *decl, const string &name,
 	__isl_take pet_expr *expr)
 {
-	QualType type = decl->getType();
 	isl_id *id;
 	pet_expr *var;
 
 	id = pet_id_from_name_and_decl(ctx, name.c_str(), decl);
-	var = assign(id, type, expr);
+	var = assign(id, expr);
 	id = pet_id_from_decl(ctx, decl);
 	add_sub(id, var);
 }
@@ -104,7 +101,7 @@ void pet_inliner::add_array_arg(ValueDecl *decl, __isl_take pet_expr *expr,
 		QualType type = ast_context.IntTy;
 
 		id = pet_id_arg_from_type(ctx, n_arg++, type);
-		var = assign(id, type, pet_expr_copy(expr->args[j]));
+		var = assign(id, pet_expr_copy(expr->args[j]));
 		expr = pet_expr_set_arg(expr, j, var);
 	}
 	if (is_addr)
@@ -113,10 +110,67 @@ void pet_inliner::add_array_arg(ValueDecl *decl, __isl_take pet_expr *expr,
 	add_sub(id, expr);
 }
 
+/* Data needed in replace_return_base pet_tree_map_top_down callback.
+ */
+struct replace_return_data {
+	clang::ASTContext &ast_context;
+	isl_id *return_id;
+
+	replace_return_data(clang::ASTContext &ast_context, isl_id *return_id) :
+		ast_context(ast_context), return_id(return_id) {}
+};
+
+extern "C" {
+	static __isl_give pet_tree *replace_return_base(
+		__isl_take pet_tree *tree, void *user);
+}
+
+/* This function is called for every subtree of a pet_tree.
+ * If the subtree corresponds to a return statement,
+ * then replace the return statement by an assignment
+ * of the returned expression to data->return_id.
+ */
+static __isl_give pet_tree *replace_return_base(__isl_take pet_tree *tree,
+	void *user)
+{
+	replace_return_data *data = (replace_return_data *) user;
+	int type_size;
+	pet_expr *var;
+	pet_expr *expr;
+
+	if (pet_tree_get_type(tree) != pet_tree_return)
+		return tree;
+
+	expr = pet_tree_return_get_expr(tree);
+	pet_tree_free(tree);
+
+	var = pet_expr_access_from_id(isl_id_copy(data->return_id),
+					data->ast_context);
+	type_size = pet_expr_get_type_size(var);
+	var = pet_expr_access_set_write(var, 1);
+	var = pet_expr_access_set_read(var, 0);
+
+	expr = pet_expr_new_binary(type_size, pet_op_assign, var, expr);
+
+	return pet_tree_new_expr(expr);
+}
+
+/* Replace any return statement in "tree" by a write to "return_id".
+ */
+static __isl_give pet_tree *replace_return(__isl_take pet_tree *tree,
+	clang::ASTContext &ast_context, __isl_keep isl_id *return_id)
+{
+	replace_return_data data(ast_context, return_id);
+	return pet_tree_map_top_down(tree, &replace_return_base, &data);
+}
+
 /* Inline "tree" by applying the substitutions to "tree" and placing
  * the result in a block after the assignments stored in "assignments".
+ * If "return_id" is not NULL, then any return statement in "tree"
+ * is replaced by a write to "return_id".
  */
-__isl_give pet_tree *pet_inliner::inline_tree(__isl_take pet_tree *tree)
+__isl_give pet_tree *pet_inliner::inline_tree(__isl_take pet_tree *tree,
+	__isl_keep isl_id *return_id)
 {
 	pet_expr *expr;
 	pet_tree *block;
@@ -136,6 +190,8 @@ __isl_give pet_tree *pet_inliner::inline_tree(__isl_take pet_tree *tree)
 	}
 
 	tree = substitute(tree);
+	if (return_id)
+		tree = replace_return(tree, ast_context, return_id);
 	block = pet_tree_block_add_child(block, tree);
 
 	return block;

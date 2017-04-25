@@ -16,6 +16,7 @@ arrays:
   element_type: struct s
   element_size: 404
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ s_b[s[] -> b[]] }'
   element_type: int
@@ -25,6 +26,7 @@ arrays:
   element_type: <subfield>
   element_size: 40
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ s_f_a[s_f[s[] -> f[i0]] -> a[i1]] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }'
   element_type: int

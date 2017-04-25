@@ -15,11 +15,13 @@ arrays:
   element_type: struct pair
   element_size: 16
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ p_a[p[] -> a[]] }'
   element_type: struct scomplex
   element_size: 8
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ p_a_im[p_a[p[] -> a[]] -> im[]] }'
   element_type: float
@@ -33,6 +35,7 @@ arrays:
   element_type: struct scomplex
   element_size: 8
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ p_b_im[p_b[p[] -> b[]] -> im[]] }'
   element_type: float

@@ -1,3 +1,9 @@
+version: 0.10
+date: Sun Dec 18 11:07:36 CET 2016
+changes:
+	- detect and report unbalanced pairs of scop/endscop pragmas
+	- take into account assumptions during extraction
+---
 version: 0.09
 date: Tue May  3 15:06:19 CEST 2016
 changes:

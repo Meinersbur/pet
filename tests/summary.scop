@@ -24,7 +24,7 @@ statements:
         read: 1
         write: 0
       - type: access
-        may_write: '[n] -> { S_0[i] -> A[i, o1] : 2*floor((-1 + o1)/2) = -1 + o1 and
+        may_write: '[n] -> { S_0[i] -> A[i, o1] : 2*floor((1 + o1)/2) = 1 + o1 and
           0 < o1 < n }'
         must_write: '[n] -> {  }'
         index: '[n] -> { S_0[i] -> A[(i)] }'

@@ -32,6 +32,12 @@
  * Leiden University.
  */
 
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
+#include <isl/set.h>
+
 #include "expr.h"
 #include "loc.h"
 #include "scop.h"

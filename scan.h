@@ -1,3 +1,7 @@
+#ifndef PET_SCAN_H
+#define PET_SCAN_H
+
+#include <set>
 #include <map>
 
 #include <clang/Basic/SourceManager.h>
@@ -37,11 +41,15 @@ struct StmtRange : std::pair<StmtIterator,StmtIterator> {
 
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.
+ * "scop" and "endscop" are the source locations of the scop and
+ * endscop pragmas.
  * "start_line" is the line number of the start position.
  */
 struct ScopLoc {
 	ScopLoc() : end(0) {}
 
+	clang::SourceLocation scop;
+	clang::SourceLocation endscop;
 	unsigned start_line;
 	unsigned start;
 	unsigned end;
@@ -95,6 +103,11 @@ struct PetScan {
 	ScopLoc &loc;
 	isl_ctx *ctx;
 	pet_options *options;
+	/* If not NULL, then return_root represents the compound statement
+	 * in which a return statement is allowed as the final child.
+	 * If return_root is NULL, then no return statements are allowed.
+	 */
+	clang::Stmt *return_root;
 	/* Set if the pet_scop returned by an extract method only
 	 * represents part of the input tree.
 	 */
@@ -141,8 +154,15 @@ struct PetScan {
 	/* A set of names known to be in use. */
 	std::set<std::string> used_names;
 
+	/* If not NULL, then "call2id" maps inlined call expressions
+	 * that return a value to the corresponding variables.
+	 */
+	std::map<clang::Stmt *, isl_id *> *call2id;
+
 	/* Sequence number of the next temporary inlined argument variable. */
 	int n_arg;
+	/* Sequence number of the next temporary inlined return variable. */
+	int n_ret;
 
 	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
 		clang::DeclContext *decl_context, ScopLoc &loc,
@@ -151,10 +171,11 @@ struct PetScan {
 		PP(PP),
 		ast_context(ast_context), decl_context(decl_context), loc(loc),
 		ctx(isl_union_map_get_ctx(value_bounds)),
-		options(options), partial(false), value_bounds(value_bounds),
-		last_line(0), current_line(0),
+		options(options), return_root(NULL), partial(false),
+		value_bounds(value_bounds), last_line(0), current_line(0),
 		independent(independent), n_rename(0),
-		declared_names_collected(false), n_arg(0) {
+		declared_names_collected(false), call2id(NULL),
+		n_arg(0), n_ret(0) {
 		id_size = isl_id_to_pet_expr_alloc(ctx, 0);
 	}
 
@@ -168,6 +189,8 @@ struct PetScan {
 	void set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size);
 	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
+	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
+		clang::FunctionDecl *fd, __isl_keep isl_id *return_id);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
@@ -209,6 +232,7 @@ private:
 	__isl_give pet_tree *extract(clang::LabelStmt *stmt);
 	__isl_give pet_tree *extract(clang::Decl *decl);
 	__isl_give pet_tree *extract(clang::DeclStmt *expr);
+	__isl_give pet_tree *extract(clang::ReturnStmt *stmt);
 
 	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,
 		bool skip_semi);
@@ -236,8 +260,6 @@ private:
 				clang::ValueDecl *iv);
 	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
 	__isl_give pet_tree *extract_expr_stmt(clang::Stmt *stmt);
-	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
-		clang::FunctionDecl *fd);
 	int set_inliner_arguments(pet_inliner &inliner, clang::CallExpr *call,
 		clang::FunctionDecl *fd);
 
@@ -260,8 +282,6 @@ private:
 	__isl_give pet_expr *extract_expr(clang::CallExpr *expr);
 	__isl_give pet_expr *extract_expr(clang::CStyleCastExpr *expr);
 
-	__isl_give pet_expr *extract_access_expr(clang::QualType qt,
-		__isl_take pet_expr *index);
 	__isl_give pet_expr *extract_access_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
@@ -285,6 +305,7 @@ private:
 	void report(clang::Decl *decl, unsigned id);
 	void unsupported(clang::Stmt *stmt);
 	void report_unsupported_unary_operator(clang::Stmt *stmt);
+	void report_unsupported_binary_operator(clang::Stmt *stmt);
 	void report_unsupported_statement_type(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
@@ -292,4 +313,10 @@ private:
 	void report_missing_summary_function_body(clang::Stmt *stmt);
 	void report_unsupported_inline_function_argument(clang::Stmt *stmt);
 	void report_unsupported_declaration(clang::Decl *decl);
+	void report_unbalanced_pragmas(clang::SourceLocation scop,
+		clang::SourceLocation endscop);
+	void report_unsupported_return(clang::Stmt *stmt);
+	void report_return_not_at_end_of_function(clang::Stmt *stmt);
 };
+
+#endif

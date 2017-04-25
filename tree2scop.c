@@ -35,7 +35,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
 #include <isl/id_to_pw_aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
 
 #include "aff.h"
@@ -46,6 +53,42 @@
 #include "skip.h"
 #include "state.h"
 #include "tree2scop.h"
+
+/* If "stmt" is an affine assumption, then record the assumption in "pc".
+ */
+static __isl_give pet_context *add_affine_assumption(struct pet_stmt *stmt,
+	__isl_take pet_context *pc)
+{
+	isl_bool affine;
+	isl_set *cond;
+
+	affine = pet_stmt_is_affine_assume(stmt);
+	if (affine < 0)
+		return pet_context_free(pc);
+	if (!affine)
+		return pc;
+	cond = pet_stmt_assume_get_affine_condition(stmt);
+	cond = isl_set_reset_tuple_id(cond);
+	pc = pet_context_intersect_domain(pc, cond);
+	return pc;
+}
+
+/* Given a scop "scop" derived from an assumption statement,
+ * record the assumption in "pc", if it is affine.
+ * Note that "scop" should consist of exactly one statement.
+ */
+static __isl_give pet_context *scop_add_affine_assumption(
+	__isl_keep pet_scop *scop, __isl_take pet_context *pc)
+{
+	int i;
+
+	if (!scop)
+		return pet_context_free(pc);
+	for (i = 0; i < scop->n_stmt; ++i)
+		pc = add_affine_assumption(scop->stmts[i], pc);
+
+	return pc;
+}
 
 /* Update "pc" by taking into account the writes in "stmt".
  * That is, clear any previously assigned values to variables
@@ -181,7 +224,6 @@ static struct pet_scop *kill(__isl_take pet_loc *loc, struct pet_array *array,
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *expr;
-	struct pet_scop *scop;
 
 	if (!array)
 		goto error;
@@ -377,6 +419,15 @@ static struct pet_scop *scop_from_tree_expr(__isl_keep pet_tree *tree,
 		return NULL;
 	if (is_kill)
 		return scop_from_pencil_kill(tree, pc, state);
+	return scop_from_unevaluated_tree(pet_tree_copy(tree),
+						state->n_stmt++, pc);
+}
+
+/* Construct a pet_scop for a return statement within the context "pc".
+ */
+static struct pet_scop *scop_from_return(__isl_keep pet_tree *tree,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
 	return scop_from_unevaluated_tree(pet_tree_copy(tree),
 						state->n_stmt++, pc);
 }
@@ -2323,6 +2374,8 @@ static int tree_is_decl(__isl_keep pet_tree *tree)
 		return 0;
 	if (pet_tree_block_get_block(tree))
 		return 0;
+	if (tree->u.b.n == 0)
+		return 0;
 
 	for (i = 0; i < tree->u.b.n; ++i) {
 		is_decl = tree_is_decl(tree->u.b.child[i]);
@@ -2417,6 +2470,7 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  * After extracting a statement, we update "pc"
  * based on the top-level assignments in the statement
  * so that we can exploit them in subsequent statements in the same block.
+ * Top-level affine assumptions are also recorded in the context.
  *
  * If there are any breaks or continues in the individual statements,
  * then we may have to compute a new skip condition.
@@ -2463,6 +2517,8 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		if (pet_scop_has_affine_skip(scop, pet_skip_now))
 			pc = apply_affine_continue(pc, scop);
 		scop_i = scop_from_tree(tree->u.b.child[i], pc, state);
+		if (pet_tree_is_assume(tree->u.b.child[i]))
+			pc = scop_add_affine_assumption(scop_i, pc);
 		pc = scop_handle_writes(scop_i, pc);
 		if (is_assignment(tree->u.b.child[i]))
 			pc = handle_assignment(pc, tree->u.b.child[i]);
@@ -2638,6 +2694,8 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 		return scop_from_decl(tree, pc, state);
 	case pet_tree_expr:
 		return scop_from_tree_expr(tree, pc, state);
+	case pet_tree_return:
+		return scop_from_return(tree, pc, state);
 	case pet_tree_if:
 	case pet_tree_if_else:
 		scop = scop_from_if(tree, pc, state);

@@ -2,11 +2,11 @@ start: 38
 end: 112
 indent: "\t"
 context: '[N] -> {  : 0 <= N <= 2147483647 }'
-schedule: '{ domain: "[N] -> { S_4[]; S_0[]; S_3[]; S_1[i] : 3*floor((-2 - N + i)/3)
-  = -2 - N + i and 0 <= i < N; S_2[i] : 3*floor((-2 - N + i)/3) = -2 - N + i and 0
-  <= i < N }", child: { sequence: [ { filter: "[N] -> { S_0[] }" }, { filter: "[N]
-  -> { S_1[i]; S_2[i] }", child: { schedule: "[N] -> L_0[{ S_1[i] -> [(-i)]; S_2[i]
-  -> [(-i)] }]", child: { sequence: [ { filter: "[N] -> { S_1[i] }" }, { filter: "[N]
+schedule: '{ domain: "[N] -> { S_4[]; S_0[]; S_3[]; S_1[i] : 3*floor((1 - N + i)/3)
+  = 1 - N + i and 0 <= i < N; S_2[i] : 3*floor((1 - N + i)/3) = 1 - N + i and 0 <=
+  i < N }", child: { sequence: [ { filter: "[N] -> { S_0[] }" }, { filter: "[N] ->
+  { S_1[i]; S_2[i] }", child: { schedule: "[N] -> L_0[{ S_1[i] -> [(-i)]; S_2[i] ->
+  [(-i)] }]", child: { sequence: [ { filter: "[N] -> { S_1[i] }" }, { filter: "[N]
   -> { S_2[i] }" } ] } } }, { filter: "[N] -> { S_4[]; S_3[] }", child: { set: [ {
   filter: "{ S_3[] }" }, { filter: "{ S_4[] }" } ] } } ] } }'
 arrays:
@@ -38,7 +38,7 @@ statements:
         read: 1
         write: 0
 - line: 8
-  domain: '[N] -> { S_1[i] : 3*floor((-2 - N + i)/3) = -2 - N + i and 0 <= i < N }'
+  domain: '[N] -> { S_1[i] : 3*floor((1 - N + i)/3) = 1 - N + i and 0 <= i < N }'
   body:
     type: expression
     expr:
@@ -56,7 +56,7 @@ statements:
         read: 1
         write: 0
 - line: 7
-  domain: '[N] -> { S_2[i] : 3*floor((-2 - N + i)/3) = -2 - N + i and 0 <= i < N }'
+  domain: '[N] -> { S_2[i] : 3*floor((1 - N + i)/3) = 1 - N + i and 0 <= i < N }'
   body:
     type: expression
     expr:

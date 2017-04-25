@@ -3,16 +3,16 @@ end: 144
 indent: "\t"
 context: '{  :  }'
 schedule: '{ domain: "{ S_0[]; S_5[]; S_7[]; S_3[i, j] : 0 <= i <= 4 and j >= i and
-  5*floor((2 + 4i)/5) <= 5i - j; S_6[]; S_4[i] : 0 <= i <= 4; S_2[i, j] : 0 <= i <=
-  4 and j >= i and 5*floor((2 + 4i)/5) <= 5i - j; S_1[i] : 0 <= i <= 4 }", child:
-  { sequence: [ { filter: "{ S_0[] }" }, { filter: "{ S_3[i, j]; S_4[i]; S_2[i, j];
-  S_1[i] }", child: { schedule: "L_0[{ S_3[i, j] -> [(i)]; S_4[i] -> [(i)]; S_1[i]
-  -> [(i)]; S_2[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_1[i] }" },
-  { filter: "{ S_3[i, j]; S_2[i, j] }", child: { schedule: "L_1[{ S_3[i, j] -> [(j)];
-  S_2[i, j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_2[i, j] }" }, { filter:
-  "{ S_3[i, j] }" } ] } } }, { filter: "{ S_4[i] }" } ] } } }, { filter: "{ S_5[];
-  S_7[]; S_6[] }", child: { set: [ { filter: "{ S_5[] }" }, { filter: "{ S_6[] }"
-  }, { filter: "{ S_7[] }" } ] } } ] } }'
+  5*floor((2 - i)/5) <= -j; S_6[]; S_4[i] : 0 <= i <= 4; S_2[i, j] : 0 <= i <= 4 and
+  j >= i and 5*floor((2 - i)/5) <= -j; S_1[i] : 0 <= i <= 4 }", child: { sequence:
+  [ { filter: "{ S_0[] }" }, { filter: "{ S_3[i, j]; S_4[i]; S_2[i, j]; S_1[i] }",
+  child: { schedule: "L_0[{ S_3[i, j] -> [(i)]; S_4[i] -> [(i)]; S_1[i] -> [(i)];
+  S_2[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_1[i] }" }, { filter:
+  "{ S_3[i, j]; S_2[i, j] }", child: { schedule: "L_1[{ S_3[i, j] -> [(j)]; S_2[i,
+  j] -> [(j)] }]", child: { sequence: [ { filter: "{ S_2[i, j] }" }, { filter: "{
+  S_3[i, j] }" } ] } } }, { filter: "{ S_4[i] }" } ] } } }, { filter: "{ S_5[]; S_7[];
+  S_6[] }", child: { set: [ { filter: "{ S_5[] }" }, { filter: "{ S_6[] }" }, { filter:
+  "{ S_7[] }" } ] } } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ a[] }'
@@ -61,8 +61,7 @@ statements:
         read: 1
         write: 0
 - line: 9
-  domain: '{ S_2[i, j] : 0 <= i <= 4 and j >= i and 5*floor((2 + 4i)/5) <= 5i - j
-    }'
+  domain: '{ S_2[i, j] : 0 <= i <= 4 and j >= i and 5*floor((2 - i)/5) <= -j }'
   body:
     type: expression
     expr:
@@ -77,8 +76,7 @@ statements:
       - type: int
         value: 5
 - line: 8
-  domain: '{ S_3[i, j] : 0 <= i <= 4 and j >= i and 5*floor((2 + 4i)/5) <= 5i - j
-    }'
+  domain: '{ S_3[i, j] : 0 <= i <= 4 and j >= i and 5*floor((2 - i)/5) <= -j }'
   body:
     type: expression
     expr:

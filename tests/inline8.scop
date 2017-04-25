@@ -22,16 +22,6 @@ arrays:
   element_type: struct s
   element_size: 5000
   element_is_record: 1
-- context: '{  :  }'
-  extent: '{ s_a[s[i0, i1] -> a[i2, i3]] : 0 <= i0 <= 9 and 0 <= i1 <= 19 and 0 <=
-    i2 <= 29 and 0 <= i3 <= 39 }'
-  element_type: int
-  element_size: 4
-- context: '{  :  }'
-  extent: '{ s_b[s[i0, i1] -> b[i2]] : 0 <= i0 <= 9 and 0 <= i1 <= 19 and 0 <= i2
-    <= 49 }'
-  element_type: int
-  element_size: 4
 statements:
 - line: -1
   domain: '{ S_0[i] : 0 <= i <= 9 }'

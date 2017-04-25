@@ -32,6 +32,14 @@
  * Leiden University.
  */
 
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
+#include <isl/union_map.h>
+
 #include "aff.h"
 
 /* Internal data structure for pet_union_map_move_dims.

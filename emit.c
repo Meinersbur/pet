@@ -34,7 +34,15 @@
 
 #include <yaml.h>
 
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
+#include <isl/schedule.h>
+#include <isl/printer.h>
 
 #include "expr.h"
 #include "loc.h"
@@ -121,7 +129,7 @@ static int emit_named_unsigned(yaml_emitter_t *emitter, const char *name,
 {
 	if (emit_string(emitter, name) < 0)
 		return -1;
-	if (emit_int(emitter, u) < 0)
+	if (emit_unsigned(emitter, u) < 0)
 		return -1;
 	return 0;
 }
@@ -460,6 +468,8 @@ static int emit_array(yaml_emitter_t *emitter, struct pet_array *array)
 		return -1;
 	if (array->exposed && emit_named_int(emitter, "exposed", 1) < 0)
 		return -1;
+	if (array->outer && emit_named_int(emitter, "outer", 1) < 0)
+		return -1;
 
 	if (!yaml_mapping_end_event_initialize(&event))
 		return -1;
@@ -721,6 +731,7 @@ static int emit_tree(yaml_emitter_t *emitter, __isl_keep pet_tree *tree)
 			return -1;
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		if (emit_named_expr(emitter, "expr", tree->u.e.expr) < 0)
 			return -1;
 		break;

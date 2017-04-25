@@ -33,8 +33,17 @@
  */
 
 #include <string.h>
+#include <isl/ctx.h>
+#include <isl/id.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
 #include <isl/constraint.h>
+#include <isl/val.h>
+#include <isl/aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
 #include <isl/schedule_node.h>
 
 #include "aff.h"
@@ -416,10 +425,10 @@ error:
 
 /* Is "stmt" an assume statement with an affine assumption?
  */
-int pet_stmt_is_affine_assume(struct pet_stmt *stmt)
+isl_bool pet_stmt_is_affine_assume(struct pet_stmt *stmt)
 {
 	if (!stmt)
-		return 0;
+		return isl_bool_error;
 	return pet_tree_is_affine_assume(stmt->body);
 }
 
@@ -431,6 +440,20 @@ __isl_give isl_multi_pw_aff *pet_stmt_assume_get_index(struct pet_stmt *stmt)
 	if (!stmt)
 		return NULL;
 	return pet_tree_assume_get_index(stmt->body);
+}
+
+/* Assuming "stmt" is an assume statement with an affine assumption,
+ * return the assumption as a set.
+ */
+__isl_give isl_set *pet_stmt_assume_get_affine_condition(struct pet_stmt *stmt)
+{
+	isl_multi_pw_aff *index;
+	isl_pw_aff *pa;
+
+	index = pet_stmt_assume_get_index(stmt);
+	pa = isl_multi_pw_aff_get_pw_aff(index, 0);
+	isl_multi_pw_aff_free(index);
+	return isl_pw_aff_non_zero_set(pa);
 }
 
 /* Update "context" with the constraints imposed on the outer iteration
@@ -448,17 +471,16 @@ static __isl_give isl_set *stmt_extract_context(struct pet_stmt *stmt,
 	__isl_take isl_set *context)
 {
 	int i;
+	isl_bool affine;
 	pet_expr *body;
 
-	if (pet_stmt_is_affine_assume(stmt)) {
-		isl_multi_pw_aff *index;
-		isl_pw_aff *pa;
+	affine = pet_stmt_is_affine_assume(stmt);
+	if (affine < 0)
+		return isl_set_free(context);
+	if (affine) {
 		isl_set *cond;
 
-		index = pet_stmt_assume_get_index(stmt);
-		pa = isl_multi_pw_aff_get_pw_aff(index, 0);
-		isl_multi_pw_aff_free(index);
-		cond = isl_pw_aff_non_zero_set(pa);
+		cond = pet_stmt_assume_get_affine_condition(stmt);
 		cond = isl_set_reset_tuple_id(cond);
 		return isl_set_intersect(context, cond);
 	}
@@ -1043,8 +1065,6 @@ error:
 
 void *pet_implication_free(struct pet_implication *implication)
 {
-	int i;
-
 	if (!implication)
 		return NULL;
 
@@ -1178,6 +1198,8 @@ int pet_array_is_equal(struct pet_array *array1, struct pet_array *array2)
 	if (array1->declared != array2->declared)
 		return 0;
 	if (array1->exposed != array2->exposed)
+		return 0;
+	if (array1->outer != array2->outer)
 		return 0;
 
 	return 1;
@@ -1521,40 +1543,6 @@ static __isl_give isl_set *context_embed(__isl_take isl_set *context,
 	return context;
 }
 
-/* Update the implication with respect to an embedding into a loop
- * with iteration domain "dom".
- *
- * Since embed_access extends virtual arrays along with the domain
- * of the access, we need to do the same with domain and range
- * of the implication.  Since the original implication is only valid
- * within a given iteration of the loop, the extended implication
- * maps the extra array dimension corresponding to the extra loop
- * to itself.
- */
-static struct pet_implication *pet_implication_embed(
-	struct pet_implication *implication, __isl_take isl_set *dom)
-{
-	isl_id *id;
-	isl_map *map;
-
-	if (!implication)
-		goto error;
-
-	map = isl_set_identity(dom);
-	id = isl_map_get_tuple_id(implication->extension, isl_dim_in);
-	map = isl_map_flat_product(map, implication->extension);
-	map = isl_map_set_tuple_id(map, isl_dim_in, isl_id_copy(id));
-	map = isl_map_set_tuple_id(map, isl_dim_out, id);
-	implication->extension = map;
-	if (!implication->extension)
-		return pet_implication_free(implication);
-
-	return implication;
-error:
-	isl_set_free(dom);
-	return NULL;
-}
-
 /* Internal data structure for outer_projection_mupa.
  *
  * "n" is the number of outer dimensions onto which to project.
@@ -1645,8 +1633,6 @@ static __isl_give isl_schedule *schedule_embed(
 struct pet_scop *pet_scop_embed(struct pet_scop *scop, __isl_take isl_set *dom,
 	__isl_take isl_multi_aff *sched)
 {
-	int i;
-
 	if (!scop)
 		goto error;
 
@@ -1716,8 +1702,6 @@ static struct pet_scop *pet_scop_restrict_skip(struct pet_scop *scop,
 struct pet_scop *pet_scop_restrict(struct pet_scop *scop,
 	__isl_take isl_set *cond)
 {
-	int i;
-
 	scop = pet_scop_restrict_skip(scop, pet_skip_now, cond);
 	scop = pet_scop_restrict_skip(scop, pet_skip_later, cond);
 
@@ -1862,7 +1846,6 @@ static int filter_implied(struct pet_scop *scop,
 {
 	int i;
 	int implied;
-	isl_id *test_id;
 	isl_map *domain;
 	isl_map *test_map;
 
@@ -1911,7 +1894,6 @@ static struct pet_stmt *stmt_filter(struct pet_scop *scop,
 	int i;
 	int implied;
 	isl_id *id;
-	isl_ctx *ctx;
 	isl_pw_multi_aff *pma;
 	isl_multi_aff *add_dom;
 	isl_space *space;
@@ -2190,7 +2172,6 @@ error:
  */
 static int access_collect_params(__isl_keep pet_expr *expr, void *user)
 {
-	int i;
 	isl_space *expr_space;
 	isl_space **space = user;
 
@@ -2476,9 +2457,6 @@ struct pet_expr_collect_accesses_data {
 static int expr_collect_accesses(__isl_keep pet_expr *expr, void *user)
 {
 	struct pet_expr_collect_accesses_data *data = user;
-	int i;
-	isl_id *id;
-	isl_space *dim;
 
 	if (!expr)
 		return -1;
@@ -2587,16 +2565,25 @@ int pet_stmt_is_assume(struct pet_stmt *stmt)
 	return pet_tree_is_assume(stmt->body);
 }
 
-/* Helper function to add a domain gisted copy of "map" (wrt "set") to "umap".
+/* Given a map "map" that represents an expansion from a lower-dimensional
+ * domain to the space of "set", add those constraints of "set" to the range
+ * that cannot be derived from the corresponding constraints on the domain.
+ * That is, add the constraints that apply to variables in the range
+ * that do not appear in the domain.
  */
-static __isl_give isl_union_map *add_gisted(__isl_take isl_union_map *umap,
-	__isl_keep isl_map *map, __isl_keep isl_set *set)
+static __isl_give isl_map *set_inner_domain(__isl_take isl_map *map,
+	__isl_keep isl_set *dom)
 {
-	isl_map *gist;
+	isl_map *copy;
 
-	gist = isl_map_copy(map);
-	gist = isl_map_gist_domain(gist, isl_set_copy(set));
-	return isl_union_map_add_map(umap, gist);
+	copy = isl_map_copy(map);
+	copy = isl_map_intersect_range(copy, isl_set_copy(dom));
+	dom = isl_map_domain(isl_map_copy(copy));
+	copy = isl_map_gist_domain(copy, dom);
+	dom = isl_map_range(copy);
+	map = isl_map_intersect_range(map, dom);
+
+	return map;
 }
 
 /* Compute a mapping from all arrays (of structs) in scop
@@ -2606,6 +2593,13 @@ static __isl_give isl_union_map *add_gisted(__isl_take isl_union_map *umap,
  * of outermost arrays.
  * If "to_innermost" is set, then the range only consists
  * of innermost arrays.
+ *
+ * For each array, the construction starts from an identity mapping
+ * on the space in which the array lives.
+ * The references to members are then successively removed from
+ * the domain of this mapping until the domain refers to an outer array.
+ * Whenever a nesting level is removed from the domain,
+ * the corresponding constraints on the extent are added to the range.
  */
 static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
 	int from_outermost, int to_innermost)
@@ -2620,31 +2614,27 @@ static __isl_give isl_union_map *compute_to_inner(struct pet_scop *scop,
 
 	for (i = 0; i < scop->n_array; ++i) {
 		struct pet_array *array = scop->arrays[i];
+		isl_space *space;
 		isl_set *set;
 		isl_map *map;
 
-		if (to_innermost && array->element_is_record)
+		if (to_innermost && array->outer)
 			continue;
 
 		set = isl_set_copy(array->extent);
-		map = isl_set_identity(isl_set_copy(set));
+		space = isl_set_get_space(set);
+		map = isl_set_identity(isl_set_universe(space));
 
-		while (set && isl_set_is_wrapping(set)) {
-			isl_id *id;
-			isl_map *wrapped;
-
+		while (map && isl_map_domain_is_wrapping(map)) {
 			if (!from_outermost)
-				to_inner = add_gisted(to_inner, map, set);
+				to_inner = isl_union_map_add_map(to_inner,
+							    isl_map_copy(map));
 
-			id = isl_set_get_tuple_id(set);
-			wrapped = isl_set_unwrap(set);
-			wrapped = isl_map_domain_map(wrapped);
-			wrapped = isl_map_set_tuple_id(wrapped, isl_dim_in, id);
-			map = isl_map_apply_domain(map, wrapped);
-			set = isl_map_domain(isl_map_copy(map));
+			map = isl_map_domain_factor_domain(map);
+			map = set_inner_domain(map, set);
 		}
+		isl_set_free(set);
 
-		map = isl_map_gist_domain(map, set);
 		to_inner = isl_union_map_add_map(to_inner, map);
 	}
 
@@ -2899,8 +2889,6 @@ static struct pet_array *array_anonymize(struct pet_array *array)
 static struct pet_stmt *stmt_anonymize(struct pet_stmt *stmt)
 {
 	int i;
-	isl_space *space;
-	isl_set *domain;
 
 	if (!stmt)
 		return NULL;

@@ -34,8 +34,17 @@
 
 #include <string.h>
 
+#include <isl/ctx.h>
 #include <isl/hash.h>
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
+#include <isl/printer.h>
 
 #include "aff.h"
 #include "array.h"
@@ -63,6 +72,9 @@ static char *op_str[] = {
 	[pet_op_sub_assign] = "-=",
 	[pet_op_mul_assign] = "*=",
 	[pet_op_div_assign] = "/=",
+	[pet_op_and_assign] = "&=",
+	[pet_op_xor_assign] = "^=",
+	[pet_op_or_assign] = "|=",
 	[pet_op_assign] = "=",
 	[pet_op_add] = "+",
 	[pet_op_sub] = "-",
@@ -229,8 +241,6 @@ isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr)
  */
 static int has_relevant_access_relations(__isl_keep pet_expr *expr)
 {
-	enum pet_expr_access_type type;
-
 	if (!expr)
 		return -1;
 
@@ -255,9 +265,6 @@ static int has_relevant_access_relations(__isl_keep pet_expr *expr)
 __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 	int depth)
 {
-	isl_map *access;
-	int dim;
-
 	if (!expr)
 		return NULL;
 	if (expr->acc.depth == depth)
@@ -917,7 +924,6 @@ static __isl_give isl_union_map *construct_access_relation(
 {
 	isl_map *access;
 	int dim;
-	int read, write;
 
 	if (!expr)
 		return NULL;
@@ -952,9 +958,7 @@ static __isl_give isl_union_map *construct_access_relation(
 static __isl_give pet_expr *introduce_access_relations(
 	__isl_take pet_expr *expr)
 {
-	enum pet_expr_access_type type;
 	isl_union_map *access;
-	int dim;
 	int kill, read, write;
 
 	if (!expr)
@@ -1298,22 +1302,57 @@ __isl_give isl_space *pet_expr_access_get_domain_space(
 	return space;
 }
 
-/* Return the space of the data accessed by "expr".
+/* Internal data structure for pet_expr_access_foreach_data_space.
  */
-__isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr)
+struct pet_foreach_data_space_data {
+	isl_stat (*fn)(__isl_take isl_space *space, void *user);
+	void *user;
+};
+
+/* Given a piece of an access relation, call data->fn on the data
+ * (i.e., range) space.
+ */
+static isl_stat foreach_data_space(__isl_take isl_map *map, void *user)
 {
+	struct pet_foreach_data_space_data *data = user;
+	isl_space *space;
+
+	space = isl_map_get_space(map);
+	space = isl_space_range(space);
+	isl_map_free(map);
+
+	return data->fn(space, data->user);
+}
+
+/* Call "fn" on the data spaces accessed by "expr".
+ * In particular, call "fn" on the range space of the index expression,
+ * but if "expr" keeps track of any explicit access relations,
+ * then also call "fn" on the corresponding range spaces.
+ */
+isl_stat pet_expr_access_foreach_data_space(__isl_keep pet_expr *expr,
+	isl_stat (*fn)(__isl_take isl_space *space, void *user), void *user)
+{
+	struct pet_foreach_data_space_data data = { fn, user };
+	enum pet_expr_access_type type;
 	isl_space *space;
 
 	if (!expr)
-		return NULL;
+		return isl_stat_error;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return NULL);
+			"not an access expression", return isl_stat_error);
+
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		if (isl_union_map_foreach_map(expr->acc.access[type],
+					&foreach_data_space, &data) < 0)
+			return isl_stat_error;
+	}
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);
 	space = isl_space_range(space);
-
-	return space;
+	return fn(space, user);
 }
 
 /* Modify all subexpressions of "expr" by calling "fn" on them.
@@ -2838,7 +2877,6 @@ static __isl_give isl_pw_aff *nested_access(__isl_keep pet_expr *expr,
 static __isl_give isl_pw_aff *extract_affine_from_access(
 	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
 {
-	int pos;
 	isl_id *id;
 
 	if (pet_expr_is_affine(expr))

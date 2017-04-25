@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ * Copyright 2017      Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +35,12 @@
 
 #include <string.h>
 
+#include <isl/ctx.h>
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/aff.h>
+
 #include "expr.h"
 #include "loc.h"
 #include "tree.h"
@@ -52,6 +59,7 @@ static const char *type_str[] = {
 	[pet_tree_if] = "if",
 	[pet_tree_if_else] = "if-else",
 	[pet_tree_while] = "while",
+	[pet_tree_return] = "return",
 };
 
 /* Return a textual representation of the type "type".
@@ -168,7 +176,29 @@ error:
 	return NULL;
 }
 
-/* Return a new pet_tree representing an intially empty sequence
+/* Return a new pet_tree representing the return of expression "expr".
+ */
+__isl_give pet_tree *pet_tree_new_return(__isl_take pet_expr *expr)
+{
+	isl_ctx *ctx;
+	pet_tree *tree;
+
+	if (!expr)
+		return NULL;
+	ctx = pet_expr_get_ctx(expr);
+	tree = pet_tree_alloc(ctx, pet_tree_return);
+	if (!tree)
+		goto error;
+
+	tree->u.e.expr = expr;
+
+	return tree;
+error:
+	pet_expr_free(expr);
+	return NULL;
+}
+
+/* Return a new pet_tree representing an initially empty sequence
  * of trees with room for "n" trees.
  * "block" indicates whether the sequence has its own scope.
  */
@@ -407,6 +437,9 @@ static __isl_give pet_tree *pet_tree_dup(__isl_keep pet_tree *tree)
 	case pet_tree_expr:
 		dup = pet_tree_new_expr(pet_expr_copy(tree->u.e.expr));
 		break;
+	case pet_tree_return:
+		dup = pet_tree_new_return(pet_expr_copy(tree->u.e.expr));
+		break;
 	case pet_tree_for:
 		dup = pet_tree_new_for(tree->u.l.independent,
 		    tree->u.l.declared,
@@ -502,6 +535,7 @@ __isl_null pet_tree *pet_tree_free(__isl_take pet_tree *tree)
 		pet_expr_free(tree->u.d.var);
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		pet_expr_free(tree->u.e.expr);
 		break;
 	case pet_tree_for:
@@ -596,6 +630,19 @@ __isl_give pet_expr *pet_tree_expr_get_expr(__isl_keep pet_tree *tree)
 	if (pet_tree_get_type(tree) != pet_tree_expr)
 		isl_die(pet_tree_get_ctx(tree), isl_error_invalid,
 			"not an expression tree", return NULL);
+
+	return pet_expr_copy(tree->u.e.expr);
+}
+
+/* Given a return tree "tree", return the returned expression.
+ */
+__isl_give pet_expr *pet_tree_return_get_expr(__isl_keep pet_tree *tree)
+{
+	if (!tree)
+		return NULL;
+	if (pet_tree_get_type(tree) != pet_tree_return)
+		isl_die(pet_tree_get_ctx(tree), isl_error_invalid,
+			"not a return tree", return NULL);
 
 	return pet_expr_copy(tree->u.e.expr);
 }
@@ -904,6 +951,7 @@ int pet_tree_foreach_sub_tree(__isl_keep pet_tree *tree,
 	case pet_tree_decl:
 	case pet_tree_decl_init:
 	case pet_tree_expr:
+	case pet_tree_return:
 		break;
 	case pet_tree_if:
 		if (pet_tree_foreach_sub_tree(tree->u.i.then_body,
@@ -972,6 +1020,7 @@ static int foreach_expr(__isl_keep pet_tree *tree, void *user)
 			return -1;
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		if (data->fn(tree->u.e.expr, data->user) < 0)
 			return -1;
 		break;
@@ -1058,6 +1107,69 @@ int pet_tree_foreach_access_expr(__isl_keep pet_tree *tree,
 	return pet_tree_foreach_expr(tree, &foreach_access_expr, &data);
 }
 
+/* Modify all subtrees of "tree", include "tree" itself,
+ * by calling "fn" on them.
+ * The subtrees are traversed in depth first preorder.
+ */
+__isl_give pet_tree *pet_tree_map_top_down(__isl_take pet_tree *tree,
+	__isl_give pet_tree *(*fn)(__isl_take pet_tree *tree, void *user),
+	void *user)
+{
+	int i;
+
+	if (!tree)
+		return NULL;
+
+	tree = fn(tree, user);
+	tree = pet_tree_cow(tree);
+	if (!tree)
+		return NULL;
+
+	switch (tree->type) {
+	case pet_tree_error:
+		return pet_tree_free(tree);
+	case pet_tree_block:
+		for (i = 0; i < tree->u.b.n; ++i) {
+			tree->u.b.child[i] =
+			    pet_tree_map_top_down(tree->u.b.child[i], fn, user);
+			if (!tree->u.b.child[i])
+				return pet_tree_free(tree);
+		}
+		break;
+	case pet_tree_break:
+	case pet_tree_continue:
+	case pet_tree_decl:
+	case pet_tree_decl_init:
+	case pet_tree_expr:
+	case pet_tree_return:
+		break;
+	case pet_tree_if:
+		tree->u.i.then_body =
+			pet_tree_map_top_down(tree->u.i.then_body, fn, user);
+		if (!tree->u.i.then_body)
+			return pet_tree_free(tree);
+		break;
+	case pet_tree_if_else:
+		tree->u.i.then_body =
+			pet_tree_map_top_down(tree->u.i.then_body, fn, user);
+		tree->u.i.else_body =
+			pet_tree_map_top_down(tree->u.i.else_body, fn, user);
+		if (!tree->u.i.then_body || !tree->u.i.else_body)
+			return pet_tree_free(tree);
+		break;
+	case pet_tree_while:
+	case pet_tree_for:
+	case pet_tree_infinite_loop:
+		tree->u.l.body =
+			pet_tree_map_top_down(tree->u.l.body, fn, user);
+		if (!tree->u.l.body)
+			return pet_tree_free(tree);
+		break;
+	}
+
+	return tree;
+}
+
 /* Modify all top-level expressions in the nodes of "tree"
  * by calling "fn" on them.
  */
@@ -1097,6 +1209,7 @@ __isl_give pet_tree *pet_tree_map_expr(__isl_take pet_tree *tree,
 			return pet_tree_free(tree);
 		break;
 	case pet_tree_expr:
+	case pet_tree_return:
 		tree->u.e.expr = fn(tree->u.e.expr, user);
 		if (!tree->u.e.expr)
 			return pet_tree_free(tree);
@@ -1335,6 +1448,7 @@ int pet_tree_is_equal(__isl_keep pet_tree *tree1, __isl_keep pet_tree *tree2)
 			return equal;
 		return pet_expr_is_equal(tree1->u.d.init, tree2->u.d.init);
 	case pet_tree_expr:
+	case pet_tree_return:
 		return pet_expr_is_equal(tree1->u.e.expr, tree2->u.e.expr);
 	case pet_tree_for:
 		if (tree1->u.l.declared != tree2->u.l.declared)
@@ -1418,10 +1532,10 @@ int pet_tree_is_assume(__isl_keep pet_tree *tree)
 /* Is "tree" an expression tree that performs an assume operation
  * such that the assumed expression is affine?
  */
-int pet_tree_is_affine_assume(__isl_keep pet_tree *tree)
+isl_bool pet_tree_is_affine_assume(__isl_keep pet_tree *tree)
 {
 	if (!pet_tree_is_assume(tree))
-		return 0;
+		return isl_bool_false;
 	return pet_expr_is_affine(tree->u.e.expr->args[0]);
 }
 
@@ -1519,6 +1633,7 @@ int pet_tree_has_continue_or_break(__isl_keep pet_tree *tree)
 	case pet_tree_decl:
 	case pet_tree_decl_init:
 	case pet_tree_expr:
+	case pet_tree_return:
 	case pet_tree_for:
 	case pet_tree_while:
 	case pet_tree_infinite_loop:
@@ -1575,6 +1690,11 @@ void pet_tree_dump_with_indent(__isl_keep pet_tree *tree, int indent)
 							indent + 2);
 		break;
 	case pet_tree_expr:
+		pet_expr_dump_with_indent(tree->u.e.expr, indent);
+		break;
+	case pet_tree_return:
+		print_indent(indent);
+		fprintf(stderr, "return:\n");
 		pet_expr_dump_with_indent(tree->u.e.expr, indent);
 		break;
 	case pet_tree_break:

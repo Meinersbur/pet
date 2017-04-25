@@ -169,16 +169,19 @@ static __isl_give isl_union_map *scop_collect_calls(struct pet_scop *scop)
  */
 static __isl_give isl_union_map *extract_code_schedule(struct pet_scop *scop)
 {
-	isl_union_map *schedule;
+	isl_schedule *schedule;
+	isl_union_map *schedule_map;
 	isl_union_map *calls;
 
-	schedule = isl_schedule_get_map(scop->schedule);
+	schedule = pet_scop_get_schedule(scop);
+	schedule_map = isl_schedule_get_map(schedule);
+	isl_schedule_free(schedule);
 
 	calls = scop_collect_calls(scop);
 
-	schedule = isl_union_map_apply_domain(schedule, calls);
+	schedule_map = isl_union_map_apply_domain(schedule_map, calls);
 
-	return schedule;
+	return schedule_map;
 }
 
 /* Check that schedule and code_schedule have the same domain,
@@ -189,8 +192,6 @@ static int check_domain(__isl_keep isl_union_map *schedule,
 {
 	isl_union_set *dom1, *dom2;
 	int equal;
-	isl_set *s1, *s2;
-	isl_id *id1, *id2;
 	int r = 0;
 
 	dom1 = isl_union_map_domain(isl_union_map_copy(schedule));
