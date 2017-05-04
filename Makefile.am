@@ -152,6 +152,7 @@ pet_check_code_SOURCES = \
 isl.py: interface/isl.py.top
 	(cat $(srcdir)/interface/isl.py.top; \
 		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
+			--language=python \
 			$(DEFAULT_INCLUDES) @ISL_CFLAGS@ \
 			"@ISL_SRCDIR@/interface/all.h") \
 			> isl.py
