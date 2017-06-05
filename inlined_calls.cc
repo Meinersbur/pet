@@ -38,6 +38,8 @@
 #include "scan.h"
 #include "tree.h"
 
+#include "config.h"
+
 using namespace std;
 using namespace clang;
 

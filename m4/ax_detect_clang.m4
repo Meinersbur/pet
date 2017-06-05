@@ -78,6 +78,9 @@ AC_EGREP_HEADER([DiagnosticsEngine], [clang/Basic/Diagnostic.h],
 AC_EGREP_HEADER([ArrayRef], [clang/Driver/Driver.h],
 	[AC_DEFINE([USE_ARRAYREF], [],
 		[Define if Driver::BuildCompilation takes ArrayRef])])
+AC_EGREP_HEADER([getReturnType], [clang/AST/Decl.h], [],
+	[AC_DEFINE([getReturnType], [getResultType],
+	[Define to getResultType for older versions of clang])])
 AC_EGREP_HEADER([CXXIsProduction], [clang/Driver/Driver.h],
 	[AC_DEFINE([HAVE_CXXISPRODUCTION], [],
 		[Define if Driver constructor takes CXXIsProduction argument])])
