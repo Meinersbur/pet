@@ -148,9 +148,7 @@ __isl_give pet_expr *pet_expr_insert_arg(__isl_take pet_expr *expr, int pos,
 		pet_expr_set_arg(expr, i, pet_expr_get_arg(expr, i - 1));
 	expr = pet_expr_set_arg(expr, pos, arg);
 
-	space = isl_space_domain(isl_multi_pw_aff_get_space(expr->acc.index));
-	if (isl_space_is_wrapping(space))
-		space = isl_space_domain(isl_space_unwrap(space));
+	space = pet_expr_access_get_domain_space(expr);
 	space = isl_space_from_domain(space);
 	space = isl_space_add_dims(space, isl_dim_out, n + 1);
 
