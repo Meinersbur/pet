@@ -1205,6 +1205,8 @@ static isl_stat pet_transform(struct pet_scop *scop, void *user)
 	struct pet_transform_data *data = (struct pet_transform_data *) user;
 	unsigned start;
 
+	if (!scop)
+		return isl_stat_error;
 	start = pet_loc_get_start(scop->loc);
 	if (copy(data->in, data->out, data->end, start) < 0)
 		goto error;
