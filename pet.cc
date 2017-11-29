@@ -621,9 +621,12 @@ struct PetASTConsumer : public ASTConsumer {
 	 * is turned on, then skip it.
 	 */
 	void call_fn(pet_scop *scop) {
-		if (!scop)
+		if (!scop) {
+			error = true;
 			return;
+		}
 		if (diags.hasErrorOccurred()) {
+			error = true;
 			pet_scop_free(scop);
 			return;
 		}
