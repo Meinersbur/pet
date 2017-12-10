@@ -2822,6 +2822,8 @@ struct pet_array *PetScan::set_upper_bounds(struct pet_array *array,
 		return NULL;
 
 	id = isl_set_get_tuple_id(array->extent);
+	if (!id)
+		return pet_array_free(array);
 	expr = get_array_size(id);
 	isl_id_free(id);
 
