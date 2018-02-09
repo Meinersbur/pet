@@ -25,11 +25,6 @@ struct pet_options {
 	const char **defines;
 
 	unsigned signed_overflow;
-
-        /* Number of files to include. */
-        int n_include_file;
-        /* Files to include. */
-        const char **include_files;
 };
 
 ISL_ARG_CTX_DECL(pet_options, struct pet_options, pet_options_args)
