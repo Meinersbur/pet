@@ -25,3 +25,5 @@ for i in $srcdir/test_inputs/codegen/*.in \
 		 ./pet_check_code$EXEEXT $i test.c) || exit
 	done
 done
+
+rm test.c

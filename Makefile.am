@@ -24,7 +24,22 @@ TEST_EXTENSIONS = .sh
 
 include_HEADERS = include/pet.h
 
+BUILT_SOURCES = \
+	gitversion.h
+
+CLEANFILES = \
+	gitversion.h \
+	isl.py
+
+DISTCLEANFILES = \
+	pet-uninstalled.sh \
+	pet-uninstalled.pc \
+	pet.pc \
+	pet.pc.in
+
 EXTRA_DIST = \
+	interface/isl.py.top \
+	interface/pet.py \
 	tests
 
 PET_INCLUDES = -I$(srcdir) -I$(srcdir)/include
@@ -47,14 +62,31 @@ libpet_la_SOURCES = \
 	expr_access_type.h \
 	expr_arg.h \
 	expr_arg.c \
+	expr_plus.h \
+	expr_plus.cc \
 	filter.h \
 	filter.c \
+	id.h \
+	id.cc \
+	inlined_calls.h \
+	inlined_calls.cc \
+	inliner.h \
+	inliner.cc \
+	isl_id_to_pet_expr.h \
+	isl_id_to_pet_expr.c \
+	killed_locals.h \
+	killed_locals.cc \
 	loc.h \
 	loc.c \
+	maybe_pet_expr.h \
 	nest.h \
 	nest.c \
 	options.h \
 	options.c \
+	patch.h \
+	patch.c \
+	pet_expr_to_isl_pw_aff.h \
+	pet_expr_to_isl_pw_aff.c \
 	print.c \
 	print.h \
 	tree.h \
@@ -70,6 +102,8 @@ libpet_la_SOURCES = \
 	skip.h \
 	skip.c \
 	state.h \
+	substituter.h \
+	substituter.cc \
 	summary.h \
 	summary.c \
 	value_bounds.h \
@@ -77,7 +111,7 @@ libpet_la_SOURCES = \
 	version.h \
 	version.cc \
 	pet.cc
-libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS)
+libpet_la_LDFLAGS = -version-info @versioninfo@ $(AM_LDFLAGS) $(CLANG_RFLAG)
 libpet_la_LIBADD = -lclangFrontend -lclangParse -lclangSema \
 	$(LIB_CLANG_EDIT) -lclangAnalysis \
 	-lclangAST -lclangLex -lclangBasic -lclangDriver -lclangSerialization \
@@ -115,7 +149,16 @@ pet_check_code_SOURCES = \
 	dummy.cc \
 	pet_check_code.c
 
-dist-hook:
+isl.py: interface/isl.py.top
+	(cat $(srcdir)/interface/isl.py.top; \
+		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
+			--language=python \
+			$(DEFAULT_INCLUDES) @ISL_CFLAGS@ \
+			"@ISL_SRCDIR@/interface/all.h") \
+			> isl.py
+
+dist-hook: isl.py
+	cp $< $(distdir)/
 	echo @GIT_HEAD_VERSION@ > $(distdir)/GIT_HEAD_ID
 
 gitversion.h: @GIT_HEAD@

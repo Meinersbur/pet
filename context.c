@@ -1,6 +1,7 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ * Copyright 2016      Sven Verdoolaege. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,7 +41,9 @@
 #include "expr.h"
 #include "expr_arg.h"
 #include "nest.h"
+#include "patch.h"
 #include "tree.h"
+#include "pet_expr_to_isl_pw_aff.h"
 
 /* A pet_context represents the context in which a pet_expr
  * in converted to an affine expression.
@@ -54,6 +57,10 @@
  *
  * If "allow_nested" is set, then the affine expression created
  * in this context may involve new parameters that encode a pet_expr.
+ *
+ * "extracted_affine" caches the results of pet_expr_extract_affine.
+ * It may be NULL if no results have been cached so far and
+ * it is cleared (in pet_context_cow) whenever the context is changed.
  */
 struct pet_context {
 	int ref;
@@ -61,6 +68,8 @@ struct pet_context {
 	isl_set *domain;
 	isl_id_to_pw_aff *assignments;
 	int allow_nested;
+
+	pet_expr_to_isl_pw_aff *extracted_affine;
 };
 
 /* Create a pet_context with the given domain, assignments,
@@ -123,14 +132,22 @@ static __isl_give pet_context *pet_context_dup(__isl_keep pet_context *pc)
 }
 
 /* Return a pet_context that is equal to "pc" and that has only one reference.
+ *
+ * If "pc" itself only has one reference, then clear the cache of
+ * pet_expr_extract_affine results since the returned pet_context
+ * will be modified and the cached results may no longer be valid
+ * after these modifications.
  */
 static __isl_give pet_context *pet_context_cow(__isl_take pet_context *pc)
 {
 	if (!pc)
 		return NULL;
 
-	if (pc->ref == 1)
+	if (pc->ref == 1) {
+		pet_expr_to_isl_pw_aff_free(pc->extracted_affine);
+		pc->extracted_affine = NULL;
 		return pc;
+	}
 	pc->ref--;
 	return pet_context_dup(pc);
 }
@@ -157,8 +174,51 @@ __isl_null pet_context *pet_context_free(__isl_take pet_context *pc)
 
 	isl_set_free(pc->domain);
 	isl_id_to_pw_aff_free(pc->assignments);
+	pet_expr_to_isl_pw_aff_free(pc->extracted_affine);
 	free(pc);
 	return NULL;
+}
+
+/* If an isl_pw_aff corresponding to "expr" has been cached in "pc",
+ * then return a copy of that isl_pw_aff.
+ * Otherwise, return (isl_bool_false, NULL).
+ */
+__isl_give isl_maybe_isl_pw_aff pet_context_get_extracted_affine(
+	__isl_keep pet_context *pc, __isl_keep pet_expr *expr)
+{
+	isl_maybe_isl_pw_aff m = { isl_bool_false, NULL };
+
+	if (!pc)
+		goto error;
+	if (!pc->extracted_affine)
+		return m;
+	return pet_expr_to_isl_pw_aff_try_get(pc->extracted_affine, expr);
+error:
+	m.valid = isl_bool_error;
+	return m;
+}
+
+/* Keep track of the fact that "expr" maps to "pa" in "pc".
+ */
+isl_stat pet_context_set_extracted_affine(__isl_keep pet_context *pc,
+	__isl_keep pet_expr *expr, __isl_keep isl_pw_aff *pa)
+{
+	if (!pc || !expr)
+		return isl_stat_error;
+
+	if (!pc->extracted_affine) {
+		isl_ctx *ctx;
+
+		ctx = pet_context_get_ctx(pc);
+		pc->extracted_affine = pet_expr_to_isl_pw_aff_alloc(ctx, 1);
+	}
+
+	pc->extracted_affine = pet_expr_to_isl_pw_aff_set(pc->extracted_affine,
+				    pet_expr_copy(expr), isl_pw_aff_copy(pa));
+	if (!pc->extracted_affine)
+		return isl_stat_error;
+
+	return isl_stat_ok;
 }
 
 /* Return the isl_ctx in which "pc" was created.
@@ -622,237 +682,6 @@ static __isl_give isl_multi_pw_aff *add_aff(__isl_take isl_multi_pw_aff *mpa,
 	return mpa;
 }
 
-/* Given the data space "space1" of an index expression passed
- * to a function and the data space "space2" of the corresponding
- * array accessed in the function, construct and return the complete
- * data space from the perspective of the function call.
- * If add is set, then it is not the index expression with space "space1" itself
- * that is passed to the function, but its address.
- *
- * In the simplest case, no member accesses are involved and "add" is not set.
- * Let "space1" be of the form A[x] and "space2" of the form B[y].
- * Then the returned space is A[x,y].
- * That is, the dimension is the sum of the dimensions and the name
- * is that of "space1".
- * If "add" is set, then the final dimension of "space1" is the same
- * as the initial dimension of "space2" and the dimension of the result
- * is one less that the sum.  This also applies when the dimension
- * of "space1" is zero.  The dimension of "space2" can never be zero
- * when "add" is set since a pointer value is passed to the function,
- * which is treated as an array of dimension at least 1.
- *
- * If "space1" involves any member accesses, then it is the innermost
- * array space of "space1" that needs to be extended with "space2".
- * This innermost array space appears in the range of the wrapped
- * relation in "space1".
- *
- * If "space2" involves any member accesses, then it is the outermost
- * array space of "space2" that needs to be combined with innermost
- * array space of "space1".  This outermost array space appears
- * in the deepest nesting of the domains and is therefore handled
- * recursively.
- *
- * For example, if "space1" is of the form
- *
- *	s_a[s[x] -> a[y]]
- *
- * and "space2" is of the form
- *
- *	d_b_c[d_b[d[z] -> b[u]] -> c[v]]
- *
- * then the resulting space is
- *
- *	s_a_b_c[s_a_b[s_a[s[x] -> a[y,z]] -> b[u]] -> c[v]]
- */
-static __isl_give isl_space *patch_space(__isl_take isl_space *space1,
-	__isl_take isl_space *space2, int add)
-{
-	int dim;
-	isl_id *id;
-
-	if (!space1 || !space2)
-		goto error;
-
-	if (isl_space_is_wrapping(space2)) {
-		isl_ctx *ctx;
-		isl_space *dom;
-		const char *name1, *name2;
-		char *name;
-
-		ctx = isl_space_get_ctx(space1);
-		space2 = isl_space_unwrap(space2);
-		dom = isl_space_domain(isl_space_copy(space2));
-		space1 = patch_space(space1, dom, add);
-		space2 = isl_space_range(space2);
-		name1 = isl_space_get_tuple_name(space1, isl_dim_set);
-		name2 = isl_space_get_tuple_name(space2, isl_dim_set);
-		name = pet_array_member_access_name(ctx, name1, name2);
-		space1 = isl_space_product(space1, space2);
-		space1 = isl_space_set_tuple_name(space1, isl_dim_set, name);
-		free(name);
-		return space1;
-	}
-
-	dim = isl_space_dim(space2, isl_dim_set) - add;
-	id = isl_space_get_tuple_id(space1, isl_dim_set);
-	if (isl_space_is_wrapping(space1)) {
-		isl_id *id;
-
-		space1 = isl_space_unwrap(space1);
-		id = isl_space_get_tuple_id(space1, isl_dim_out);
-		space1 = isl_space_add_dims(space1, isl_dim_out, dim);
-		space1 = isl_space_set_tuple_id(space1, isl_dim_out, id);
-		space1 = isl_space_wrap(space1);
-	} else {
-		space1 = isl_space_add_dims(space1, isl_dim_out, dim);
-	}
-	space1 = isl_space_set_tuple_id(space1, isl_dim_set, id);
-
-	isl_space_free(space2);
-	return space1;
-error:
-	isl_space_free(space1);
-	isl_space_free(space2);
-	return NULL;
-}
-
-/* Drop the initial dimension of "map", assuming that it is equal to zero.
- * If it turns out not to be equal to zero, then drop the initial dimension
- * of "map" after setting the value to zero and print a warning.
- */
-static __isl_give isl_map *drop_initial_zero(__isl_take isl_map *map,
-	__isl_keep isl_map *prefix)
-{
-	isl_map *zeroed;
-
-	zeroed = isl_map_copy(map);
-	zeroed = isl_map_fix_si(zeroed, isl_dim_out, 0, 0);
-	map = isl_map_subtract(map, isl_map_copy(zeroed));
-	if (!isl_map_is_empty(map)) {
-		fprintf(stderr, "possible out-of-bounds accesses\n");
-		isl_map_dump(map);
-		fprintf(stderr, "when passing\n");
-		isl_map_dump(prefix);
-	}
-	isl_map_free(map);
-	map = zeroed;
-	map = isl_map_project_out(map, isl_dim_out, 0, 1);
-	return map;
-}
-
-/* Given an identity mapping "id" that adds structure to
- * the range of "map" with dimensions "pos" and "pos + 1" replaced
- * by their sum, adjust "id" to apply to the range of "map" directly.
- * That is, plug in
- *
- *	[i_0, ..., i_pos, i_{pos+1}, i_{pos+2}, ...] ->
- *		[i_0, ..., i_pos + i_{pos+1}, i_{pos+2}, ...]
- *
- * in "id", where the domain of this mapping corresponds to the range
- * of "map" and the range of this mapping corresponds to the original
- * domain of "id".
- */
-static __isl_give isl_map *patch_map_add(__isl_take isl_map *id,
-	__isl_keep isl_map *map, int pos)
-{
-	isl_space *space;
-	isl_multi_aff *ma;
-	isl_aff *aff1, *aff2;
-
-	space = isl_space_range(isl_map_get_space(map));
-	ma = isl_multi_aff_identity(isl_space_map_from_set(space));
-	aff1 = isl_multi_aff_get_aff(ma, pos);
-	aff2 = isl_multi_aff_get_aff(ma, pos + 1);
-	aff1 = isl_aff_add(aff1, aff2);
-	ma = isl_multi_aff_set_aff(ma, pos, aff1);
-	ma = isl_multi_aff_drop_dims(ma, isl_dim_out, pos + 1, 1);
-	id = isl_map_preimage_domain_multi_aff(id, ma);
-
-	return id;
-}
-
-/* Return the dimension of the innermost array in the data space "space".
- * If "space" is not a wrapping space, the it does not involve any
- * member accesses and the innermost array is simply the accessed
- * array itself.
- * Otherwise, the innermost array is encoded in the range of the
- * wrapped space.
- */
-static int innermost_dim(__isl_keep isl_space *space)
-{
-	int dim;
-
-	if (!isl_space_is_wrapping(space))
-		return isl_space_dim(space, isl_dim_set);
-
-	space = isl_space_copy(space);
-	space = isl_space_unwrap(space);
-	dim = isl_space_dim(space, isl_dim_out);
-	isl_space_free(space);
-
-	return dim;
-}
-
-/* Internal data structure for patch_map.
- *
- * "prefix" is the index expression passed to the function
- * "add" is set if it is the address of "prefix" that is passed to the function.
- * "res" collects the results.
- */
-struct pet_patch_map_data {
-	isl_map *prefix;
-	int add;
-
-	isl_union_map *res;
-};
-
-/* Combine the index expression data->prefix with the subaccess relation "map".
- * If data->add is set, then it is not the index expression data->prefix itself
- * that is passed to the function, but its address.
- *
- * If data->add is not set, then we essentially need to concatenate
- * data->prefix with map, except that we need to make sure that
- * the target space is set correctly.  This target space is computed
- * by the function patch_space.  We then simply compute the flat
- * range product and subsequently reset the target space.
- *
- * If data->add is set then the outer dimension of "map" is an offset
- * with respect to the inner dimension of data->prefix and we therefore
- * need to add these two dimensions rather than simply concatenating them.
- * This computation is performed in patch_map_add.
- * If however, the innermost accessed array of data->prefix is
- * zero-dimensional, then there is no innermost dimension of data->prefix
- * to add to the outermost dimension of "map",  Instead, we are passing
- * a pointer to a scalar member, meaning that the outermost dimension
- * of "map" needs to be zero and that this zero needs to be removed
- * from the concatenation.  This computation is performed in drop_initial_zero.
- */
-static isl_stat patch_map(__isl_take isl_map *map, void *user)
-{
-	struct pet_patch_map_data *data = user;
-	isl_space *space;
-	isl_map *id;
-	int pos, dim;
-
-	space = isl_space_range(isl_map_get_space(data->prefix));
-	dim = innermost_dim(space);
-	pos = isl_space_dim(space, isl_dim_set) - dim;
-	space = patch_space(space, isl_space_range(isl_map_get_space(map)),
-				data->add);
-	if (data->add && dim == 0)
-		map = drop_initial_zero(map, data->prefix);
-	map = isl_map_flat_range_product(isl_map_copy(data->prefix), map);
-	space = isl_space_map_from_set(space);
-	space = isl_space_add_dims(space, isl_dim_in, 0);
-	id = isl_map_identity(space);
-	if (data->add && dim != 0)
-		id = patch_map_add(id, map, pos + dim - 1);
-	map = isl_map_apply_range(map, id);
-	data->res = isl_union_map_add_map(data->res, map);
-
-	return isl_stat_ok;
-}
-
 /* Combine the index expression of "expr" with the subaccess relation "access".
  * If "add" is set, then it is not the index expression of "expr" itself
  * that is passed to the function, but its address.
@@ -862,21 +691,10 @@ static isl_stat patch_map(__isl_take isl_map *map, void *user)
 static __isl_give isl_union_map *patch(__isl_take isl_union_map *access,
 	__isl_keep pet_expr *expr, int add)
 {
-	struct pet_patch_map_data data;
-	isl_map *map;
+	isl_multi_pw_aff *prefix;
 
-	map = isl_map_from_multi_pw_aff(pet_expr_access_get_index(expr));
-	map = isl_map_align_params(map, isl_union_map_get_space(access));
-	access = isl_union_map_align_params(access, isl_map_get_space(map));
-	data.prefix = map;
-	data.add = add;
-	data.res = isl_union_map_empty(isl_union_map_get_space(access));
-	if (isl_union_map_foreach_map(access, &patch_map, &data) < 0)
-		data.res = isl_union_map_free(data.res);
-	isl_union_map_free(access);
-	isl_map_free(data.prefix);
-
-	return data.res;
+	prefix = pet_expr_access_get_index(expr);
+	return pet_patch_union_map(prefix, access, add, 1);
 }
 
 /* Set the access relations of "expr", which appears in the argument
@@ -990,9 +808,7 @@ static __isl_give pet_expr *arg_plug_in_summary(__isl_take pet_expr *arg,
 	type = pet_expr_get_type(arg);
 	if (type == pet_expr_access)
 		return access_plug_in_summary(arg, call, summary, pos, 0);
-	if (type != pet_expr_op)
-		return arg;
-	if (pet_expr_op_get_type(arg) != pet_op_address_of)
+	if (!pet_expr_is_address_of(arg))
 		return arg;
 
 	arg2 = pet_expr_get_arg(arg, 0);
@@ -1091,14 +907,212 @@ static __isl_give pet_expr *plug_in_summaries(__isl_take pet_expr *expr,
 	return pet_expr_map_call(expr, &call_plug_in_summary, pc);
 }
 
+/* Given an access expression "expr", check that it is an affine
+ * access expression and set *only_affine to 1.
+ * If "expr" is not an affine access expression, then set *only_affine to 0
+ * and abort.
+ */
+static int check_only_affine(__isl_keep pet_expr *expr, void *user)
+{
+	int *only_affine = user;
+	int is_affine;
+
+	is_affine = pet_expr_is_affine(expr);
+	if (is_affine < 0)
+		return -1;
+	if (!is_affine) {
+		*only_affine = 0;
+		return -1;
+	}
+	*only_affine = 1;
+
+	return 0;
+}
+
+/* Does "expr" have any affine access subexpression and no other
+ * access subexpressions?
+ *
+ * only_affine is initialized to -1 and set to 1 as soon as one affine
+ * access subexpression has been found and to 0 if some other access
+ * subexpression has been found.  In this latter case, the search is
+ * aborted.
+ */
+static isl_bool has_only_affine_access_sub_expr(__isl_keep pet_expr *expr)
+{
+	int only_affine = -1;
+
+	if (pet_expr_foreach_access_expr(expr, &check_only_affine,
+					&only_affine) < 0 &&
+	    only_affine != 0)
+		return isl_bool_error;
+
+	return only_affine > 0;
+}
+
+/* Try and replace "expr" by an affine access expression by essentially
+ * evaluating operations and/or special calls on affine access expressions.
+ * It therefore only makes sense to do this if "expr" is a call or an operation
+ * and if it has at least one affine access subexpression and no other
+ * access subexpressions.
+ */
+static __isl_give pet_expr *expr_plug_in_affine(__isl_take pet_expr *expr,
+	void *user)
+{
+	enum pet_expr_type type;
+	pet_context *pc = user;
+	isl_pw_aff *pa;
+	isl_bool contains_access;
+
+	type = pet_expr_get_type(expr);
+	if (type != pet_expr_call && type != pet_expr_op)
+		return expr;
+	contains_access = has_only_affine_access_sub_expr(expr);
+	if (contains_access < 0)
+		return pet_expr_free(expr);
+	if (!contains_access)
+		return expr;
+
+	pa = pet_expr_extract_affine(expr, pc);
+	if (!pa)
+		return pet_expr_free(expr);
+	if (isl_pw_aff_involves_nan(pa)) {
+		isl_pw_aff_free(pa);
+		return expr;
+	}
+
+	pet_expr_free(expr);
+	expr = pet_expr_from_index(isl_multi_pw_aff_from_pw_aff(pa));
+
+	return expr;
+}
+
+/* Detect affine subexpressions in "expr".
+ *
+ * The detection is performed top-down in order to be able
+ * to exploit the min/max optimization in comparisons.
+ * That is, if some subexpression is of the form max(a,b) <= min(c,d)
+ * and if the affine expressions were being detected bottom-up, then
+ * affine expressions for max(a,b) and min(c,d) would be constructed
+ * first and it would no longer be possible to optimize the extraction
+ * of the comparison as a <= c && a <= d && b <= c && b <= d.
+ */
+static __isl_give pet_expr *plug_in_affine(__isl_take pet_expr *expr,
+	__isl_keep pet_context *pc)
+{
+	return pet_expr_map_top_down(expr, &expr_plug_in_affine, pc);
+}
+
+/* Given an affine condition "cond" and two access expressions "lhs" and
+ * "rhs" to the same array, construct an access expression to the array that
+ * performs the "lhs" access if "cond" is satisfied and the "rhs" access
+ * otherwise.
+ *
+ * That is, replace
+ *
+ *	c ? A[f] : A[g]
+ *
+ * by
+ *
+ *	A[c ? f : g].
+ */
+static __isl_give pet_expr *merged_access(__isl_take pet_expr *cond,
+	__isl_take pet_expr *lhs, __isl_take pet_expr *rhs)
+{
+	isl_multi_pw_aff *index1, *index2;
+	isl_pw_aff *c;
+	int i, n;
+
+	c = pet_expr_get_affine(cond);
+	index1 = pet_expr_access_get_index(lhs);
+	index2 = pet_expr_access_get_index(rhs);
+	n = isl_multi_pw_aff_dim(index1, isl_dim_out);
+	for (i = 0; i < n; ++i) {
+		isl_pw_aff *pa1, *pa2;
+
+		pa1 = isl_multi_pw_aff_get_pw_aff(index1, i);
+		pa2 = isl_multi_pw_aff_get_pw_aff(index2, i);
+		pa1 = isl_pw_aff_cond(isl_pw_aff_copy(c), pa1, pa2);
+		index1 = isl_multi_pw_aff_set_pw_aff(index1, i, pa1);
+	}
+	isl_pw_aff_free(c);
+	isl_multi_pw_aff_free(index2);
+
+	lhs = pet_expr_access_set_index(lhs, index1);
+
+	pet_expr_free(cond);
+	pet_expr_free(rhs);
+
+	return lhs;
+}
+
+/* If "expr" is a conditional access to an array expressed as a conditional
+ * operator with two accesses to the same array and an affine condition,
+ * then replace the conditional operator by a single access to the array.
+ *
+ * If either of the two accesses has any arguments or access relations,
+ * then the original expression is kept since replacing it may lose
+ * information.
+ */
+static __isl_give pet_expr *merge_conditional_access(__isl_take pet_expr *expr,
+	void *user)
+{
+	pet_expr *cond, *lhs, *rhs;
+	isl_bool ok;
+
+	if (pet_expr_op_get_type(expr) != pet_op_cond)
+		return expr;
+
+	cond = pet_expr_get_arg(expr, 0);
+	lhs = pet_expr_get_arg(expr, 1);
+	rhs = pet_expr_get_arg(expr, 2);
+	ok = pet_expr_get_n_arg(lhs) == 0 && pet_expr_get_n_arg(rhs) == 0;
+	if (ok > 0)
+		ok = pet_expr_is_affine(cond);
+	if (ok > 0)
+		ok = pet_expr_is_same_access(lhs, rhs);
+	if (ok > 0)
+		ok = isl_bool_not(pet_expr_access_has_any_access_relation(lhs));
+	if (ok > 0)
+		ok = isl_bool_not(pet_expr_access_has_any_access_relation(rhs));
+	if (ok > 0) {
+		pet_expr_free(expr);
+		return merged_access(cond, lhs, rhs);
+	}
+	pet_expr_free(cond);
+	pet_expr_free(lhs);
+	pet_expr_free(rhs);
+	if (ok < 0)
+		return pet_expr_free(expr);
+	return expr;
+}
+
+/* Look for any conditional access to an array expressed as a conditional
+ * operator with two accesses to the same array and replace it
+ * by a single access to the array.
+ */
+static __isl_give pet_expr *merge_conditional_accesses(
+	__isl_take pet_expr *expr)
+{
+	return pet_expr_map_op(expr, &merge_conditional_access, NULL);
+}
+
 /* Evaluate "expr" in the context of "pc".
  *
  * In particular, we first make sure that all the access expressions
  * inside "expr" have the same domain as "pc".
  * Then, we plug in affine expressions for scalar reads,
- * plug in the arguments of all access expressions in "expr" and
+ * plug in the arguments of all access expressions in "expr" as well
+ * as any other affine expressions that may appear inside "expr",
+ * merge conditional accesses to the same array and
  * plug in the access relations from the summary functions associated
  * to call expressions.
+ *
+ * The merging of conditional accesses needs to be performed after
+ * the detection of affine expressions such that it can simply
+ * check if the condition is an affine expression.
+ * It needs to be performed before access relations are plugged in
+ * such that these access relations only need to be plugged into
+ * the fused access.
  */
 __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	__isl_take pet_expr *expr)
@@ -1106,6 +1120,8 @@ __isl_give pet_expr *pet_context_evaluate_expr(__isl_keep pet_context *pc,
 	expr = pet_expr_insert_domain(expr, pet_context_get_space(pc));
 	expr = plug_in_affine_read(expr, pc);
 	expr = pet_expr_plug_in_args(expr, pc);
+	expr = plug_in_affine(expr, pc);
+	expr = merge_conditional_accesses(expr);
 	expr = plug_in_summaries(expr, pc);
 	return expr;
 }

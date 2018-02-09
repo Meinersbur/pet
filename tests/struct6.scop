@@ -12,6 +12,7 @@ arrays:
   element_type: struct s
   element_size: 4
   element_is_record: 1
+  outer: 1
 - context: '{  :  }'
   extent: '{ s_a[s[i0] -> a[]] : i0 >= 0 }'
   element_type: int

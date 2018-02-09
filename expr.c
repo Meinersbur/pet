@@ -34,7 +34,17 @@
 
 #include <string.h>
 
+#include <isl/ctx.h>
+#include <isl/hash.h>
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
+#include <isl/printer.h>
 
 #include "aff.h"
 #include "array.h"
@@ -44,6 +54,7 @@
 #include "nest.h"
 #include "options.h"
 #include "value_bounds.h"
+#include "patch.h"
 
 #define ARRAY_SIZE(array) (sizeof(array)/sizeof(*array))
 
@@ -61,6 +72,9 @@ static char *op_str[] = {
 	[pet_op_sub_assign] = "-=",
 	[pet_op_mul_assign] = "*=",
 	[pet_op_div_assign] = "/=",
+	[pet_op_and_assign] = "&=",
+	[pet_op_xor_assign] = "^=",
+	[pet_op_or_assign] = "|=",
 	[pet_op_assign] = "=",
 	[pet_op_add] = "+",
 	[pet_op_sub] = "-",
@@ -209,26 +223,24 @@ static __isl_give isl_map *extend_range(__isl_take isl_map *access, int n)
 
 /* Does the access expression "expr" have any explicit access relation?
  */
-static int has_any_access_relation(__isl_keep pet_expr *expr)
+isl_bool pet_expr_access_has_any_access_relation(__isl_keep pet_expr *expr)
 {
 	enum pet_expr_access_type type;
 
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 
 	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type)
 		if (expr->acc.access[type])
-			return 1;
+			return isl_bool_true;
 
-	return 0;
+	return isl_bool_false;
 }
 
 /* Are all relevant access relations explicitly available in "expr"?
  */
 static int has_relevant_access_relations(__isl_keep pet_expr *expr)
 {
-	enum pet_expr_access_type type;
-
 	if (!expr)
 		return -1;
 
@@ -253,14 +265,11 @@ static int has_relevant_access_relations(__isl_keep pet_expr *expr)
 __isl_give pet_expr *pet_expr_access_set_depth(__isl_take pet_expr *expr,
 	int depth)
 {
-	isl_map *access;
-	int dim;
-
 	if (!expr)
 		return NULL;
 	if (expr->acc.depth == depth)
 		return expr;
-	if (has_any_access_relation(expr))
+	if (pet_expr_access_has_any_access_relation(expr))
 		isl_die(pet_expr_get_ctx(expr), isl_error_unsupported,
 			"depth cannot be changed after access relation "
 			"has been set or computed", return pet_expr_free(expr));
@@ -544,13 +553,21 @@ static __isl_give pet_expr *pet_expr_dup(__isl_keep pet_expr *expr)
 	return dup;
 }
 
+/* Return a pet_expr that is equal to "expr" and that has only
+ * a single reference.
+ *
+ * If "expr" itself only has one reference, then clear its hash value
+ * since the returned pet_expr will be modified.
+ */
 __isl_give pet_expr *pet_expr_cow(__isl_take pet_expr *expr)
 {
 	if (!expr)
 		return NULL;
 
-	if (expr->ref == 1)
+	if (expr->ref == 1) {
+		expr->hash = 0;
 		return expr;
+	}
 	expr->ref--;
 	return pet_expr_dup(expr);
 }
@@ -687,6 +704,18 @@ __isl_give pet_expr *pet_expr_get_arg(__isl_keep pet_expr *expr, int pos)
 	return pet_expr_copy(expr->args[pos]);
 }
 
+/* Replace "expr" by its argument at position "pos".
+ */
+__isl_give pet_expr *pet_expr_arg(__isl_take pet_expr *expr, int pos)
+{
+	pet_expr *arg;
+
+	arg = pet_expr_get_arg(expr, pos);
+	pet_expr_free(expr);
+
+	return arg;
+}
+
 /* Replace the argument of "expr" at position "pos" by "arg".
  */
 __isl_give pet_expr *pet_expr_set_arg(__isl_take pet_expr *expr, int pos,
@@ -755,6 +784,17 @@ int pet_expr_is_boolean(__isl_keep pet_expr *expr)
 	}
 }
 
+/* Is "expr" an address-of operation?
+ */
+int pet_expr_is_address_of(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return -1;
+	if (expr->type != pet_expr_op)
+		return 0;
+	return expr->op == pet_op_address_of;
+}
+
 /* Is "expr" an assume statement?
  */
 int pet_expr_is_assume(__isl_keep pet_expr *expr)
@@ -799,20 +839,42 @@ int pet_expr_is_max(__isl_keep pet_expr *expr)
 /* Does "expr" represent an access to an unnamed space, i.e.,
  * does it represent an affine expression?
  */
-int pet_expr_is_affine(__isl_keep pet_expr *expr)
+isl_bool pet_expr_is_affine(__isl_keep pet_expr *expr)
 {
 	int has_id;
 
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 	if (expr->type != pet_expr_access)
-		return 0;
+		return isl_bool_false;
 
 	has_id = isl_multi_pw_aff_has_tuple_id(expr->acc.index, isl_dim_out);
 	if (has_id < 0)
-		return -1;
+		return isl_bool_error;
 
 	return !has_id;
+}
+
+/* Given that "expr" represents an affine expression, i.e., that
+ * it is an access to an unnamed (1D) space, return this affine expression.
+ */
+__isl_give isl_pw_aff *pet_expr_get_affine(__isl_keep pet_expr *expr)
+{
+	isl_bool is_affine;
+	isl_pw_aff *pa;
+	isl_multi_pw_aff *mpa;
+
+	is_affine = pet_expr_is_affine(expr);
+	if (is_affine < 0)
+		return NULL;
+	if (!is_affine)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an affine expression", return NULL);
+
+	mpa = pet_expr_access_get_index(expr);
+	pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
+	isl_multi_pw_aff_free(mpa);
+	return pa;
 }
 
 /* Does "expr" represent an access to a scalar, i.e., a zero-dimensional array,
@@ -862,7 +924,6 @@ static __isl_give isl_union_map *construct_access_relation(
 {
 	isl_map *access;
 	int dim;
-	int read, write;
 
 	if (!expr)
 		return NULL;
@@ -891,13 +952,13 @@ static __isl_give isl_union_map *construct_access_relation(
  *
  * We do not cow since adding an explicit access relation
  * does not change the meaning of the expression.
+ * However, the explicit access relations may modify the hash value,
+ * so the cached value is reset.
  */
 static __isl_give pet_expr *introduce_access_relations(
 	__isl_take pet_expr *expr)
 {
-	enum pet_expr_access_type type;
 	isl_union_map *access;
-	int dim;
 	int kill, read, write;
 
 	if (!expr)
@@ -909,6 +970,7 @@ static __isl_give pet_expr *introduce_access_relations(
 	if (!access)
 		return pet_expr_free(expr);
 
+	expr->hash = 0;
 	kill = expr->acc.kill;
 	read = expr->acc.read;
 	write = expr->acc.write;
@@ -931,6 +993,68 @@ static __isl_give pet_expr *introduce_access_relations(
 		return pet_expr_free(expr);
 
 	return expr;
+}
+
+/* Return a hash value that digests "expr".
+ * If a hash value was computed already, then return that value.
+ * Otherwise, compute the hash value and store a copy in expr->hash.
+ */
+uint32_t pet_expr_get_hash(__isl_keep pet_expr *expr)
+{
+	int i;
+	enum pet_expr_access_type type;
+	uint32_t hash, hash_f;
+
+	if (!expr)
+		return 0;
+	if (expr->hash)
+		return expr->hash;
+
+	hash = isl_hash_init();
+	isl_hash_byte(hash, expr->type & 0xFF);
+	isl_hash_byte(hash, expr->n_arg & 0xFF);
+	for (i = 0; i < expr->n_arg; ++i) {
+		uint32_t hash_i;
+		hash_i = pet_expr_get_hash(expr->args[i]);
+		isl_hash_hash(hash, hash_i);
+	}
+	switch (expr->type) {
+	case pet_expr_error:
+		return 0;
+	case pet_expr_double:
+		hash = isl_hash_string(hash, expr->d.s);
+		break;
+	case pet_expr_int:
+		hash_f = isl_val_get_hash(expr->i);
+		isl_hash_hash(hash, hash_f);
+		break;
+	case pet_expr_access:
+		isl_hash_byte(hash, expr->acc.read & 0xFF);
+		isl_hash_byte(hash, expr->acc.write & 0xFF);
+		isl_hash_byte(hash, expr->acc.kill & 0xFF);
+		hash_f = isl_id_get_hash(expr->acc.ref_id);
+		isl_hash_hash(hash, hash_f);
+		hash_f = isl_multi_pw_aff_get_hash(expr->acc.index);
+		isl_hash_hash(hash, hash_f);
+		isl_hash_byte(hash, expr->acc.depth & 0xFF);
+		for (type = pet_expr_access_begin;
+		     type < pet_expr_access_end; ++type) {
+			hash_f = isl_union_map_get_hash(expr->acc.access[type]);
+			isl_hash_hash(hash, hash_f);
+		}
+		break;
+	case pet_expr_op:
+		isl_hash_byte(hash, expr->op & 0xFF);
+		break;
+	case pet_expr_call:
+		hash = isl_hash_string(hash, expr->c.name);
+		break;
+	case pet_expr_cast:
+		hash = isl_hash_string(hash, expr->type_name);
+		break;
+	}
+	expr->hash = hash;
+	return hash;
 }
 
 /* Return 1 if the two pet_exprs are equivalent.
@@ -1019,30 +1143,81 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 	return 1;
 }
 
+/* Do "expr1" and "expr2" represent two accesses to the same array
+ * that are also of the same type?  That is, can these two accesses
+ * be replaced by a single access?
+ */
+isl_bool pet_expr_is_same_access(__isl_keep pet_expr *expr1,
+	__isl_keep pet_expr *expr2)
+{
+	isl_space *space1, *space2;
+	isl_bool same;
+
+	if (!expr1 || !expr2)
+		return isl_bool_error;
+	if (pet_expr_get_type(expr1) != pet_expr_access)
+		return isl_bool_false;
+	if (pet_expr_get_type(expr2) != pet_expr_access)
+		return isl_bool_false;
+	if (expr1->acc.read != expr2->acc.read)
+		return isl_bool_false;
+	if (expr1->acc.write != expr2->acc.write)
+		return isl_bool_false;
+	if (expr1->acc.kill != expr2->acc.kill)
+		return isl_bool_false;
+	if (expr1->acc.depth != expr2->acc.depth)
+		return isl_bool_false;
+
+	space1 = isl_multi_pw_aff_get_space(expr1->acc.index);
+	space2 = isl_multi_pw_aff_get_space(expr2->acc.index);
+	same = isl_space_tuple_is_equal(space1, isl_dim_out,
+					space2, isl_dim_out);
+	if (same >= 0 && same)
+		same = isl_space_tuple_is_equal(space1, isl_dim_in,
+						space2, isl_dim_in);
+	isl_space_free(space1);
+	isl_space_free(space2);
+
+	return same;
+}
+
 /* Does the access expression "expr" read the accessed elements?
  */
-int pet_expr_access_is_read(__isl_keep pet_expr *expr)
+isl_bool pet_expr_access_is_read(__isl_keep pet_expr *expr)
 {
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return -1);
+			"not an access expression", return isl_bool_error);
 
 	return expr->acc.read;
 }
 
 /* Does the access expression "expr" write to the accessed elements?
  */
-int pet_expr_access_is_write(__isl_keep pet_expr *expr)
+isl_bool pet_expr_access_is_write(__isl_keep pet_expr *expr)
 {
 	if (!expr)
-		return -1;
+		return isl_bool_error;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return -1);
+			"not an access expression", return isl_bool_error);
 
 	return expr->acc.write;
+}
+
+/* Does the access expression "expr" kill the accessed elements?
+ */
+isl_bool pet_expr_access_is_kill(__isl_keep pet_expr *expr)
+{
+	if (!expr)
+		return isl_bool_error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access expression", return isl_bool_error);
+
+	return expr->acc.kill;
 }
 
 /* Return the identifier of the array accessed by "expr".
@@ -1127,22 +1302,81 @@ __isl_give isl_space *pet_expr_access_get_domain_space(
 	return space;
 }
 
-/* Return the space of the data accessed by "expr".
+/* Internal data structure for pet_expr_access_foreach_data_space.
  */
-__isl_give isl_space *pet_expr_access_get_data_space(__isl_keep pet_expr *expr)
+struct pet_foreach_data_space_data {
+	isl_stat (*fn)(__isl_take isl_space *space, void *user);
+	void *user;
+};
+
+/* Given a piece of an access relation, call data->fn on the data
+ * (i.e., range) space.
+ */
+static isl_stat foreach_data_space(__isl_take isl_map *map, void *user)
 {
+	struct pet_foreach_data_space_data *data = user;
+	isl_space *space;
+
+	space = isl_map_get_space(map);
+	space = isl_space_range(space);
+	isl_map_free(map);
+
+	return data->fn(space, data->user);
+}
+
+/* Call "fn" on the data spaces accessed by "expr".
+ * In particular, call "fn" on the range space of the index expression,
+ * but if "expr" keeps track of any explicit access relations,
+ * then also call "fn" on the corresponding range spaces.
+ */
+isl_stat pet_expr_access_foreach_data_space(__isl_keep pet_expr *expr,
+	isl_stat (*fn)(__isl_take isl_space *space, void *user), void *user)
+{
+	struct pet_foreach_data_space_data data = { fn, user };
+	enum pet_expr_access_type type;
 	isl_space *space;
 
 	if (!expr)
-		return NULL;
+		return isl_stat_error;
 	if (expr->type != pet_expr_access)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
-			"not an access expression", return NULL);
+			"not an access expression", return isl_stat_error);
+
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		if (isl_union_map_foreach_map(expr->acc.access[type],
+					&foreach_data_space, &data) < 0)
+			return isl_stat_error;
+	}
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);
 	space = isl_space_range(space);
+	return fn(space, user);
+}
 
-	return space;
+/* Modify all subexpressions of "expr" by calling "fn" on them.
+ * The subexpressions are traversed in depth first preorder.
+ */
+__isl_give pet_expr *pet_expr_map_top_down(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	int i, n;
+
+	if (!expr)
+		return NULL;
+
+	expr = fn(expr, user);
+
+	n = pet_expr_get_n_arg(expr);
+	for (i = 0; i < n; ++i) {
+		pet_expr *arg = pet_expr_get_arg(expr, i);
+		arg = pet_expr_map_top_down(arg, fn, user);
+		expr = pet_expr_set_arg(expr, i, arg);
+	}
+
+	return expr;
 }
 
 /* Modify all expressions of type "type" in "expr" by calling "fn" on them.
@@ -1188,6 +1422,16 @@ __isl_give pet_expr *pet_expr_map_call(__isl_take pet_expr *expr,
 	void *user)
 {
 	return pet_expr_map_expr_of_type(expr, pet_expr_call, fn, user);
+}
+
+/* Modify all expressions of type pet_expr_op in "expr"
+ * by calling "fn" on them.
+ */
+__isl_give pet_expr *pet_expr_map_op(__isl_take pet_expr *expr,
+	__isl_give pet_expr *(*fn)(__isl_take pet_expr *expr, void *user),
+	void *user)
+{
+	return pet_expr_map_expr_of_type(expr, pet_expr_op, fn, user);
 }
 
 /* Call "fn" on each of the subexpressions of "expr" of type "type".
@@ -1424,7 +1668,7 @@ __isl_give pet_expr *pet_expr_access_align_params(__isl_take pet_expr *expr)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"not an access expression", return pet_expr_free(expr));
 
-	if (!has_any_access_relation(expr))
+	if (!pet_expr_access_has_any_access_relation(expr))
 		return expr;
 
 	space = isl_multi_pw_aff_get_space(expr->acc.index);
@@ -2633,18 +2877,10 @@ static __isl_give isl_pw_aff *nested_access(__isl_keep pet_expr *expr,
 static __isl_give isl_pw_aff *extract_affine_from_access(
 	__isl_keep pet_expr *expr, __isl_keep pet_context *pc)
 {
-	int pos;
 	isl_id *id;
 
-	if (pet_expr_is_affine(expr)) {
-		isl_pw_aff *pa;
-		isl_multi_pw_aff *mpa;
-
-		mpa = pet_expr_access_get_index(expr);
-		pa = isl_multi_pw_aff_get_pw_aff(mpa, 0);
-		isl_multi_pw_aff_free(mpa);
-		return pa;
-	}
+	if (pet_expr_is_affine(expr))
+		return pet_expr_get_affine(expr);
 
 	if (pet_expr_get_type_size(expr) == 0)
 		return non_affine(pet_context_get_space(pc));
@@ -2853,24 +3089,6 @@ static __isl_give isl_pw_aff *extract_affine_cond(__isl_keep pet_expr *expr,
 	return isl_pw_aff_cond(cond, lhs, rhs);
 }
 
-/* Compute
- *
- *	pwaff mod 2^width
- */
-static __isl_give isl_pw_aff *wrap(__isl_take isl_pw_aff *pwaff, unsigned width)
-{
-	isl_ctx *ctx;
-	isl_val *mod;
-
-	ctx = isl_pw_aff_get_ctx(pwaff);
-	mod = isl_val_int_from_ui(ctx, width);
-	mod = isl_val_2exp(mod);
-
-	pwaff = isl_pw_aff_mod_val(pwaff, mod);
-
-	return pwaff;
-}
-
 /* Limit the domain of "pwaff" to those elements where the function
  * value satisfies
  *
@@ -2981,7 +3199,7 @@ static __isl_give isl_pw_aff *extract_affine_from_op(__isl_keep pet_expr *expr,
 
 	type_size = pet_expr_get_type_size(expr);
 	if (type_size > 0)
-		res = wrap(res, type_size);
+		res = pet_wrap_pw_aff(res, type_size);
 	else
 		res = signed_overflow(res, -type_size);
 
@@ -3121,27 +3339,48 @@ static __isl_give isl_pw_aff *extract_affine_from_call(
  * Otherwise return NaN.
  *
  * "pc" is the context in which the affine expression is created.
+ *
+ * Store the result in "pc" such that it can be reused in case
+ * pet_expr_extract_affine is called again on the same pair of
+ * "expr" and "pc".
  */
 __isl_give isl_pw_aff *pet_expr_extract_affine(__isl_keep pet_expr *expr,
 	__isl_keep pet_context *pc)
 {
+	isl_maybe_isl_pw_aff m;
+	isl_pw_aff *pa;
+
 	if (!expr)
 		return NULL;
 
+	m = pet_context_get_extracted_affine(pc, expr);
+	if (m.valid < 0 || m.valid)
+		return m.value;
+
 	switch (pet_expr_get_type(expr)) {
 	case pet_expr_access:
-		return extract_affine_from_access(expr, pc);
+		pa = extract_affine_from_access(expr, pc);
+		break;
 	case pet_expr_int:
-		return extract_affine_from_int(expr, pc);
+		pa = extract_affine_from_int(expr, pc);
+		break;
 	case pet_expr_op:
-		return extract_affine_from_op(expr, pc);
+		pa = extract_affine_from_op(expr, pc);
+		break;
 	case pet_expr_call:
-		return extract_affine_from_call(expr, pc);
+		pa = extract_affine_from_call(expr, pc);
+		break;
 	case pet_expr_cast:
 	case pet_expr_double:
 	case pet_expr_error:
-		return non_affine(pet_context_get_space(pc));
+		pa = non_affine(pet_context_get_space(pc));
+		break;
 	}
+
+	if (pet_context_set_extracted_affine(pc, expr, pa) < 0)
+		return isl_pw_aff_free(pa);
+
+	return pa;
 }
 
 /* Extract an affine expressions representing the comparison "LHS op RHS"
@@ -3415,81 +3654,194 @@ error:
 	return NULL;
 }
 
-void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
+/* Prefix the access expression "expr" with "prefix".
+ * If "add" is set, then it is not the index expression "prefix" itself
+ * that was passed to the function, but its address.
+ */
+__isl_give pet_expr *pet_expr_access_patch(__isl_take pet_expr *expr,
+	__isl_take isl_multi_pw_aff *prefix, int add)
+{
+	enum pet_expr_access_type type;
+
+	expr = pet_expr_cow(expr);
+	if (!expr || !prefix)
+		goto error;
+	if (expr->type != pet_expr_access)
+		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
+			"not an access pet_expr", goto error);
+
+	expr->acc.depth += isl_multi_pw_aff_dim(prefix, isl_dim_out) - add;
+	for (type = pet_expr_access_begin; type < pet_expr_access_end; ++type) {
+		if (!expr->acc.access[type])
+			continue;
+		expr->acc.access[type] = pet_patch_union_map(
+			isl_multi_pw_aff_copy(prefix), expr->acc.access[type],
+			add, 0);
+		if (!expr->acc.access[type])
+			break;
+	}
+	expr->acc.index = pet_patch_multi_pw_aff(prefix, expr->acc.index, add);
+	if (!expr->acc.index || type < pet_expr_access_end)
+		return pet_expr_free(expr);
+
+	return expr;
+error:
+	pet_expr_free(expr);
+	isl_multi_pw_aff_free(prefix);
+	return NULL;
+}
+
+/* Dump the arguments of "expr" to "p" as a YAML sequence keyed
+ * by "args", if there are any such arguments.
+ */
+static __isl_give isl_printer *dump_arguments(__isl_keep pet_expr *expr,
+	__isl_take isl_printer *p)
 {
 	int i;
+
+	if (expr->n_arg == 0)
+		return p;
+
+	p = isl_printer_print_str(p, "args");
+	p = isl_printer_yaml_next(p);
+	p = isl_printer_yaml_start_sequence(p);
+	for (i = 0; i < expr->n_arg; ++i) {
+		p = pet_expr_print(expr->args[i], p);
+		p = isl_printer_yaml_next(p);
+	}
+	p = isl_printer_yaml_end_sequence(p);
+
+	return p;
+}
+
+/* Print "expr" to "p" in YAML format.
+ */
+__isl_give isl_printer *pet_expr_print(__isl_keep pet_expr *expr,
+	__isl_take isl_printer *p)
+{
+	if (!expr || !p)
+		return isl_printer_free(p);
+
+	switch (expr->type) {
+	case pet_expr_double:
+		p = isl_printer_print_str(p, expr->d.s);
+		break;
+	case pet_expr_int:
+		p = isl_printer_print_val(p, expr->i);
+		break;
+	case pet_expr_access:
+		p = isl_printer_yaml_start_mapping(p);
+		if (expr->acc.ref_id) {
+			p = isl_printer_print_str(p, "ref_id");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_id(p, expr->acc.ref_id);
+			p = isl_printer_yaml_next(p);
+		}
+		p = isl_printer_print_str(p, "index");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_multi_pw_aff(p, expr->acc.index);
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, "depth");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_int(p, expr->acc.depth);
+		p = isl_printer_yaml_next(p);
+		if (expr->acc.kill) {
+			p = isl_printer_print_str(p, "kill");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_int(p, 1);
+			p = isl_printer_yaml_next(p);
+		} else {
+			p = isl_printer_print_str(p, "read");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_int(p, expr->acc.read);
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_str(p, "write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_int(p, expr->acc.write);
+			p = isl_printer_yaml_next(p);
+		}
+		if (expr->acc.access[pet_expr_access_may_read]) {
+			p = isl_printer_print_str(p, "may_read");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
+				expr->acc.access[pet_expr_access_may_read]);
+			p = isl_printer_yaml_next(p);
+		}
+		if (expr->acc.access[pet_expr_access_may_write]) {
+			p = isl_printer_print_str(p, "may_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
+				expr->acc.access[pet_expr_access_may_write]);
+			p = isl_printer_yaml_next(p);
+		}
+		if (expr->acc.access[pet_expr_access_must_write]) {
+			p = isl_printer_print_str(p, "must_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
+				expr->acc.access[pet_expr_access_must_write]);
+			p = isl_printer_yaml_next(p);
+		}
+		p = dump_arguments(expr, p);
+		p = isl_printer_yaml_end_mapping(p);
+		break;
+	case pet_expr_op:
+		p = isl_printer_yaml_start_mapping(p);
+		p = isl_printer_print_str(p, "op");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, op_str[expr->op]);
+		p = isl_printer_yaml_next(p);
+		p = dump_arguments(expr, p);
+		p = isl_printer_yaml_end_mapping(p);
+		break;
+	case pet_expr_call:
+		p = isl_printer_yaml_start_mapping(p);
+		p = isl_printer_print_str(p, "call");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, expr->c.name);
+		p = isl_printer_print_str(p, "/");
+		p = isl_printer_print_int(p, expr->n_arg);
+		p = isl_printer_yaml_next(p);
+		p = dump_arguments(expr, p);
+		if (expr->c.summary) {
+			p = isl_printer_print_str(p, "summary");
+			p = isl_printer_yaml_next(p);
+			p = pet_function_summary_print(expr->c.summary, p);
+		}
+		p = isl_printer_yaml_end_mapping(p);
+		break;
+	case pet_expr_cast:
+		p = isl_printer_yaml_start_mapping(p);
+		p = isl_printer_print_str(p, "cast");
+		p = isl_printer_yaml_next(p);
+		p = isl_printer_print_str(p, expr->type_name);
+		p = isl_printer_yaml_next(p);
+		p = dump_arguments(expr, p);
+		p = isl_printer_yaml_end_mapping(p);
+		break;
+	case pet_expr_error:
+		p = isl_printer_print_str(p, "ERROR");
+		break;
+	}
+
+	return p;
+}
+
+/* Dump "expr" to stderr with indentation "indent".
+ */
+void pet_expr_dump_with_indent(__isl_keep pet_expr *expr, int indent)
+{
+	isl_printer *p;
 
 	if (!expr)
 		return;
 
-	fprintf(stderr, "%*s", indent, "");
+	p = isl_printer_to_file(pet_expr_get_ctx(expr), stderr);
+	p = isl_printer_set_indent(p, indent);
+	p = isl_printer_set_yaml_style(p, ISL_YAML_STYLE_BLOCK);
+	p = isl_printer_start_line(p);
+	p = pet_expr_print(expr, p);
 
-	switch (expr->type) {
-	case pet_expr_double:
-		fprintf(stderr, "%s\n", expr->d.s);
-		break;
-	case pet_expr_int:
-		isl_val_dump(expr->i);
-		break;
-	case pet_expr_access:
-		if (expr->acc.ref_id) {
-			isl_id_dump(expr->acc.ref_id);
-			fprintf(stderr, "%*s", indent, "");
-		}
-		isl_multi_pw_aff_dump(expr->acc.index);
-		fprintf(stderr, "%*sdepth: %d\n", indent + 2,
-				"", expr->acc.depth);
-		if (expr->acc.kill) {
-			fprintf(stderr, "%*skill: 1\n", indent + 2, "");
-		} else {
-			fprintf(stderr, "%*sread: %d\n", indent + 2,
-					"", expr->acc.read);
-			fprintf(stderr, "%*swrite: %d\n", indent + 2,
-					"", expr->acc.write);
-		}
-		if (expr->acc.access[pet_expr_access_may_read]) {
-			fprintf(stderr, "%*smay_read: ", indent + 2, "");
-			isl_union_map_dump(
-				expr->acc.access[pet_expr_access_may_read]);
-		}
-		if (expr->acc.access[pet_expr_access_may_write]) {
-			fprintf(stderr, "%*smay_write: ", indent + 2, "");
-			isl_union_map_dump(
-				expr->acc.access[pet_expr_access_may_write]);
-		}
-		if (expr->acc.access[pet_expr_access_must_write]) {
-			fprintf(stderr, "%*smust_write: ", indent + 2, "");
-			isl_union_map_dump(
-				expr->acc.access[pet_expr_access_must_write]);
-		}
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
-		break;
-	case pet_expr_op:
-		fprintf(stderr, "%s\n", op_str[expr->op]);
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
-		break;
-	case pet_expr_call:
-		fprintf(stderr, "%s/%d\n", expr->c.name, expr->n_arg);
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
-		if (expr->c.summary) {
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "summary:\n");
-			pet_function_summary_dump_with_indent(expr->c.summary,
-								indent + 2);
-		}
-		break;
-	case pet_expr_cast:
-		fprintf(stderr, "(%s)\n", expr->type_name);
-		for (i = 0; i < expr->n_arg; ++i)
-			pet_expr_dump_with_indent(expr->args[i], indent + 2);
-		break;
-	case pet_expr_error:
-		fprintf(stderr, "ERROR\n");
-		break;
-	}
+	isl_printer_free(p);
 }
 
 void pet_expr_dump(__isl_keep pet_expr *expr)

@@ -1,18 +1,17 @@
 start: 357
 end: 435
 indent: "\t"
-context: '[n] -> {  : n >= 0 and n <= 2147483647 }'
-schedule: '{ domain: "[n] -> { S_0[i] : i >= 0 and i <= -1 + n }", child: { schedule:
-  "[n] -> L_0[{ S_0[i] -> [(i)] }]" } }'
+context: '[n] -> {  : 0 <= n <= 2147483647 }'
+schedule: '{ domain: "[n] -> { S_0[i] : 0 <= i < n }", child: { schedule: "[n] ->
+  L_0[{ S_0[i] -> [(i)] }]" } }'
 arrays:
 - context: '[n] -> {  : n >= 0 }'
-  extent: '[n] -> { A[i0, i1] : i1 >= 0 and i1 <= -1 + n and i0 >= 0 and i0 <= -1
-    + n }'
+  extent: '[n] -> { A[i0, i1] : 0 <= i0 < n and 0 <= i1 < n }'
   element_type: int
   element_size: 4
 statements:
 - line: 24
-  domain: '[n] -> { S_0[i] : i >= 0 and i <= -1 + n }'
+  domain: '[n] -> { S_0[i] : 0 <= i < n }'
   body:
     type: expression
     expr:
@@ -25,8 +24,8 @@ statements:
         read: 1
         write: 0
       - type: access
-        may_write: '[n] -> { S_0[i] -> A[i, o1] : exists (e0 = floor((-1 + o1)/2):
-          2e0 = -1 + o1 and o1 >= 1 and o1 <= -1 + n) }'
+        may_write: '[n] -> { S_0[i] -> A[i, o1] : 2*floor((1 + o1)/2) = 1 + o1 and
+          0 < o1 < n }'
         must_write: '[n] -> {  }'
         index: '[n] -> { S_0[i] -> A[(i)] }'
         depth: 2

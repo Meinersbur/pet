@@ -4,7 +4,8 @@ int N;
 
 int main()
 {
-    int i, j, a[N], b[N];
+    unsigned i;
+    int j, a[N], b[N];
 
 #pragma scop
     for (i = 0;; ++i) {

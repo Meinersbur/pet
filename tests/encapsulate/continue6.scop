@@ -2,17 +2,18 @@ start: 41
 end: 382
 indent: "\t"
 context: '{  :  }'
-schedule: '{ domain: "{ S_3[i] : i >= 0 and i <= 99; S_5[i] : i >= 0 and i <= 99;
-  S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99; S_6[i, j] : exists (e0 =
-  floor((j)/2): 2e0 = j and i <= 99 and i >= 0 and j <= 99 and j >= 0); S_4[i] : i
-  >= 0 and i <= 99; S_7[i, j] : exists (e0 = floor((-1 + j)/2): 2e0 = -1 + j and i
-  <= 99 and i >= 0 and j <= 99 and j >= 0) }", child: { schedule: "L_0[{ S_3[i] ->
-  [(i)]; S_7[i, j] -> [(i)]; S_6[i, j] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)];
-  S_10[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_4[i] }" }, { filter:
+schedule: '{ domain: "{ S_3[i] : 0 <= i <= 99; S_5[i] : 0 <= i <= 99; S_10[i, j] :
+  0 <= i <= 99 and 0 <= j <= 99; S_11[]; S_6[i, j] : 2*floor((j)/2) = j and 0 <= i
+  <= 99 and 0 <= j <= 99; S_4[i] : 0 <= i <= 99; S_7[i, j] : 2*floor((1 + j)/2) =
+  1 + j and 0 <= i <= 99 and 0 <= j <= 99 }", child: { sequence: [ { filter: "{ S_3[i];
+  S_5[i]; S_10[i, j]; S_6[i, j]; S_4[i]; S_7[i, j] }", child: { schedule: "L_0[{ S_7[i,
+  j] -> [(i)]; S_10[i, j] -> [(i)]; S_3[i] -> [(i)]; S_4[i] -> [(i)]; S_5[i] -> [(i)];
+  S_6[i, j] -> [(i)] }]", child: { sequence: [ { filter: "{ S_4[i] }" }, { filter:
   "{ S_3[i] }" }, { filter: "{ S_5[i] }" }, { filter: "{ S_6[i, j]; S_7[i, j] }",
-  child: { schedule: "L_2[{ S_6[i, j] -> [(j)]; S_7[i, j] -> [(j)] }]", child: { sequence:
+  child: { schedule: "L_2[{ S_7[i, j] -> [(j)]; S_6[i, j] -> [(j)] }]", child: { sequence:
   [ { filter: "{ S_6[i, j] }" }, { filter: "{ S_7[i, j] }" } ] } } }, { filter: "{
-  S_10[i, j] }", child: { schedule: "L_3[{ S_10[i, j] -> [(j)] }]" } } ] } } }'
+  S_10[i, j] }", child: { schedule: "L_3[{ S_10[i, j] -> [(j)] }]" } } ] } } }, {
+  filter: "{ S_11[] }" } ] } }'
 arrays:
 - context: '{  :  }'
   extent: '{ j[] }'
@@ -29,7 +30,7 @@ arrays:
   element_size: 4
 statements:
 - line: 8
-  domain: '{ S_4[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_4[i] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -42,7 +43,7 @@ statements:
         reference: __pet_ref_0
         kill: 1
 - line: 8
-  domain: '{ S_3[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_3[i] : 0 <= i <= 99 }'
   body:
     type: for
     declared: 1
@@ -116,7 +117,7 @@ statements:
           - type: int
             value: 1
 - line: 8
-  domain: '{ S_5[i] : i >= 0 and i <= 99 }'
+  domain: '{ S_5[i] : 0 <= i <= 99 }'
   body:
     type: expression
     expr:
@@ -129,8 +130,7 @@ statements:
         reference: __pet_ref_7
         kill: 1
 - line: 17
-  domain: '{ S_6[i, j] : exists (e0 = floor((j)/2): 2e0 = j and i <= 99 and i >= 0
-    and j <= 99 and j >= 0) }'
+  domain: '{ S_6[i, j] : 2*floor((j)/2) = j and 0 <= i <= 99 and 0 <= j <= 99 }'
   body:
     type: expression
     expr:
@@ -145,8 +145,8 @@ statements:
       - type: int
         value: 0
 - line: 20
-  domain: '{ S_7[i, j] : exists (e0 = floor((-1 + j)/2): 2e0 = -1 + j and i <= 99
-    and i >= 0 and j <= 99 and j >= 0) }'
+  domain: '{ S_7[i, j] : 2*floor((1 + j)/2) = 1 + j and 0 <= i <= 99 and 0 <= j <=
+    99 }'
   body:
     type: expression
     expr:
@@ -161,7 +161,7 @@ statements:
       - type: int
         value: 1
 - line: 23
-  domain: '{ S_10[i, j] : i >= 0 and i <= 99 and j >= 0 and j <= 99 }'
+  domain: '{ S_10[i, j] : 0 <= i <= 99 and 0 <= j <= 99 }'
   body:
     type: if-else
     condition:
@@ -196,3 +196,16 @@ statements:
           write: 1
         - type: int
           value: 1
+- line: -1
+  domain: '{ S_11[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{ S_11[] -> x[] }'
+        index: '{ S_11[] -> x[] }'
+        reference: __pet_ref_13
+        kill: 1

@@ -29,6 +29,10 @@ __isl_give isl_pw_aff *pet_boolean(enum pet_op_type type,
 __isl_give isl_pw_aff *pet_comparison(enum pet_op_type type,
 	__isl_take isl_pw_aff *pa1, __isl_take isl_pw_aff *pa2);
 
+__isl_give isl_aff *pet_wrap_aff(__isl_take isl_aff *aff, unsigned width);
+__isl_give isl_pw_aff *pet_wrap_pw_aff(__isl_take isl_pw_aff *pwaff,
+	unsigned width);
+
 #if defined(__cplusplus)
 }
 #endif

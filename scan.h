@@ -1,3 +1,7 @@
+#ifndef PET_SCAN_H
+#define PET_SCAN_H
+
+#include <set>
 #include <map>
 
 #include <clang/Basic/SourceManager.h>
@@ -10,18 +14,44 @@
 #include <isl/val.h>
 
 #include "context.h"
+#include "inliner.h"
+#include "isl_id_to_pet_expr.h"
 #include "loc.h"
 #include "scop.h"
 #include "summary.h"
 #include "tree.h"
 
+#include "config.h"
+
+namespace clang {
+
+#ifndef HAVE_STMTRANGE
+/* StmtRange was replaced by iterator_range in more recent versions of clang.
+ * Implement a StmtRange in terms of this iterator_range if StmtRange
+ * is not available.
+ */
+struct StmtRange : std::pair<StmtIterator,StmtIterator> {
+	StmtRange(const StmtIterator &begin, const StmtIterator &end) :
+		std::pair<StmtIterator,StmtIterator>(begin, end) {}
+	StmtRange(Stmt::child_range range) :
+		std::pair<StmtIterator,StmtIterator>(range.begin(),
+							range.end()) {}
+};
+#endif
+
+}
+
 /* The location of the scop, as delimited by scop and endscop
  * pragmas by the user.
+ * "scop" and "endscop" are the source locations of the scop and
+ * endscop pragmas.
  * "start_line" is the line number of the start position.
  */
 struct ScopLoc {
 	ScopLoc() : end(0) {}
 
+	clang::SourceLocation scop;
+	clang::SourceLocation endscop;
 	unsigned start_line;
 	unsigned start;
 	unsigned end;
@@ -66,17 +96,29 @@ struct PetTypes {
 struct PetScan {
 	clang::Preprocessor &PP;
 	clang::ASTContext &ast_context;
+	/* The DeclContext of the function containing the scop.
+	 */
+	clang::DeclContext *decl_context;
 	/* If autodetect is false, then loc contains the location
 	 * of the scop to be extracted.
 	 */
 	ScopLoc &loc;
 	isl_ctx *ctx;
 	pet_options *options;
+	/* If not NULL, then return_root represents the compound statement
+	 * in which a return statement is allowed as the final child.
+	 * If return_root is NULL, then no return statements are allowed.
+	 */
+	clang::Stmt *return_root;
 	/* Set if the pet_scop returned by an extract method only
 	 * represents part of the input tree.
 	 */
 	bool partial;
 
+	/* A cache of size expressions for array identifiers as computed
+	 * by PetScan::get_array_size, or set by PetScan::set_array_size.
+	 */
+	isl_id_to_pet_expr *id_size;
 	/* A cache of size expressions for array types as computed
 	 * by PetScan::get_array_size.
 	 */
@@ -99,15 +141,45 @@ struct PetScan {
 	/* Information about the independent pragmas in the source code. */
 	std::vector<Independent> &independent;
 
-	PetScan(clang::Preprocessor &PP,
-		clang::ASTContext &ast_context, ScopLoc &loc,
+	/* All variables that have already been declared
+	 * in the current compound statement.
+	 */
+	std::vector<clang::VarDecl *> declarations;
+	/* Sequence number of the next rename. */
+	int n_rename;
+	/* Have the declared names been collected? */
+	bool declared_names_collected;
+	/* The names of the variables declared in decl_context,
+	 * if declared_names_collected is set.
+	 */
+	std::set<std::string> declared_names;
+	/* A set of names known to be in use. */
+	std::set<std::string> used_names;
+
+	/* If not NULL, then "call2id" maps inlined call expressions
+	 * that return a value to the corresponding variables.
+	 */
+	std::map<clang::Stmt *, isl_id *> *call2id;
+
+	/* Sequence number of the next temporary inlined argument variable. */
+	int n_arg;
+	/* Sequence number of the next temporary inlined return variable. */
+	int n_ret;
+
+	PetScan(clang::Preprocessor &PP, clang::ASTContext &ast_context,
+		clang::DeclContext *decl_context, ScopLoc &loc,
 		pet_options *options, __isl_take isl_union_map *value_bounds,
 		std::vector<Independent> &independent) :
-		ctx(isl_union_map_get_ctx(value_bounds)), PP(PP),
-		ast_context(ast_context), loc(loc),
-		options(options), value_bounds(value_bounds),
-		partial(false), last_line(0), current_line(0),
-		independent(independent) { }
+		PP(PP),
+		ast_context(ast_context), decl_context(decl_context), loc(loc),
+		ctx(isl_union_map_get_ctx(value_bounds)),
+		options(options), return_root(NULL), partial(false),
+		value_bounds(value_bounds), last_line(0), current_line(0),
+		independent(independent), n_rename(0),
+		declared_names_collected(false), call2id(NULL),
+		n_arg(0), n_ret(0) {
+		id_size = isl_id_to_pet_expr_alloc(ctx, 0);
+	}
 
 	~PetScan();
 
@@ -115,24 +187,38 @@ struct PetScan {
 
 	static __isl_give isl_val *extract_int(isl_ctx *ctx,
 		clang::IntegerLiteral *expr);
-	__isl_give pet_expr *get_array_size(const clang::Type *type);
-	struct pet_array *extract_array(isl_ctx *ctx, clang::ValueDecl *decl,
+	__isl_give pet_expr *get_array_size(__isl_keep isl_id *id);
+	void set_array_size(__isl_take isl_id *id, __isl_take pet_expr *size);
+	struct pet_array *extract_array(__isl_keep isl_id *id,
 		PetTypes *types, __isl_keep pet_context *pc);
+	__isl_give pet_tree *extract_inlined_call(clang::CallExpr *call,
+		clang::FunctionDecl *fd, __isl_keep isl_id *return_id);
 private:
 	void set_current_stmt(clang::Stmt *stmt);
 	bool is_current_stmt_marked_independent();
+
+	void collect_declared_names();
+	void add_new_used_names(const std::set<std::string> &used_names);
+	bool name_in_use(const std::string &name, clang::Decl *decl);
+	std::string generate_new_name(const std::string &name);
+
+	__isl_give pet_tree *add_kills(__isl_take pet_tree *tree,
+		std::set<clang::ValueDecl *> locals);
 
 	struct pet_scop *scan(clang::Stmt *stmt);
 
 	struct pet_scop *scan_arrays(struct pet_scop *scop,
 		__isl_keep pet_context *pc);
-	struct pet_array *extract_array(isl_ctx *ctx,
-		std::vector<clang::ValueDecl *> decls,
+	struct pet_array *extract_array(clang::ValueDecl *decl,
+		PetTypes *types, __isl_keep pet_context *pc);
+	struct pet_array *extract_array(__isl_keep isl_id_list *decls,
 		PetTypes *types, __isl_keep pet_context *pc);
 	__isl_give pet_expr *set_upper_bounds(__isl_take pet_expr *expr,
-		const clang::Type *type, int pos);
+		clang::QualType qt, int pos);
 	struct pet_array *set_upper_bounds(struct pet_array *array,
-		const clang::Type *type, __isl_keep pet_context *pc);
+		__isl_keep pet_context *pc);
+	int substitute_array_sizes(__isl_keep pet_tree *tree,
+		pet_substituter *substituter);
 
 	__isl_give pet_tree *insert_initial_declarations(
 		__isl_take pet_tree *tree, int n_decl,
@@ -140,7 +226,7 @@ private:
 	__isl_give pet_tree *extract(clang::Stmt *stmt,
 		bool skip_declarations = false);
 	__isl_give pet_tree *extract(clang::StmtRange stmt_range, bool block,
-		bool skip_declarations);
+		bool skip_declarations, clang::Stmt *parent);
 	__isl_give pet_tree *extract(clang::IfStmt *stmt);
 	__isl_give pet_tree *extract(clang::WhileStmt *stmt);
 	__isl_give pet_tree *extract(clang::CompoundStmt *stmt,
@@ -148,6 +234,7 @@ private:
 	__isl_give pet_tree *extract(clang::LabelStmt *stmt);
 	__isl_give pet_tree *extract(clang::Decl *decl);
 	__isl_give pet_tree *extract(clang::DeclStmt *expr);
+	__isl_give pet_tree *extract(clang::ReturnStmt *stmt);
 
 	__isl_give pet_loc *construct_pet_loc(clang::SourceRange range,
 		bool skip_semi);
@@ -174,6 +261,9 @@ private:
 	__isl_give pet_expr *extract_increment(clang::ForStmt *stmt,
 				clang::ValueDecl *iv);
 	__isl_give pet_tree *extract_for(clang::ForStmt *stmt);
+	__isl_give pet_tree *extract_expr_stmt(clang::Stmt *stmt);
+	int set_inliner_arguments(pet_inliner &inliner, clang::CallExpr *call,
+		clang::FunctionDecl *fd);
 
 	__isl_give pet_expr *extract_assume(clang::Expr *expr);
 	__isl_give pet_function_summary *get_summary(clang::FunctionDecl *fd);
@@ -194,8 +284,6 @@ private:
 	__isl_give pet_expr *extract_expr(clang::CallExpr *expr);
 	__isl_give pet_expr *extract_expr(clang::CStyleCastExpr *expr);
 
-	__isl_give pet_expr *extract_access_expr(clang::QualType qt,
-		__isl_take pet_expr *index);
 	__isl_give pet_expr *extract_access_expr(clang::Expr *expr);
 	__isl_give pet_expr *extract_access_expr(clang::ValueDecl *decl);
 
@@ -214,11 +302,23 @@ private:
 		std::string name);
 	clang::FunctionDecl *get_summary_function(clang::CallExpr *call);
 
+	void report(clang::SourceRange range, unsigned id);
 	void report(clang::Stmt *stmt, unsigned id);
+	void report(clang::Decl *decl, unsigned id);
 	void unsupported(clang::Stmt *stmt);
+	void report_unsupported_unary_operator(clang::Stmt *stmt);
+	void report_unsupported_binary_operator(clang::Stmt *stmt);
 	void report_unsupported_statement_type(clang::Stmt *stmt);
 	void report_prototype_required(clang::Stmt *stmt);
 	void report_missing_increment(clang::Stmt *stmt);
 	void report_missing_summary_function(clang::Stmt *stmt);
 	void report_missing_summary_function_body(clang::Stmt *stmt);
+	void report_unsupported_inline_function_argument(clang::Stmt *stmt);
+	void report_unsupported_declaration(clang::Decl *decl);
+	void report_unbalanced_pragmas(clang::SourceLocation scop,
+		clang::SourceLocation endscop);
+	void report_unsupported_return(clang::Stmt *stmt);
+	void report_return_not_at_end_of_function(clang::Stmt *stmt);
 };
+
+#endif

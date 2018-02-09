@@ -35,7 +35,14 @@
 #include <stdlib.h>
 #include <yaml.h>
 
+#include <isl/ctx.h>
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
 
 #include "expr.h"
 #include "loc.h"
@@ -304,6 +311,8 @@ static struct pet_array *extract_array(isl_ctx *ctx, yaml_document_t *document,
 			array->declared = extract_int(ctx, document, value);
 		if (!strcmp((char *) key->data.scalar.value, "exposed"))
 			array->exposed = extract_int(ctx, document, value);
+		if (!strcmp((char *) key->data.scalar.value, "outer"))
+			array->outer = extract_int(ctx, document, value);
 	}
 
 	return array;
@@ -613,7 +622,7 @@ static __isl_give pet_expr *extract_expr(isl_ctx *ctx,
 
 		if (key->type != YAML_SCALAR_NODE)
 			isl_die(ctx, isl_error_invalid, "expecting scalar key",
-				return pet_expr_free(expr));
+				return NULL);
 
 		if (!strcmp((char *) key->data.scalar.value, "type"))
 			type = extract_expr_type(ctx, document, value);
@@ -814,9 +823,10 @@ error:
 	return NULL;
 }
 
-/* Extract a pet_tree of type pet_tree_expr from "node".
+/* Extract a pet_expr corresponding to a pet_tree with a single "expr" field
+ * from "node".
  */
-static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
+static __isl_give pet_expr *extract_expr_field(isl_ctx *ctx,
 	yaml_document_t *document, yaml_node_t *node)
 {
 	yaml_node_pair_t *pair;
@@ -844,7 +854,23 @@ static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
 		isl_die(ctx, isl_error_invalid,
 			"no expr field", return NULL);
 
-	return pet_tree_new_expr(expr);
+	return expr;
+}
+
+/* Extract a pet_tree of type pet_tree_expr from "node".
+ */
+static __isl_give pet_tree *extract_tree_expr(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	return pet_tree_new_expr(extract_expr_field(ctx, document, node));
+}
+
+/* Extract a pet_tree of type pet_tree_return from "node".
+ */
+static __isl_give pet_tree *extract_tree_return(isl_ctx *ctx,
+	yaml_document_t *document, yaml_node_t *node)
+{
+	return pet_tree_new_return(extract_expr_field(ctx, document, node));
 }
 
 /* Extract a pet_tree of type pet_tree_while from "node".
@@ -1138,7 +1164,7 @@ static __isl_give pet_tree *extract_tree(isl_ctx *ctx,
 
 		if (key->type != YAML_SCALAR_NODE)
 			isl_die(ctx, isl_error_invalid, "expecting scalar key",
-				return pet_tree_free(tree));
+				return NULL);
 
 		if (!strcmp((char *) key->data.scalar.value, "type"))
 			type = extract_tree_type(ctx, document, value);
@@ -1168,6 +1194,9 @@ static __isl_give pet_tree *extract_tree(isl_ctx *ctx,
 		break;
 	case pet_tree_expr:
 		tree = extract_tree_expr(ctx, document, node);
+		break;
+	case pet_tree_return:
+		tree = extract_tree_return(ctx, document, node);
 		break;
 	case pet_tree_for:
 		tree = extract_tree_for(ctx, document, node);

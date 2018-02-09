@@ -35,7 +35,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <isl/id.h>
+#include <isl/val.h>
+#include <isl/space.h>
+#include <isl/local_space.h>
+#include <isl/aff.h>
 #include <isl/id_to_pw_aff.h>
+#include <isl/set.h>
+#include <isl/map.h>
 #include <isl/union_set.h>
 
 #include "aff.h"
@@ -46,6 +53,42 @@
 #include "skip.h"
 #include "state.h"
 #include "tree2scop.h"
+
+/* If "stmt" is an affine assumption, then record the assumption in "pc".
+ */
+static __isl_give pet_context *add_affine_assumption(struct pet_stmt *stmt,
+	__isl_take pet_context *pc)
+{
+	isl_bool affine;
+	isl_set *cond;
+
+	affine = pet_stmt_is_affine_assume(stmt);
+	if (affine < 0)
+		return pet_context_free(pc);
+	if (!affine)
+		return pc;
+	cond = pet_stmt_assume_get_affine_condition(stmt);
+	cond = isl_set_reset_tuple_id(cond);
+	pc = pet_context_intersect_domain(pc, cond);
+	return pc;
+}
+
+/* Given a scop "scop" derived from an assumption statement,
+ * record the assumption in "pc", if it is affine.
+ * Note that "scop" should consist of exactly one statement.
+ */
+static __isl_give pet_context *scop_add_affine_assumption(
+	__isl_keep pet_scop *scop, __isl_take pet_context *pc)
+{
+	int i;
+
+	if (!scop)
+		return pet_context_free(pc);
+	for (i = 0; i < scop->n_stmt; ++i)
+		pc = add_affine_assumption(scop->stmts[i], pc);
+
+	return pc;
+}
 
 /* Update "pc" by taking into account the writes in "stmt".
  * That is, clear any previously assigned values to variables
@@ -181,7 +224,6 @@ static struct pet_scop *kill(__isl_take pet_loc *loc, struct pet_array *array,
 	isl_multi_pw_aff *index;
 	isl_map *access;
 	pet_expr *expr;
-	struct pet_scop *scop;
 
 	if (!array)
 		goto error;
@@ -270,6 +312,10 @@ static int is_pencil_kill(__isl_keep pet_tree *tree)
 /* Add a kill to "scop" that kills what is accessed by
  * the access expression "expr".
  *
+ * Mark the access as a write prior to evaluation to avoid
+ * the access being replaced by a possible known value
+ * during the evaluation.
+ *
  * If the access expression has any arguments (after evaluation
  * in the context of "pc"), then we ignore it, since we cannot
  * tell which elements are definitely killed.
@@ -290,10 +336,12 @@ static struct pet_scop *scop_add_kill(struct pet_scop *scop,
 	struct pet_array *array;
 	struct pet_scop *scop_i;
 
+	expr = pet_expr_access_set_write(expr, 1);
 	expr = pet_context_evaluate_expr(pc, expr);
 	if (!expr)
 		goto error;
 	if (expr->n_arg != 0) {
+		pet_loc_free(loc);
 		pet_expr_free(expr);
 		return scop;
 	}
@@ -317,6 +365,7 @@ static struct pet_scop *scop_add_kill(struct pet_scop *scop,
 	return scop;
 error:
 	pet_expr_free(expr);
+	pet_loc_free(loc);
 	return pet_scop_free(scop);
 }
 
@@ -370,6 +419,15 @@ static struct pet_scop *scop_from_tree_expr(__isl_keep pet_tree *tree,
 		return NULL;
 	if (is_kill)
 		return scop_from_pencil_kill(tree, pc, state);
+	return scop_from_unevaluated_tree(pet_tree_copy(tree),
+						state->n_stmt++, pc);
+}
+
+/* Construct a pet_scop for a return statement within the context "pc".
+ */
+static struct pet_scop *scop_from_return(__isl_keep pet_tree *tree,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
 	return scop_from_unevaluated_tree(pet_tree_copy(tree),
 						state->n_stmt++, pc);
 }
@@ -763,7 +821,7 @@ static __isl_give pet_context *apply_affine_continue(__isl_take pet_context *pc,
 	return pc;
 }
 
-/* Add a scop for evaluating the loop increment "inc" add the end
+/* Add a scop for evaluating the loop increment "inc" at the end
  * of a loop body "scop" within the context "pc".
  *
  * The skip conditions resulting from continue statements inside
@@ -869,9 +927,9 @@ static struct pet_scop *scop_from_non_affine_while(__isl_take pet_expr *cond,
 		id_break_test = pet_scop_get_skip_id(scop_body, pet_skip_later);
 
 	scop_body = pet_scop_reset_context(scop_body);
-	if (expr_inc) {
+	if (expr_inc)
 		scop_body = scop_add_inc(scop_body, expr_inc, loc, pc, state);
-	} else
+	else
 		pet_loc_free(loc);
 	scop_body = pet_scop_reset_skips(scop_body);
 
@@ -1098,22 +1156,16 @@ static __isl_give isl_multi_aff *compute_wrapping(__isl_take isl_space *space,
 	__isl_keep pet_expr *iv)
 {
 	int dim;
-	isl_ctx *ctx;
-	isl_val *mod;
 	isl_aff *aff;
 	isl_multi_aff *ma;
 
 	dim = isl_space_dim(space, isl_dim_set);
 
-	ctx = isl_space_get_ctx(space);
-	mod = isl_val_int_from_ui(ctx, pet_expr_get_type_size(iv));
-	mod = isl_val_2exp(mod);
-
 	space = isl_space_map_from_set(space);
 	ma = isl_multi_aff_identity(space);
 
 	aff = isl_multi_aff_get_aff(ma, dim - 1);
-	aff = isl_aff_mod_val(aff, mod);
+	aff = pet_wrap_aff(aff, pet_expr_get_type_size(iv));
 	ma = isl_multi_aff_set_aff(ma, dim - 1, aff);
 
 	return ma;
@@ -1177,6 +1229,24 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
 	return enforce_subset(dom, cond);
 }
 
+/* Construct a pet_scop for the initialization of the iterator
+ * of the for loop "tree" within the context "pc" (i.e., the context
+ * of the loop).
+ */
+static __isl_give pet_scop *scop_from_for_init(__isl_keep pet_tree *tree,
+	__isl_keep pet_context *pc, struct pet_state *state)
+{
+	pet_expr *expr_iv, *init;
+	int type_size;
+
+	expr_iv = pet_expr_copy(tree->u.l.iv);
+	type_size = pet_expr_get_type_size(expr_iv);
+	init = pet_expr_copy(tree->u.l.init);
+	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
+	return scop_from_expr(init, state->n_stmt++,
+					pet_tree_get_loc(tree), pc);
+}
+
 /* Extract the for loop "tree" as a while loop within the context "pc_init".
  * In particular, "pc_init" represents the context of the loop,
  * whereas "pc" represents the context of the body of the loop and
@@ -1205,12 +1275,12 @@ static __isl_give isl_set *valid_on_next(__isl_take isl_set *cond,
  * and after the loop.
  */
 static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
-	__isl_keep pet_context *init_pc, __isl_take pet_context *pc,
+	__isl_keep pet_context *pc_init, __isl_take pet_context *pc,
 	struct pet_state *state)
 {
 	int declared;
 	isl_id *iv;
-	pet_expr *expr_iv, *init, *inc;
+	pet_expr *expr_iv, *inc;
 	struct pet_scop *scop_init, *scop;
 	int type_size;
 	struct pet_array *array;
@@ -1221,12 +1291,7 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 
 	declared = tree->u.l.declared;
 
-	expr_iv = pet_expr_copy(tree->u.l.iv);
-	type_size = pet_expr_get_type_size(expr_iv);
-	init = pet_expr_copy(tree->u.l.init);
-	init = pet_expr_new_binary(type_size, pet_op_assign, expr_iv, init);
-	scop_init = scop_from_expr(init, state->n_stmt++,
-					pet_tree_get_loc(tree), init_pc);
+	scop_init = scop_from_for_init(tree, pc_init, state);
 
 	expr_iv = pet_expr_copy(tree->u.l.iv);
 	type_size = pet_expr_get_type_size(expr_iv);
@@ -1244,12 +1309,12 @@ static struct pet_scop *scop_from_non_affine_for(__isl_keep pet_tree *tree,
 	if (!declared)
 		return scop;
 
-	array = extract_array(tree->u.l.iv, init_pc, state);
+	array = extract_array(tree->u.l.iv, pc_init, state);
 	if (array)
 		array->declared = 1;
-	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
+	scop_kill = kill(pet_tree_get_loc(tree), array, pc_init, state);
 	scop = pet_scop_add_seq(state->ctx, scop_kill, scop);
-	scop_kill = kill(pet_tree_get_loc(tree), array, init_pc, state);
+	scop_kill = kill(pet_tree_get_loc(tree), array, pc_init, state);
 	scop_kill = pet_scop_add_array(scop_kill, array);
 	scop = pet_scop_add_seq(state->ctx, scop, scop_kill);
 
@@ -1440,6 +1505,42 @@ static struct pet_scop *set_independence(struct pet_scop *scop,
 	return scop;
 }
 
+/* Add a scop for assigning to the variable corresponding to the loop
+ * iterator the result of adding the increment to the loop iterator
+ * at the end of a loop body "scop" within the context "pc".
+ * "tree" represents the for loop.
+ *
+ * The increment is of the form
+ *
+ *	iv = iv + inc
+ *
+ * Note that "iv" on the right hand side will be evaluated in terms
+ * of the (possibly virtual) loop iterator, i.e., the inner dimension
+ * of the domain, while "iv" on the left hand side will not be evaluated
+ * (because it is a write) and will continue to refer to the original
+ * variable.
+ */
+static __isl_give pet_scop *add_iterator_assignment(__isl_take pet_scop *scop,
+	__isl_keep pet_tree *tree, __isl_keep pet_context *pc,
+	struct pet_state *state)
+{
+	int type_size;
+	pet_expr *expr, *iv, *inc;
+
+	iv = pet_expr_copy(tree->u.l.iv);
+	type_size = pet_expr_get_type_size(iv);
+	iv = pet_expr_access_set_write(iv, 0);
+	iv = pet_expr_access_set_read(iv, 1);
+	inc = pet_expr_copy(tree->u.l.inc);
+	expr = pet_expr_new_binary(type_size, pet_op_add, iv, inc);
+	iv = pet_expr_copy(tree->u.l.iv);
+	expr = pet_expr_new_binary(type_size, pet_op_assign, iv, expr);
+
+	scop = scop_add_inc(scop, expr, pet_tree_get_loc(tree), pc, state);
+
+	return scop;
+}
+
 /* Construct a pet_scop for a for tree with static affine initialization
  * and constant increment within the context "pc".
  * The domain of "pc" has already been extended with an (at this point
@@ -1497,7 +1598,7 @@ static struct pet_scop *set_independence(struct pet_scop *scop,
  * check if there even is an upper bound.
  *
  * Wrapping on unsigned iterators can be avoided entirely if
- * loop condition is simple, the loop iterator is incremented
+ * the loop condition is simple, the loop iterator is incremented
  * [decremented] by one and the last value before wrapping cannot
  * possibly satisfy the loop condition.
  *
@@ -1508,6 +1609,12 @@ static struct pet_scop *set_independence(struct pet_scop *scop,
  * can be evaluated.
  * If the loop condition is non-affine, then we only consider validity
  * of the initial value.
+ *
+ * If the loop iterator was not declared inside the loop header,
+ * then the variable corresponding to this loop iterator is assigned
+ * the result of adding the increment at the end of the loop body.
+ * The assignment of the initial value is taken care of by
+ * scop_from_affine_for_init.
  *
  * If the body contains any break, then we keep track of it in "skip"
  * (if the skip condition is affine) or it is handled in scop_add_break
@@ -1657,6 +1764,8 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	if (is_non_affine) {
 		scop = pet_scop_reset_context(scop);
 	}
+	if (!tree->u.l.declared)
+		scop = add_iterator_assignment(scop, tree, pc, state);
 	scop = pet_scop_reset_skips(scop);
 	scop = pet_scop_resolve_nested(scop);
 	if (has_affine_break) {
@@ -1695,6 +1804,35 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
 	return scop;
 }
 
+/* Construct a pet_scop for a for tree with static affine initialization
+ * and constant increment within the context "pc_init".
+ * In particular, "pc_init" represents the context of the loop,
+ * whereas the domain of "pc" has already been extended with an (at this point
+ * unbounded) inner loop iterator corresponding to the current for loop.
+ *
+ * If the loop iterator was not declared inside the loop header,
+ * then add an assignment of the initial value to the loop iterator
+ * before the loop.  The construction of a pet_scop for the loop itself,
+ * including updates to the loop iterator, is handled by scop_from_affine_for.
+ */
+static __isl_give pet_scop *scop_from_affine_for_init(__isl_keep pet_tree *tree,
+	__isl_take isl_pw_aff *init_val, __isl_take isl_pw_aff *pa_inc,
+	__isl_take isl_val *inc, __isl_keep pet_context *pc_init,
+	__isl_take pet_context *pc, struct pet_state *state)
+{
+	pet_scop *scop_init, *scop;
+
+	if (!tree->u.l.declared)
+		scop_init = scop_from_for_init(tree, pc_init, state);
+
+	scop = scop_from_affine_for(tree, init_val, pa_inc, inc, pc, state);
+
+	if (!tree->u.l.declared)
+		scop = pet_scop_add_seq(state->ctx, scop_init, scop);
+
+	return scop;
+}
+
 /* Construct a pet_scop for a for statement within the context of "pc".
  *
  * We update the context to reflect the writes to the loop variable and
@@ -1702,7 +1840,7 @@ static struct pet_scop *scop_from_affine_for(__isl_keep pet_tree *tree,
  *
  * Then we check if the initialization of the for loop
  * is a static affine value and the increment is a constant.
- * If so, we construct the pet_scop using scop_from_affine_for.
+ * If so, we construct the pet_scop using scop_from_affine_for_init.
  * Otherwise, we treat the for loop as a while loop
  * in scop_from_non_affine_for.
  *
@@ -1740,8 +1878,8 @@ static struct pet_scop *scop_from_for(__isl_keep pet_tree *tree,
 		goto error;
 	if (!isl_pw_aff_involves_nan(pa_inc) &&
 	    !isl_pw_aff_involves_nan(init_val) && !isl_val_is_nan(inc))
-		return scop_from_affine_for(tree, init_val, pa_inc, inc,
-						pc, state);
+		return scop_from_affine_for_init(tree, init_val, pa_inc, inc,
+						init_pc, pc, state);
 
 	isl_pw_aff_free(pa_inc);
 	isl_pw_aff_free(init_val);
@@ -2236,6 +2374,8 @@ static int tree_is_decl(__isl_keep pet_tree *tree)
 		return 0;
 	if (pet_tree_block_get_block(tree))
 		return 0;
+	if (tree->u.b.n == 0)
+		return 0;
 
 	for (i = 0; i < tree->u.b.n; ++i) {
 		is_decl = tree_is_decl(tree->u.b.child[i]);
@@ -2330,6 +2470,7 @@ static struct pet_scop *mark_exposed(struct pet_scop *scop)
  * After extracting a statement, we update "pc"
  * based on the top-level assignments in the statement
  * so that we can exploit them in subsequent statements in the same block.
+ * Top-level affine assumptions are also recorded in the context.
  *
  * If there are any breaks or continues in the individual statements,
  * then we may have to compute a new skip condition.
@@ -2376,6 +2517,8 @@ static struct pet_scop *scop_from_block(__isl_keep pet_tree *tree,
 		if (pet_scop_has_affine_skip(scop, pet_skip_now))
 			pc = apply_affine_continue(pc, scop);
 		scop_i = scop_from_tree(tree->u.b.child[i], pc, state);
+		if (pet_tree_is_assume(tree->u.b.child[i]))
+			pc = scop_add_affine_assumption(scop_i, pc);
 		pc = scop_handle_writes(scop_i, pc);
 		if (is_assignment(tree->u.b.child[i]))
 			pc = handle_assignment(pc, tree->u.b.child[i]);
@@ -2475,7 +2618,9 @@ static int extract_declared_arrays(__isl_keep pet_tree *node, void *user)
 
 /* Convert a pet_tree that consists of more than a single leaf
  * to a pet_scop with a single statement encapsulating the entire pet_tree.
- * Do so within the context of "pc".
+ * Do so within the context of "pc", taking into account the writes inside
+ * "tree".  That is, first clear any previously assigned values to variables
+ * that are written by "tree".
  *
  * After constructing the core scop, we also look for any arrays (or scalars)
  * that are declared inside "tree".  Each of those arrays is marked as
@@ -2485,20 +2630,22 @@ static int extract_declared_arrays(__isl_keep pet_tree *node, void *user)
  * cannot occur at the outer level.
  */
 static struct pet_scop *scop_from_tree_macro(__isl_take pet_tree *tree,
-	__isl_take isl_id *label, __isl_keep pet_context *pc,
-	struct pet_state *state)
+	__isl_keep pet_context *pc, struct pet_state *state)
 {
 	struct pet_tree_extract_declared_arrays_data data = { pc, state };
 
+	data.pc = pet_context_copy(data.pc);
+	data.pc = pet_context_clear_writes_in_tree(data.pc, tree);
 	data.scop = scop_from_unevaluated_tree(pet_tree_copy(tree),
-						state->n_stmt++, pc);
+						state->n_stmt++, data.pc);
 
 	data.any = 0;
-	data.ctx = pet_context_get_ctx(pc);
+	data.ctx = pet_context_get_ctx(data.pc);
 	if (pet_tree_foreach_sub_tree(tree, &extract_declared_arrays,
 					&data) < 0)
 		data.scop = pet_scop_free(data.scop);
 	pet_tree_free(tree);
+	pet_context_free(data.pc);
 
 	if (!data.any)
 		return data.scop;
@@ -2547,6 +2694,8 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 		return scop_from_decl(tree, pc, state);
 	case pet_tree_expr:
 		return scop_from_tree_expr(tree, pc, state);
+	case pet_tree_return:
+		return scop_from_return(tree, pc, state);
 	case pet_tree_if:
 	case pet_tree_if_else:
 		scop = scop_from_if(tree, pc, state);
@@ -2571,8 +2720,7 @@ static struct pet_scop *scop_from_tree(__isl_keep pet_tree *tree,
 		return scop;
 
 	pet_scop_free(scop);
-	return scop_from_tree_macro(pet_tree_copy(tree),
-					isl_id_copy(tree->label), pc, state);
+	return scop_from_tree_macro(pet_tree_copy(tree), pc, state);
 }
 
 /* If "tree" has a label that is of the form S_<nr>, then make

@@ -1,3 +1,37 @@
+/*
+ * Copyright 2014      Ecole Normale Superieure. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *    1. Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *    2. Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY ECOLE NORMALE SUPERIEURE ''AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ECOLE NORMALE SUPERIEURE OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+ * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation
+ * are those of the authors and should not be interpreted as
+ * representing official policies, either expressed or implied, of
+ * Ecole Normale Superieure.
+ */
+
+#include <isl/space.h>
 #include <isl/union_set.h>
 
 #include "aff.h"
@@ -77,6 +111,13 @@ __isl_give pet_function_summary *pet_function_summary_copy(
 
 	summary->ref++;
 	return summary;
+}
+
+/* Return the isl_ctx in which "summary" was created.
+ */
+isl_ctx *pet_function_summary_get_ctx(__isl_keep pet_function_summary *summary)
+{
+	return summary ? summary->ctx : NULL;
 }
 
 /* Free the data stored in "arg".
@@ -273,45 +314,67 @@ __isl_give isl_union_map *pet_function_summary_arg_get_access(
 	return isl_union_map_copy(summary->arg[pos].access[type]);
 }
 
-void pet_function_summary_dump_with_indent(
-	__isl_keep pet_function_summary *summary, int indent)
+/* Print "summary" to "p" in YAML format.
+ */
+__isl_give isl_printer *pet_function_summary_print(
+	__isl_keep pet_function_summary *summary, __isl_take isl_printer *p)
 {
 	int i;
 
-	if (!summary)
-		return;
-	fprintf(stderr, "%*s", indent, "");
-	fprintf(stderr, "n: %d\n", summary->n);
+	if (!summary || !p)
+		return isl_printer_free(p);
+	p = isl_printer_yaml_start_sequence(p);
 	for (i = 0; i < summary->n; ++i) {
 		switch (summary->arg[i].type) {
 		case pet_arg_int:
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "id:");
-			isl_id_dump(summary->arg[i].id);
+			p = isl_printer_yaml_start_mapping(p);
+			p = isl_printer_print_str(p, "id");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_id(p, summary->arg[i].id);
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_yaml_end_mapping(p);
 			break;
 		case pet_arg_other:
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "other\n");
+			p = isl_printer_print_str(p, "other");
 			break;
 		case pet_arg_array:
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "may_read: ");
-			isl_union_map_dump(
+			p = isl_printer_yaml_start_mapping(p);
+			p = isl_printer_print_str(p, "may_read");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 			    summary->arg[i].access[pet_expr_access_may_read]);
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "may_write: ");
-			isl_union_map_dump(
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_str(p, "may_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 			    summary->arg[i].access[pet_expr_access_may_write]);
-			fprintf(stderr, "%*s", indent, "");
-			fprintf(stderr, "must_write: ");
-			isl_union_map_dump(
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_str(p, "must_write");
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_print_union_map(p,
 			    summary->arg[i].access[pet_expr_access_must_write]);
+			p = isl_printer_yaml_next(p);
+			p = isl_printer_yaml_end_mapping(p);
 			break;
 		}
 	}
+	p = isl_printer_yaml_end_sequence(p);
+
+	return p;
 }
 
+/* Dump "summary" to stderr.
+ */
 void pet_function_summary_dump(__isl_keep pet_function_summary *summary)
 {
-	pet_function_summary_dump_with_indent(summary, 0);
+	isl_printer *p;
+
+	if (!summary)
+		return;
+
+	p = isl_printer_to_file(pet_function_summary_get_ctx(summary), stderr);
+	p = isl_printer_set_yaml_style(p, ISL_YAML_STYLE_BLOCK);
+	p = pet_function_summary_print(summary, p);
+
+	isl_printer_free(p);
 }

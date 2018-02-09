@@ -34,6 +34,14 @@
 
 #include <string.h>
 
+#include <isl/id.h>
+#include <isl/space.h>
+#include <isl/set.h>
+#include <isl/map.h>
+#include <isl/union_map.h>
+#include <isl/aff.h>
+#include <isl/val.h>
+
 #include "aff.h"
 #include "expr.h"
 #include "expr_arg.h"
@@ -240,21 +248,6 @@ __isl_give isl_set *pet_nested_remove_from_set(__isl_take isl_set *set)
 			set = isl_set_project_out(set, isl_dim_param, i, 1);
 
 	return set;
-}
-
-/* Remove all parameters from "map" that refer to nested accesses.
- */
-static __isl_give isl_map *pet_nested_remove_from_map(__isl_take isl_map *map)
-{
-	int i;
-	int nparam;
-
-	nparam = isl_map_dim(map, isl_dim_param);
-	for (i = nparam - 1; i >= 0; --i)
-		if (pet_nested_in_map(map, i))
-			map = isl_map_project_out(map, isl_dim_param, i, 1);
-
-	return map;
 }
 
 /* Remove all parameters from "umap" that refer to nested accesses.
@@ -850,13 +843,10 @@ error:
 struct pet_stmt *pet_stmt_resolve_nested(struct pet_stmt *stmt)
 {
 	int i, n;
-	int pos;
 	int nparam;
 	unsigned n_arg;
 	isl_ctx *ctx;
 	isl_map *map;
-	isl_space *space;
-	isl_multi_aff *ma;
 	int *param2pos;
 
 	if (!stmt)

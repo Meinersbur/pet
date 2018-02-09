@@ -90,6 +90,7 @@
 
 #include <pet.h>
 
+#include "id.h"
 #include "options.h"
 #include "scan.h"
 #include "print.h"
@@ -148,7 +149,7 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 	isl_union_map *value_bounds;
 
 	PragmaValueBoundsHandler(isl_ctx *ctx, Sema &sema) :
-	    PragmaHandler("value_bounds"), ctx(ctx), sema(sema) {
+	    PragmaHandler("value_bounds"), sema(sema), ctx(ctx) {
 		isl_space *space = isl_space_params_alloc(ctx, 0);
 		value_bounds = isl_union_map_empty(space);
 	}
@@ -381,12 +382,16 @@ struct ScopLocList {
 	/* Add a new start (#pragma scop) location to the list.
 	 * If the last #pragma scop did not have a matching
 	 * #pragma endscop then overwrite it.
+	 * "start" points to the location of the scop pragma.
 	 */
-	void add_start(unsigned line, unsigned start) {
+	void add_start(SourceManager &SM, SourceLocation start) {
 		ScopLoc loc;
 
+		loc.scop = start;
+		int line = SM.getExpansionLineNumber(start);
+		start = translateLineCol(SM, SM.getFileID(start), line, 1);
 		loc.start_line = line;
-		loc.start = start;
+		loc.start = SM.getFileOffset(start);
 		if (list.size() == 0 || list[list.size() - 1].end != 0)
 			list.push_back(loc);
 		else
@@ -397,11 +402,15 @@ struct ScopLocList {
 	 * in the list.
 	 * If there is no such pair of if the end of that pair
 	 * is already set, then ignore the spurious #pragma endscop.
+	 * "end" points to the location of the endscop pragma.
 	 */
-	void add_end(unsigned end) {
+	void add_end(SourceManager &SM, SourceLocation end) {
 		if (list.size() == 0 || list[list.size() - 1].end != 0)
 			return;
-		list[list.size() - 1].end = end;
+		list[list.size() - 1].endscop = end;
+		int line = SM.getExpansionLineNumber(end);
+		end = translateLineCol(SM, SM.getFileID(end), line + 1, 1);
+		list[list.size() - 1].end = SM.getFileOffset(end);
 	}
 };
 
@@ -423,9 +432,7 @@ struct PragmaScopHandler : public PragmaHandler {
 				  Token &ScopTok) {
 		SourceManager &SM = PP.getSourceManager();
 		SourceLocation sloc = ScopTok.getLocation();
-		int line = SM.getExpansionLineNumber(sloc);
-		sloc = translateLineCol(SM, SM.getFileID(sloc), line, 1);
-		scops.add_start(line, SM.getFileOffset(sloc));
+		scops.add_start(SM, sloc);
 	}
 };
 
@@ -447,9 +454,7 @@ struct PragmaEndScopHandler : public PragmaHandler {
 				  Token &EndScopTok) {
 		SourceManager &SM = PP.getSourceManager();
 		SourceLocation sloc = EndScopTok.getLocation();
-		int line = SM.getExpansionLineNumber(sloc);
-		sloc = translateLineCol(SM, SM.getFileID(sloc), line + 1, 1);
-		scops.add_end(SM.getFileOffset(sloc));
+		scops.add_end(SM, sloc);
 	}
 };
 
@@ -497,7 +502,7 @@ struct PragmaLiveOutHandler : public PragmaHandler {
 };
 
 /* For each array in "scop", set its value_bounds property
- * based on the infofrmation in "value_bounds" and
+ * based on the information in "value_bounds" and
  * mark it as live_out if it appears in "live_out".
  */
 static void update_arrays(struct pet_scop *scop,
@@ -519,7 +524,7 @@ static void update_arrays(struct pet_scop *scop,
 		pet_array *array = scop->arrays[i];
 
 		id = isl_set_get_tuple_id(array->extent);
-		decl = (ValueDecl *)isl_id_get_user(id);
+		decl = pet_id_get_decl(id);
 
 		space = isl_space_alloc(ctx, 0, 0, 1);
 		space = isl_space_set_tuple_id(space, isl_dim_in, id);
@@ -560,16 +565,17 @@ struct PetASTConsumer : public ASTConsumer {
 	isl_set *context_value;
 	set<ValueDecl *> live_out;
 	PragmaValueBoundsHandler *vb_handler;
-	int (*fn)(struct pet_scop *scop, void *user);
+	isl_stat (*fn)(struct pet_scop *scop, void *user);
 	void *user;
 	bool error;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
 		DiagnosticsEngine &diags, ScopLocList &scops,
 		const char *function, pet_options *options,
-		int (*fn)(struct pet_scop *scop, void *user), void *user) :
-		ctx(ctx), PP(PP), ast_context(ast_context), diags(diags),
+		isl_stat (*fn)(struct pet_scop *scop, void *user), void *user) :
+		PP(PP), ast_context(ast_context), diags(diags),
 		scops(scops), function(function), options(options),
+		ctx(ctx),
 		vb_handler(NULL), fn(fn), user(user), error(false)
 	{
 		isl_space *space;
@@ -615,9 +621,12 @@ struct PetASTConsumer : public ASTConsumer {
 	 * is turned on, then skip it.
 	 */
 	void call_fn(pet_scop *scop) {
-		if (!scop)
+		if (!scop) {
+			error = true;
 			return;
+		}
 		if (diags.hasErrorOccurred()) {
+			error = true;
 			pet_scop_free(scop);
 			return;
 		}
@@ -663,7 +672,7 @@ struct PetASTConsumer : public ASTConsumer {
 				continue;
 			if (end < loc.start)
 				continue;
-			PetScan ps(PP, ast_context, loc, options,
+			PetScan ps(PP, ast_context, fd, loc, options,
 				    isl_union_map_copy(vb), independent);
 			scop = ps.scan(fd);
 			call_fn(scop);
@@ -689,7 +698,7 @@ struct PetASTConsumer : public ASTConsumer {
 			if (options->autodetect) {
 				ScopLoc loc;
 				pet_scop *scop;
-				PetScan ps(PP, ast_context, loc, options,
+				PetScan ps(PP, ast_context, fd, loc, options,
 					    isl_union_map_copy(vb),
 					    independent);
 				scop = ps.scan(fd);
@@ -719,12 +728,12 @@ static const char *pencil_implicit_functions[] = {
 static bool is_implicit(const IdentifierInfo *ident, int pencil)
 {
 	const char *name = ident->getNameStart();
-	for (int i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(implicit_functions); ++i)
 		if (!strcmp(name, implicit_functions[i]))
 			return true;
 	if (!pencil)
 		return false;
-	for (int i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(pencil_implicit_functions); ++i)
 		if (!strcmp(name, pencil_implicit_functions[i]))
 			return true;
 	return false;
@@ -793,12 +802,15 @@ static Driver *construct_driver(const char *binary, DiagnosticsEngine &Diags)
 }
 #endif
 
-/* Clang changed its API from 3.5 to 3.6, we fix this with a simple overloaded
- * function here.
+namespace clang { namespace driver { class Job; } }
+
+/* Clang changed its API from 3.5 to 3.6 and once more in 3.7.
+ * We fix this with a simple overloaded function here.
  */
 struct ClangAPI {
 	static Job *command(Job *J) { return J; }
 	static Job *command(Job &J) { return &J; }
+	static Command *command(Command &C) { return &C; }
 };
 
 /* Create a CompilerInvocation object that stores the command line
@@ -958,6 +970,45 @@ static void create_main_file_id(SourceManager &SM, const FileEntry *file)
 
 #endif
 
+#ifdef SETLANGDEFAULTS_TAKES_5_ARGUMENTS
+
+static void set_lang_defaults(CompilerInstance *Clang)
+{
+	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
+	TargetOptions &TO = Clang->getTargetOpts();
+	llvm::Triple T(TO.Triple);
+	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C, T, PO,
+					    LangStandard::lang_unspecified);
+}
+
+#else
+
+static void set_lang_defaults(CompilerInstance *Clang)
+{
+	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
+					    LangStandard::lang_unspecified);
+}
+
+#endif
+
+#ifdef SETINVOCATION_TAKES_SHARED_PTR
+
+static void set_invocation(CompilerInstance *Clang,
+	CompilerInvocation *invocation)
+{
+	Clang->setInvocation(std::shared_ptr<CompilerInvocation>(invocation));
+}
+
+#else
+
+static void set_invocation(CompilerInstance *Clang,
+	CompilerInvocation *invocation)
+{
+	Clang->setInvocation(invocation);
+}
+
+#endif
+
 /* Add pet specific predefines to the preprocessor.
  * Currently, these are all pencil specific, so they are only
  * added if "pencil" is set.
@@ -990,9 +1041,9 @@ void add_predefines(Preprocessor &PP, int pencil)
  * We first set up the clang parser and then try to extract the
  * pet_scop from the appropriate function(s) in PetASTConsumer.
  */
-static int foreach_scop_in_C_source(isl_ctx *ctx,
+static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 	const char *filename, const char *function, pet_options *options,
-	int (*fn)(struct pet_scop *scop, void *user), void *user)
+	isl_stat (*fn)(struct pet_scop *scop, void *user), void *user)
 {
 	CompilerInstance *Clang = new CompilerInstance();
 	create_diagnostics(Clang);
@@ -1000,14 +1051,13 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	Diags.setSuppressSystemWarnings(true);
 	CompilerInvocation *invocation = construct_invocation(filename, Diags);
 	if (invocation)
-		Clang->setInvocation(invocation);
+		set_invocation(Clang, invocation);
 	Diags.setClient(construct_printer(Clang, options->pencil));
 	Clang->createFileManager();
 	Clang->createSourceManager(Clang->getFileManager());
 	TargetInfo *target = create_target_info(Clang, Diags);
 	Clang->setTarget(target);
-	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
-					    LangStandard::lang_unspecified);
+	set_lang_defaults(Clang);
 	HeaderSearchOptions &HSO = Clang->getHeaderSearchOpts();
 	HSO.ResourceDir = ResourceDir;
 	for (int i = 0; i < options->n_path; ++i)
@@ -1018,7 +1068,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 	add_predefines(PP, options->pencil);
-	PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
+	PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
 		PP.getLangOpts());
 
 	ScopLocList scops;
@@ -1026,7 +1076,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	const FileEntry *file = Clang->getFileManager().getFile(filename);
 	if (!file)
 		isl_die(ctx, isl_error_unknown, "unable to open file",
-			do { delete Clang; return -1; } while (0));
+			do { delete Clang; return isl_stat_error; } while (0));
 	create_main_file_id(Clang->getSourceManager(), file);
 
 	Clang->createASTContext();
@@ -1050,7 +1100,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	delete sema;
 	delete Clang;
 
-	return consumer.error ? -1 : 0;
+	return consumer.error ? isl_stat_error : isl_stat_ok;
 }
 
 /* Extract a pet_scop from each function in the C source file called "filename".
@@ -1060,11 +1110,11 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
  * that all objects on the stack (of that function) are destroyed before we
  * call llvm_shutdown.
  */
-static int pet_foreach_scop_in_C_source(isl_ctx *ctx,
+static isl_stat pet_foreach_scop_in_C_source(isl_ctx *ctx,
 	const char *filename, const char *function,
-	int (*fn)(struct pet_scop *scop, void *user), void *user)
+	isl_stat (*fn)(struct pet_scop *scop, void *user), void *user)
 {
-	int r;
+	isl_stat r;
 	pet_options *options;
 	bool allocated = false;
 
@@ -1089,7 +1139,7 @@ static int pet_foreach_scop_in_C_source(isl_ctx *ctx,
  * This function should therefore not be called a second call
  * so in principle there is no need to check if we have already set *user.
  */
-static int set_first_scop(pet_scop *scop, void *user)
+static isl_stat set_first_scop(pet_scop *scop, void *user)
 {
 	pet_scop **p = (pet_scop **) user;
 
@@ -1098,7 +1148,7 @@ static int set_first_scop(pet_scop *scop, void *user)
 	else
 		pet_scop_free(scop);
 
-	return -1;
+	return isl_stat_error;
 }
 
 /* Extract a pet_scop from the C source file called "filename".
@@ -1153,11 +1203,13 @@ struct pet_transform_data {
  * input file in the extended scop in case the user wants to call
  * pet_scop_print_original from the callback.
  */
-static int pet_transform(struct pet_scop *scop, void *user)
+static isl_stat pet_transform(struct pet_scop *scop, void *user)
 {
 	struct pet_transform_data *data = (struct pet_transform_data *) user;
 	unsigned start;
 
+	if (!scop)
+		return isl_stat_error;
 	start = pet_loc_get_start(scop->loc);
 	if (copy(data->in, data->out, data->end, start) < 0)
 		goto error;
@@ -1167,11 +1219,11 @@ static int pet_transform(struct pet_scop *scop, void *user)
 					pet_loc_get_indent(scop->loc));
 	data->p = data->transform(data->p, scop, data->user);
 	if (!data->p)
-		return -1;
-	return 0;
+		return isl_stat_error;
+	return isl_stat_ok;
 error:
 	pet_scop_free(scop);
-	return -1;
+	return isl_stat_error;
 }
 
 /* Transform the C source file "input" by rewriting each scop

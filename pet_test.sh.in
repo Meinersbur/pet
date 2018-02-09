@@ -20,3 +20,5 @@ for i in $srcdir/tests/encapsulate/*.c; do
 	(./pet$EXEEXT --encapsulate-dynamic-control $i > test.scop &&
 	 ./pet_scop_cmp$EXEEXT test.scop ${i%.c}.scop) || exit
 done
+
+rm test.scop
