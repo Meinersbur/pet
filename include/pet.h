@@ -432,7 +432,7 @@ struct pet_type {
  * this array has a valid (i.e., non-negative) size
  *
  * extent holds constraints on the indices
- * 
+ *
  * value_bounds holds constraints on the elements of the array
  * and may be NULL if no such constraints were specified by the user
  *
@@ -492,6 +492,7 @@ struct pet_independence {
 
 /* "loc" represents the region of the source code that is represented
  * by this scop.
+ * "func" is the name of the function in which the scop resides.
  * If the scop was detected based on scop and endscop pragmas, then
  * the lines containing these pragmas are included in this region.
  * In the final result, the context describes the set of parameter values
@@ -512,6 +513,7 @@ struct pet_independence {
  */
 struct pet_scop {
 	pet_loc *loc;
+	char *func;
 
 	isl_set *context;
 	isl_set *context_value;
@@ -614,6 +616,8 @@ __isl_give isl_union_map *pet_scop_compute_outer_to_inner(
  */
 __isl_give isl_union_map *pet_scop_compute_outer_to_any(
 	__isl_keep pet_scop *scop);
+
+const char *pet_scop_get_function_name(__isl_keep pet_scop *scop);
 
 #if defined(__cplusplus)
 }

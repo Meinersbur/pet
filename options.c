@@ -57,7 +57,10 @@ ISL_ARG_CHOICE(struct pet_options, signed_overflow, 0,
 ISL_ARG_STR_LIST(struct pet_options, n_path, paths, 'I', "include-path",
 	"path", NULL)
 ISL_ARG_STR_LIST(struct pet_options, n_define, defines, 'D', NULL,
-	"macro[=defn]", NULL)
+        "macro[=defn]", NULL)
+ISL_ARG_STR_LIST(struct pet_options, n_include_file,
+        include_files, 0, "include", "filename",
+        "File to include implicitly")
 ISL_ARG_VERSION(&pet_print_version)
 ISL_ARGS_END
 

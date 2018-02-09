@@ -7,6 +7,7 @@ set(PET_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 if (TARGET isl)
 	set(ISL_LIBRARIES isl)
+	set(ISL_INCLUDE_DIR $<TARGET_PROPERTY:isl,INTERFACE_INCLUDE_DIRECTORIES>)
 else ()
 	message("Searching ISL")
 	find_package(Isl REQUIRED)
@@ -21,7 +22,7 @@ find_package(Clang REQUIRED)
 if (EXISTS "${PET_SOURCE_DIR}/GIT_HEAD_ID")
   # The source comes from a 'make dist' archive
   file(READ "${PET_SOURCE_DIR}/GIT_HEAD_ID" GIT_HEAD_ID)
-  string(STRIP "${PET_HEAD_ID}" GIT_HEAD_ID)
+  string(STRIP "${GIT_HEAD_ID}" GIT_HEAD_ID)
 elseif (EXISTS "${PET_SOURCE_DIR}/gitversion.h")
   # The source directory is preconfigured
   file(READ "${PET_SOURCE_DIR}/gitversion.h" GITVERSION_H)
@@ -77,11 +78,11 @@ set(libpet_sources
 
 
 add_library(pet ${libpet_sources})
-target_include_directories(pet PRIVATE "${PET_BINARY_DIR}/include")
+target_include_directories(pet PRIVATE "${PET_BINARY_DIR}")
 target_include_directories(pet PUBLIC "${PET_SOURCE_DIR}/include")
 target_include_directories(pet PRIVATE ${CLANG_INCLUDE_DIRS})
+target_include_directories(pet PUBLIC ${ISL_INCLUDE_DIR})
 target_link_libraries(pet INTERFACE ${ISL_LIBRARIES} ${CLANG_LIBRARIES} "-lyaml")
-
 
 
 function(add_pet_executable _name)

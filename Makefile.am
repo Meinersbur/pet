@@ -3,8 +3,8 @@ if BUNDLED_ISL
     ISL_LA = $(top_builddir)/isl/libisl.la
 endif
 
-SUBDIRS = $(MAYBE_ISL) .
-DIST_SUBDIRS = $(MAYBE_ISL)
+SUBDIRS = $(MAYBE_ISL)
+DIST_SUBDIRS = $(SUBDIRS)
 
 FORCE:
 isl/libisl.la: FORCE
@@ -28,10 +28,12 @@ BUILT_SOURCES = \
 	gitversion.h
 
 CLEANFILES = \
+	test.scop \
 	gitversion.h \
 	isl.py
 
 DISTCLEANFILES = \
+	test.c \
 	pet-uninstalled.sh \
 	pet-uninstalled.pc \
 	pet.pc \
@@ -150,6 +152,7 @@ pet_check_code_SOURCES = \
 	pet_check_code.c
 
 isl.py: interface/isl.py.top
+	cd @ISL_BUILDDIR@/interface; make extract_interface
 	(cat $(srcdir)/interface/isl.py.top; \
 		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
 			--language=python \

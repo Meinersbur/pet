@@ -2,19 +2,19 @@
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2015 Ecole Normale Superieure. All rights reserved.
  * Copyright 2015-2017 Sven Verdoolaege. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  *    1. Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
- * 
+ *
  *    2. Redistributions in binary form must reproduce the above
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY LEIDEN UNIVERSITY ''AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -26,12 +26,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as
  * representing official policies, either expressed or implied, of
  * Leiden University.
- */ 
+ */
 
 #include "config.h"
 
@@ -3318,6 +3318,10 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
 		current_line = loc.start_line;
 		scop = scan(stmt);
 		scop = pet_scop_update_start_end(scop, loc.start, loc.end);
+	}
+	if (scop) {
+		free(scop->func);
+		scop->func = strdup(fd->getName().str().c_str());
 	}
 	scop = add_parameter_bounds(scop);
 	scop = pet_scop_gist(scop, value_bounds);

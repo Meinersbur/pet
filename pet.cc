@@ -1,19 +1,19 @@
 /*
  * Copyright 2011      Leiden University. All rights reserved.
  * Copyright 2012-2014 Ecole Normale Superieure. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  *    1. Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
- * 
+ *
  *    2. Redistributions in binary form must reproduce the above
  *       copyright notice, this list of conditions and the following
  *       disclaimer in the documentation and/or other materials provided
  *       with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY LEIDEN UNIVERSITY ''AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -25,12 +25,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * The views and conclusions contained in the software and documentation
  * are those of the authors and should not be interpreted as
  * representing official policies, either expressed or implied, of
  * Leiden University.
- */ 
+ */
 
 #include "config.h"
 
@@ -832,7 +832,11 @@ static CompilerInvocation *construct_invocation(const char *filename,
 	if (Jobs.size() < 1)
 		return NULL;
 
+#if CLANG_VERSION_MAJOR>=3 && CLANG_VERSION_MINOR>=7
+	Command *cmd = &*Jobs.begin();
+#else
 	Command *cmd = cast<Command>(ClangAPI::command(*Jobs.begin()));
+#endif
 	if (strcmp(cmd->getCreator().getName(), "clang"))
 		return NULL;
 
@@ -1048,6 +1052,7 @@ static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 	CompilerInstance *Clang = new CompilerInstance();
 	create_diagnostics(Clang);
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
+	Diags.setIgnoreAllWarnings(true); // Switch off all warnings as they are not useful; We were preprocessing the source file using another compiler (usually gcc), which can insert compiler-specific things such as attributes.
 	Diags.setSuppressSystemWarnings(true);
 	CompilerInvocation *invocation = construct_invocation(filename, Diags);
 	if (invocation)
@@ -1065,6 +1070,8 @@ static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
 	for (int i = 0; i < options->n_define; ++i)
 		PO.addMacroDef(options->defines[i]);
+        for (int i = 0; i < options->n_include_file; ++i)
+            PO.Includes.push_back(options->include_files[i]);
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
 	add_predefines(PP, options->pencil);
