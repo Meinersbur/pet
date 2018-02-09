@@ -565,14 +565,14 @@ struct PetASTConsumer : public ASTConsumer {
 	isl_set *context_value;
 	set<ValueDecl *> live_out;
 	PragmaValueBoundsHandler *vb_handler;
-	int (*fn)(struct pet_scop *scop, void *user);
+	isl_stat (*fn)(struct pet_scop *scop, void *user);
 	void *user;
 	bool error;
 
 	PetASTConsumer(isl_ctx *ctx, Preprocessor &PP, ASTContext &ast_context,
 		DiagnosticsEngine &diags, ScopLocList &scops,
 		const char *function, pet_options *options,
-		int (*fn)(struct pet_scop *scop, void *user), void *user) :
+		isl_stat (*fn)(struct pet_scop *scop, void *user), void *user) :
 		PP(PP), ast_context(ast_context), diags(diags),
 		scops(scops), function(function), options(options),
 		ctx(ctx),
@@ -621,9 +621,12 @@ struct PetASTConsumer : public ASTConsumer {
 	 * is turned on, then skip it.
 	 */
 	void call_fn(pet_scop *scop) {
-		if (!scop)
+		if (!scop) {
+			error = true;
 			return;
+		}
 		if (diags.hasErrorOccurred()) {
+			error = true;
 			pet_scop_free(scop);
 			return;
 		}
@@ -997,7 +1000,7 @@ static void set_lang_defaults(CompilerInstance *Clang)
 static void set_invocation(CompilerInstance *Clang,
 	CompilerInvocation *invocation)
 {
-	Clang->setInvocation(std::make_shared<CompilerInvocation>(*invocation));
+	Clang->setInvocation(std::shared_ptr<CompilerInvocation>(invocation));
 }
 
 #else
@@ -1042,9 +1045,9 @@ void add_predefines(Preprocessor &PP, int pencil)
  * We first set up the clang parser and then try to extract the
  * pet_scop from the appropriate function(s) in PetASTConsumer.
  */
-static int foreach_scop_in_C_source(isl_ctx *ctx,
+static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 	const char *filename, const char *function, pet_options *options,
-	int (*fn)(struct pet_scop *scop, void *user), void *user)
+	isl_stat (*fn)(struct pet_scop *scop, void *user), void *user)
 {
 	CompilerInstance *Clang = new CompilerInstance();
 	create_diagnostics(Clang);
@@ -1080,7 +1083,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	const FileEntry *file = Clang->getFileManager().getFile(filename);
 	if (!file)
 		isl_die(ctx, isl_error_unknown, "unable to open file",
-			do { delete Clang; return -1; } while (0));
+			do { delete Clang; return isl_stat_error; } while (0));
 	create_main_file_id(Clang->getSourceManager(), file);
 
 	Clang->createASTContext();
@@ -1104,7 +1107,7 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
 	delete sema;
 	delete Clang;
 
-	return consumer.error ? -1 : 0;
+	return consumer.error ? isl_stat_error : isl_stat_ok;
 }
 
 /* Extract a pet_scop from each function in the C source file called "filename".
@@ -1114,11 +1117,11 @@ static int foreach_scop_in_C_source(isl_ctx *ctx,
  * that all objects on the stack (of that function) are destroyed before we
  * call llvm_shutdown.
  */
-static int pet_foreach_scop_in_C_source(isl_ctx *ctx,
+static isl_stat pet_foreach_scop_in_C_source(isl_ctx *ctx,
 	const char *filename, const char *function,
-	int (*fn)(struct pet_scop *scop, void *user), void *user)
+	isl_stat (*fn)(struct pet_scop *scop, void *user), void *user)
 {
-	int r;
+	isl_stat r;
 	pet_options *options;
 	bool allocated = false;
 
@@ -1143,7 +1146,7 @@ static int pet_foreach_scop_in_C_source(isl_ctx *ctx,
  * This function should therefore not be called a second call
  * so in principle there is no need to check if we have already set *user.
  */
-static int set_first_scop(pet_scop *scop, void *user)
+static isl_stat set_first_scop(pet_scop *scop, void *user)
 {
 	pet_scop **p = (pet_scop **) user;
 
@@ -1152,7 +1155,7 @@ static int set_first_scop(pet_scop *scop, void *user)
 	else
 		pet_scop_free(scop);
 
-	return -1;
+	return isl_stat_error;
 }
 
 /* Extract a pet_scop from the C source file called "filename".
@@ -1207,11 +1210,13 @@ struct pet_transform_data {
  * input file in the extended scop in case the user wants to call
  * pet_scop_print_original from the callback.
  */
-static int pet_transform(struct pet_scop *scop, void *user)
+static isl_stat pet_transform(struct pet_scop *scop, void *user)
 {
 	struct pet_transform_data *data = (struct pet_transform_data *) user;
 	unsigned start;
 
+	if (!scop)
+		return isl_stat_error;
 	start = pet_loc_get_start(scop->loc);
 	if (copy(data->in, data->out, data->end, start) < 0)
 		goto error;
@@ -1221,11 +1226,11 @@ static int pet_transform(struct pet_scop *scop, void *user)
 					pet_loc_get_indent(scop->loc));
 	data->p = data->transform(data->p, scop, data->user);
 	if (!data->p)
-		return -1;
-	return 0;
+		return isl_stat_error;
+	return isl_stat_ok;
 error:
 	pet_scop_free(scop);
-	return -1;
+	return isl_stat_error;
 }
 
 /* Transform the C source file "input" by rewriting each scop

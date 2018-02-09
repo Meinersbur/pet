@@ -148,9 +148,7 @@ __isl_give pet_expr *pet_expr_insert_arg(__isl_take pet_expr *expr, int pos,
 		pet_expr_set_arg(expr, i, pet_expr_get_arg(expr, i - 1));
 	expr = pet_expr_set_arg(expr, pos, arg);
 
-	space = isl_space_domain(isl_multi_pw_aff_get_space(expr->acc.index));
-	if (isl_space_is_wrapping(space))
-		space = isl_space_domain(isl_space_unwrap(space));
+	space = pet_expr_access_get_domain_space(expr);
 	space = isl_space_from_domain(space);
 	space = isl_space_add_dims(space, isl_dim_out, n + 1);
 
@@ -198,6 +196,7 @@ __isl_give pet_expr *pet_expr_access_project_out_arg(__isl_take pet_expr *expr,
 	int dim, int pos)
 {
 	int i, n;
+	isl_bool involves;
 	isl_space *space, *dom, *ran;
 	isl_multi_aff *ma1, *ma2;
 	enum pet_expr_access_type type;
@@ -215,8 +214,11 @@ __isl_give pet_expr *pet_expr_access_project_out_arg(__isl_take pet_expr *expr,
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"position out of bounds", return pet_expr_free(expr));
 
-	if (isl_multi_pw_aff_involves_dims(expr->acc.index,
-					isl_dim_in, dim + pos, 1))
+	involves = isl_multi_pw_aff_involves_dims(expr->acc.index,
+					isl_dim_in, dim + pos, 1);
+	if (involves < 0)
+		return pet_expr_free(expr);
+	if (involves)
 		isl_die(pet_expr_get_ctx(expr), isl_error_invalid,
 			"cannot project out", return pet_expr_free(expr));
 	space = isl_multi_pw_aff_get_domain_space(expr->acc.index);

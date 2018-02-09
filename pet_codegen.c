@@ -32,6 +32,7 @@
  */
 
 #include <assert.h>
+#include <isl/space.h>
 #include <isl/aff.h>
 #include <isl/ast_build.h>
 #include <isl/options.h>

@@ -16,7 +16,7 @@ if test "$llvm_config_found" != yes; then
 	AC_MSG_ERROR([llvm-config not found])
 fi
 CLANG_CXXFLAGS=`$llvm_config --cxxflags | \
-	$SED -e 's/-Wcovered-switch-default//'`
+	$SED -e 's/-Wcovered-switch-default//;s/-gsplit-dwarf//'`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
 CLANG_VERSION=`$llvm_config --version`
 CLANG_LIB="LLVM-$CLANG_VERSION"
@@ -78,6 +78,9 @@ AC_EGREP_HEADER([DiagnosticsEngine], [clang/Basic/Diagnostic.h],
 AC_EGREP_HEADER([ArrayRef], [clang/Driver/Driver.h],
 	[AC_DEFINE([USE_ARRAYREF], [],
 		[Define if Driver::BuildCompilation takes ArrayRef])])
+AC_EGREP_HEADER([getReturnType], [clang/AST/Decl.h], [],
+	[AC_DEFINE([getReturnType], [getResultType],
+	[Define to getResultType for older versions of clang])])
 AC_EGREP_HEADER([CXXIsProduction], [clang/Driver/Driver.h],
 	[AC_DEFINE([HAVE_CXXISPRODUCTION], [],
 		[Define if Driver constructor takes CXXIsProduction argument])])
@@ -178,6 +181,9 @@ AC_EGREP_HEADER([initializeBuiltins],
 	[clang/Basic/Builtins.h], [],
 	[AC_DEFINE([initializeBuiltins], [InitializeBuiltins],
 		[Define to InitializeBuiltins for older versions of clang])])
+AC_EGREP_HEADER([IK_C], [clang/Frontend/FrontendOptions.h], [],
+	 [AC_DEFINE([IK_C], [InputKind::C],
+	    [Define to InputKind::C for newer versions of clang])])
 AC_TRY_COMPILE([
 	#include <clang/Basic/TargetOptions.h>
 	#include <clang/Lex/PreprocessorOptions.h>

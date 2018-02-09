@@ -148,10 +148,14 @@ static __isl_give isl_id_list *extract_list_from_tuple_id(
  */
 static __isl_give isl_id_list *extract_list(__isl_keep isl_space *space)
 {
+	isl_bool is_wrapping;
 	isl_space *range;
 	isl_id_list *list;
 
-	if (!isl_space_is_wrapping(space))
+	is_wrapping = isl_space_is_wrapping(space);
+	if (is_wrapping < 0)
+		return NULL;
+	if (!is_wrapping)
 		return extract_list_from_tuple_id(space);
 	space = isl_space_unwrap(isl_space_copy(space));
 	range = isl_space_range(isl_space_copy(space));

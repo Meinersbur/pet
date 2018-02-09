@@ -21,6 +21,8 @@
 #include "summary.h"
 #include "tree.h"
 
+#include "config.h"
+
 namespace clang {
 
 #ifndef HAVE_STMTRANGE

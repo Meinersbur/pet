@@ -31,6 +31,7 @@
  * Ecole Normale Superieure.
  */
 
+#include <isl/space.h>
 #include <isl/union_set.h>
 
 #include "aff.h"
