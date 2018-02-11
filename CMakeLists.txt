@@ -13,8 +13,8 @@ else ()
 	find_package(Isl REQUIRED)
 endif()
 
-find_package(Clang REQUIRED)
-
+find_package(Clang REQUIRED CONFIG)
+find_package(yaml REQUIRED CONFIG)
 
 
 ## Platform introspection
@@ -57,11 +57,19 @@ set(libpet_sources
 	context.c
 	expr.c
 	expr_arg.c
+	expr_plus.cc
 	filter.c
+	id.cc
+	inlined_calls.cc
+	inliner.cc
+	isl_id_to_pet_expr.c
+	killed_locals.cc
 	loc.c
 	nest.c
 	options.c
 	parse.c
+	patch.c
+	pet_expr_to_isl_pw_aff.c
 	print.c
 	tree.c
 	tree2scop.c
@@ -69,10 +77,12 @@ set(libpet_sources
 	scop.c
 	scop_plus.cc
 	skip.c
+	substituter.cc
 	summary.c
 	value_bounds.c
 	version.cc
 	pet.cc
+	compat.c
 )
 
 
@@ -80,10 +90,12 @@ set(libpet_sources
 add_library(pet ${libpet_sources})
 target_include_directories(pet PRIVATE "${PET_BINARY_DIR}")
 target_include_directories(pet PUBLIC "${PET_SOURCE_DIR}/include")
-target_include_directories(pet PRIVATE ${CLANG_INCLUDE_DIRS})
+#target_include_directories(pet PRIVATE ${CLANG_INCLUDE_DIRS})
 target_include_directories(pet PUBLIC ${ISL_INCLUDE_DIR})
-target_link_libraries(pet INTERFACE ${ISL_LIBRARIES} ${CLANG_LIBRARIES} "-lyaml")
-
+target_include_directories(pet PRIVATE ${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS})
+target_link_libraries(pet INTERFACE ${ISL_LIBRARIES})
+target_link_libraries(pet PRIVATE LLVMSupport clangBasic clangAST clangBasic clangLex clangParse clangAST clangDynamicASTMatchers clangASTMatchers clangCrossTU clangSema clangCodeGen clangAnalysis clangEdit clangRewrite clangARCMigrate clangDriver clangSerialization clangRewriteFrontend clangFrontend clangFrontendTool clangToolingCore clangToolingRefactor clangToolingASTDiff clangTooling clangIndex clangStaticAnalyzerCore clangStaticAnalyzerCheckers clangStaticAnalyzerFrontend)
+target_link_libraries(pet PUBLIC yaml)
 
 function(add_pet_executable _name)
   set(_sources ${ARGN})

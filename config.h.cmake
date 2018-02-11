@@ -161,3 +161,16 @@
 
 /* Define to getFileLocWithOffset for older versions of clang */
 /* #undef getLocWithOffset */
+
+#define SETLANGDEFAULTS_TAKES_5_ARGUMENTS 1
+#define SETINVOCATION_TAKES_SHARED_PTR 1
+#define IK_C InputKind::C
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+char *strndup(const char *s, size_t n);
+#ifdef __cplusplus
+}
+#endif
