@@ -16,7 +16,9 @@ if test "$llvm_config_found" != yes; then
 	AC_MSG_ERROR([llvm-config not found])
 fi
 CLANG_CXXFLAGS=`$llvm_config --cxxflags | \
-	$SED -e 's/-Wcovered-switch-default//;s/-gsplit-dwarf//'`
+	$SED -e 's/-Wcovered-switch-default//' \
+	     -e 's/-gsplit-dwarf//' \
+	     -e 's/-Wl,--no-keep-files-mapped//'`
 CLANG_LDFLAGS=`$llvm_config --ldflags`
 CLANG_VERSION=`$llvm_config --version`
 CLANG_LIB="LLVM-$CLANG_VERSION"
