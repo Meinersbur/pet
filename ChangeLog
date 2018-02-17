@@ -1,3 +1,10 @@
+version: 0.11
+date: Sat Mar  3 11:00:19 CET 2018
+changes:
+	- support bitwise assignment operators in statements
+	- support inlining of non-outermost call expressions
+	- support return statements in summary functions
+---
 version: 0.10
 date: Sun Dec 18 11:07:36 CET 2016
 changes:
