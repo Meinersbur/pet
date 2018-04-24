@@ -31,8 +31,12 @@
  * Ecole Normale Superieure.
  */
 
+#include <isl/ctx.h>
+#include <isl/printer.h>
+#include <isl/id.h>
 #include <isl/space.h>
 #include <isl/union_set.h>
+#include <isl/union_map.h>
 
 #include "aff.h"
 #include "summary.h"
