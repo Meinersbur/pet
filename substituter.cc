@@ -32,6 +32,10 @@
  * Leiden University.
  */
 
+#include <isl/id.h>
+#include <isl/space.h>
+#include <isl/aff.h>
+
 #include "expr_arg.h"
 #include "substituter.h"
 
