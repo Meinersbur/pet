@@ -155,7 +155,7 @@ isl.py: interface/isl.py.top
 			--language=python \
 			$(DEFAULT_INCLUDES) @ISL_CFLAGS@ \
 			"@ISL_SRCDIR@/interface/all.h") \
-			> isl.py
+			> $@
 
 dist-hook: isl.py
 	cp $< $(distdir)/
