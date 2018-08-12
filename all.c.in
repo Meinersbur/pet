@@ -1,1 +1,1 @@
-#include "@ISL_SRCDIR@/interface/all.h"
+#include "@ISL_SRCDIR@/all.h"
