@@ -81,6 +81,7 @@ AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_FILES([pet_test.sh], [chmod +x pet_test.sh])
 AC_CONFIG_FILES([codegen_test.sh], [chmod +x codegen_test.sh])
+AC_CONFIG_FILES(all.c)
 if test $with_isl = bundled; then
 	AC_CONFIG_SUBDIRS(isl)
 fi

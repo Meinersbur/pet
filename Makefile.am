@@ -150,7 +150,13 @@ pet_check_code_SOURCES = \
 	pet_check_code.c
 
 if HAVE_ISL_BUILDDIR
-isl.py: interface/isl.py.top
+# dummy library that captures the dependencies on all headers
+# that are relevant for the bindings
+noinst_LIBRARIES = libdep.a
+libdep_a_CPPFLAGS = $(DEFAULT_INCLUDES) @ISL_CFLAGS@
+libdep_a_SOURCES = all.c
+
+isl.py: libdep.a interface/isl.py.top
 	(cat $(srcdir)/interface/isl.py.top && \
 		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
 			--language=python \
