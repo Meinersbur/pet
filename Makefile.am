@@ -149,6 +149,7 @@ pet_check_code_SOURCES = \
 	dummy.cc \
 	pet_check_code.c
 
+if HAVE_ISL_BUILDDIR
 isl.py: interface/isl.py.top
 	(cat $(srcdir)/interface/isl.py.top && \
 		@ISL_BUILDDIR@/interface/extract_interface$(EXEEXT) \
@@ -156,6 +157,7 @@ isl.py: interface/isl.py.top
 			$(DEFAULT_INCLUDES) @ISL_CFLAGS@ \
 			"@ISL_SRCDIR@/interface/all.h") \
 			> $@ || (rm $@ && false)
+endif
 
 dist-hook: isl.py
 	cp $< $(distdir)/
