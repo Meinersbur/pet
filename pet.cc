@@ -766,7 +766,7 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 	virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
 					const DiagnosticInfo &info) {
 		if (info.getID() == diag::ext_implicit_function_decl &&
-		    info.getNumArgs() == 1 &&
+		    info.getNumArgs() >= 1 &&
 		    info.getArgKind(0) == DiagnosticsEngine::ak_identifierinfo &&
 		    is_implicit(info.getArgIdentifier(0), pencil))
 			/* ignore warning */;
