@@ -709,6 +709,8 @@ struct PetASTConsumer : public ASTConsumer {
 					    isl_union_map_copy(vb),
 					    independent);
 				scop = ps.scan(fd);
+				if (!scop)
+					continue;
 				call_fn(scop);
 				continue;
 			}
