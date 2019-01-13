@@ -37,7 +37,7 @@ Preparing:
 
 Grab the latest release and extract it or get the source from
 the git repository as follows.  This process requires autoconf,
-automake and libtool.
+automake, libtool and pkg-config.
 
 	git clone git://repo.or.cz/pet.git
 	cd pet
