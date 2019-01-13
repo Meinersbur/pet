@@ -219,6 +219,9 @@ AC_TRY_COMPILE([
 ],
 	[AC_DEFINE([HAVE_BEGIN_END_LOC], [],
 		[Define if getBeginLoc and getEndLoc should be used])])
+AC_CHECK_HEADER([llvm/Option/Arg.h],
+	[AC_DEFINE([HAVE_LLVM_OPTION_ARG_H], [],
+		   [Define if llvm/Option/Arg.h exists])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

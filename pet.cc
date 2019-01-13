@@ -43,6 +43,9 @@
 #else
 #include <memory>
 #endif
+#ifdef HAVE_LLVM_OPTION_ARG_H
+#include <llvm/Option/Arg.h>
+#endif
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/Host.h>
@@ -101,6 +104,9 @@
 using namespace std;
 using namespace clang;
 using namespace clang::driver;
+#ifdef HAVE_LLVM_OPTION_ARG_H
+using namespace llvm::opt;
+#endif
 
 #ifdef HAVE_ADT_OWNINGPTR_H
 #define unique_ptr	llvm::OwningPtr
