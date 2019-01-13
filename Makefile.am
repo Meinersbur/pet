@@ -53,6 +53,7 @@ libpet_la_SOURCES = \
 	aff.c \
 	array.h \
 	array.c \
+	clang_compatibility.h \
 	clang.h \
 	clang.cc \
 	context.h \

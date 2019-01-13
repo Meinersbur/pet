@@ -34,6 +34,7 @@
 #include "config.h"
 
 #include "clang.h"
+#include "clang_compatibility.h"
 #include "killed_locals.h"
 
 using namespace std;
@@ -89,7 +90,7 @@ void pet_killed_locals::add_locals(DeclStmt *stmt)
  */
 void pet_killed_locals::set_addr_end(UnaryOperator *expr)
 {
-	addr_end = getExpansionOffset(SM, expr->getLocEnd());
+	addr_end = getExpansionOffset(SM, end_loc(expr));
 }
 
 /* Given an expression of type ArraySubscriptExpr or DeclRefExpr,
@@ -139,11 +140,11 @@ bool pet_killed_locals::check_decl_in_expr(Expr *expr)
 	decl = ref->getDecl();
 	if (locals.find(decl) == locals.end())
 		return true;
-	loc = getExpansionOffset(SM, expr->getLocStart());
+	loc = getExpansionOffset(SM, begin_loc(expr));
 	if (loc <= expr_end)
 		return true;
 
-	expr_end = getExpansionOffset(SM, ref->getLocEnd());
+	expr_end = getExpansionOffset(SM, end_loc(ref));
 	depth = pet_clang_array_depth(expr->getType());
 	if (loc >= scop_end || loc <= old_addr_end || depth != 0)
 		locals.erase(decl);

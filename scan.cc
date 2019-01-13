@@ -55,6 +55,7 @@
 
 #include "aff.h"
 #include "array.h"
+#include "clang_compatibility.h"
 #include "clang.h"
 #include "context.h"
 #include "expr.h"
@@ -2236,10 +2237,10 @@ __isl_give pet_tree *PetScan::extract(StmtRange stmt_range, bool block,
 		if (options->autodetect) {
 			if (tree_i) {
 				range_end = getExpansionOffset(SM,
-							child->getLocEnd());
+							end_loc(child));
 				if (pet_tree_block_n_child(tree) == 0)
 					range_start = getExpansionOffset(SM,
-							child->getLocStart());
+							begin_loc(child));
 				tree = pet_tree_block_add_child(tree, tree_i);
 			} else {
 				partial_range = true;
@@ -2547,8 +2548,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	unsigned start_off, end_off;
 	pet_tree *tree;
 
-	start_off = getExpansionOffset(SM, stmt->getLocStart());
-	end_off = getExpansionOffset(SM, stmt->getLocEnd());
+	start_off = getExpansionOffset(SM, begin_loc(stmt));
+	end_off = getExpansionOffset(SM, end_loc(stmt));
 
 	if (start_off > loc.end)
 		return NULL;
@@ -2564,8 +2565,8 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 		Stmt *child = *start;
 		if (!child)
 			continue;
-		start_off = getExpansionOffset(SM, child->getLocStart());
-		end_off = getExpansionOffset(SM, child->getLocEnd());
+		start_off = getExpansionOffset(SM, begin_loc(child));
+		end_off = getExpansionOffset(SM, end_loc(child));
 		if (start_off < loc.start && end_off >= loc.end)
 			return scan(child);
 		if (start_off >= loc.start)
@@ -2581,7 +2582,7 @@ struct pet_scop *PetScan::scan(Stmt *stmt)
 	StmtIterator end;
 	for (end = start; end != stmt->child_end(); ++end) {
 		Stmt *child = *end;
-		start_off = SM.getFileOffset(child->getLocStart());
+		start_off = SM.getFileOffset(begin_loc(child));
 		if (start_off >= loc.end)
 			break;
 	}
@@ -3330,7 +3331,7 @@ struct pet_scop *PetScan::scan(FunctionDecl *fd)
  */
 void PetScan::set_current_stmt(Stmt *stmt)
 {
-	SourceLocation loc = stmt->getLocStart();
+	SourceLocation loc = begin_loc(stmt);
 	SourceManager &SM = PP.getSourceManager();
 
 	last_line = current_line;

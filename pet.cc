@@ -90,6 +90,7 @@
 
 #include <pet.h>
 
+#include "clang_compatibility.h"
 #include "id.h"
 #include "options.h"
 #include "scan.h"
@@ -661,8 +662,8 @@ struct PetASTConsumer : public ASTConsumer {
 		if (scops.list.size() == 0)
 			return;
 
-		start = SM.getFileOffset(fd->getLocStart());
-		end = SM.getFileOffset(fd->getLocEnd());
+		start = SM.getFileOffset(begin_loc(fd));
+		end = SM.getFileOffset(end_loc(fd));
 
 		for (it = scops.list.begin(); it != scops.list.end(); ++it) {
 			ScopLoc loc = *it;

@@ -210,6 +210,15 @@ AC_TRY_COMPILE([
 	Clang->setInvocation(std::make_shared<CompilerInvocation>(*invocation));
 ], [AC_DEFINE([SETINVOCATION_TAKES_SHARED_PTR], [],
 	[Defined if CompilerInstance::setInvocation takes a shared_ptr])])
+AC_TRY_COMPILE([
+	#include <clang/AST/Decl.h>
+], [
+	clang::FunctionDecl *fd;
+	fd->getBeginLoc();
+	fd->getEndLoc();
+],
+	[AC_DEFINE([HAVE_BEGIN_END_LOC], [],
+		[Define if getBeginLoc and getEndLoc should be used])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
