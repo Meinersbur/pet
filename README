@@ -32,6 +32,7 @@ Requirements:
 	If you want to use the ubuntu package libclang-dev, then you need
 	version 3.2 (ubuntu raring) or later.
 	Older versions of this package did not include the required libraries.
+	You may also need to install the llvm package for llvm-config.
 
 Preparing:
 
