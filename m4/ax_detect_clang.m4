@@ -222,6 +222,10 @@ AC_TRY_COMPILE([
 AC_CHECK_HEADER([llvm/Option/Arg.h],
 	[AC_DEFINE([HAVE_LLVM_OPTION_ARG_H], [],
 		   [Define if llvm/Option/Arg.h exists])])
+AC_EGREP_HEADER([PragmaIntroducer ],
+	[clang/Lex/Pragma.h], [],
+	[AC_DEFINE([PragmaIntroducer], [PragmaIntroducerKind],
+		[Define to PragmaIntroducerKind for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

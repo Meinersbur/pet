@@ -166,7 +166,7 @@ struct PragmaValueBoundsHandler : public PragmaHandler {
 	}
 
 	virtual void HandlePragma(Preprocessor &PP,
-				  PragmaIntroducerKind Introducer,
+				  PragmaIntroducer Introducer,
 				  Token &ScopTok) {
 		isl_id *id;
 		isl_space *dim;
@@ -270,7 +270,7 @@ struct PragmaParameterHandler : public PragmaHandler {
 		context_value(context_value) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
-				  PragmaIntroducerKind Introducer,
+				  PragmaIntroducer Introducer,
 				  Token &ScopTok) {
 		isl_id *id;
 		isl_ctx *ctx = isl_set_get_ctx(context);
@@ -335,7 +335,7 @@ struct PragmaPencilHandler : public PragmaHandler {
 		PragmaHandler("pencil"), independent(independent) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
-				  PragmaIntroducerKind Introducer,
+				  PragmaIntroducer Introducer,
 				  Token &PencilTok) {
 		Token token;
 		IdentifierInfo *info;
@@ -435,7 +435,7 @@ struct PragmaScopHandler : public PragmaHandler {
 		PragmaHandler("scop"), scops(scops) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
-				  PragmaIntroducerKind Introducer,
+				  PragmaIntroducer Introducer,
 				  Token &ScopTok) {
 		SourceManager &SM = PP.getSourceManager();
 		SourceLocation sloc = ScopTok.getLocation();
@@ -457,7 +457,7 @@ struct PragmaEndScopHandler : public PragmaHandler {
 		PragmaHandler("endscop"), scops(scops) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
-				  PragmaIntroducerKind Introducer,
+				  PragmaIntroducer Introducer,
 				  Token &EndScopTok) {
 		SourceManager &SM = PP.getSourceManager();
 		SourceLocation sloc = EndScopTok.getLocation();
@@ -479,7 +479,7 @@ struct PragmaLiveOutHandler : public PragmaHandler {
 		PragmaHandler("live"), sema(sema), live_out(live_out) {}
 
 	virtual void HandlePragma(Preprocessor &PP,
-				  PragmaIntroducerKind Introducer,
+				  PragmaIntroducer Introducer,
 				  Token &ScopTok) {
 		Token token;
 
