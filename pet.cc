@@ -1022,6 +1022,44 @@ static void set_invocation(CompilerInstance *Clang,
 
 #endif
 
+/* Helper function for ignore_error that only gets enabled if T
+ * (which is either const FileEntry * or llvm::ErrorOr<const FileEntry *>)
+ * has getError method, i.e., if it is llvm::ErrorOr<const FileEntry *>.
+ */
+template <class T>
+static const FileEntry *ignore_error_helper(const T obj, int,
+	int[1][sizeof(obj.getError())])
+{
+	return *obj;
+}
+
+/* Helper function for ignore_error that is always enabled,
+ * but that only gets selected if the variant above is not enabled,
+ * i.e., if T is const FileEntry *.
+ */
+template <class T>
+static const FileEntry *ignore_error_helper(const T obj, long, void *)
+{
+	return obj;
+}
+
+/* Given either a const FileEntry * or a llvm::ErrorOr<const FileEntry *>,
+ * extract out the const FileEntry *.
+ */
+template <class T>
+static const FileEntry *ignore_error(const T obj)
+{
+	return ignore_error_helper(obj, 0, NULL);
+}
+
+/* Return the FileEntry corresponding to the given file name
+ * in the given compiler instances, ignoring any error.
+ */
+static const FileEntry *getFile(CompilerInstance *Clang, std::string Filename)
+{
+	return ignore_error(Clang->getFileManager().getFile(Filename));
+}
+
 /* Add pet specific predefines to the preprocessor.
  * Currently, these are all pencil specific, so they are only
  * added if "pencil" is set.
@@ -1086,7 +1124,7 @@ static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 
 	ScopLocList scops;
 
-	const FileEntry *file = Clang->getFileManager().getFile(filename);
+	const FileEntry *file = getFile(Clang, filename);
 	if (!file)
 		isl_die(ctx, isl_error_unknown, "unable to open file",
 			do { delete Clang; return isl_stat_error; } while (0));
