@@ -70,7 +70,11 @@
 #else
 #include <clang/Frontend/HeaderSearchOptions.h>
 #endif
+#ifdef HAVE_CLANG_BASIC_LANGSTANDARD_H
+#include <clang/Basic/LangStandard.h>
+#else
 #include <clang/Frontend/LangStandard.h>
+#endif
 #ifdef HAVE_LEX_PREPROCESSOROPTIONS_H
 #include <clang/Lex/PreprocessorOptions.h>
 #else

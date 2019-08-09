@@ -226,6 +226,9 @@ AC_EGREP_HEADER([PragmaIntroducer ],
 	[clang/Lex/Pragma.h], [],
 	[AC_DEFINE([PragmaIntroducer], [PragmaIntroducerKind],
 		[Define to PragmaIntroducerKind for older versions of clang])])
+AC_CHECK_HEADER([clang/Basic/LangStandard.h],
+	[AC_DEFINE([HAVE_CLANG_BASIC_LANGSTANDARD_H], [],
+		   [Define if clang/Basic/LangStandard.h exists])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
