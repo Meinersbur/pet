@@ -33,6 +33,7 @@
  */ 
 
 #include "config.h"
+#undef PACKAGE
 
 #include <stdlib.h>
 #include <map>
