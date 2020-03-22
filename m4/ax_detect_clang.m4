@@ -35,10 +35,12 @@ if test "$have_lib_llvm" = yes; then
 else
 	targets=`$LLVM_CONFIG --targets-built`
 	components="$targets asmparser bitreader support mc"
-	$LLVM_CONFIG --components | $GREP option > /dev/null 2> /dev/null
-	if test $? -eq 0; then
-		components="$components option"
-	fi
+	for c in option frontendopenmp; do
+		$LLVM_CONFIG --components | $GREP $c > /dev/null 2> /dev/null
+		if test $? -eq 0; then
+			components="$components $c"
+		fi
+	done
 	CLANG_LIBS=`$LLVM_CONFIG --libs $components`
 fi
 systemlibs=`$LLVM_CONFIG --system-libs 2> /dev/null | tail -1`
