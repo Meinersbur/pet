@@ -1,10 +1,10 @@
-AC_INIT([pet], [0.11.3], [isl-development@googlegroups.com])
+AC_INIT([pet], [0.11.4], [isl-development@googlegroups.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 AC_SUBST(versioninfo)
-versioninfo=10:3:0
+versioninfo=10:4:0
 
 AC_PROG_CC
 AC_PROG_CXX
