@@ -77,10 +77,10 @@ satisfy the requirements is considered to lie outside of the scop.
 The layout of pet_scop is documented in include/pet.h.
 
 
-New releases are announced on http://freecode.com/projects/libpet
+New releases are announced on http://groups.google.com/group/isl-announce
 
 If you use pet, you can let me know by stacking
-https://www.ohloh.net/p/libpet on ohloh.
+https://www.openhub.net/p/libpet on ohloh.
 
 For bug reports, feature requests and questions,
 contact isl-development@googlegroups.com
