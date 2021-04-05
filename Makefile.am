@@ -102,6 +102,7 @@ libpet_la_SOURCES = \
 	scop_plus.cc \
 	skip.h \
 	skip.c \
+	set_lang_defaults_arg4.h \
 	state.h \
 	substituter.h \
 	substituter.cc \
