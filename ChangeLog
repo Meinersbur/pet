@@ -1,3 +1,8 @@
+version: 0.11.5
+date: Sun 25 Apr 2021 06:47:59 PM CEST
+changes:
+	- support recent versions of clang
+---
 version: 0.11.4
 date: Sun 01 Nov 2020 03:06:38 PM CET
 changes:
