@@ -892,26 +892,6 @@ int pet_expr_is_scalar_access(__isl_keep pet_expr *expr)
 	return expr->acc.depth == 0;
 }
 
-/* Are "mpa1" and "mpa2" obviously equal to each other, up to reordering
- * of parameters.
- */
-static int multi_pw_aff_is_equal(__isl_keep isl_multi_pw_aff *mpa1,
-	__isl_keep isl_multi_pw_aff *mpa2)
-{
-	int equal;
-
-	equal = isl_multi_pw_aff_plain_is_equal(mpa1, mpa2);
-	if (equal < 0 || equal)
-		return equal;
-	mpa2 = isl_multi_pw_aff_copy(mpa2);
-	mpa2 = isl_multi_pw_aff_align_params(mpa2,
-					isl_multi_pw_aff_get_space(mpa1));
-	equal = isl_multi_pw_aff_plain_is_equal(mpa1, mpa2);
-	isl_multi_pw_aff_free(mpa2);
-
-	return equal;
-}
-
 /* Construct an access relation from the index expression and
  * the array depth of the access expression "expr".
  *
@@ -1098,7 +1078,8 @@ int pet_expr_is_equal(__isl_keep pet_expr *expr1, __isl_keep pet_expr *expr2)
 			return 0;
 		if (!expr1->acc.index || !expr2->acc.index)
 			return 0;
-		if (!multi_pw_aff_is_equal(expr1->acc.index, expr2->acc.index))
+		if (!isl_multi_pw_aff_is_equal(expr1->acc.index,
+						expr2->acc.index))
 			return 0;
 		if (expr1->acc.depth != expr2->acc.depth)
 			return 0;
