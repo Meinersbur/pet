@@ -37,7 +37,9 @@ class scop:
     @staticmethod
     def extract_from_C_source(filename, function):
         ctx = isl.Context.getDefaultInstance()
-        res = pet.pet_scop_extract_from_C_source(ctx, filename, function)
+        filename_s = filename.encode('ascii')
+        function_s = function.encode('ascii')
+        res = pet.pet_scop_extract_from_C_source(ctx, filename_s, function_s)
         return scop(ctx=ctx, ptr=res, filename=filename, function=function)
     def get_instance_set(self):
         return isl.union_set(ctx=self.ctx,
