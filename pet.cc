@@ -49,6 +49,7 @@
 #endif
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/ManagedStatic.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Host.h>
 #include <clang/Basic/Version.h>
 #include <clang/Basic/Builtins.h>
@@ -1089,6 +1090,24 @@ static const FileEntry *getFile(CompilerInstance *Clang, std::string Filename)
 	return ignore_error(Clang->getFileManager().getFile(Filename));
 }
 
+/* Return the ownership of "buffer".
+ *
+ * If "buffer" is a pointer, simply return the pointer.
+ * If "buffer" is a std::unique_ptr, call release() on it.
+ * Note that std::unique_ptr was not being used back when clang
+ * was still using llvm::OwningPtr.
+ */
+static llvm::MemoryBuffer *release(llvm::MemoryBuffer *buffer)
+{
+	return buffer;
+}
+#ifndef HAVE_ADT_OWNINGPTR_H
+static llvm::MemoryBuffer *release(std::unique_ptr<llvm::MemoryBuffer> buffer)
+{
+	return buffer.release();
+}
+#endif
+
 /* Pencil specific predefines.
  */
 static const char *pencil_predefines =
@@ -1099,20 +1118,17 @@ static const char *pencil_predefines =
  * Currently, these are all pencil specific, so they are only
  * added if "pencil" is set.
  *
- * We mimic the way <command line> is handled inside clang.
+ * Include a special "/pet" header and ensure it gets replaced
+ * by "pencil_predefines" by mapping the "/pet" file to a memory buffer.
  */
-static void add_predefines(Preprocessor &PP, int pencil)
+static void add_predefines(PreprocessorOptions &PO, int pencil)
 {
-	string s;
-
 	if (!pencil)
 		return;
 
-	s = PP.getPredefines();
-	s += "# 1 \"<pet>\" 1\n";
-	s += pencil_predefines;
-	s += "# 1 \"<built-in>\" 2\n";
-	PP.setPredefines(s);
+	PO.Includes.push_back("/pet");
+	PO.addRemappedFile("/pet",
+		release(llvm::MemoryBuffer::getMemBuffer(pencil_predefines)));
 }
 
 /* Do not treat implicit function declaration warnings as errors.
@@ -1169,9 +1185,9 @@ static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 	PreprocessorOptions &PO = Clang->getPreprocessorOpts();
 	for (int i = 0; i < options->n_define; ++i)
 		PO.addMacroDef(options->defines[i]);
+	add_predefines(PO, options->pencil);
 	create_preprocessor(Clang);
 	Preprocessor &PP = Clang->getPreprocessor();
-	add_predefines(PP, options->pencil);
 	PP.getBuiltinInfo().initializeBuiltins(PP.getIdentifierTable(),
 		PP.getLangOpts());
 
