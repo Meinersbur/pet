@@ -1089,6 +1089,12 @@ static const FileEntry *getFile(CompilerInstance *Clang, std::string Filename)
 	return ignore_error(Clang->getFileManager().getFile(Filename));
 }
 
+/* Pencil specific predefines.
+ */
+static const char *pencil_predefines =
+	"void __pencil_assume(int assumption);\n"
+	"#define pencil_access(f) annotate(\"pencil_access(\" #f \")\")\n";
+
 /* Add pet specific predefines to the preprocessor.
  * Currently, these are all pencil specific, so they are only
  * added if "pencil" is set.
@@ -1103,10 +1109,9 @@ static void add_predefines(Preprocessor &PP, int pencil)
 		return;
 
 	s = PP.getPredefines();
-	s += "# 1 \"<pet>\" 1\n"
-	     "void __pencil_assume(int assumption);\n"
-	     "#define pencil_access(f) annotate(\"pencil_access(\" #f \")\")\n"
-	     "# 1 \"<built-in>\" 2\n";
+	s += "# 1 \"<pet>\" 1\n";
+	s += pencil_predefines;
+	s += "# 1 \"<built-in>\" 2\n";
 	PP.setPredefines(s);
 }
 
