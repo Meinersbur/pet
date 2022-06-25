@@ -94,11 +94,11 @@ AC_EGREP_HEADER([CXXIsProduction], [clang/Driver/Driver.h],
 AC_EGREP_HEADER([ IsProduction], [clang/Driver/Driver.h],
 	[AC_DEFINE([HAVE_ISPRODUCTION], [],
 		[Define if Driver constructor takes IsProduction argument])])
-AC_TRY_COMPILE([#include <clang/Driver/Driver.h>], [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <clang/Driver/Driver.h>]], [[
 	using namespace clang;
 	DiagnosticsEngine *Diags;
 	new driver::Driver("", "", "", *Diags);
-], [AC_DEFINE([DRIVER_CTOR_TAKES_DEFAULTIMAGENAME], [],
+]])], [AC_DEFINE([DRIVER_CTOR_TAKES_DEFAULTIMAGENAME], [],
 	      [Define if Driver constructor takes default image name])])
 AC_EGREP_HEADER([void HandleTopLevelDecl\(], [clang/AST/ASTConsumer.h],
 	[AC_DEFINE([HandleTopLevelDeclReturn], [void],
@@ -120,19 +120,19 @@ AC_CHECK_HEADER([clang/Lex/PreprocessorOptions.h],
 	[AC_DEFINE([HAVE_LEX_PREPROCESSOROPTIONS_H], [],
 		   [Define if clang/Lex/PreprocessorOptions.h exists])], [],
 	[#include <clang/Basic/LLVM.h>])
-AC_TRY_COMPILE([#include <clang/Basic/TargetInfo.h>], [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <clang/Basic/TargetInfo.h>]], [[
 	using namespace clang;
 	std::shared_ptr<TargetOptions> TO;
 	DiagnosticsEngine *Diags;
 	TargetInfo::CreateTargetInfo(*Diags, TO);
-], [AC_DEFINE([CREATETARGETINFO_TAKES_SHARED_PTR], [],
+]])], [AC_DEFINE([CREATETARGETINFO_TAKES_SHARED_PTR], [],
 	      [Define if TargetInfo::CreateTargetInfo takes shared_ptr])])
-AC_TRY_COMPILE([#include <clang/Basic/TargetInfo.h>], [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <clang/Basic/TargetInfo.h>]], [[
 	using namespace clang;
 	TargetOptions *TO;
 	DiagnosticsEngine *Diags;
 	TargetInfo::CreateTargetInfo(*Diags, TO);
-], [AC_DEFINE([CREATETARGETINFO_TAKES_POINTER], [],
+]])], [AC_DEFINE([CREATETARGETINFO_TAKES_POINTER], [],
 	      [Define if TargetInfo::CreateTargetInfo takes pointer])])
 AC_EGREP_HEADER([getLangOpts], [clang/Lex/Preprocessor.h], [],
 	[AC_DEFINE([getLangOpts], [getLangOptions],
@@ -143,27 +143,30 @@ AC_EGREP_HEADER([findLocationAfterToken], [clang/Lex/Lexer.h],
 AC_EGREP_HEADER([translateLineCol], [clang/Basic/SourceManager.h],
 	[AC_DEFINE([HAVE_TRANSLATELINECOL], [],
 	[Define if SourceManager has translateLineCol method])])
-AC_TRY_COMPILE([#include <clang/Frontend/CompilerInstance.h>], [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+		[[#include <clang/Frontend/CompilerInstance.h>]], [[
 	using namespace clang;
 	DiagnosticConsumer *client;
 	CompilerInstance *Clang;
 	Clang->createDiagnostics(client);
-], [], [AC_DEFINE([CREATEDIAGNOSTICS_TAKES_ARG], [],
+]])], [], [AC_DEFINE([CREATEDIAGNOSTICS_TAKES_ARG], [],
 	[Define if CompilerInstance::createDiagnostics takes argc and argv])])
-AC_TRY_COMPILE([#include <clang/Lex/HeaderSearchOptions.h>], [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+		[[#include <clang/Lex/HeaderSearchOptions.h>]], [[
 	using namespace clang;
 	HeaderSearchOptions HSO;
 	HSO.AddPath("", frontend::Angled, false, false);
-], [AC_DEFINE([ADDPATH_TAKES_4_ARGUMENTS], [],
+]])], [AC_DEFINE([ADDPATH_TAKES_4_ARGUMENTS], [],
 	[Define if HeaderSearchOptions::AddPath takes 4 arguments])])
 AC_EGREP_HEADER([getLocWithOffset], [clang/Basic/SourceLocation.h], [],
 	[AC_DEFINE([getLocWithOffset], [getFileLocWithOffset],
 	[Define to getFileLocWithOffset for older versions of clang])])
-AC_TRY_COMPILE([#include <clang/Frontend/CompilerInstance.h>], [
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+		[[#include <clang/Frontend/CompilerInstance.h>]], [[
 	using namespace clang;
 	CompilerInstance *Clang;
 	Clang->createPreprocessor(TU_Complete);
-], [AC_DEFINE([CREATEPREPROCESSOR_TAKES_TUKIND], [],
+]])], [AC_DEFINE([CREATEPREPROCESSOR_TAKES_TUKIND], [],
 [Define if CompilerInstance::createPreprocessor takes TranslationUnitKind])])
 AC_EGREP_HEADER([DecayedType], [clang/AST/Type.h],
 	[AC_DEFINE([HAVE_DECAYEDTYPE], [], [Define if DecayedType is defined])])
@@ -194,13 +197,13 @@ AC_EGREP_HEADER([IK_C], [clang/Frontend/FrontendOptions.h], [],
 	 AC_DEFINE_UNQUOTED([IK_C], [$IK_C],
 	 [Define to Language::C or InputKind::C for newer versions of clang])
 	])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 	#include <clang/Basic/TargetOptions.h>
 	#include <clang/Lex/PreprocessorOptions.h>
 	#include <clang/Frontend/CompilerInstance.h>
 
 	#include "set_lang_defaults_arg4.h"
-], [
+]], [[
 	using namespace clang;
 	CompilerInstance *Clang;
 	TargetOptions TO;
@@ -209,25 +212,25 @@ AC_TRY_COMPILE([
 	CompilerInvocation::setLangDefaults(Clang->getLangOpts(), IK_C,
 			T, setLangDefaultsArg4(PO),
 			LangStandard::lang_unspecified);
-], [AC_DEFINE([SETLANGDEFAULTS_TAKES_5_ARGUMENTS], [],
+]])], [AC_DEFINE([SETLANGDEFAULTS_TAKES_5_ARGUMENTS], [],
 	[Define if CompilerInvocation::setLangDefaults takes 5 arguments])])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 	#include <clang/Frontend/CompilerInstance.h>
 	#include <clang/Frontend/CompilerInvocation.h>
-], [
+]], [[
 	using namespace clang;
 	CompilerInvocation *invocation;
 	CompilerInstance *Clang;
 	Clang->setInvocation(std::make_shared<CompilerInvocation>(*invocation));
-], [AC_DEFINE([SETINVOCATION_TAKES_SHARED_PTR], [],
+]])], [AC_DEFINE([SETINVOCATION_TAKES_SHARED_PTR], [],
 	[Defined if CompilerInstance::setInvocation takes a shared_ptr])])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 	#include <clang/AST/Decl.h>
-], [
+]], [[
 	clang::FunctionDecl *fd;
 	fd->getBeginLoc();
 	fd->getEndLoc();
-],
+]])],
 	[AC_DEFINE([HAVE_BEGIN_END_LOC], [],
 		[Define if getBeginLoc and getEndLoc should be used])])
 AC_CHECK_HEADER([llvm/Option/Arg.h],
