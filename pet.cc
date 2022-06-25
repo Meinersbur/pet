@@ -780,7 +780,7 @@ struct MyDiagnosticPrinter : public TextDiagnosticPrinter {
 #endif
 	virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
 					const DiagnosticInfo &info) {
-		if (info.getID() == diag::ext_implicit_function_decl &&
+		if (info.getID() == diag::ext_implicit_function_decl_c99 &&
 		    info.getNumArgs() >= 1 &&
 		    info.getArgKind(0) == DiagnosticsEngine::ak_identifierinfo &&
 		    is_implicit(info.getArgIdentifier(0), pencil))

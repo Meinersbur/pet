@@ -253,6 +253,12 @@ AC_EGREP_HEADER([setDiagnosticGroupWarningAsError], [clang/Basic/Diagnostic.h],
 	[AC_DEFINE([HAVE_SET_DIAGNOSTIC_GROUP_WARNING_AS_ERROR], [],
 	[Define if DiagnosticsEngine::setDiagnosticGroupWarningAsError \
 	is available])])
+# llvmorg-15-init-8223-g7d644e1215b3
+AC_EGREP_HEADER([ext_implicit_function_decl_c99],
+		[clang/Basic/DiagnosticCategories.h], [],
+	[AC_DEFINE([ext_implicit_function_decl_c99],
+	[ext_implicit_function_decl],
+	[Define to ext_implicit_function_decl for older versions of clang])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 
