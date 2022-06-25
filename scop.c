@@ -3034,10 +3034,21 @@ error:
 
 /* Compute the gist of the extent of the array
  * based on the constraints on the parameters specified by "context".
+ *
+ * If "context" is empty then do not perform the gist
+ * since that would drop any information about the extent.
  */
 static struct pet_array *array_gist(struct pet_array *array,
 	__isl_keep isl_set *context)
 {
+	isl_bool empty;
+
+	empty = isl_set_is_empty(context);
+	if (empty < 0)
+		return pet_array_free(array);
+	if (empty)
+		return array;
+
 	if (!array)
 		return NULL;
 

@@ -1,0 +1,42 @@
+start: 24
+end: 98
+indent: "\t"
+context: '{  : false }'
+schedule: '{ domain: "{ S_1[]; S_0[i] }", child: { sequence: [ { filter: "{ S_0[i]
+  }", child: { schedule: "L_0[{ S_0[i] -> [(i)] }]" } }, { filter: "{ S_1[] }" } ]
+  } }'
+arrays:
+- context: '{  :  }'
+  extent: '{ A[i0] : 0 <= i0 <= 99 }'
+  element_type: int
+  element_size: 4
+statements:
+- line: 6
+  domain: '{ S_0[i] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: =
+      arguments:
+      - type: access
+        index: '{ S_0[i] -> A[(0 : false)] }'
+        reference: __pet_ref_0
+        read: 0
+        write: 1
+      - type: int
+        value: 0
+- line: -1
+  domain: '{ S_1[] }'
+  body:
+    type: expression
+    expr:
+      type: op
+      operation: kill
+      arguments:
+      - type: access
+        killed: '{  }'
+        index: '{ S_1[] -> A[] }'
+        depth: 1
+        reference: __pet_ref_1
+        kill: 1
