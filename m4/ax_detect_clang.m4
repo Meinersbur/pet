@@ -249,6 +249,10 @@ AC_EGREP_HEADER([PragmaIntroducer ],
 AC_CHECK_HEADER([clang/Basic/LangStandard.h],
 	[AC_DEFINE([HAVE_CLANG_BASIC_LANGSTANDARD_H], [],
 		   [Define if clang/Basic/LangStandard.h exists])])
+AC_EGREP_HEADER([setDiagnosticGroupWarningAsError], [clang/Basic/Diagnostic.h],
+	[AC_DEFINE([HAVE_SET_DIAGNOSTIC_GROUP_WARNING_AS_ERROR], [],
+	[Define if DiagnosticsEngine::setDiagnosticGroupWarningAsError \
+	is available])])
 AC_LANG_POP
 CPPFLAGS="$SAVE_CPPFLAGS"
 

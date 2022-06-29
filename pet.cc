@@ -1110,6 +1110,24 @@ void add_predefines(Preprocessor &PP, int pencil)
 	PP.setPredefines(s);
 }
 
+/* Do not treat implicit function declaration warnings as errors.
+ *
+ * Only do this if DiagnosticsEngine::setDiagnosticGroupWarningAsError
+ * is available.  In earlier versions of clang, these warnings
+ * are not treated as errors by default.
+ */
+#ifdef HAVE_SET_DIAGNOSTIC_GROUP_WARNING_AS_ERROR
+static void set_implicit_function_declaration_no_error(DiagnosticsEngine &Diags)
+{
+	Diags.setDiagnosticGroupWarningAsError("implicit-function-declaration",
+		false);
+}
+#else
+static void set_implicit_function_declaration_no_error(DiagnosticsEngine &Diags)
+{
+}
+#endif
+
 /* Extract a pet_scop from each function in the C source file called "filename".
  * Each detected scop is passed to "fn".
  * If "function" is not NULL, only extract a pet_scop from the function
@@ -1129,6 +1147,7 @@ static isl_stat foreach_scop_in_C_source(isl_ctx *ctx,
 	create_diagnostics(Clang);
 	DiagnosticsEngine &Diags = Clang->getDiagnostics();
 	Diags.setSuppressSystemWarnings(true);
+	set_implicit_function_declaration_no_error(Diags);
 	TargetInfo *target = create_target_info(Clang, Diags);
 	Clang->setTarget(target);
 	set_lang_defaults(Clang);
