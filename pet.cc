@@ -1095,7 +1095,7 @@ static const FileEntry *getFile(CompilerInstance *Clang, std::string Filename)
  *
  * We mimic the way <command line> is handled inside clang.
  */
-void add_predefines(Preprocessor &PP, int pencil)
+static void add_predefines(Preprocessor &PP, int pencil)
 {
 	string s;
 
